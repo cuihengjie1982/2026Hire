@@ -1,0 +1,317 @@
+import {supabase} from '../../shared/lib/supabase';
+import {getItemsFromPayload, getValueFromPayload, invokeEdgeFunction} from '../../shared/lib/apiClient';
+import {USE_MOCK_API, getUserName} from '../../shared/lib/runtime';
+import {type CreatePositionInput, type PositionDetail, type PositionSummary, type UpdatePositionInput, type ScoringRule, type GradeRule, type BaseScoreConfig, type ProfileRule} from './types';
+
+let positionsData: PositionSummary[] = [];
+
+// In-memory store for position details (mock mode)
+let positionDetailsMap: Record<string, PositionDetail> = {};
+
+const mapPositionSummary = (raw: Record<string, unknown>): PositionSummary => ({
+  id: String(raw.id ?? ''),
+  code: String(raw.code ?? ''),
+  name: String(raw.name ?? ''),
+  category: String(raw.category ?? ''),
+  status: (raw.status === 'inactive' ? 'inactive' : 'active'),
+  projectId: typeof raw.project_id === 'string' ? raw.project_id : typeof raw.projectId === 'string' ? raw.projectId : '',
+  description: typeof raw.description === 'string' ? raw.description : '',
+  requiredCount: typeof raw.required_count === 'number' ? raw.required_count : typeof raw.requiredCount === 'number' ? raw.requiredCount : undefined,
+  deliveryDays: typeof raw.delivery_days === 'number' ? raw.delivery_days : typeof raw.deliveryDays === 'number' ? raw.deliveryDays : undefined,
+  createdAt: typeof raw.created_at === 'string' ? raw.created_at : typeof raw.createdAt === 'string' ? raw.createdAt : undefined,
+  createdBy: typeof raw.created_by === 'string' ? raw.created_by : typeof raw.createdBy === 'string' ? raw.createdBy : undefined,
+  updatedAt: typeof raw.updated_at === 'string' ? raw.updated_at : typeof raw.updatedAt === 'string' ? raw.updatedAt : undefined,
+});
+
+export const listPositions = async (): Promise<PositionSummary[]> => {
+  if (USE_MOCK_API) {
+    await new Promise(r => setTimeout(r, 120));
+    return positionsData;
+  }
+
+  const {data, error} = await supabase
+    .from('positions')
+    .select('*')
+    .order('created_at', {ascending: false});
+
+  if (error) throw new Error(error.message);
+  return (data || []).map(mapPositionSummary);
+};
+
+export const listPositionsByProject = async (projectId: string): Promise<PositionSummary[]> => {
+  if (USE_MOCK_API) {
+    await new Promise(r => setTimeout(r, 120));
+    return positionsData.filter((p) => p.projectId === projectId);
+  }
+
+  const {data, error} = await supabase
+    .from('positions')
+    .select('*')
+    .eq('project_id', projectId);
+
+  if (error) throw new Error(error.message);
+  return (data || []).map(mapPositionSummary);
+};
+
+export const getPositionDetail = async (_positionId: string): Promise<PositionDetail | null> => {
+  console.log('[DEBUG] getPositionDetail called, positionId:', _positionId);
+  console.log('[DEBUG] getPositionDetail - USE_MOCK_API:', USE_MOCK_API);
+  if (USE_MOCK_API) {
+    await new Promise(r => setTimeout(r, 120));
+    const stored = positionDetailsMap[_positionId] || null;
+    console.log('[DEBUG] getPositionDetail mock - positionId:', _positionId);
+    console.log('[DEBUG] getPositionDetail mock - stored:', JSON.stringify(stored?.profileRules));
+    return stored;
+  }
+
+  // Get position from positions table
+  const {data: positionData, error: positionError} = await supabase
+    .from('positions')
+    .select('*')
+    .eq('id', _positionId)
+    .single();
+
+  if (positionError) {
+    console.log('[DEBUG] getPositionDetail - positionError:', positionError.message);
+    if (positionError.code === 'PGRST116') return null;
+    throw new Error(positionError.message);
+  }
+
+  // Get position details from position_details table
+  const {data: detailData, error: detailError} = await supabase
+    .from('position_details')
+    .select('*')
+    .eq('position_id', _positionId)
+    .single();
+
+  console.log('[DEBUG] getPositionDetail - positionData:', JSON.stringify(positionData).slice(0, 500));
+  console.log('[DEBUG] getPositionDetail - detailData:', JSON.stringify(detailData || {}).slice(0, 500));
+
+  if (positionData && typeof positionData === 'object') {
+    const raw = positionData as Record<string, unknown>;
+
+    // Handle profileRules - check snake_case, camelCase, and legacy 'profile' format
+    let rawProfileRules: any[] = [];
+    if (Array.isArray(raw.profile_rules)) {
+      console.log('[DEBUG] getPositionDetail - using profile_rules from response');
+      rawProfileRules = raw.profile_rules;
+    } else if (Array.isArray((raw as any).profileRules)) {
+      rawProfileRules = (raw as any).profileRules;
+    } else if (raw.profile && typeof raw.profile === 'object') {
+      // Legacy format: profile has mustHave, niceToHave, bonus arrays
+      console.log('[DEBUG] getPositionDetail - using legacy profile from response');
+      const legacyProfile = raw.profile as any;
+      const allItems = [
+        ...(Array.isArray(legacyProfile.mustHave) ? legacyProfile.mustHave : []),
+        ...(Array.isArray(legacyProfile.niceToHave) ? legacyProfile.niceToHave : []),
+        ...(Array.isArray(legacyProfile.bonus) ? legacyProfile.bonus : []),
+      ];
+      rawProfileRules = allItems.map((item: any) => {
+        if (typeof item === 'string') {
+          return {keyword: item, synonyms: [], category: ''};
+        }
+        return {keyword: item.keyword || '', synonyms: Array.isArray(item.synonyms) ? item.synonyms : [], category: item.category || ''};
+      });
+    }
+    const profileRules: ProfileRule[] = rawProfileRules.map((rule: any) => ({
+      keyword: rule.keyword || '',
+      synonyms: Array.isArray(rule.synonyms) ? rule.synonyms : [],
+      category: rule.category || '',
+    }));
+
+    // Handle scoringRules - check if new structured format or legacy criteria text format
+    const rawScoringRules = Array.isArray(raw.scoring_rules) ? raw.scoring_rules : [];
+    const scoringRules: ScoringRule[] = rawScoringRules.map((rule: any) => {
+      if (rule.keywords && Array.isArray(rule.keywords)) {
+        return {
+          dimension: rule.dimension || '',
+          weight: rule.weight || 0,
+          keywords: rule.keywords,
+          matchMode: rule.matchMode || 'any',
+        };
+      }
+      // Legacy format - convert criteria text to keywords array
+      const criteriaText = rule.criteria || '';
+      return {
+        dimension: rule.dimension || '',
+        weight: rule.weight || 0,
+        keywords: criteriaText.split(/[,/、\s]+/).filter((k: string) => k.length >= 2),
+        matchMode: 'any' as const,
+      };
+    });
+
+    // Handle baseScoreConfig — only baseScore (profile weight) is needed
+    const rawBaseScoreConfig = raw.base_score_config || (raw as any).baseScoreConfig;
+    const baseScoreConfig = rawBaseScoreConfig ? {
+      baseScore: (rawBaseScoreConfig as any).baseScore || (rawBaseScoreConfig as any).base_score || 50,
+    } : null;
+
+    // Merge detailData if exists
+    const detail = detailData as Record<string, unknown> | null;
+
+    return {
+      position: mapPositionSummary(raw),
+      profileRules,
+      scoringRules,
+      gradeRules: Array.isArray(raw.grade_rules) ? (raw.grade_rules as GradeRule[]) : [],
+      baseScoreConfig,
+      aiPrompt: (typeof raw.ai_prompt === 'string' ? raw.ai_prompt : '') || (typeof (raw as any).aiPrompt === 'string' ? (raw as any).aiPrompt : ''),
+    };
+  }
+
+  return null;
+};
+
+export type SavePositionDetailInput = {
+  profileRules: ProfileRule[];
+  scoringRules: ScoringRule[];
+  gradeRules: GradeRule[];
+  baseScoreConfig: BaseScoreConfig | null;
+  aiPrompt?: string;
+};
+
+export const savePositionDetail = async (
+  positionId: string,
+  detail: SavePositionDetailInput,
+): Promise<PositionDetail | null> => {
+  console.log('[DEBUG] savePositionDetail called, positionId:', positionId);
+  console.log('[DEBUG] savePositionDetail detail.profileRules:', JSON.stringify(detail.profileRules));
+  if (USE_MOCK_API) {
+    await new Promise(r => setTimeout(r, 120));
+    const position = positionsData.find((p) => p.id === positionId);
+    if (!position) return null;
+    const updated: PositionDetail = {
+      position,
+      profileRules: detail.profileRules,
+      scoringRules: detail.scoringRules,
+      gradeRules: detail.gradeRules,
+      baseScoreConfig: detail.baseScoreConfig,
+      aiPrompt: detail.aiPrompt,
+    };
+    console.log('[DEBUG] savePositionDetail - stored:', JSON.stringify(updated.profileRules));
+    positionDetailsMap[positionId] = updated;
+    return updated;
+  }
+
+  // Upsert position_details table
+  const {error} = await supabase
+    .from('position_details')
+    .upsert({
+      position_id: positionId,
+      profile_rules: detail.profileRules,
+      scoring_rules: detail.scoringRules,
+      grade_rules: detail.gradeRules,
+      base_score_config: detail.baseScoreConfig,
+      ai_prompt: detail.aiPrompt || '',
+    }, {onConflict: 'position_id'});
+
+  if (error) throw new Error(error.message);
+
+  // Return updated detail
+  return getPositionDetail(positionId);
+};
+
+export const createPosition = async (input: CreatePositionInput): Promise<PositionSummary> => {
+  if (USE_MOCK_API) {
+    await new Promise(r => setTimeout(r, 120));
+    const newPosition: PositionSummary = {
+      id: `pos-${Date.now()}`,
+      code: `POS-${Date.now()}`,
+      name: input.name,
+      category: input.category,
+      status: 'active',
+      projectId: input.projectId ?? undefined,
+      description: input.description ?? '',
+      requiredCount: input.requiredCount,
+      deliveryDays: input.deliveryDays,
+      createdAt: new Date().toISOString(),
+      createdBy: getUserName() ?? '未知用户',
+      updatedAt: new Date().toISOString(),
+    };
+    positionsData.push(newPosition);
+    // Initialize empty detail for the new position
+    positionDetailsMap[newPosition.id] = {
+      position: newPosition,
+      profileRules: [],
+      scoringRules: [],
+      gradeRules: [],
+      baseScoreConfig: null,
+    };
+    return newPosition;
+  }
+
+  // Convert camelCase to snake_case for API
+  const insertData = {
+    code: input.code,
+    name: input.name,
+    category: input.category,
+    status: input.status || 'active',
+    project_id: input.projectId,
+    description: input.description,
+    required_count: input.requiredCount,
+    delivery_days: input.deliveryDays,
+  };
+
+  const {data, error} = await supabase
+    .from('positions')
+    .insert(insertData)
+    .select()
+    .single();
+
+  if (error) throw new Error(error.message);
+  return mapPositionSummary(data as Record<string, unknown>);
+};
+
+export const updatePosition = async (id: string, input: UpdatePositionInput): Promise<PositionSummary> => {
+  if (USE_MOCK_API) {
+    await new Promise(r => setTimeout(r, 120));
+    const index = positionsData.findIndex((p) => p.id === id);
+    if (index === -1) throw new Error('Position not found');
+    positionsData[index] = {
+      ...positionsData[index],
+      ...input,
+      updatedAt: new Date().toISOString(),
+    };
+    return positionsData[index];
+  }
+
+  // Convert camelCase to snake_case for API
+  const updateData: Record<string, unknown> = {
+    code: input.code,
+    name: input.name,
+    category: input.category,
+    status: input.status,
+    description: input.description,
+    required_count: input.requiredCount,
+    delivery_days: input.deliveryDays,
+  };
+
+  const {data, error} = await supabase
+    .from('positions')
+    .update(updateData)
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) throw new Error(error.message);
+  return mapPositionSummary(data as Record<string, unknown>);
+};
+
+export const deletePosition = async (id: string): Promise<void> => {
+  if (USE_MOCK_API) {
+    await new Promise(r => setTimeout(r, 120));
+    const index = positionsData.findIndex((p) => p.id === id);
+    if (index !== -1) {
+      positionsData.splice(index, 1);
+    }
+    delete positionDetailsMap[id];
+    return;
+  }
+
+  const {error} = await supabase
+    .from('positions')
+    .delete()
+    .eq('id', id);
+
+  if (error) throw new Error(error.message);
+};

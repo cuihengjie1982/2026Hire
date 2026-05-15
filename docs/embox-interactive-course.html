@@ -1,0 +1,1670 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EM-BOX AI 招聘系统 — 从按钮点击到 AI 评分，看懂你的系统</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700&family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   CSS CUSTOM PROPERTIES
+   ============================================================ */
+:root {
+  --color-bg: #FAF7F2;
+  --color-bg-warm: #F5F0E8;
+  --color-bg-code: #1E1E2E;
+  --color-text: #2C2A28;
+  --color-text-secondary: #6B6560;
+  --color-text-muted: #9E9790;
+  --color-accent: #D94F30;
+  --color-accent-hover: #C4432A;
+  --color-accent-light: #FDEEE9;
+  --color-actor-1: #D94F30;
+  --color-actor-2: #2A7B9B;
+  --color-actor-3: #7B6DAA;
+  --color-actor-4: #D4A843;
+  --color-actor-5: #2D8B55;
+  --font-display: 'Bricolage Grotesque', sans-serif;
+  --font-body: 'DM Sans', sans-serif;
+  --font-code: 'JetBrains Mono', monospace;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --radius-lg: 20px;
+  --shadow-sm: 0 1px 3px rgba(44,42,40,0.06);
+  --shadow-md: 0 4px 16px rgba(44,42,40,0.08);
+  --shadow-lg: 0 12px 40px rgba(44,42,40,0.12);
+  --max-w: 960px;
+}
+
+/* ============================================================
+   RESET & BASE
+   ============================================================ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+body {
+  font-family: var(--font-body);
+  background: var(--color-bg);
+  color: var(--color-text);
+  line-height: 1.7;
+  min-height: 100vh;
+  min-height: 100dvh;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+img, svg { display: block; max-width: 100%; }
+a { color: var(--color-accent); text-decoration: none; }
+a:hover { color: var(--color-accent-hover); }
+
+/* ============================================================
+   TYPOGRAPHY
+   ============================================================ */
+h1, h2, h3, h4 { font-family: var(--font-display); line-height: 1.2; }
+h1 { font-size: clamp(2rem, 5vw, 3.2rem); font-weight: 700; }
+h2 { font-size: clamp(1.5rem, 3.5vw, 2.2rem); font-weight: 700; }
+h3 { font-size: clamp(1.15rem, 2.5vw, 1.5rem); font-weight: 600; }
+p { margin-bottom: 1em; }
+
+/* ============================================================
+   LAYOUT
+   ============================================================ */
+.container { max-width: var(--max-w); margin: 0 auto; padding: 0 24px; }
+.module { padding: 80px 0; }
+.module + .module { border-top: 1px solid rgba(44,42,40,0.06); }
+
+/* ============================================================
+   NAV
+   ============================================================ */
+.course-nav {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(250,247,242,0.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(44,42,40,0.06);
+  padding: 0;
+}
+.course-nav-inner {
+  max-width: var(--max-w); margin: 0 auto; padding: 0 24px;
+  display: flex; align-items: center; gap: 8px;
+  height: 56px; overflow-x: auto;
+  scrollbar-width: none;
+}
+.course-nav-inner::-webkit-scrollbar { display: none; }
+.nav-pill {
+  flex-shrink: 0;
+  padding: 6px 16px; border-radius: 100px;
+  font-size: 13px; font-weight: 500;
+  color: var(--color-text-secondary);
+  background: transparent; border: none; cursor: pointer;
+  white-space: nowrap;
+  font-family: var(--font-body);
+  transition: color 0.2s, background 0.2s;
+}
+.nav-pill:hover { color: var(--color-text); background: var(--color-bg-warm); }
+.nav-pill.active { color: #fff; background: var(--color-accent); }
+
+/* ============================================================
+   HERO
+   ============================================================ */
+.hero {
+  min-height: 100vh; min-height: 100dvh;
+  display: flex; align-items: center; justify-content: center;
+  text-align: center; padding: 80px 24px;
+  background: linear-gradient(165deg, var(--color-bg) 0%, var(--color-bg-warm) 60%, var(--color-accent-light) 100%);
+  position: relative;
+}
+.hero h1 { margin-bottom: 16px; letter-spacing: -0.02em; }
+.hero .subtitle {
+  font-size: clamp(1rem, 2vw, 1.25rem);
+  color: var(--color-text-secondary);
+  max-width: 600px; margin: 0 auto 40px;
+}
+.hero-cta {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 14px 32px; border-radius: 100px;
+  background: var(--color-accent); color: #fff;
+  font-weight: 600; font-size: 16px;
+  border: none; cursor: pointer;
+  font-family: var(--font-body);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.hero-cta:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+
+/* Floating badges */
+.hero-badges {
+  display: flex; flex-wrap: wrap; justify-content: center; gap: 10px;
+  margin-top: 48px;
+}
+.hero-badge {
+  padding: 6px 14px; border-radius: 100px;
+  font-size: 13px; font-weight: 500;
+  border: 1px solid rgba(44,42,40,0.08);
+  background: rgba(255,255,255,0.6);
+  color: var(--color-text-secondary);
+  display: flex; align-items: center; gap: 6px;
+}
+
+/* ============================================================
+   MODULE HEADER
+   ============================================================ */
+.module-header { margin-bottom: 48px; }
+.module-number {
+  display: inline-block;
+  font-family: var(--font-code);
+  font-size: 13px; font-weight: 600;
+  color: var(--color-accent);
+  background: var(--color-accent-light);
+  padding: 4px 12px; border-radius: 100px;
+  margin-bottom: 16px;
+}
+
+/* ============================================================
+   PROSE
+   ============================================================ */
+.prose { max-width: 720px; }
+.prose p { font-size: 16px; line-height: 1.8; }
+.prose ul, .prose ol { margin: 1em 0; padding-left: 1.5em; }
+.prose li { margin-bottom: 0.4em; }
+
+/* ============================================================
+   CODE BLOCKS (Catppuccin)
+   ============================================================ */
+.code-block {
+  background: var(--color-bg-code);
+  border-radius: var(--radius);
+  overflow: hidden;
+  margin: 24px 0;
+  box-shadow: var(--shadow-md);
+}
+.code-block-header {
+  display: flex; align-items: center; gap: 8px;
+  padding: 12px 16px;
+  background: rgba(255,255,255,0.04);
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.code-dot { width: 10px; height: 10px; border-radius: 50%; }
+.code-dot:nth-child(1) { background: #F38BA8; }
+.code-dot:nth-child(2) { background: #F9E2AF; }
+.code-dot:nth-child(3) { background: #A6E3A1; }
+.code-filename {
+  font-family: var(--font-code); font-size: 12px;
+  color: #6C7086; margin-left: 8px;
+}
+.code-block pre {
+  padding: 20px; overflow-x: hidden;
+  font-family: var(--font-code); font-size: 13px;
+  line-height: 1.7; color: #CDD6F4;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+.code-keyword { color: #CBA6F7; }
+.code-string { color: #A6E3A1; }
+.code-function { color: #89B4FA; }
+.code-comment { color: #6C7086; font-style: italic; }
+.code-number { color: #FAB387; }
+.code-property { color: #F9E2AF; }
+.code-type { color: #F9E2AF; }
+.code-operator { color: #89DCEB; }
+.code-tag { color: #F38BA8; }
+.code-attr { color: #F9E2AF; }
+
+/* ============================================================
+   TRANSLATION BLOCKS
+   ============================================================ */
+.translation-pair {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 0;
+  border-radius: var(--radius); overflow: hidden;
+  margin: 24px 0; box-shadow: var(--shadow-md);
+}
+@media (max-width: 640px) {
+  .translation-pair { grid-template-columns: 1fr; }
+}
+.translation-code {
+  background: var(--color-bg-code);
+  padding: 20px;
+  font-family: var(--font-code); font-size: 13px;
+  line-height: 1.7; color: #CDD6F4;
+  white-space: pre-wrap; word-wrap: break-word;
+}
+.translation-explain {
+  background: var(--color-bg-warm);
+  padding: 20px;
+  font-size: 15px; line-height: 1.8;
+  color: var(--color-text);
+}
+.translation-explain h4 {
+  font-size: 14px; text-transform: uppercase;
+  letter-spacing: 0.05em; color: var(--color-accent);
+  margin-bottom: 12px;
+}
+.translation-label {
+  display: inline-block; padding: 3px 10px;
+  border-radius: 4px; font-size: 11px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.05em;
+  margin-bottom: 8px;
+}
+.translation-code .translation-label { background: rgba(255,255,255,0.08); color: #89B4FA; }
+.translation-explain .translation-label { background: var(--color-accent-light); color: var(--color-accent); }
+
+/* ============================================================
+   ACTOR CARDS
+   ============================================================ */
+.actors-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px; margin: 32px 0;
+}
+.actor-card {
+  background: #fff;
+  border-radius: var(--radius-lg);
+  padding: 28px;
+  box-shadow: var(--shadow-sm);
+  border: 1px solid rgba(44,42,40,0.04);
+  transition: transform 0.3s, box-shadow 0.3s;
+  cursor: default;
+  position: relative;
+  overflow: hidden;
+}
+.actor-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0;
+  height: 4px;
+  transition: transform 0.3s;
+}
+.actor-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); }
+.actor-card:hover::before { transform: scaleY(1.5); }
+.actor-card[data-color="1"]::before { background: var(--color-actor-1); }
+.actor-card[data-color="2"]::before { background: var(--color-actor-2); }
+.actor-card[data-color="3"]::before { background: var(--color-actor-3); }
+.actor-card[data-color="4"]::before { background: var(--color-actor-4); }
+.actor-card[data-color="5"]::before { background: var(--color-actor-5); }
+.actor-emoji { font-size: 36px; margin-bottom: 12px; display: block; }
+.actor-name { font-family: var(--font-display); font-size: 20px; font-weight: 700; margin-bottom: 8px; }
+.actor-role { font-size: 13px; color: var(--color-text-muted); font-family: var(--font-code); margin-bottom: 12px; }
+.actor-desc { font-size: 14px; color: var(--color-text-secondary); line-height: 1.7; }
+
+/* ============================================================
+   CHAT ANIMATION
+   ============================================================ */
+.chat-container {
+  background: #fff;
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  box-shadow: var(--shadow-md);
+  margin: 32px 0;
+  max-width: 560px;
+  margin-left: auto; margin-right: auto;
+}
+.chat-messages { display: flex; flex-direction: column; gap: 12px; min-height: 200px; }
+.chat-bubble {
+  max-width: 85%;
+  padding: 12px 16px;
+  border-radius: 18px;
+  font-size: 14px; line-height: 1.6;
+  opacity: 0;
+  transform: translateY(12px);
+}
+.chat-bubble.visible {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 0.4s, transform 0.4s;
+}
+.chat-bubble.left {
+  background: #E9E9EB;
+  color: var(--color-text);
+  align-self: flex-start;
+  border-bottom-left-radius: 4px;
+}
+.chat-bubble.right {
+  background: var(--color-actor-2);
+  color: #fff;
+  align-self: flex-end;
+  border-bottom-right-radius: 4px;
+}
+.chat-bubble .sender {
+  font-size: 11px; font-weight: 600;
+  margin-bottom: 4px;
+  opacity: 0.7;
+}
+.chat-replay-btn {
+  display: block; margin: 16px auto 0;
+  padding: 8px 24px; border-radius: 100px;
+  background: var(--color-bg-warm); color: var(--color-text-secondary);
+  border: 1px solid rgba(44,42,40,0.08);
+  font-size: 13px; font-weight: 500;
+  cursor: pointer; font-family: var(--font-body);
+  transition: background 0.2s;
+}
+.chat-replay-btn:hover { background: var(--color-accent-light); color: var(--color-accent); }
+
+/* ============================================================
+   MESSAGE FLOW ANIMATION
+   ============================================================ */
+.flow-container {
+  margin: 32px 0; padding: 32px 0;
+}
+.flow-steps { display: flex; flex-direction: column; gap: 0; align-items: center; }
+.flow-step {
+  display: flex; align-items: center; gap: 16px;
+  padding: 16px 24px;
+  background: #fff;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  width: 100%; max-width: 520px;
+  opacity: 0; transform: translateX(-20px);
+}
+.flow-step.visible {
+  opacity: 1; transform: translateX(0);
+  transition: opacity 0.5s, transform 0.5s;
+}
+.flow-step-icon {
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; flex-shrink: 0;
+  color: #fff;
+}
+.flow-step-icon[data-color="1"] { background: var(--color-actor-1); }
+.flow-step-icon[data-color="2"] { background: var(--color-actor-2); }
+.flow-step-icon[data-color="3"] { background: var(--color-actor-3); }
+.flow-step-icon[data-color="4"] { background: var(--color-actor-4); }
+.flow-step-icon[data-color="5"] { background: var(--color-actor-5); }
+.flow-step-content { flex: 1; }
+.flow-step-title { font-weight: 600; font-size: 14px; margin-bottom: 2px; }
+.flow-step-desc { font-size: 12px; color: var(--color-text-muted); }
+.flow-arrow {
+  font-size: 20px; color: var(--color-text-muted);
+  opacity: 0;
+  transform: translateY(-4px);
+}
+.flow-arrow.visible {
+  opacity: 1; transform: translateY(0);
+  transition: opacity 0.3s, transform 0.3s;
+  padding: 4px 0;
+}
+.flow-replay-btn {
+  display: block; margin: 24px auto 0;
+  padding: 8px 24px; border-radius: 100px;
+  background: var(--color-bg-warm); color: var(--color-text-secondary);
+  border: 1px solid rgba(44,42,40,0.08);
+  font-size: 13px; font-weight: 500;
+  cursor: pointer; font-family: var(--font-body);
+  transition: background 0.2s;
+}
+.flow-replay-btn:hover { background: var(--color-accent-light); color: var(--color-accent); }
+
+/* ============================================================
+   QUIZ
+   ============================================================ */
+.quiz-card {
+  background: #fff;
+  border-radius: var(--radius-lg);
+  padding: 28px;
+  box-shadow: var(--shadow-md);
+  margin: 32px 0;
+  border: 2px solid transparent;
+  transition: border-color 0.3s;
+}
+.quiz-card.correct { border-color: var(--color-actor-5); }
+.quiz-card.incorrect { border-color: var(--color-actor-1); }
+.quiz-question {
+  font-family: var(--font-display);
+  font-size: 17px; font-weight: 600;
+  margin-bottom: 20px;
+  line-height: 1.5;
+}
+.quiz-options { display: flex; flex-direction: column; gap: 10px; }
+.quiz-option {
+  padding: 14px 18px;
+  border-radius: var(--radius-sm);
+  border: 2px solid rgba(44,42,40,0.08);
+  background: var(--color-bg);
+  cursor: pointer; font-size: 14px;
+  font-family: var(--font-body);
+  color: var(--color-text);
+  text-align: left;
+  transition: border-color 0.2s, background 0.2s;
+  line-height: 1.5;
+}
+.quiz-option:hover { border-color: var(--color-accent); background: var(--color-accent-light); }
+.quiz-option.selected { border-color: var(--color-actor-2); background: rgba(42,123,155,0.06); }
+.quiz-option.is-correct { border-color: var(--color-actor-5); background: rgba(45,139,85,0.06); }
+.quiz-option.is-wrong { border-color: var(--color-actor-1); background: var(--color-accent-light); }
+.quiz-feedback {
+  margin-top: 16px; padding: 16px;
+  border-radius: var(--radius-sm);
+  font-size: 14px; line-height: 1.7;
+  display: none;
+}
+.quiz-feedback.show { display: block; }
+.quiz-feedback.correct-fb { background: rgba(45,139,85,0.06); color: var(--color-actor-5); }
+.quiz-feedback.incorrect-fb { background: var(--color-accent-light); color: var(--color-accent); }
+
+/* ============================================================
+   TOOLTIP (GLOSSARY)
+   ============================================================ */
+.glossary-term {
+  border-bottom: 1.5px dotted var(--color-accent);
+  cursor: help;
+  position: relative;
+}
+.glossary-tooltip {
+  position: fixed;
+  z-index: 9999;
+  max-width: 320px;
+  padding: 14px 18px;
+  background: var(--color-bg-code);
+  color: #CDD6F4;
+  border-radius: var(--radius);
+  font-size: 13px; line-height: 1.7;
+  box-shadow: var(--shadow-lg);
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 0.2s, transform 0.2s;
+  font-family: var(--font-body);
+}
+.glossary-tooltip.visible { opacity: 1; transform: translateY(0); pointer-events: auto; }
+.glossary-tooltip .tip-title {
+  font-family: var(--font-display);
+  font-weight: 600; font-size: 14px;
+  color: #F9E2AF; margin-bottom: 6px;
+}
+
+/* ============================================================
+   ARCHITECTURE DIAGRAM
+   ============================================================ */
+.arch-diagram {
+  background: #fff;
+  border-radius: var(--radius-lg);
+  padding: 40px 24px;
+  box-shadow: var(--shadow-md);
+  margin: 32px 0;
+  overflow-x: auto;
+}
+.arch-row {
+  display: flex; justify-content: center; align-items: stretch;
+  gap: 12px; flex-wrap: wrap;
+  margin-bottom: 24px;
+}
+.arch-row:last-child { margin-bottom: 0; }
+.arch-box {
+  padding: 16px 24px;
+  border-radius: var(--radius);
+  font-weight: 600; font-size: 14px;
+  text-align: center; min-width: 140px;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.arch-connector {
+  display: flex; align-items: center; justify-content: center;
+  padding: 0 4px; color: var(--color-text-muted); font-size: 20px;
+}
+.funnel-step {
+  display: flex; align-items: center; gap: 16px;
+  padding: 14px 20px;
+  background: #fff;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  margin-bottom: 8px;
+}
+.funnel-icon {
+  width: 36px; height: 36px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; color: #fff; flex-shrink: 0;
+}
+.funnel-text { font-weight: 500; font-size: 14px; }
+.funnel-arrow { text-align: center; color: var(--color-text-muted); padding: 2px 0; }
+
+/* ============================================================
+   INLINE HIGHLIGHT
+   ============================================================ */
+.highlight-box {
+  padding: 20px 24px;
+  border-radius: var(--radius);
+  margin: 24px 0;
+  font-size: 14px; line-height: 1.7;
+}
+.highlight-box.tip {
+  background: rgba(45,139,85,0.06);
+  border-left: 4px solid var(--color-actor-5);
+}
+.highlight-box.warn {
+  background: var(--color-accent-light);
+  border-left: 4px solid var(--color-accent);
+}
+.highlight-box.info {
+  background: rgba(42,123,155,0.06);
+  border-left: 4px solid var(--color-actor-2);
+}
+.highlight-box strong { display: block; margin-bottom: 4px; }
+
+/* ============================================================
+   SECTION DIVIDER
+   ============================================================ */
+.section-divider {
+  text-align: center;
+  padding: 40px 0;
+  color: var(--color-text-muted);
+  font-size: 24px;
+}
+
+/* ============================================================
+   FOOTER
+   ============================================================ */
+.course-footer {
+  padding: 48px 24px;
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: 13px;
+  border-top: 1px solid rgba(44,42,40,0.06);
+}
+
+/* ============================================================
+   SCROLL ANIMATIONS
+   ============================================================ */
+.reveal {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.6s, transform 0.6s;
+}
+.reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+@media (max-width: 640px) {
+  .container { padding: 0 16px; }
+  .module { padding: 48px 0; }
+  .hero { padding: 48px 16px; }
+  .code-block pre { font-size: 11px; padding: 16px; }
+  .translation-code { font-size: 11px; padding: 16px; }
+  .actors-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     TOOLTIP CONTAINER (appended to body)
+     ============================================================ -->
+<div class="glossary-tooltip" id="glossaryTooltip">
+  <div class="tip-title"></div>
+  <div class="tip-body"></div>
+</div>
+
+<!-- ============================================================
+     STICKY NAV
+     ============================================================ -->
+<nav class="course-nav" id="courseNav">
+  <div class="course-nav-inner">
+    <button class="nav-pill active" data-target="hero">Home</button>
+    <button class="nav-pill" data-target="module1">M1 搜索流程</button>
+    <button class="nav-pill" data-target="module2">M2 角色介绍</button>
+    <button class="nav-pill" data-target="module3">M3 通信协议</button>
+    <button class="nav-pill" data-target="module4">M4 AI 大脑</button>
+    <button class="nav-pill" data-target="module5">M5 异常处理</button>
+    <button class="nav-pill" data-target="module6">M6 全景图</button>
+  </div>
+</nav>
+
+<!-- ============================================================
+     HERO
+     ============================================================ -->
+<section class="hero" id="hero">
+  <div>
+    <h1>EM-BOX AI 招聘系统</h1>
+    <p class="subtitle">从按钮点击到 AI 评分，看懂你的系统。一份面向团队全员的技术互动课程，6 个模块，帮你理解每一行代码背后的故事。</p>
+    <button class="hero-cta" onclick="document.getElementById('module1').scrollIntoView({behavior:'smooth'})">
+      开始学习 &#8595;
+    </button>
+    <div class="hero-badges">
+      <span class="hero-badge">React 19</span>
+      <span class="hero-badge">Express 4</span>
+      <span class="hero-badge">PostgreSQL</span>
+      <span class="hero-badge">Multi-LLM</span>
+      <span class="hero-badge">Whisper</span>
+      <span class="hero-badge">JWT Auth</span>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     MODULE 1: What happens when you search for a candidate?
+     ============================================================ -->
+<section class="module" id="module1">
+  <div class="container">
+    <div class="module-header reveal">
+      <span class="module-number">Module 01</span>
+      <h2>当你搜索候选人时，发生了什么？</h2>
+      <p class="prose" style="margin-top:12px;color:var(--color-text-secondary)">
+        用户在搜索框输入关键词 &mdash; 这看似简单的动作，背后经历了前端组件、API 层、后端路由、SQL 查询的完整旅程。让我们一步步追踪。
+      </p>
+    </div>
+
+    <!-- Message Flow Animation -->
+    <div class="flow-container reveal" id="flow1">
+      <h3 style="text-align:center;margin-bottom:24px;">搜索请求的完整旅程</h3>
+      <div class="flow-steps" id="flow1Steps">
+        <div class="flow-step" data-delay="0">
+          <div class="flow-step-icon" data-color="1">&#127919;</div>
+          <div class="flow-step-content">
+            <div class="flow-step-title">用户输入搜索关键词</div>
+            <div class="flow-step-desc">CandidateSearchPage.tsx &mdash; useState 捕获输入</div>
+          </div>
+        </div>
+        <div class="flow-arrow">&#8595;</div>
+        <div class="flow-step" data-delay="1">
+          <div class="flow-step-icon" data-color="2">&#128225;</div>
+          <div class="flow-step-content">
+            <div class="flow-step-title">API Client 发起请求</div>
+            <div class="flow-step-desc">fetchJson('/api/candidates/search?keyword=...') + JWT Token</div>
+          </div>
+        </div>
+        <div class="flow-arrow">&#8595;</div>
+        <div class="flow-step" data-delay="2">
+          <div class="flow-step-icon" data-color="3">&#9889;</div>
+          <div class="flow-step-content">
+            <div class="flow-step-title">Express 路由接收请求</div>
+            <div class="flow-step-desc">candidates.routes.ts &mdash; 构建 SQL 查询</div>
+          </div>
+        </div>
+        <div class="flow-arrow">&#8595;</div>
+        <div class="flow-step" data-delay="3">
+          <div class="flow-step-icon" data-color="4">&#128451;</div>
+          <div class="flow-step-content">
+            <div class="flow-step-title">PostgreSQL 执行 ILIKE 查询</div>
+            <div class="flow-step-desc">WHERE c.name ILIKE $1 OR c.email ILIKE $1</div>
+          </div>
+        </div>
+        <div class="flow-arrow">&#8595;</div>
+        <div class="flow-step" data-delay="4">
+          <div class="flow-step-icon" data-color="1">&#9989;</div>
+          <div class="flow-step-content">
+            <div class="flow-step-title">前端渲染搜索结果</div>
+            <div class="flow-step-desc">map() 遍历 + camelCase 转换 + UI 渲染</div>
+          </div>
+        </div>
+      </div>
+      <button class="flow-replay-btn" onclick="replayFlow('flow1')">重新播放</button>
+    </div>
+
+    <!-- Code Translation Block 1 -->
+    <div class="translation-pair reveal">
+      <div class="translation-code">
+        <span class="translation-label">Code</span>
+<span class="code-keyword">const</span> <span class="code-function">mapPositionSummary</span> = (
+  raw: <span class="code-type">Record</span>&lt;<span class="code-type">string</span>, <span class="code-type">unknown</span>&gt;
+): <span class="code-type">PositionSummary</span> =&gt; ({
+  id: <span class="code-function">String</span>(raw.id ?? <span class="code-string">''</span>),
+  projectId: <span class="code-keyword">typeof</span> raw.project_id === <span class="code-string">'string'</span>
+    ? raw.project_id
+    : <span class="code-keyword">typeof</span> raw.projectId === <span class="code-string">'string'</span>
+    ? raw.projectId : <span class="code-string">''</span>,
+  requiredCount: <span class="code-keyword">typeof</span> raw.required_count
+    === <span class="code-string">'number'</span>
+    ? raw.required_count
+    : <span class="code-keyword">typeof</span> raw.requiredCount
+    === <span class="code-string">'number'</span>
+    ? raw.requiredCount : <span class="code-keyword">undefined</span>,
+});</div>
+      <div class="translation-explain">
+        <span class="translation-label">English</span>
+        <h4>Mapper Function Explained</h4>
+        <p>这个函数把后端返回的 <span class="glossary-term" data-tip="snake_case: 数据库和后端使用的命名风格，单词之间用下划线连接，如 project_id">snake_case</span> 数据转换为前端使用的 <span class="glossary-term" data-tip="camelCase: JavaScript/React 前端使用的命名风格，首字母小写后续单词首字母大写，如 projectId">camelCase</span>。</p>
+        <p>注意它同时处理两种格式 <code>raw.project_id</code> 和 <code>raw.projectId</code> &mdash; 这样不管后端返回哪种格式都能正确解析，体现了防御性编程的思想。</p>
+      </div>
+    </div>
+
+    <!-- Code Translation Block 2 -->
+    <div class="translation-pair reveal">
+      <div class="translation-code">
+        <span class="translation-label">Code</span>
+<span class="code-comment">// candidates.routes.ts — 搜索路由</span>
+router.<span class="code-function">get</span>(<span class="code-string">'/search'</span>, <span class="code-keyword">async</span> (req, res, next) =&gt; {
+  <span class="code-keyword">const</span> {keyword} = req.query;
+  <span class="code-keyword">const</span> conditions: <span class="code-type">string</span>[] = [];
+  <span class="code-keyword">const</span> params: <span class="code-type">unknown</span>[] = [];
+
+  <span class="code-keyword">if</span> (keyword) {
+    conditions.<span class="code-function">push</span>(
+      <span class="code-string">`(c.name ILIKE $1 OR c.email ILIKE $1)`</span>
+    );
+    params.<span class="code-function">push</span>(<span class="code-string">`%${keyword}%`</span>);
+  }
+  <span class="code-comment">// ... 分页、排序、执行 SQL</span>
+});</div>
+      <div class="translation-explain">
+        <span class="translation-label">English</span>
+        <h4>Backend Search Route</h4>
+        <p>这是 Express 路由处理搜索请求的代码。它使用 <span class="glossary-term" data-tip="ILIKE: PostgreSQL 的大小写不敏感匹配操作符，'%keyword%' 表示包含该关键词的任意位置">ILIKE</span> 实现模糊搜索，<code>%keyword%</code> 表示匹配包含关键词的任何位置。</p>
+        <p><code>$1</code> 是 <span class="glossary-term" data-tip="Parameterized Query: 使用占位符（如 $1, $2）替代直接拼接 SQL，防止 SQL 注入攻击">参数化查询</span>的占位符 &mdash; 不直接拼接字符串到 SQL 中，而是通过参数传递，这是防范 <span class="glossary-term" data-tip="SQL Injection: 攻击者通过输入恶意 SQL 代码来操纵数据库的安全漏洞">SQL 注入</span> 的标准做法。</p>
+      </div>
+    </div>
+
+    <!-- Code Translation Block 3 -->
+    <div class="translation-pair reveal">
+      <div class="translation-code">
+        <span class="translation-label">Code</span>
+<span class="code-comment">// apiClient.ts — 核心 HTTP 客户端</span>
+<span class="code-keyword">export const</span> <span class="code-function">fetchJson</span> = <span class="code-keyword">async</span> &lt;<span class="code-type">T</span>&gt;(
+  path: <span class="code-type">string</span>,
+  init?: <span class="code-type">RequestInit</span>,
+): <span class="code-type">Promise</span>&lt;<span class="code-type">T</span>&gt; =&gt; {
+  <span class="code-keyword">const</span> token = <span class="code-function">getAuthToken</span>();
+  <span class="code-keyword">if</span> (token) {
+    headers.<span class="code-function">set</span>(
+      <span class="code-string">'Authorization'</span>,
+      <span class="code-string">`Bearer ${token}`</span>
+    );
+  }
+  <span class="code-keyword">const</span> controller = <span class="code-keyword">new</span> <span class="code-function">AbortController</span>();
+  <span class="code-function">setTimeout</span>(() =&gt; controller.<span class="code-function">abort</span>(), <span class="code-number">30000</span>);
+  <span class="code-comment">// 30 秒超时保护</span>
+});</div>
+      <div class="translation-explain">
+        <span class="translation-label">English</span>
+        <h4>The Messenger &mdash; fetchJson</h4>
+        <p><code>fetchJson</code> 是整个前端唯一的 HTTP 请求入口。每次请求时，它自动从 <span class="glossary-term" data-tip="localStorage: 浏览器内置的本地存储，数据以键值对形式保存，关闭浏览器后依然存在">localStorage</span> 读取 <span class="glossary-term" data-tip="JWT (JSON Web Token): 一种安全的令牌格式，用于在前后端之间传递用户身份信息，包含 userId、email、role 等字段">JWT 令牌</span>并附加到请求头。</p>
+        <p>30 秒的 <span class="glossary-term" data-tip="AbortController: 浏览器内置 API，用于在超时或用户取消时中止网络请求">AbortController</span> 超时确保用户不会无限等待。</p>
+      </div>
+    </div>
+
+    <!-- Quiz 1 -->
+    <div class="quiz-card reveal" id="quiz1">
+      <div class="quiz-question">场景：用户搜索"张三"，但搜索结果为空。作为开发者，你应该首先检查哪个环节？</div>
+      <div class="quiz-options">
+        <button class="quiz-option" data-correct="false" onclick="handleQuiz(this,'quiz1')">直接修改前端 UI，提示"未找到结果"</button>
+        <button class="quiz-option" data-correct="false" onclick="handleQuiz(this,'quiz1')">检查 CSS 样式是否正确</button>
+        <button class="quiz-option" data-correct="true" onclick="handleQuiz(this,'quiz1')">打开浏览器 Network 面板，检查 /api/candidates/search 请求的参数和响应</button>
+        <button class="quiz-option" data-correct="false" onclick="handleQuiz(this,'quiz1')">重启 PostgreSQL 数据库</button>
+      </div>
+      <div class="quiz-feedback" id="quiz1-feedback"></div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ============================================================
+     MODULE 2: Meet the Cast of Characters
+     ============================================================ -->
+<section class="module" id="module2">
+  <div class="container">
+    <div class="module-header reveal">
+      <span class="module-number">Module 02</span>
+      <h2>认识我们的角色</h2>
+      <p class="prose" style="margin-top:12px;color:var(--color-text-secondary)">
+        EM-BOX 系统由 5 个核心角色协作运行。每个角色都有自己的职责、颜色和性格。理解它们的关系，你就理解了整个系统。
+      </p>
+    </div>
+
+    <div class="actors-grid reveal">
+      <div class="actor-card" data-color="1">
+        <span class="actor-emoji">&#127919;</span>
+        <div class="actor-name">Frontend (React)</div>
+        <div class="actor-role">src/</div>
+        <div class="actor-desc">
+          系统的"脸面"。负责展示界面、捕获用户点击、管理表单状态。使用 React 19 + <span class="glossary-term" data-tip="TypeScript: JavaScript 的超集，添加了静态类型检查，帮助在编译时发现错误">TypeScript</span> + <span class="glossary-term" data-tip="Tailwind CSS: 一个实用优先的 CSS 框架，通过 class 名直接在 HTML 中写样式">Tailwind CSS</span>。所有 UI 文案都是中文。
+        </div>
+      </div>
+      <div class="actor-card" data-color="2">
+        <span class="actor-emoji">&#128225;</span>
+        <div class="actor-name">API Client</div>
+        <div class="actor-role">src/shared/lib/apiClient.ts</div>
+        <div class="actor-desc">
+          前后端之间的"信使"。自动附加 JWT 令牌、处理 30 秒超时、在令牌过期时自动刷新。它是前端唯一的 HTTP 出口，所有模块的请求都经过它。
+        </div>
+      </div>
+      <div class="actor-card" data-color="3">
+        <span class="actor-emoji">&#9889;</span>
+        <div class="actor-name">Express Backend</div>
+        <div class="actor-role">server/src/</div>
+        <div class="actor-desc">
+          系统的"大脑"。接收请求、验证权限、构建 SQL 查询、调用 AI 服务。使用 Express 4 + <span class="glossary-term" data-tip="PostgreSQL: 一个强大的开源关系型数据库，支持 JSONB 等高级数据类型">PostgreSQL</span>。每个模块都有对应的路由文件。
+        </div>
+      </div>
+      <div class="actor-card" data-color="4">
+        <span class="actor-emoji">&#128451;</span>
+        <div class="actor-name">PostgreSQL Database</div>
+        <div class="actor-role">database.ts (pg Pool)</div>
+        <div class="actor-desc">
+          数据的"金库"。存储候选人、职位、面试记录等所有结构化数据。使用 <span class="glossary-term" data-tip="JSONB: PostgreSQL 的二进制 JSON 数据类型，支持索引和查询，用于存储灵活的结构化数据（如评分规则）">JSONB</span> 字段存储评分配置、等级规则等灵活数据。
+        </div>
+      </div>
+      <div class="actor-card" data-color="5">
+        <span class="actor-emoji">&#129302;</span>
+        <div class="actor-name">AI Services</div>
+        <div class="actor-role">server/src/modules/ai/</div>
+        <div class="actor-desc">
+          系统的"预言家"。支持 OpenAI、Anthropic、智谱、DeepSeek 等 8 个 <span class="glossary-term" data-tip="LLM (Large Language Model): 大语言模型，如 GPT-4、Claude 等，能理解和生成人类语言">LLM</span> 提供商。负责简历评分、面试打分、候选人排名。
+        </div>
+      </div>
+    </div>
+
+    <div class="highlight-box tip reveal">
+      <strong>关键设计决策</strong>
+      前端使用 <span class="glossary-term" data-tip="camelCase: JavaScript 标准命名风格，如 requiredCount">camelCase</span>，后端使用 <span class="glossary-term" data-tip="snake_case: Python/SQL/PostgreSQL 标准命名风格，如 required_count">snake_case</span>。这不是随意选择 &mdash; 它遵循各自生态的最佳实践。Mapper 函数是两者之间的"翻译官"。
+    </div>
+
+    <!-- Quiz 2 -->
+    <div class="quiz-card reveal" id="quiz2">
+      <div class="quiz-question">场景：产品经理说"AI 评分不准"。根据角色分工，这个问题最可能出在哪里？</div>
+      <div class="quiz-options">
+        <button class="quiz-option" data-correct="false" onclick="handleQuiz(this,'quiz2')">Frontend (React) &mdash; 评分显示有 bug</button>
+        <button class="quiz-option" data-correct="true" onclick="handleQuiz(this,'quiz2')">AI Services &mdash; Prompt 构建或 LLM 配置需要调整</button>
+        <button class="quiz-option" data-correct="false" onclick="handleQuiz(this,'quiz2')">PostgreSQL &mdash; 数据库存储的分数不对</button>
+        <button class="quiz-option" data-correct="false" onclick="handleQuiz(this,'quiz2')">API Client &mdash; 网络请求丢失了数据</button>
+      </div>
+      <div class="quiz-feedback" id="quiz2-feedback"></div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ============================================================
+     MODULE 3: How the pieces talk to each other
+     ============================================================ -->
+<section class="module" id="module3">
+  <div class="container">
+    <div class="module-header reveal">
+      <span class="module-number">Module 03</span>
+      <h2>组件之间如何通信</h2>
+      <p class="prose" style="margin-top:12px;color:var(--color-text-secondary)">
+        从命名规范到认证流程，从 Mock 切换到真实 API &mdash; 这节课拆解系统中的关键通信协议。
+      </p>
+    </div>
+
+    <!-- Chat Animation: Frontend <-> Backend group chat -->
+    <div class="chat-container reveal" id="chat1">
+      <h3 style="text-align:center;margin-bottom:20px;">Group Chat: Frontend 搜索候选人</h3>
+      <div class="chat-messages" id="chat1Messages">
+        <div class="chat-bubble right">
+          <div class="sender">Frontend (React)</div>
+          嘿 API Client，帮我搜索"AI工程师"相关的候选人
+        </div>
+        <div class="chat-bubble left">
+          <div class="sender">API Client</div>
+          收到！让我先从 localStorage 拿 JWT 令牌... 有了。正在发送 GET /api/candidates/search?keyword=AI工程师
+        </div>
+        <div class="chat-bubble left">
+          <div class="sender">API Client</div>
+          等等，USE_MOCK_API 是 true，我直接返回内存数据好了，不用打扰后端。
+        </div>
+        <div class="chat-bubble right">
+          <div class="sender">Frontend (React)</div>
+          好的，收到数据了。让我用 mapper 函数把 snake_case 转成 camelCase... 渲染列表！
+        </div>
+        <div class="chat-bubble left" style="background:var(--color-actor-3);color:#fff;">
+          <div class="sender">Express Backend (在后台默默等待)</div>
+          ... 有人需要我吗？我今天很闲。
+        </div>
+      </div>
+      <button class="chat-replay-btn" onclick="replayChat('chat1')">重新播放对话</button>
+    </div>
+
+    <!-- Code: Mock vs Real API switch -->
+    <div class="translation-pair reveal">
+      <div class="translation-code">
+        <span class="translation-label">Code</span>
+<span class="code-keyword">export const</span> <span class="code-function">listPositions</span> =
+  <span class="code-keyword">async</span> (): <span class="code-type">Promise</span>&lt;<span class="code-type">PositionSummary</span>[]&gt; =&gt; {
+  <span class="code-keyword">if</span> (<span class="code-property">USE_MOCK_API</span>) {
+    <span class="code-keyword">await</span> <span class="code-function">mockDelay</span>();
+    <span class="code-keyword">return</span> positionsData;
+  }
+
+  <span class="code-keyword">const</span> items = <span class="code-function">getItemsFromPayload</span>&lt;
+    <span class="code-type">Record</span>&lt;<span class="code-type">string</span>, <span class="code-type">unknown</span>&gt;
+  &gt;(<span class="code-keyword">await</span> <span class="code-function">fetchJson</span>&lt;<span class="code-type">unknown</span>&gt;(
+    <span class="code-string">'/api/positions'</span>
+  ));
+  <span class="code-keyword">return</span> items.<span class="code-function">map</span>(<span class="code-function">mapPositionSummary</span>);
+};</div>
+      <div class="translation-explain">
+        <span class="translation-label">English</span>
+        <h4>Mock vs Real API Switch</h4>
+        <p>每个 API 函数都有两条路径：如果 <code>USE_MOCK_API</code> 为 true（开发模式下默认开启），直接返回内存中的假数据，不需要后端运行。</p>
+        <p>切换到真实 API 只需在 <code>.env</code> 中设置 <code>VITE_USE_MOCK_API=false</code>，无需修改任何业务代码。这种设计让前端可以独立开发和测试。</p>
+      </div>
+    </div>
+
+    <!-- Code: JWT Auth flow -->
+    <div class="translation-pair reveal">
+      <div class="translation-code">
+        <span class="translation-label">Code</span>
+<span class="code-comment">// auth.ts — 生成令牌对</span>
+<span class="code-keyword">export function</span> <span class="code-function">generateTokenPair</span>(
+  payload: {
+    userId: <span class="code-type">string</span>;
+    email: <span class="code-type">string</span>;
+    role: <span class="code-type">string</span>;
+  }
+) {
+  <span class="code-keyword">const</span> jti = crypto.<span class="code-function">randomUUID</span>();
+  <span class="code-keyword">const</span> accessToken = jwt.<span class="code-function">sign</span>(
+    payload, env.JWT_SECRET,
+    {expiresIn: env.JWT_EXPIRES_IN}
+  );
+  <span class="code-keyword">const</span> refreshToken = jwt.<span class="code-function">sign</span>(
+    {...payload, jti, type: <span class="code-string">'refresh'</span>},
+    env.JWT_SECRET,
+    {expiresIn: env.JWT_REFRESH_EXPIRES_IN}
+  );
+  <span class="code-keyword">return</span> {accessToken, refreshToken, jti};
+}</div>
+      <div class="translation-explain">
+        <span class="translation-label">English</span>
+        <h4>JWT Token Pair</h4>
+        <p>系统使用双令牌机制：<span class="glossary-term" data-tip="Access Token: 短期有效的 JWT 令牌（通常 24 小时），用于每次 API 请求的身份验证">Access Token</span>（短期，24小时）和 <span class="glossary-term" data-tip="Refresh Token: 长期有效的 JWT 令牌，仅用于获取新的 Access Token，不用于日常 API 调用">Refresh Token</span>（长期，7天）。</p>
+        <p>每个令牌都有唯一的 <code>jti</code>（JWT ID），用于 <span class="glossary-term" data-tip="Token Blacklist: 一个数据库表，存储已被撤销的令牌 ID，用于强制用户下线或密码修改后使旧令牌失效">令牌黑名单</span>追踪。用户登出时，令牌被加入黑名单，即使未过期也无法使用。</p>
+      </div>
+    </div>
+
+    <div class="highlight-box info reveal">
+      <strong>为什么用双令牌？</strong>
+      Access Token 频繁使用，有效期短更安全。Refresh Token 只在 Access Token 过期时使用一次，有效期可以长一些。这样既保证了安全性，又不会让用户频繁重新登录。
+    </div>
+
+    <!-- Quiz 3 -->
+    <div class="quiz-card reveal" id="quiz3">
+      <div class="quiz-question">场景：前端开发者在本地开发，不想启动后端。他应该怎么做？</div>
+      <div class="quiz-options">
+        <button class="quiz-option" data-correct="false" onclick="handleQuiz(this,'quiz3')">修改代码，删除所有 fetchJson 调用</button>
+        <button class="quiz-option" data-correct="true" onclick="handleQuiz(this,'quiz3')">确保 .env 中 VITE_USE_MOCK_API=true（默认值），直接运行 npm run dev</button>
+        <button class="quiz-option" data-correct="false" onclick="handleQuiz(this,'quiz3')">安装一个 SQLite 数据库替代 PostgreSQL</button>
+        <button class="quiz-option" data-correct="false" onclick="handleQuiz(this,'quiz3')">在代码中硬编码假数据</button>
+      </div>
+      <div class="quiz-feedback" id="quiz3-feedback"></div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ============================================================
+     MODULE 4: The AI Brain
+     ============================================================ -->
+<section class="module" id="module4">
+  <div class="container">
+    <div class="module-header reveal">
+      <span class="module-number">Module 04</span>
+      <h2>AI 大脑：从 Prompt 到评分</h2>
+      <p class="prose" style="margin-top:12px;color:var(--color-text-secondary)">
+        EM-BOX 最强大的功能是 AI 评分。从简历筛选到面试评分，AI 贯穿招聘全流程。这节课拆解 AI 是如何工作的。
+      </p>
+    </div>
+
+    <!-- Multi-provider support -->
+    <div class="translation-pair reveal">
+      <div class="translation-code">
+        <span class="translation-label">Code</span>
+<span class="code-keyword">function</span> <span class="code-function">defaultBaseUrl</span>(
+  provider: <span class="code-type">string</span>
+): <span class="code-type">string</span> {
+  <span class="code-keyword">switch</span> (provider) {
+    <span class="code-keyword">case</span> <span class="code-string">'openai'</span>:
+      <span class="code-keyword">return</span> <span class="code-string">'https://api.openai.com/v1'</span>;
+    <span class="code-keyword">case</span> <span class="code-string">'anthropic'</span>:
+      <span class="code-keyword">return</span> <span class="code-string">'https://api.anthropic.com/v1'</span>;
+    <span class="code-keyword">case</span> <span class="code-string">'deepseek'</span>:
+      <span class="code-keyword">return</span> <span class="code-string">'https://api.deepseek.com'</span>;
+    <span class="code-keyword">case</span> <span class="code-string">'zhipu'</span>:
+      <span class="code-keyword">return</span> <span class="code-string">'https://open.bigmodel.cn/api/paas/v4'</span>;
+    <span class="code-keyword">case</span> <span class="code-string">'moonshot'</span>:
+      <span class="code-keyword">return</span> <span class="code-string">'https://api.moonshot.cn/v1'</span>;
+    <span class="code-keyword">case</span> <span class="code-string">'qwen'</span>:
+      <span class="code-keyword">return</span> <span class="code-string">'https://dashscope.aliyuncs.com/compatible-mode/v1'</span>;
+    <span class="code-keyword">default</span>:
+      <span class="code-keyword">return</span> <span class="code-string">'https://api.openai.com/v1'</span>;
+  }
+}</div>
+      <div class="translation-explain">
+        <span class="translation-label">English</span>
+        <h4>Multi-Provider LLM Support</h4>
+        <p>EM-BOX 支持 8 个 <span class="glossary-term" data-tip="LLM Provider: 提供 AI 模型 API 服务的公司，如 OpenAI (GPT)、Anthropic (Claude)、智谱 (GLM) 等">LLM 提供商</span>。大多数提供商使用 OpenAI 兼容的 API 格式（<code>/v1/chat/completions</code>），只有 Anthropic 和 Gemini 需要特殊处理。</p>
+        <p>提供商配置存储在 <code>ai_model_configs</code> 数据库表中，可以动态切换，不需要改代码。</p>
+      </div>
+    </div>
+
+    <!-- Prompt Builder -->
+    <div class="translation-pair reveal">
+      <div class="translation-code">
+        <span class="translation-label">Code</span>
+<span class="code-comment">// promptBuilder.ts — 构建评分 Prompt</span>
+<span class="code-keyword">export function</span> <span class="code-function">buildSystemPrompt</span>(
+  aiPrompt: <span class="code-type">string</span>,
+  scoringRules: <span class="code-type">ScoringRule</span>[],
+): <span class="code-type">string</span> {
+  <span class="code-keyword">const</span> dimensions = scoringRules.<span class="code-function">map</span>(r =&gt;
+    <span class="code-string">`- ${r.dimension}（权重 ${r.weight}%，
+       关键字：${r.keywords.join('、')}）`</span>
+  ).<span class="code-function">join</span>(<span class="code-string">'\n'</span>);
+
+  <span class="code-keyword">return</span> <span class="code-string">`你是一名专业的招聘评估 AI...
+  ## 评分维度（满分 100 分，按权重分配）
+  ${dimensions}
+  ## 输出要求 — 严格 JSON 格式
+  {
+    "totalScore": &lt;0-100&gt;,
+    "dimensionScores": [...],
+    "recommendation": "强烈推荐"|"推荐"|"考虑"|"不推荐"
+  }`</span>;
+}</div>
+      <div class="translation-explain">
+        <span class="translation-label">English</span>
+        <h4>Prompt Engineering</h4>
+        <p><span class="glossary-term" data-tip="System Prompt: 发送给 AI 的系统级指令，定义 AI 的角色、行为规则和输出格式">System Prompt</span> 是 AI 评分的核心。它定义了 AI 的角色（"专业招聘评估师"）、评分维度（从数据库的 <code>scoring_rules</code> 读取）和输出格式（严格的 JSON）。</p>
+        <p>每个职位的评分维度、权重和关键字都可以在 Position Config 页面自定义 &mdash; 这意味着同一个 AI 引擎，对不同职位会有完全不同的评分标准。</p>
+      </div>
+    </div>
+
+    <!-- Interview Scoring Pipeline Flow -->
+    <h3 class="reveal" style="margin:40px 0 24px;">AI 面试评分流水线</h3>
+    <div class="flow-container reveal" id="flow4">
+      <div class="flow-steps" id="flow4Steps">
+        <div class="flow-step" data-delay="0">
+          <div class="flow-step-icon" data-color="1">&#127908;</div>
+          <div class="flow-step-content">
+            <div class="flow-step-title">1. 候选人语音回答</div>
+            <div class="flow-step-desc">MediaRecorder 捕获音频 (WebM/Opus)</div>
+          </div>
+        </div>
+        <div class="flow-arrow">&#8595;</div>
+        <div class="flow-step" data-delay="1">
+          <div class="flow-step-icon" data-color="2">&#128225;</div>
+          <div class="flow-step-content">
+            <div class="flow-step-title">2. 上传音频</div>
+            <div class="flow-step-desc">FormData POST /api/interview-scoring/transcribe-and-score</div>
+          </div>
+        </div>
+        <div class="flow-arrow">&#8595;</div>
+        <div class="flow-step" data-delay="2">
+          <div class="flow-step-icon" data-color="5">&#127911;</div>
+          <div class="flow-step-content">
+            <div class="flow-step-title">3. Whisper 语音转文字</div>
+            <div class="flow-step-desc">OpenAI Whisper API 转录音频</div>
+          </div>
+        </div>
+        <div class="flow-arrow">&#8595;</div>
+        <div class="flow-step" data-delay="3">
+          <div class="flow-step-icon" data-color="5">&#129504;</div>
+          <div class="flow-step-content">
+            <div class="flow-step-title">4. LLM 评分</div>
+            <div class="flow-step-desc">将转录文本 + 评分标准发送给 AI 模型</div>
+          </div>
+        </div>
+        <div class="flow-arrow">&#8595;</div>
+        <div class="flow-step" data-delay="4">
+          <div class="flow-step-icon" data-color="4">&#128451;</div>
+          <div class="flow-step-content">
+            <div class="flow-step-title">5. 存储评分结果</div>
+            <div class="flow-step-desc">写入 interview_answer_scores 表</div>
+          </div>
+        </div>
+      </div>
+      <button class="flow-replay-btn" onclick="replayFlow('flow4')">重新播放</button>
+    </div>
+
+    <!-- Interview scoring prompt -->
+    <div class="translation-pair reveal">
+      <div class="translation-code">
+        <span class="translation-label">Code</span>
+<span class="code-comment">// promptBuilder.ts — 面试评分 Prompt</span>
+<span class="code-keyword">export function</span> <span class="code-function">buildInterviewScoringUserMessage</span>(
+  questionTitle: <span class="code-type">string</span>,
+  questionPrompt: <span class="code-type">string</span>,
+  transcript: <span class="code-type">string</span>,
+): <span class="code-type">string</span> {
+  <span class="code-keyword">const</span> truncated = transcript.length &gt; <span class="code-number">8000</span>
+    ? transcript.<span class="code-function">slice</span>(<span class="code-number">0</span>, <span class="code-number">8000</span>)
+      + <span class="code-string">'\n\n[回答内容过长，已截断]'</span>
+    : transcript;
+
+  <span class="code-keyword">return</span> <span class="code-string">`## 面试题目
+标题：${questionTitle}
+## 候选人回答（语音转文字）
+${truncated || '[候选人未作答]'}`</span>;
+}</div>
+      <div class="translation-explain">
+        <span class="translation-label">English</span>
+        <h4>From Voice to Score</h4>
+        <p>面试评分的 User Message 包含三部分：面试题目标题、题目内容、以及 Whisper 转录的候选人回答文本。</p>
+        <p>注意 8000 字符截断 &mdash; 这是 <span class="glossary-term" data-tip="Token Limit: AI 模型一次能处理的最大文本长度，超出需要截断。8000 字符大约对应 2000-4000 个 token">Token 限制</span>保护。如果候选人说了太多，只取前面的内容来评分，避免超出模型上下文窗口。</p>
+      </div>
+    </div>
+
+    <div class="highlight-box warn reveal">
+      <strong>Whisper 依赖</strong>
+      语音转录特别需要 OpenAI API Key（从 <code>ai_model_configs</code> 中 <code>provider='openai'</code> 的配置解析）。如果 OpenAI 配置缺失，面试评分流水线的转录步骤会失败。但 LLM 评分本身可以使用任何已配置的提供商。
+    </div>
+
+    <!-- Quiz 4 -->
+    <div class="quiz-card reveal" id="quiz4">
+      <div class="quiz-question">场景：面试评分时，Whisper 转录成功但 LLM 评分返回"Unexpected response format"。最可能的原因是什么？</div>
+      <div class="quiz-options">
+        <button class="quiz-option" data-correct="false" onclick="handleQuiz(this,'quiz4')">音频文件损坏</button>
+        <button class="quiz-option" data-correct="true" onclick="handleQuiz(this,'quiz4')">当前配置的 LLM 提供商返回了非标准格式的响应（如智谱 GLM 的特殊格式）</button>
+        <button class="quiz-option" data-correct="false" onclick="handleQuiz(this,'quiz4')">PostgreSQL 数据库满了</button>
+        <button class="quiz-option" data-correct="false" onclick="handleQuiz(this,'quiz4')">候选人回答太短</button>
+      </div>
+      <div class="quiz-feedback" id="quiz4-feedback"></div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ============================================================
+     MODULE 5: When things go wrong
+     ============================================================ -->
+<section class="module" id="module5">
+  <div class="container">
+    <div class="module-header reveal">
+      <span class="module-number">Module 05</span>
+      <h2>当出错了怎么办</h2>
+      <p class="prose" style="margin-top:12px;color:var(--color-text-secondary)">
+        没有系统能永远不出错。关键在于：出错了怎么处理？EM-BOX 有一套完善的错误处理机制，从令牌过期到数据库约束冲突，每个场景都有预案。
+      </p>
+    </div>
+
+    <!-- Error class hierarchy -->
+    <div class="translation-pair reveal">
+      <div class="translation-code">
+        <span class="translation-label">Code</span>
+<span class="code-comment">// errors.ts — 错误类层级</span>
+<span class="code-keyword">export class</span> <span class="code-type">AppError</span> <span class="code-keyword">extends</span> <span class="code-type">Error</span> {
+  <span class="code-keyword">constructor</span>(
+    <span class="code-keyword">public</span> statusCode: <span class="code-type">number</span>,
+    message: <span class="code-type">string</span>,
+    <span class="code-keyword">public</span> code?: <span class="code-type">string</span>,
+  ) { <span class="code-keyword">super</span>(message); }
+}
+
+<span class="code-keyword">export class</span> <span class="code-type">NotFoundError</span>
+  <span class="code-keyword">extends</span> <span class="code-type">AppError</span> {
+  <span class="code-function">constructor</span>(resource: <span class="code-type">string</span>) {
+    <span class="code-keyword">super</span>(<span class="code-number">404</span>,
+      <span class="code-string">`${resource} not found`</span>,
+      <span class="code-string">'NOT_FOUND'</span>);
+  }
+}
+
+<span class="code-keyword">export class</span> <span class="code-type">ValidationError</span>
+  <span class="code-keyword">extends</span> <span class="code-type">AppError</span> {
+  <span class="code-function">constructor</span>(message: <span class="code-type">string</span>) {
+    <span class="code-keyword">super</span>(<span class="code-number">400</span>, message, <span class="code-string">'VALIDATION_ERROR'</span>);
+  }
+}</div>
+      <div class="translation-explain">
+        <span class="translation-label">English</span>
+        <h4>Error Class Hierarchy</h4>
+        <p>所有业务错误都继承自 <code>AppError</code>，每个子类预设了对应的 HTTP 状态码和错误码。</p>
+        <p><code>NotFoundError</code> &rarr; 404、<code>UnauthorizedError</code> &rarr; 401、<code>ForbiddenError</code> &rarr; 403、<code>ValidationError</code> &rarr; 400。这样后端只需 <code>throw new NotFoundError('Candidate')</code>，<span class="glossary-term" data-tip="Error Handler Middleware: Express 中间件，统一捕获所有路由抛出的错误并格式化响应">错误处理中间件</span>会自动返回正确的 HTTP 响应。</p>
+      </div>
+    </div>
+
+    <!-- Error handler middleware -->
+    <div class="translation-pair reveal">
+      <div class="translation-code">
+        <span class="translation-label">Code</span>
+<span class="code-comment">// errorHandler.ts</span>
+<span class="code-keyword">export function</span> <span class="code-function">errorHandler</span>(
+  err: <span class="code-type">Error</span>,
+  _req: <span class="code-type">Request</span>,
+  res: <span class="code-type">Response</span>,
+  _next: <span class="code-type">NextFunction</span>
+) {
+  <span class="code-keyword">if</span> (err <span class="code-keyword">instanceof</span> <span class="code-type">AppError</span>) {
+    res.<span class="code-function">status</span>(err.statusCode).<span class="code-function">json</span>({
+      error: {
+        code: err.code,
+        message: err.message,
+      },
+    });
+    <span class="code-keyword">return</span>;
+  }
+  <span class="code-comment">// PostgreSQL 错误码映射</span>
+  <span class="code-keyword">if</span> (pgCode === <span class="code-string">'23505'</span>) {
+    <span class="code-comment">// 409 DUPLICATE</span>
+  }
+  <span class="code-keyword">if</span> (pgCode === <span class="code-string">'23503'</span>) {
+    <span class="code-comment">// 400 FK_VIOLATION</span>
+  }
+  <span class="code-comment">// 兜底: 500 INTERNAL_ERROR</span>
+}</div>
+      <div class="translation-explain">
+        <span class="translation-label">English</span>
+        <h4>Centralized Error Handler</h4>
+        <p>Express 的错误处理中间件接收所有未捕获的错误。它首先检查是否是 <code>AppError</code> 子类 &mdash; 如果是，直接用预设的状态码响应。</p>
+        <p>然后检查 <span class="glossary-term" data-tip="PostgreSQL Error Code: 数据库返回的标准错误码，如 23505=唯一约束冲突，23503=外键约束违反">PostgreSQL 错误码</span>：23505 表示唯一约束冲突（重复数据），23503 表示外键约束违反（引用的记录不存在）。这些都被映射为有意义的 HTTP 状态码。</p>
+      </div>
+    </div>
+
+    <!-- Token refresh flow -->
+    <div class="translation-pair reveal">
+      <div class="translation-code">
+        <span class="translation-label">Code</span>
+<span class="code-comment">// apiClient.ts — 令牌自动刷新</span>
+<span class="code-keyword">if</span> (response.status === <span class="code-number">401</span> && token) {
+  <span class="code-keyword">const</span> errorData = <span class="code-keyword">await</span> response
+    .<span class="code-function">json</span>().<span class="code-function">catch</span>(() =&gt; ({}));
+  <span class="code-keyword">if</span> (errorData?.error?.code === <span class="code-string">'TOKEN_EXPIRED'</span>
+    || errorData?.error?.code === <span class="code-string">'TOKEN_REVOKED'</span>) {
+    <span class="code-keyword">const</span> newToken =
+      <span class="code-keyword">await</span> <span class="code-function">tryRefreshToken</span>();
+    <span class="code-keyword">if</span> (newToken) {
+      <span class="code-comment">// 用新令牌重试请求</span>
+      headers.<span class="code-function">set</span>(<span class="code-string">'Authorization'</span>,
+        <span class="code-string">`Bearer ${newToken}`</span>);
+      response = <span class="code-keyword">await</span> <span class="code-function">fetch</span>(...);
+    } <span class="code-keyword">else</span> {
+      <span class="code-comment">// 刷新失败，强制重新登录</span>
+      localStorage.<span class="code-function">removeItem</span>(
+        <span class="code-string">'em-box.auth-token'</span>);
+      window.location.<span class="code-function">reload</span>();
+    }
+  }
+}</div>
+      <div class="translation-explain">
+        <span class="translation-label">English</span>
+        <h4>Silent Token Refresh</h4>
+        <p>当 API 返回 401 且错误码是 <code>TOKEN_EXPIRED</code> 或 <code>TOKEN_REVOKED</code> 时，<code>fetchJson</code> 不会直接报错，而是自动尝试用 Refresh Token 获取新的 Access Token。</p>
+        <p>如果刷新成功，用新令牌重试原始请求 &mdash; 用户完全无感知。如果刷新也失败（Refresh Token 也过期了），则清除所有认证信息并刷新页面，强制用户重新登录。</p>
+      </div>
+    </div>
+
+    <!-- CSRF protection -->
+    <div class="translation-pair reveal">
+      <div class="translation-code">
+        <span class="translation-label">Code</span>
+<span class="code-comment">// csrf.ts — CSRF 防护</span>
+<span class="code-keyword">export function</span> <span class="code-function">csrfMiddleware</span>(
+  req: <span class="code-type">Request</span>,
+  res: <span class="code-type">Response</span>,
+  next: <span class="code-type">NextFunction</span>
+) {
+  <span class="code-comment">// GET/HEAD/OPTIONS 安全方法直接放行</span>
+  <span class="code-keyword">if</span> ([<span class="code-string">'GET'</span>,<span class="code-string">'HEAD'</span>,<span class="code-string">'OPTIONS'</span>]
+    .<span class="code-function">includes</span>(req.method)) {
+    <span class="code-function">next</span>(); <span class="code-keyword">return</span>;
+  }
+  <span class="code-comment">// Bearer Token 认证已天然防 CSRF</span>
+  <span class="code-keyword">const</span> auth = req.headers.authorization;
+  <span class="code-keyword">if</span> (auth?.<span class="code-function">startsWith</span>(<span class="code-string">'Bearer '</span>)) {
+    <span class="code-function">next</span>(); <span class="code-keyword">return</span>;
+  }
+  <span class="code-comment">// 其他情况检查 Origin 头</span>
+  <span class="code-comment">// ... 白名单校验</span>
+}</div>
+      <div class="translation-explain">
+        <span class="translation-label">English</span>
+        <h4>CSRF Protection</h4>
+        <p><span class="glossary-term" data-tip="CSRF (Cross-Site Request Forgery): 一种网络攻击，攻击者诱导已登录用户在不知情的情况下执行恶意操作">CSRF</span> 是一种常见的 Web 攻击。但由于 EM-BOX 使用 Bearer Token（存在 localStorage 中，而非 Cookie），天然免疫传统 CSRF 攻击。</p>
+        <p>中间件仍添加了 Origin 头检查作为深度防御 &mdash; 对于非 Bearer Token 的修改请求，会验证来源域名是否在白名单中。</p>
+      </div>
+    </div>
+
+    <div class="highlight-box tip reveal">
+      <strong>错误处理的黄金法则</strong>
+      后端抛出有意义的错误码（NOT_FOUND, TOKEN_EXPIRED, DUPLICATE...），前端根据错误码做对应处理（重试、提示、跳转登录）。不要只看 HTTP 状态码 &mdash; 业务错误码才是关键。
+    </div>
+
+    <!-- Quiz 5 -->
+    <div class="quiz-card reveal" id="quiz5">
+      <div class="quiz-question">场景：用户操作时突然被踢回登录页。后端日志显示"TOKEN_REVOKED"。最可能发生了什么？</div>
+      <div class="quiz-options">
+        <button class="quiz-option" data-correct="true" onclick="handleQuiz(this,'quiz5')">用户在另一个设备上修改了密码，所有旧令牌被撤销（revokeAllUserTokens）</button>
+        <button class="quiz-option" data-correct="false" onclick="handleQuiz(this,'quiz5')">PostgreSQL 数据库宕机了</button>
+        <button class="quiz-option" data-correct="false" onclick="handleQuiz(this,'quiz5')">前端的 fetchJson 有 bug</button>
+        <button class="quiz-option" data-correct="false" onclick="handleQuiz(this,'quiz5')">AI 模型返回了错误</button>
+      </div>
+      <div class="quiz-feedback" id="quiz5-feedback"></div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ============================================================
+     MODULE 6: The Big Picture
+     ============================================================ -->
+<section class="module" id="module6">
+  <div class="container">
+    <div class="module-header reveal">
+      <span class="module-number">Module 06</span>
+      <h2>全局架构图</h2>
+      <p class="prose" style="margin-top:12px;color:var(--color-text-secondary)">
+        把所有拼图拼在一起。从招聘漏斗到模块结构，从数据流到部署架构 &mdash; 这是 EM-BOX 的全景视图。
+      </p>
+    </div>
+
+    <!-- Architecture Diagram -->
+    <div class="arch-diagram reveal">
+      <h3 style="text-align:center;margin-bottom:24px;">系统分层架构</h3>
+      <div class="arch-row">
+        <div class="arch-box" style="background:rgba(217,79,48,0.08);color:var(--color-actor-1);flex:1;max-width:400px;">
+          &#127919; Frontend Layer (React + TypeScript + Vite)
+        </div>
+      </div>
+      <div style="text-align:center;color:var(--color-text-muted);padding:4px 0;font-size:20px;">&#8595; fetchJson + JWT Bearer &#8593;</div>
+      <div class="arch-row">
+        <div class="arch-box" style="background:rgba(42,123,155,0.08);color:var(--color-actor-2);flex:1;max-width:400px;">
+          &#128225; API Client (apiClient.ts)
+        </div>
+      </div>
+      <div style="text-align:center;color:var(--color-text-muted);padding:4px 0;font-size:20px;">&#8595; HTTP REST &#8593;</div>
+      <div class="arch-row">
+        <div class="arch-box" style="background:rgba(123,109,170,0.08);color:var(--color-actor-3);flex:1;max-width:400px;">
+          &#9889; Express Backend (Routes + Middleware + Auth)
+        </div>
+      </div>
+      <div style="display:flex;justify-content:center;gap:40px;padding:4px 0;font-size:20px;color:var(--color-text-muted);">
+        <span>&#8595; SQL &#8593;</span>
+        <span>&#8595; REST API &#8593;</span>
+      </div>
+      <div class="arch-row" style="justify-content:center;gap:24px;">
+        <div class="arch-box" style="background:rgba(212,168,67,0.08);color:var(--color-actor-4);">
+          &#128451; PostgreSQL
+        </div>
+        <div class="arch-box" style="background:rgba(45,139,85,0.08);color:var(--color-actor-5);">
+          &#129302; AI Services (LLM + Whisper)
+        </div>
+      </div>
+    </div>
+
+    <!-- Module Pattern -->
+    <h3 class="reveal" style="margin:40px 0 24px;">标准模块结构</h3>
+    <div class="code-block reveal">
+      <div class="code-block-header">
+        <span class="code-dot"></span><span class="code-dot"></span><span class="code-dot"></span>
+        <span class="code-filename">每个模块都遵循相同的文件组织模式</span>
+      </div>
+      <pre><span class="code-comment"># 前端模块结构</span>
+src/modules/{domain}/
+  types.ts        <span class="code-comment"># TypeScript 接口定义 (camelCase)</span>
+  api.ts          <span class="code-comment"># API 调用 + snake_case/camelCase 转换器</span>
+  fixtures.ts     <span class="code-comment"># 测试用空对象</span>
+  hooks.ts        <span class="code-comment"># (可选) 模块专属 React Hooks</span>
+  pages/          <span class="code-comment"># 页面组件（嵌入在 Tab 中）</span>
+
+<span class="code-comment"># 后端模块结构</span>
+server/src/modules/{domain}/
+  {domain}.routes.ts   <span class="code-comment"># Express Router + SQL 查询</span></pre>
+    </div>
+
+    <!-- Recruitment Funnel -->
+    <h3 class="reveal" style="margin:40px 0 24px;">招聘漏斗: 候选人的旅程</h3>
+    <div class="reveal" style="max-width:520px;margin:0 auto;">
+      <div class="funnel-step">
+        <div class="funnel-icon" style="background:var(--color-actor-1);">&#128100;</div>
+        <div class="funnel-text">候选人搜索 / 简历导入 (MinerU PDF 解析)</div>
+      </div>
+      <div class="funnel-arrow">&#8595;</div>
+      <div class="funnel-step">
+        <div class="funnel-icon" style="background:var(--color-actor-5);">&#129302;</div>
+        <div class="funnel-text">AI 简历评分 (LLM 多维度打分 + 匹配度评级)</div>
+      </div>
+      <div class="funnel-arrow">&#8595;</div>
+      <div class="funnel-step">
+        <div class="funnel-icon" style="background:var(--color-actor-2);">&#128203;</div>
+        <div class="funnel-text">入选 Shortlist (候选人短名单管理)</div>
+      </div>
+      <div class="funnel-arrow">&#8595;</div>
+      <div class="funnel-step">
+        <div class="funnel-icon" style="background:var(--color-actor-3);">&#127909;</div>
+        <div class="funnel-text">AI 视频面试 (语音录制 &rarr; Whisper 转录 &rarr; LLM 评分)</div>
+      </div>
+      <div class="funnel-arrow">&#8595;</div>
+      <div class="funnel-step">
+        <div class="funnel-icon" style="background:var(--color-actor-4);">&#9989;</div>
+        <div class="funnel-text">审批流程 (面试结果自动创建审批请求)</div>
+      </div>
+      <div class="funnel-arrow">&#8595;</div>
+      <div class="funnel-step">
+        <div class="funnel-icon" style="background:var(--color-accent);">&#127881;</div>
+        <div class="funnel-text">录用 (Data Insights 数据看板追踪全程)</div>
+      </div>
+    </div>
+
+    <!-- Chat Animation: Architecture overview -->
+    <div class="chat-container reveal" id="chat6">
+      <h3 style="text-align:center;margin-bottom:20px;">Group Chat: 系统启动时发生了什么？</h3>
+      <div class="chat-messages" id="chat6Messages">
+        <div class="chat-bubble left" style="background:var(--color-actor-4);color:#fff;">
+          <div class="sender">PostgreSQL</div>
+          我先启动了。跑完了 migrations/ 里的 SQL 文件，创建了所有表。ai_model_configs 表里有 3 个 LLM 配置。
+        </div>
+        <div class="chat-bubble left" style="background:var(--color-actor-3);color:#fff;">
+          <div class="sender">Express Backend</div>
+          我也准备好了。监听 4000 端口，注册了所有路由。JWT_SECRET 已加载，CSRF 中间件已就位。
+        </div>
+        <div class="chat-bubble left" style="background:var(--color-actor-5);color:#fff;">
+          <div class="sender">AI Services</div>
+          我连接了 OpenAI (Whisper + GPT) 和智谱 (GLM) 两个提供商，随时待命。
+        </div>
+        <div class="chat-bubble right">
+          <div class="sender">Frontend (React)</div>
+          Vite 启动在 3000 端口。USE_MOCK_API=true，我先不麻烦后端了，用内存数据开发 UI。
+        </div>
+        <div class="chat-bubble left">
+          <div class="sender">API Client</div>
+          收到，fetchJson 已就绪。JWT 令牌在 localStorage 里，超时 30 秒，自动刷新机制已激活。
+        </div>
+      </div>
+      <button class="chat-replay-btn" onclick="replayChat('chat6')">重新播放对话</button>
+    </div>
+
+    <div class="highlight-box info reveal">
+      <strong>关于 AI Agent 模块</strong>
+      EM-BOX 还有 AI Agent（自主代理）模块，包括简历自动筛选、面试自动安排、岗位自动匹配。这些 Agent 7x24 小时运行，在后台持续处理任务。它们使用相同的 <code>callLLM</code> 基础设施，但以异步方式执行。
+    </div>
+
+    <!-- Quiz 6 -->
+    <div class="quiz-card reveal" id="quiz6">
+      <div class="quiz-question">场景：新来的后端开发需要添加一个"评价标签"功能。按照 EM-BOX 的模块模式，他需要创建/修改哪些文件？</div>
+      <div class="quiz-options">
+        <button class="quiz-option" data-correct="true" onclick="handleQuiz(this,'quiz6')">前端：src/modules/tags/ 下的 types.ts + api.ts + pages/；后端：server/src/modules/tags/tags.routes.ts</button>
+        <button class="quiz-option" data-correct="false" onclick="handleQuiz(this,'quiz6')">只需要修改 server/src/app.ts 一个文件</button>
+        <button class="quiz-option" data-correct="false" onclick="handleQuiz(this,'quiz6')">只需要在 PostgreSQL 里加一张表就行</button>
+        <button class="quiz-option" data-correct="false" onclick="handleQuiz(this,'quiz6')">在前端的 CandidateSearchPage.tsx 里直接写所有逻辑</button>
+      </div>
+      <div class="quiz-feedback" id="quiz6-feedback"></div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ============================================================
+     FOOTER
+     ============================================================ -->
+<footer class="course-footer">
+  <p>EM-BOX AI 招聘系统 &mdash; 技术互动课程</p>
+  <p style="margin-top:4px;">基于 React 19 + Express 4 + PostgreSQL + Multi-LLM 构建</p>
+  <p style="margin-top:4px;color:var(--color-text-muted);">&#169; 2026 EM-BOX Team</p>
+</footer>
+
+<!-- ============================================================
+     JAVASCRIPT (IIFE)
+     ============================================================ -->
+<script>
+(function() {
+  'use strict';
+
+  // ---- GLOSSARY TOOLTIPS ----
+  var tooltip = document.getElementById('glossaryTooltip');
+  var tipTitle = tooltip.querySelector('.tip-title');
+  var tipBody = tooltip.querySelector('.tip-body');
+  var activeTerm = null;
+
+  document.addEventListener('mouseover', function(e) {
+    var term = e.target.closest('.glossary-term');
+    if (!term) return;
+    e.preventDefault();
+    activeTerm = term;
+    var tip = term.getAttribute('data-tip') || '';
+    var parts = tip.split(':');
+    tipTitle.textContent = parts[0].trim();
+    tipBody.textContent = parts.length > 1 ? parts.slice(1).join(':').trim() : '';
+    positionTooltip(term);
+    tooltip.classList.add('visible');
+  }, { passive: false });
+
+  document.addEventListener('mouseout', function(e) {
+    var term = e.target.closest('.glossary-term');
+    if (!term) return;
+    activeTerm = null;
+    tooltip.classList.remove('visible');
+  });
+
+  document.addEventListener('mousemove', function(e) {
+    if (activeTerm) positionTooltip(activeTerm);
+  });
+
+  function positionTooltip(el) {
+    var rect = el.getBoundingClientRect();
+    var tipW = tooltip.offsetWidth;
+    var tipH = tooltip.offsetHeight;
+    var top = rect.bottom + 8;
+    var left = rect.left + rect.width / 2 - tipW / 2;
+    if (left < 8) left = 8;
+    if (left + tipW > window.innerWidth - 8) left = window.innerWidth - tipW - 8;
+    if (top + tipH > window.innerHeight - 8) {
+      top = rect.top - tipH - 8;
+    }
+    tooltip.style.top = top + 'px';
+    tooltip.style.left = left + 'px';
+  }
+
+  // ---- SCROLL REVEAL ----
+  var reveals = document.querySelectorAll('.reveal');
+  var revealObs = new IntersectionObserver(function(entries) {
+    entries.forEach(function(entry) {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+        revealObs.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+  reveals.forEach(function(el) { revealObs.observe(el); });
+
+  // ---- FLOW ANIMATIONS (auto-play on scroll) ----
+  var flowPlayed = {};
+  var flowObs = new IntersectionObserver(function(entries) {
+    entries.forEach(function(entry) {
+      if (entry.isIntersecting && !flowPlayed[entry.target.id]) {
+        flowPlayed[entry.target.id] = true;
+        animateFlow(entry.target.id);
+      }
+    });
+  }, { threshold: 0.3 });
+  document.querySelectorAll('.flow-container').forEach(function(el) { flowObs.observe(el); });
+
+  // ---- CHAT ANIMATIONS (auto-play on scroll) ----
+  var chatPlayed = {};
+  var chatObs = new IntersectionObserver(function(entries) {
+    entries.forEach(function(entry) {
+      if (entry.isIntersecting && !chatPlayed[entry.target.id]) {
+        chatPlayed[entry.target.id] = true;
+        animateChat(entry.target.id);
+      }
+    });
+  }, { threshold: 0.3 });
+  document.querySelectorAll('.chat-container').forEach(function(el) { chatObs.observe(el); });
+
+  // ---- NAV PILLS ----
+  var navPills = document.querySelectorAll('.nav-pill');
+  navPills.forEach(function(pill) {
+    pill.addEventListener('click', function() {
+      var target = pill.getAttribute('data-target');
+      var el = document.getElementById(target);
+      if (el) el.scrollIntoView({ behavior: 'smooth' });
+    });
+  });
+
+  var sections = document.querySelectorAll('.module, .hero');
+  var navObs = new IntersectionObserver(function(entries) {
+    entries.forEach(function(entry) {
+      if (entry.isIntersecting) {
+        navPills.forEach(function(p) { p.classList.remove('active'); });
+        var pill = document.querySelector('.nav-pill[data-target="' + entry.target.id + '"]');
+        if (pill) pill.classList.add('active');
+      }
+    });
+  }, { threshold: 0.2, rootMargin: '-56px 0px 0px 0px' });
+  sections.forEach(function(s) { navObs.observe(s); });
+
+  // Expose replay functions globally
+  window.replayFlow = function(containerId) {
+    animateFlow(containerId);
+  };
+  window.replayChat = function(containerId) {
+    animateChat(containerId);
+  };
+  window.handleQuiz = handleQuiz;
+
+  // ---- ANIMATE FLOW ----
+  function animateFlow(containerId) {
+    var container = document.getElementById(containerId);
+    if (!container) return;
+    var steps = container.querySelectorAll('.flow-step');
+    var arrows = container.querySelectorAll('.flow-arrow');
+    var allItems = [];
+    steps.forEach(function(s) { allItems.push(s); });
+    arrows.forEach(function(a) { allItems.push(a); });
+    // sort by DOM position
+    allItems.sort(function(a, b) {
+      return a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1;
+    });
+    allItems.forEach(function(el) { el.classList.remove('visible'); });
+    allItems.forEach(function(el, i) {
+      setTimeout(function() {
+        el.classList.add('visible');
+      }, i * 300);
+    });
+  }
+
+  // ---- ANIMATE CHAT ----
+  function animateChat(containerId) {
+    var container = document.getElementById(containerId);
+    if (!container) return;
+    var messages = container.querySelectorAll('.chat-bubble');
+    messages.forEach(function(msg) { msg.classList.remove('visible'); });
+    messages.forEach(function(msg, i) {
+      setTimeout(function() {
+        msg.classList.add('visible');
+      }, i * 500);
+    });
+  }
+
+  // ---- QUIZ HANDLER ----
+  function handleQuiz(btn, quizId) {
+    var card = document.getElementById(quizId);
+    var feedback = document.getElementById(quizId + '-feedback');
+    var options = card.querySelectorAll('.quiz-option');
+    var isCorrect = btn.getAttribute('data-correct') === 'true';
+
+    options.forEach(function(opt) {
+      opt.style.pointerEvents = 'none';
+      if (opt.getAttribute('data-correct') === 'true') {
+        opt.classList.add('is-correct');
+      }
+    });
+
+    if (!isCorrect) {
+      btn.classList.add('is-wrong');
+    }
+
+    card.classList.add(isCorrect ? 'correct' : 'incorrect');
+
+    feedback.className = 'quiz-feedback show ' + (isCorrect ? 'correct-fb' : 'incorrect-fb');
+    if (isCorrect) {
+      feedback.innerHTML = '&#127881; <strong>回答正确！</strong> 你很好地理解了系统的运行机制。继续保持这种分析思维。';
+    } else {
+      feedback.innerHTML = '&#128161; <strong>不完全对，但思考方向很好！</strong> 仔细看看标绿的选项，理解它为什么是正确答案。在实际工作中，定位问题总是从最直接的证据开始。';
+    }
+  }
+
+})();
+</script>
+</body>
+</html>

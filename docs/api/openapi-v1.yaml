@@ -1,0 +1,1069 @@
+openapi: 3.1.0
+info:
+  title: EM-BOX Recruitment Platform API
+  version: 1.0.0
+  summary: First draft for a frontend-backend separated recruitment system.
+servers:
+  - url: http://localhost:4000
+    description: Local development
+tags:
+  - name: Auth
+  - name: Positions
+  - name: Candidates
+  - name: Interviews
+  - name: Outreach
+  - name: Approvals
+  - name: Tasks
+security:
+  - bearerAuth: []
+paths:
+  /api/auth/me:
+    get:
+      tags: [Auth]
+      summary: Get current user
+      responses:
+        '200':
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurrentUserResponse'
+
+  /api/positions:
+    get:
+      tags: [Positions]
+      summary: List positions
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/PositionStatus'
+        - name: keyword
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Position list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PositionListResponse'
+    post:
+      tags: [Positions]
+      summary: Create position
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePositionRequest'
+      responses:
+        '201':
+          description: Position created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PositionDetailResponse'
+
+  /api/positions/{positionId}:
+    get:
+      tags: [Positions]
+      summary: Get position detail
+      parameters:
+        - $ref: '#/components/parameters/PositionId'
+      responses:
+        '200':
+          description: Position detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PositionDetailResponse'
+    put:
+      tags: [Positions]
+      summary: Update position base info
+      parameters:
+        - $ref: '#/components/parameters/PositionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePositionRequest'
+      responses:
+        '200':
+          description: Position updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PositionDetailResponse'
+
+  /api/positions/{positionId}/profile:
+    put:
+      tags: [Positions]
+      summary: Update position profile and requirements
+      parameters:
+        - $ref: '#/components/parameters/PositionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePositionProfileRequest'
+      responses:
+        '200':
+          description: Position profile updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PositionDetailResponse'
+
+  /api/positions/{positionId}/scoring-rules:
+    put:
+      tags: [Positions]
+      summary: Replace scoring rules for a position
+      parameters:
+        - $ref: '#/components/parameters/PositionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateScoringRulesRequest'
+      responses:
+        '200':
+          description: Rules updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScoringRuleSetResponse'
+
+  /api/candidates:
+    get:
+      tags: [Candidates]
+      summary: Search candidates
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: keyword
+          in: query
+          schema:
+            type: string
+        - name: source
+          in: query
+          schema:
+            type: string
+        - name: city
+          in: query
+          schema:
+            type: string
+        - name: grade
+          in: query
+          schema:
+            type: string
+        - name: positionId
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Candidate list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CandidateListResponse'
+
+  /api/candidates/import:
+    post:
+      tags: [Candidates]
+      summary: Create resume import and parsing task
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateResumeImportTaskRequest'
+      responses:
+        '202':
+          description: Parsing task accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskAcceptedResponse'
+
+  /api/candidates/{candidateId}:
+    get:
+      tags: [Candidates]
+      summary: Get candidate detail
+      parameters:
+        - $ref: '#/components/parameters/CandidateId'
+      responses:
+        '200':
+          description: Candidate detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CandidateDetailResponse'
+
+  /api/candidates/{candidateId}/match-scores:
+    get:
+      tags: [Candidates]
+      summary: Get candidate match scores
+      parameters:
+        - $ref: '#/components/parameters/CandidateId'
+        - name: positionId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Match scores
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CandidateMatchScoreResponse'
+
+  /api/interview-templates:
+    get:
+      tags: [Interviews]
+      summary: List interview templates
+      parameters:
+        - name: positionId
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Template list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InterviewTemplateListResponse'
+    post:
+      tags: [Interviews]
+      summary: Create interview template
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateInterviewTemplateRequest'
+      responses:
+        '201':
+          description: Template created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InterviewTemplateDetailResponse'
+
+  /api/interview-templates/{templateId}:
+    get:
+      tags: [Interviews]
+      summary: Get interview template detail
+      parameters:
+        - $ref: '#/components/parameters/TemplateId'
+      responses:
+        '200':
+          description: Template detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InterviewTemplateDetailResponse'
+    put:
+      tags: [Interviews]
+      summary: Update interview template
+      parameters:
+        - $ref: '#/components/parameters/TemplateId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateInterviewTemplateRequest'
+      responses:
+        '200':
+          description: Template updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InterviewTemplateDetailResponse'
+
+  /api/interview-sessions:
+    post:
+      tags: [Interviews]
+      summary: Create interview session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateInterviewSessionRequest'
+      responses:
+        '201':
+          description: Session created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InterviewSessionDetailResponse'
+
+  /api/interview-sessions/{sessionId}:
+    get:
+      tags: [Interviews]
+      summary: Get interview session detail
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+      responses:
+        '200':
+          description: Session detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InterviewSessionDetailResponse'
+
+  /api/interview-sessions/{sessionId}/submit:
+    post:
+      tags: [Interviews]
+      summary: Submit interview session for scoring
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubmitInterviewSessionRequest'
+      responses:
+        '202':
+          description: Scoring task accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskAcceptedResponse'
+
+  /api/outreach-campaigns:
+    get:
+      tags: [Outreach]
+      summary: List outreach campaigns
+      responses:
+        '200':
+          description: Campaign list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OutreachCampaignListResponse'
+    post:
+      tags: [Outreach]
+      summary: Create outreach campaign
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOutreachCampaignRequest'
+      responses:
+        '201':
+          description: Campaign created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OutreachCampaignDetailResponse'
+
+  /api/outreach-campaigns/{campaignId}/launch:
+    post:
+      tags: [Outreach]
+      summary: Launch outreach campaign
+      parameters:
+        - $ref: '#/components/parameters/CampaignId'
+      responses:
+        '202':
+          description: Launch accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskAcceptedResponse'
+
+  /api/approval-requests:
+    get:
+      tags: [Approvals]
+      summary: List approval requests
+      parameters:
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/ApprovalStatus'
+      responses:
+        '200':
+          description: Approval requests
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalRequestListResponse'
+    post:
+      tags: [Approvals]
+      summary: Create approval request
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateApprovalRequest'
+      responses:
+        '201':
+          description: Approval created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalRequestDetailResponse'
+
+  /api/approval-requests/{approvalId}/approve:
+    post:
+      tags: [Approvals]
+      summary: Approve request
+      parameters:
+        - $ref: '#/components/parameters/ApprovalId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApprovalDecisionRequest'
+      responses:
+        '200':
+          description: Approval updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalRequestDetailResponse'
+
+  /api/approval-requests/{approvalId}/reject:
+    post:
+      tags: [Approvals]
+      summary: Reject request
+      parameters:
+        - $ref: '#/components/parameters/ApprovalId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApprovalDecisionRequest'
+      responses:
+        '200':
+          description: Approval updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalRequestDetailResponse'
+
+  /api/tasks/{taskId}:
+    get:
+      tags: [Tasks]
+      summary: Get async task status
+      parameters:
+        - $ref: '#/components/parameters/TaskId'
+      responses:
+        '200':
+          description: Task detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskStatusResponse'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    Page:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    PageSize:
+      name: pageSize
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    PositionId:
+      name: positionId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    CandidateId:
+      name: candidateId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    TemplateId:
+      name: templateId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    SessionId:
+      name: sessionId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    CampaignId:
+      name: campaignId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    ApprovalId:
+      name: approvalId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    TaskId:
+      name: taskId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  schemas:
+    ApiMeta:
+      type: object
+      properties:
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        total:
+          type: integer
+      required: [page, pageSize, total]
+    CurrentUserResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        roles:
+          type: array
+          items:
+            type: string
+      required: [id, name, email, roles]
+    PositionStatus:
+      type: string
+      enum: [draft, active, archived]
+    ApprovalStatus:
+      type: string
+      enum: [pending, approved, rejected, cancelled]
+    TaskStatus:
+      type: string
+      enum: [queued, running, succeeded, failed]
+    Position:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        name:
+          type: string
+        category:
+          type: string
+          enum: [ITF, ITW, MWV, GENERAL]
+        status:
+          $ref: '#/components/schemas/PositionStatus'
+        description:
+          type: string
+        activeVersion:
+          type: integer
+      required: [id, code, name, category, status, activeVersion]
+    PositionProfile:
+      type: object
+      properties:
+        mustHave:
+          type: array
+          items:
+            type: string
+        niceToHave:
+          type: array
+          items:
+            type: string
+        bonus:
+          type: array
+          items:
+            type: string
+      required: [mustHave, niceToHave, bonus]
+    ScoringDimension:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        weight:
+          type: number
+        rule:
+          type: string
+        source:
+          type: string
+      required: [id, name, weight, rule, source]
+    Candidate:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        city:
+          type: string
+        source:
+          type: string
+        roles:
+          type: array
+          items:
+            type: string
+        tags:
+          type: array
+          items:
+            type: string
+        aiGrade:
+          type: string
+        fitScore:
+          type: number
+          nullable: true
+      required: [id, name, city, source, roles, tags, aiGrade]
+    CandidateDetail:
+      allOf:
+        - $ref: '#/components/schemas/Candidate'
+        - type: object
+          properties:
+            email:
+              type: string
+              format: email
+            phone:
+              type: string
+            profileSummary:
+              type: string
+            experiences:
+              type: array
+              items:
+                type: object
+                properties:
+                  company:
+                    type: string
+                  title:
+                    type: string
+                  startDate:
+                    type: string
+                    format: date
+                  endDate:
+                    type: string
+                    nullable: true
+                required: [company, title, startDate]
+          required: [experiences]
+    MatchScore:
+      type: object
+      properties:
+        positionId:
+          type: string
+          format: uuid
+        totalScore:
+          type: number
+        grade:
+          type: string
+        dimensions:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              score:
+                type: number
+            required: [name, score]
+      required: [positionId, totalScore, grade, dimensions]
+    InterviewTemplate:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        positionId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        version:
+          type: integer
+        status:
+          type: string
+          enum: [draft, active, inactive]
+        durationMinutes:
+          type: integer
+        questionCount:
+          type: integer
+      required: [id, positionId, name, version, status, durationMinutes, questionCount]
+    InterviewQuestion:
+      type: object
+      properties:
+        id:
+          type: string
+        order:
+          type: integer
+        title:
+          type: string
+        prompt:
+          type: string
+        timeLimitSeconds:
+          type: integer
+      required: [id, order, title, prompt, timeLimitSeconds]
+    InterviewSession:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        candidateId:
+          type: string
+          format: uuid
+        templateId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [created, in_progress, submitted, scored, closed]
+        startedAt:
+          type: string
+          format: date-time
+          nullable: true
+        submittedAt:
+          type: string
+          format: date-time
+          nullable: true
+      required: [id, candidateId, templateId, status]
+    OutreachCampaign:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        positionId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [draft, running, paused, completed]
+        targetCount:
+          type: integer
+      required: [id, name, positionId, status, targetCount]
+    ApprovalRequest:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum: [agent_publish, config_publish, outreach_launch]
+        status:
+          $ref: '#/components/schemas/ApprovalStatus'
+        targetType:
+          type: string
+        targetId:
+          type: string
+          format: uuid
+        requesterName:
+          type: string
+        approverName:
+          type: string
+          nullable: true
+      required: [id, type, status, targetType, targetId, requesterName]
+    TaskStatusResponse:
+      type: object
+      properties:
+        taskId:
+          type: string
+          format: uuid
+        type:
+          type: string
+        status:
+          $ref: '#/components/schemas/TaskStatus'
+        progress:
+          type: integer
+          minimum: 0
+          maximum: 100
+        result:
+          type: object
+          additionalProperties: true
+          nullable: true
+        errorMessage:
+          type: string
+          nullable: true
+      required: [taskId, type, status, progress]
+    PositionListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Position'
+        meta:
+          $ref: '#/components/schemas/ApiMeta'
+      required: [items, meta]
+    PositionDetailResponse:
+      type: object
+      properties:
+        position:
+          $ref: '#/components/schemas/Position'
+        profile:
+          $ref: '#/components/schemas/PositionProfile'
+        scoringDimensions:
+          type: array
+          items:
+            $ref: '#/components/schemas/ScoringDimension'
+      required: [position, profile, scoringDimensions]
+    ScoringRuleSetResponse:
+      type: object
+      properties:
+        positionId:
+          type: string
+          format: uuid
+        dimensions:
+          type: array
+          items:
+            $ref: '#/components/schemas/ScoringDimension'
+      required: [positionId, dimensions]
+    CandidateListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Candidate'
+        meta:
+          $ref: '#/components/schemas/ApiMeta'
+      required: [items, meta]
+    CandidateDetailResponse:
+      type: object
+      properties:
+        candidate:
+          $ref: '#/components/schemas/CandidateDetail'
+      required: [candidate]
+    CandidateMatchScoreResponse:
+      type: object
+      properties:
+        matchScore:
+          $ref: '#/components/schemas/MatchScore'
+      required: [matchScore]
+    InterviewTemplateListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/InterviewTemplate'
+      required: [items]
+    InterviewTemplateDetailResponse:
+      type: object
+      properties:
+        template:
+          $ref: '#/components/schemas/InterviewTemplate'
+        questions:
+          type: array
+          items:
+            $ref: '#/components/schemas/InterviewQuestion'
+      required: [template, questions]
+    InterviewSessionDetailResponse:
+      type: object
+      properties:
+        session:
+          $ref: '#/components/schemas/InterviewSession'
+      required: [session]
+    OutreachCampaignListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/OutreachCampaign'
+      required: [items]
+    OutreachCampaignDetailResponse:
+      type: object
+      properties:
+        campaign:
+          $ref: '#/components/schemas/OutreachCampaign'
+      required: [campaign]
+    ApprovalRequestListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ApprovalRequest'
+      required: [items]
+    ApprovalRequestDetailResponse:
+      type: object
+      properties:
+        approval:
+          $ref: '#/components/schemas/ApprovalRequest'
+      required: [approval]
+    TaskAcceptedResponse:
+      type: object
+      properties:
+        taskId:
+          type: string
+          format: uuid
+        status:
+          $ref: '#/components/schemas/TaskStatus'
+      required: [taskId, status]
+    CreatePositionRequest:
+      type: object
+      properties:
+        code:
+          type: string
+        name:
+          type: string
+        category:
+          type: string
+          enum: [ITF, ITW, MWV, GENERAL]
+        description:
+          type: string
+      required: [code, name, category]
+    UpdatePositionRequest:
+      allOf:
+        - $ref: '#/components/schemas/CreatePositionRequest'
+        - type: object
+          properties:
+            status:
+              $ref: '#/components/schemas/PositionStatus'
+    UpdatePositionProfileRequest:
+      $ref: '#/components/schemas/PositionProfile'
+    UpdateScoringRulesRequest:
+      type: object
+      properties:
+        dimensions:
+          type: array
+          items:
+            $ref: '#/components/schemas/ScoringDimension'
+      required: [dimensions]
+    CreateResumeImportTaskRequest:
+      type: object
+      properties:
+        positionId:
+          type: string
+          format: uuid
+        files:
+          type: array
+          items:
+            type: object
+            properties:
+              fileName:
+                type: string
+              objectKey:
+                type: string
+            required: [fileName, objectKey]
+      required: [positionId, files]
+    CreateInterviewTemplateRequest:
+      type: object
+      properties:
+        positionId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        durationMinutes:
+          type: integer
+        questions:
+          type: array
+          items:
+            $ref: '#/components/schemas/InterviewQuestion'
+      required: [positionId, name, durationMinutes, questions]
+    UpdateInterviewTemplateRequest:
+      $ref: '#/components/schemas/CreateInterviewTemplateRequest'
+    CreateInterviewSessionRequest:
+      type: object
+      properties:
+        candidateId:
+          type: string
+          format: uuid
+        templateId:
+          type: string
+          format: uuid
+      required: [candidateId, templateId]
+    SubmitInterviewSessionRequest:
+      type: object
+      properties:
+        answers:
+          type: array
+          items:
+            type: object
+            properties:
+              questionId:
+                type: string
+              mediaObjectKey:
+                type: string
+            required: [questionId, mediaObjectKey]
+      required: [answers]
+    CreateOutreachCampaignRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        positionId:
+          type: string
+          format: uuid
+        candidateIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+      required: [name, positionId, candidateIds]
+    CreateApprovalRequest:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [agent_publish, config_publish, outreach_launch]
+        targetType:
+          type: string
+        targetId:
+          type: string
+          format: uuid
+        reason:
+          type: string
+      required: [type, targetType, targetId]
+    ApprovalDecisionRequest:
+      type: object
+      properties:
+        comment:
+          type: string
+      required: [comment]
+

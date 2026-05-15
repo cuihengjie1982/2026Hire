@@ -1,0 +1,630 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Trai - AI 智能招募系统 · 核心价值演示</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    * { font-family: 'Inter', sans-serif; }
+    .gradient-text { background: linear-gradient(135deg, #1a4bc4 0%, #6366F1 50%, #1a4bc4 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .card-hover { transition: all 0.3s ease; }
+    .card-hover:hover { transform: translateY(-4px); box-shadow: 0 20px 40px rgba(26, 75, 196, 0.15); }
+    .blob { border-radius: 30% 70% 70% 30% / 30% 30% 70% 70%; animation: blob 8s ease-in-out infinite; }
+    @keyframes blob { 0%, 100% { border-radius: 30% 70% 70% 30% / 30% 30% 70% 70%; } 50% { border-radius: 70% 30% 30% 70% / 70% 70% 30% 30%; } }
+    @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-20px); } }
+    .float { animation: float 6s ease-in-out infinite; }
+    @keyframes pulse-ring { 0% { transform: scale(0.8); opacity: 0.8; } 100% { transform: scale(1.4); opacity: 0; } }
+    .pulse-ring { animation: pulse-ring 2s ease-out infinite; }
+    .step-line { background: linear-gradient(180deg, #1a4bc4 0%, #6366F1 100%); }
+    .glass { background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(20px); }
+    .feature-icon { background: linear-gradient(135deg, #1a4bc4 0%, #6366F1 100%); }
+  </style>
+</head>
+<body class="bg-slate-50 min-h-screen">
+  <!-- Hero Section -->
+  <section class="relative min-h-screen flex items-center justify-center overflow-hidden bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
+    <!-- Animated Background Blobs -->
+    <div class="absolute inset-0 overflow-hidden">
+      <div class="absolute top-20 left-20 w-96 h-96 bg-blue-400/20 blob float"></div>
+      <div class="absolute top-40 right-20 w-80 h-80 bg-indigo-400/20 blob float" style="animation-delay: -2s;"></div>
+      <div class="absolute bottom-20 left-1/3 w-72 h-72 bg-purple-400/20 blob float" style="animation-delay: -4s;"></div>
+    </div>
+
+    <div class="relative z-10 text-center px-6 max-w-5xl mx-auto">
+      <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-sm font-medium mb-8">
+        <span class="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></span>
+        AI 驱动的新一代招募平台
+      </div>
+
+      <h1 class="text-6xl md:text-7xl font-extrabold text-gray-900 mb-6 leading-tight">
+        重新定义<br><span class="gradient-text">智能招募</span>
+      </h1>
+
+      <p class="text-xl text-gray-600 mb-12 max-w-2xl mx-auto leading-relaxed">
+        从人才搜索到入职管理，用 AI 赋能招募全流程。40% 效率提升，精准匹配，让招募团队专注于更有价值的工作。
+      </p>
+
+      <div class="flex flex-col sm:flex-row gap-4 justify-center mb-16">
+        <button onclick="scrollToSection('features')" class="px-8 py-4 bg-[#1a4bc4] hover:bg-[#0c2b7a] text-white rounded-xl font-semibold text-lg transition-all shadow-lg shadow-blue-500/30 hover:shadow-xl hover:shadow-blue-500/40">
+          探索核心功能
+        </button>
+        <button onclick="scrollToSection('flow')" class="px-8 py-4 bg-white hover:bg-gray-50 text-gray-700 rounded-xl font-semibold text-lg transition-all border border-gray-200">
+          查看工作流
+        </button>
+      </div>
+
+      <!-- Stats -->
+      <div class="grid grid-cols-3 gap-8 max-w-2xl mx-auto">
+        <div class="text-center">
+          <div class="text-4xl font-extrabold text-[#1a4bc4]">40%</div>
+          <div class="text-sm text-gray-500 mt-1">效率提升</div>
+        </div>
+        <div class="text-center">
+          <div class="text-4xl font-extrabold text-[#1a4bc4]">3x</div>
+          <div class="text-sm text-gray-500 mt-1">候选人质量</div>
+        </div>
+        <div class="text-center">
+          <div class="text-4xl font-extrabold text-[#1a4bc4]">24/7</div>
+          <div class="text-sm text-gray-500 mt-1">AI 自动寻源</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Scroll Indicator -->
+    <div class="absolute bottom-8 left-1/2 -translate-x-1/2 animate-bounce">
+      <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path>
+      </svg>
+    </div>
+  </section>
+
+  <!-- Problem Section -->
+  <section class="py-24 bg-white">
+    <div class="max-w-6xl mx-auto px-6">
+      <div class="text-center mb-16">
+        <h2 class="text-4xl font-bold text-gray-900 mb-4">传统招募的痛点</h2>
+        <p class="text-gray-600 text-lg">你的团队是否正在经历这些困扰？</p>
+      </div>
+
+      <div class="grid md:grid-cols-3 gap-6">
+        <div class="p-6 rounded-2xl border border-red-100 bg-red-50">
+          <div class="w-12 h-12 rounded-xl bg-red-100 flex items-center justify-center mb-4">
+            <svg class="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+          </div>
+          <h3 class="text-lg font-bold text-gray-900 mb-2">招募周期过长</h3>
+          <p class="text-gray-600 text-sm">平均 45+ 天填补一个职位，候选人匹配度低，反复沟通浪费大量时间</p>
+        </div>
+
+        <div class="p-6 rounded-2xl border border-orange-100 bg-orange-50">
+          <div class="w-12 h-12 rounded-xl bg-orange-100 flex items-center justify-center mb-4">
+            <svg class="w-6 h-6 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+            </svg>
+          </div>
+          <h3 class="text-lg font-bold text-gray-900 mb-2">人才库成为死库</h3>
+          <p class="text-gray-600 text-sm"> Thousands of resumes scattered across systems, impossible to find the right person when needed</p>
+        </div>
+
+        <div class="p-6 rounded-2xl border border-amber-100 bg-amber-50">
+          <div class="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center mb-4">
+            <svg class="w-6 h-6 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+            </svg>
+          </div>
+          <h3 class="text-lg font-bold text-gray-900 mb-2">AI 价值未被挖掘</h3>
+          <p class="text-gray-600 text-sm">大量重复性筛选、评分工作消耗团队精力，无法聚焦于候选人与 hiring manager 的深度沟通</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Core Value Prop -->
+  <section class="py-24 bg-gradient-to-br from-[#1a4bc4] to-[#6366F1] text-white">
+    <div class="max-w-6xl mx-auto px-6 text-center">
+      <h2 class="text-4xl font-bold mb-6">Trai 如何解决这些问题？</h2>
+      <p class="text-xl text-blue-100 mb-16 max-w-3xl mx-auto">我们构建了一个端到端的 AI 招募平台，将人工智能融入招募的每一个环节</p>
+
+      <div class="grid md:grid-cols-4 gap-8">
+        <div class="text-center">
+          <div class="w-16 h-16 rounded-2xl bg-white/20 flex items-center justify-center mx-auto mb-4 backdrop-blur">
+            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+            </svg>
+          </div>
+          <h3 class="text-xl font-bold mb-2">智能搜索</h3>
+          <p class="text-blue-100 text-sm">自然语言描述，AI 自动匹配最优候选人</p>
+        </div>
+
+        <div class="text-center">
+          <div class="w-16 h-16 rounded-2xl bg-white/20 flex items-center justify-center mx-auto mb-4 backdrop-blur">
+            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+            </svg>
+          </div>
+          <h3 class="text-xl font-bold mb-2">7x24 自动寻源</h3>
+          <p class="text-blue-100 text-sm">AI 代理自动挖掘人才，全天候不停歇</p>
+        </div>
+
+        <div class="text-center">
+          <div class="w-16 h-16 rounded-2xl bg-white/20 flex items-center justify-center mx-auto mb-4 backdrop-blur">
+            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+            </svg>
+          </div>
+          <h3 class="text-xl font-bold mb-2">智能评分</h3>
+          <p class="text-blue-100 text-sm">AI 多维度评估，Fit Score 量化匹配度</p>
+        </div>
+
+        <div class="text-center">
+          <div class="w-16 h-16 rounded-2xl bg-white/20 flex items-center justify-center mx-auto mb-4 backdrop-blur">
+            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+            </svg>
+          </div>
+          <h3 class="text-xl font-bold mb-2">数据洞察</h3>
+          <p class="text-blue-100 text-sm">实时分析看板，用数据驱动决策</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features Section -->
+  <section id="features" class="py-24 bg-slate-50">
+    <div class="max-w-6xl mx-auto px-6">
+      <div class="text-center mb-16">
+        <h2 class="text-4xl font-bold text-gray-900 mb-4">核心功能模块</h2>
+        <p class="text-gray-600 text-lg">覆盖招募全流程的一站式平台</p>
+      </div>
+
+      <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <!-- Feature 1: AI Candidate Search -->
+        <div class="card-hover bg-white rounded-2xl border border-gray-200 p-6 cursor-pointer" onclick="showFeatureDetail('search')">
+          <div class="feature-icon w-14 h-14 rounded-xl flex items-center justify-center mb-5">
+            <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+            </svg>
+          </div>
+          <h3 class="text-xl font-bold text-gray-900 mb-2">AI 候选人搜索</h3>
+          <p class="text-gray-600 text-sm mb-4">用自然语言描述需求，AI 自动解析并匹配最优候选人，支持 A-F 智能评级</p>
+          <div class="flex flex-wrap gap-2">
+            <span class="px-2 py-1 bg-blue-50 text-blue-700 text-xs rounded-full font-medium">自然语言搜索</span>
+            <span class="px-2 py-1 bg-blue-50 text-blue-700 text-xs rounded-full font-medium">AI 评级</span>
+            <span class="px-2 py-1 bg-blue-50 text-blue-700 text-xs rounded-full font-medium">Fit Score</span>
+          </div>
+        </div>
+
+        <!-- Feature 2: AI Agents -->
+        <div class="card-hover bg-white rounded-2xl border border-gray-200 p-6 cursor-pointer" onclick="showFeatureDetail('agents')">
+          <div class="w-14 h-14 rounded-xl flex items-center justify-center mb-5" style="background: linear-gradient(135deg, #10B981 0%, #059669 100%);">
+            <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+            </svg>
+          </div>
+          <h3 class="text-xl font-bold text-gray-900 mb-2">AI 招募代理</h3>
+          <p class="text-gray-600 text-sm mb-4">7×24 小时自动寻源，智能推送候选人，实时追踪采纳率</p>
+          <div class="flex flex-wrap gap-2">
+            <span class="px-2 py-1 bg-emerald-50 text-emerald-700 text-xs rounded-full font-medium">自动寻源</span>
+            <span class="px-2 py-1 bg-emerald-50 text-emerald-700 text-xs rounded-full font-medium">实时推送</span>
+            <span class="px-2 py-1 bg-emerald-50 text-emerald-700 text-xs rounded-full font-medium">采纳率追踪</span>
+          </div>
+        </div>
+
+        <!-- Feature 3: Shortlist -->
+        <div class="card-hover bg-white rounded-2xl border border-gray-200 p-6 cursor-pointer" onclick="showFeatureDetail('shortlist')">
+          <div class="w-14 h-14 rounded-xl flex items-center justify-center mb-5" style="background: linear-gradient(135deg, #6366F1 0%, #4F46E5 100%);">
+            <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
+            </svg>
+          </div>
+          <h3 class="text-xl font-bold text-gray-900 mb-2">入围名单管理</h3>
+          <p class="text-gray-600 text-sm mb-4">一站式管理候选人状态，流程节点清晰掌控，批量操作高效便捷</p>
+          <div class="flex flex-wrap gap-2">
+            <span class="px-2 py-1 bg-indigo-50 text-indigo-700 text-xs rounded-full font-medium">状态管理</span>
+            <span class="px-2 py-1 bg-indigo-50 text-indigo-700 text-xs rounded-full font-medium">批量操作</span>
+            <span class="px-2 py-1 bg-indigo-50 text-indigo-700 text-xs rounded-full font-medium">流程追踪</span>
+          </div>
+        </div>
+
+        <!-- Feature 4: Talent Pool -->
+        <div class="card-hover bg-white rounded-2xl border border-gray-200 p-6 cursor-pointer" onclick="showFeatureDetail('talent')">
+          <div class="w-14 h-14 rounded-xl flex items-center justify-center mb-5" style="background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);">
+            <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"></path>
+            </svg>
+          </div>
+          <h3 class="text-xl font-bold text-gray-900 mb-2">智能人才库</h3>
+          <p class="text-gray-600 text-sm mb-4">海量简历 AI 自动解析归类，多维度标签快速检索，永久沉淀企业人才资产</p>
+          <div class="flex flex-wrap gap-2">
+            <span class="px-2 py-1 bg-amber-50 text-amber-700 text-xs rounded-full font-medium">批量导入</span>
+            <span class="px-2 py-1 bg-amber-50 text-amber-700 text-xs rounded-full font-medium">智能分类</span>
+            <span class="px-2 py-1 bg-amber-50 text-amber-700 text-xs rounded-full font-medium">多维度检索</span>
+          </div>
+        </div>
+
+        <!-- Feature 5: AI Interview -->
+        <div class="card-hover bg-white rounded-2xl border border-gray-200 p-6 cursor-pointer" onclick="showFeatureDetail('interview')">
+          <div class="w-14 h-14 rounded-xl flex items-center justify-center mb-5" style="background: linear-gradient(135deg, #EC4899 0%, #DB2777 100%);">
+            <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.723v6.554a1 1 0 01-1.447.894L15 14M3 3v18h18"></path>
+            </svg>
+          </div>
+          <h3 class="text-xl font-bold text-gray-900 mb-2">AI 面试中心</h3>
+          <p class="text-gray-600 text-sm mb-4">结构化面试模板，AI 自动评估 responses，统一评估标准减少主观偏差</p>
+          <div class="flex flex-wrap gap-2">
+            <span class="px-2 py-1 bg-pink-50 text-pink-700 text-xs rounded-full font-medium">AI 评估</span>
+            <span class="px-2 py-1 bg-pink-50 text-pink-700 text-xs rounded-full font-medium">结构化模板</span>
+            <span class="px-2 py-1 bg-pink-50 text-pink-700 text-xs rounded-full font-medium">统一标准</span>
+          </div>
+        </div>
+
+        <!-- Feature 6: Analytics -->
+        <div class="card-hover bg-white rounded-2xl border border-gray-200 p-6 cursor-pointer" onclick="showFeatureDetail('analytics')">
+          <div class="w-14 h-14 rounded-xl flex items-center justify-center mb-5" style="background: linear-gradient(135deg, #14B8A6 0%, #0D9488 100%);">
+            <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+            </svg>
+          </div>
+          <h3 class="text-xl font-bold text-gray-900 mb-2">数据洞察</h3>
+          <p class="text-gray-600 text-sm mb-4">多维度数据看板，招募漏斗分析，周期性报表，驱动科学决策</p>
+          <div class="flex flex-wrap gap-2">
+            <span class="px-2 py-1 bg-teal-50 text-teal-700 text-xs rounded-full font-medium">漏斗分析</span>
+            <span class="px-2 py-1 bg-teal-50 text-teal-700 text-xs rounded-full font-medium">周期报表</span>
+            <span class="px-2 py-1 bg-teal-50 text-teal-700 text-xs rounded-full font-medium">趋势追踪</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Workflow Section -->
+  <section id="flow" class="py-24 bg-white">
+    <div class="max-w-6xl mx-auto px-6">
+      <div class="text-center mb-16">
+        <h2 class="text-4xl font-bold text-gray-900 mb-4">AI 招募工作流</h2>
+        <p class="text-gray-600 text-lg">从需求发布到入职管理，全流程智能化</p>
+      </div>
+
+      <div class="relative">
+        <!-- Timeline -->
+        <div class="absolute left-1/2 transform -translate-x-1/2 w-1 h-full bg-gradient-to-b from-blue-500 to-indigo-500 hidden lg:block"></div>
+
+        <!-- Step 1 -->
+        <div class="relative flex flex-col lg:flex-row items-center mb-16">
+          <div class="lg:w-1/2 lg:pr-16 lg:text-right mb-8 lg:mb-0">
+            <div class="bg-blue-50 rounded-2xl p-6 inline-block">
+              <div class="flex items-center gap-3 mb-3 lg:justify-end">
+                <span class="w-10 h-10 rounded-full feature-icon flex items-center justify-center text-white font-bold">1</span>
+                <h3 class="text-xl font-bold text-gray-900">发布招募需求</h3>
+              </div>
+              <p class="text-gray-600 text-sm">在项目管理中创建项目，配置岗位类型、招募人数、预算等关键信息</p>
+            </div>
+          </div>
+          <div class="absolute left-1/2 transform -translate-x-1/2 w-4 h-4 rounded-full bg-blue-500 hidden lg:block pulse-ring"></div>
+          <div class="lg:w-1/2 lg:pl-16"></div>
+        </div>
+
+        <!-- Step 2 -->
+        <div class="relative flex flex-col lg:flex-row items-center mb-16">
+          <div class="lg:w-1/2 lg:pr-16"></div>
+          <div class="absolute left-1/2 transform -translate-x-1/2 w-4 h-4 rounded-full bg-indigo-500 hidden lg:block pulse-ring" style="animation-delay: 0.5s;"></div>
+          <div class="lg:w-1/2 lg:pl-16 mb-8 lg:mb-0">
+            <div class="bg-indigo-50 rounded-2xl p-6 inline-block">
+              <div class="flex items-center gap-3 mb-3">
+                <span class="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold" style="background: linear-gradient(135deg, #6366F1 0%, #4F46E5 100%);">2</span>
+                <h3 class="text-xl font-bold text-gray-900">AI 自动寻源</h3>
+              </div>
+              <p class="text-gray-600 text-sm">AI 招募代理 7×24 小时自动从多渠道挖掘候选人，智能筛选并推送</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 3 -->
+        <div class="relative flex flex-col lg:flex-row items-center mb-16">
+          <div class="lg:w-1/2 lg:pr-16 lg:text-right mb-8 lg:mb-0">
+            <div class="bg-purple-50 rounded-2xl p-6 inline-block">
+              <div class="flex items-center gap-3 mb-3 lg:justify-end">
+                <span class="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold" style="background: linear-gradient(135deg, #A855F7 0%, #9333EA 100%);">3</span>
+                <h3 class="text-xl font-bold text-gray-900">智能评估 & 入围</h3>
+              </div>
+              <p class="text-gray-600 text-sm">AI 自动评分 (A-F)、Fit Score 计算，一键加入候选名单，高效管理</p>
+            </div>
+          </div>
+          <div class="absolute left-1/2 transform -translate-x-1/2 w-4 h-4 rounded-full bg-purple-500 hidden lg:block pulse-ring" style="animation-delay: 1s;"></div>
+          <div class="lg:w-1/2 lg:pl-16"></div>
+        </div>
+
+        <!-- Step 4 -->
+        <div class="relative flex flex-col lg:flex-row items-center mb-16">
+          <div class="lg:w-1/2 lg:pr-16"></div>
+          <div class="absolute left-1/2 transform -translate-x-1/2 w-4 h-4 rounded-full bg-pink-500 hidden lg:block pulse-ring" style="animation-delay: 1.5s;"></div>
+          <div class="lg:w-1/2 lg:pl-16 mb-8 lg:mb-0">
+            <div class="bg-pink-50 rounded-2xl p-6 inline-block">
+              <div class="flex items-center gap-3 mb-3">
+                <span class="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold" style="background: linear-gradient(135deg, #EC4899 0%, #DB2777 100%);">4</span>
+                <h3 class="text-xl font-bold text-gray-900">AI 面试评估</h3>
+              </div>
+              <p class="text-gray-600 text-sm">结构化 AI 面试，自动评估 responses，生成评估报告</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 5 -->
+        <div class="relative flex flex-col lg:flex-row items-center">
+          <div class="lg:w-1/2 lg:pr-16 lg:text-right mb-8 lg:mb-0">
+            <div class="bg-emerald-50 rounded-2xl p-6 inline-block">
+              <div class="flex items-center gap-3 mb-3 lg:justify-end">
+                <span class="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold" style="background: linear-gradient(135deg, #10B981 0%, #059669 100%);">5</span>
+                <h3 class="text-xl font-bold text-gray-900">审批 & 入职</h3>
+              </div>
+              <p class="text-gray-600 text-sm">审批中心批量审批，数据洞察分析效果，招募流程闭环</p>
+            </div>
+          </div>
+          <div class="absolute left-1/2 transform -translate-x-1/2 w-4 h-4 rounded-full bg-emerald-500 hidden lg:block pulse-ring" style="animation-delay: 2s;"></div>
+          <div class="lg:w-1/2 lg:pl-16"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Feature Detail Modal -->
+  <div id="featureModal" class="fixed inset-0 bg-black/60 z-50 hidden items-center justify-center p-6">
+    <div class="bg-white rounded-2xl max-w-2xl w-full max-h-[80vh] overflow-hidden shadow-2xl">
+      <div class="p-6 border-b border-gray-100 flex items-center justify-between">
+        <h3 id="modalTitle" class="text-2xl font-bold text-gray-900"></h3>
+        <button onclick="closeModal()" class="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+          <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
+      </div>
+      <div id="modalContent" class="p-6 overflow-y-auto max-h-[60vh]"></div>
+    </div>
+  </div>
+
+  <!-- CTA Section -->
+  <section class="py-24 bg-gradient-to-br from-slate-900 to-slate-800 text-white">
+    <div class="max-w-4xl mx-auto px-6 text-center">
+      <h2 class="text-4xl font-bold mb-6">准备好体验 AI 招募了吗？</h2>
+      <p class="text-xl text-slate-300 mb-10">让 AI 成为你的招募伙伴，从繁琐的筛选工作中解放出来专注于更有价值的人才沟通</p>
+      <div class="flex flex-col sm:flex-row gap-4 justify-center">
+        <button class="px-8 py-4 bg-[#1a4bc4] hover:bg-[#0c2b7a] text-white rounded-xl font-semibold text-lg transition-all">
+          预约产品演示
+        </button>
+        <button class="px-8 py-4 bg-white/10 hover:bg-white/20 text-white rounded-xl font-semibold text-lg transition-all border border-white/20">
+          了解更多
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="py-12 bg-slate-900 text-slate-400">
+    <div class="max-w-6xl mx-auto px-6">
+      <div class="flex flex-col md:flex-row items-center justify-between">
+        <div class="flex items-center gap-2 mb-4 md:mb-0">
+          <div class="w-8 h-8 rounded-lg feature-icon flex items-center justify-center">
+            <span class="text-white font-bold text-sm">T</span>
+          </div>
+          <span class="text-white font-bold text-lg">Trai</span>
+        </div>
+        <div class="text-sm">© 2026 Trai AI Recruitment Platform. All rights reserved.</div>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    const featureDetails = {
+      search: {
+        title: 'AI 候选人搜索',
+        content: `
+          <div class="space-y-6">
+            <div class="bg-blue-50 rounded-xl p-5">
+              <h4 class="font-bold text-gray-900 mb-3">✨ 核心能力</h4>
+              <ul class="space-y-2 text-sm text-gray-700">
+                <li class="flex items-start gap-2">
+                  <span class="w-1.5 h-1.5 rounded-full bg-blue-500 mt-2"></span>
+                  <span><strong>自然语言搜索</strong>：用日常描述找到目标候选人，如"有武术背景、能接受面部动捕的MWV演员"</span>
+                </li>
+                <li class="flex items-start gap-2">
+                  <span class="w-1.5 h-1.5 rounded-full bg-blue-500 mt-2"></span>
+                  <span><strong>AI 智能评级</strong>：A-F 六级评级体系，综合评估候选人质量</span>
+                </li>
+                <li class="flex items-start gap-2">
+                  <span class="w-1.5 h-1.5 rounded-full bg-blue-500 mt-2"></span>
+                  <span><strong>Fit Score</strong>：多维度量化匹配度，直观展示候选人与岗位的契合程度</span>
+                </li>
+              </ul>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+              <div class="bg-gray-50 rounded-xl p-4 text-center">
+                <div class="text-3xl font-bold text-[#1a4bc4] mb-1">60%</div>
+                <div class="text-sm text-gray-600">搜索效率提升</div>
+              </div>
+              <div class="bg-gray-50 rounded-xl p-4 text-center">
+                <div class="text-3xl font-bold text-[#1a4bc4] mb-1">3x</div>
+                <div class="text-sm text-gray-600">候选人匹配度</div>
+              </div>
+            </div>
+          </div>
+        `
+      },
+      agents: {
+        title: 'AI 招募代理',
+        content: `
+          <div class="space-y-6">
+            <div class="bg-emerald-50 rounded-xl p-5">
+              <h4 class="font-bold text-gray-900 mb-3">✨ 核心能力</h4>
+              <ul class="space-y-2 text-sm text-gray-700">
+                <li class="flex items-start gap-2">
+                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-2"></span>
+                  <span><strong>7×24 自动寻源</strong>：AI 代理不知疲倦地挖掘人才线索</span>
+                </li>
+                <li class="flex items-start gap-2">
+                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-2"></span>
+                  <span><strong>智能推送</strong>：根据项目需求自动匹配合适候选人</span>
+                </li>
+                <li class="flex items-start gap-2">
+                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-2"></span>
+                  <span><strong>采纳率追踪</strong>：实时监控代理效果，持续优化</span>
+                </li>
+              </ul>
+            </div>
+            <div class="bg-gray-50 rounded-xl p-4">
+              <div class="flex justify-between items-center mb-2">
+                <span class="text-sm font-medium text-gray-700">平均采纳率</span>
+                <span class="text-sm text-gray-500">43%</span>
+              </div>
+              <div class="w-full bg-gray-200 rounded-full h-3">
+                <div class="bg-emerald-500 h-3 rounded-full" style="width: 43%"></div>
+              </div>
+            </div>
+          </div>
+        `
+      },
+      shortlist: {
+        title: '入围名单管理',
+        content: `
+          <div class="space-y-6">
+            <div class="bg-indigo-50 rounded-xl p-5">
+              <h4 class="font-bold text-gray-900 mb-3">✨ 核心能力</h4>
+              <ul class="space-y-2 text-sm text-gray-700">
+                <li class="flex items-start gap-2">
+                  <span class="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-2"></span>
+                  <span><strong>一站式状态管理</strong>：从投递到入职全流程追踪</span>
+                </li>
+                <li class="flex items-start gap-2">
+                  <span class="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-2"></span>
+                  <span><strong>批量操作</strong>：支持批量添加、移出、状态更新</span>
+                </li>
+                <li class="flex items-start gap-2">
+                  <span class="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-2"></span>
+                  <span><strong>多项目管理</strong>：按项目隔离数据，权限清晰</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+        `
+      },
+      talent: {
+        title: '智能人才库',
+        content: `
+          <div class="space-y-6">
+            <div class="bg-amber-50 rounded-xl p-5">
+              <h4 class="font-bold text-gray-900 mb-3">✨ 核心能力</h4>
+              <ul class="space-y-2 text-sm text-gray-700">
+                <li class="flex items-start gap-2">
+                  <span class="w-1.5 h-1.5 rounded-full bg-amber-500 mt-2"></span>
+                  <span><strong>批量导入</strong>：支持 PDF、Word 简历批量导入，AI 自动解析</span>
+                </li>
+                <li class="flex items-start gap-2">
+                  <span class="w-1.5 h-1.5 rounded-full bg-amber-500 mt-2"></span>
+                  <span><strong>智能归类</strong>：按项目、岗位、来源多维度自动分类</span>
+                </li>
+                <li class="flex items-start gap-2">
+                  <span class="w-1.5 h-1.5 rounded-full bg-amber-500 mt-2"></span>
+                  <span><strong>永久沉淀</strong>：人才资产永不丢失，持续复用</span>
+                </li>
+              </ul>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+              <div class="bg-gray-50 rounded-xl p-4 text-center">
+                <div class="text-3xl font-bold text-amber-600 mb-1">406</div>
+                <div class="text-sm text-gray-600">累计人才储备</div>
+              </div>
+              <div class="bg-gray-50 rounded-xl p-4 text-center">
+                <div class="text-3xl font-bold text-amber-600 mb-1">58</div>
+                <div class="text-sm text-gray-600">本周面试数</div>
+              </div>
+            </div>
+          </div>
+        `
+      },
+      interview: {
+        title: 'AI 面试中心',
+        content: `
+          <div class="space-y-6">
+            <div class="bg-pink-50 rounded-xl p-5">
+              <h4 class="font-bold text-gray-900 mb-3">✨ 核心能力</h4>
+              <ul class="space-y-2 text-sm text-gray-700">
+                <li class="flex items-start gap-2">
+                  <span class="w-1.5 h-1.5 rounded-full bg-pink-500 mt-2"></span>
+                  <span><strong>结构化模板</strong>：预设多种岗位面试模板，标准化评估流程</span>
+                </li>
+                <li class="flex items-start gap-2">
+                  <span class="w-1.5 h-1.5 rounded-full bg-pink-500 mt-2"></span>
+                  <span><strong>AI 自动评估</strong>：自动分析候选人口播内容，生成评估报告</span>
+                </li>
+                <li class="flex items-start gap-2">
+                  <span class="w-1.5 h-1.5 rounded-full bg-pink-500 mt-2"></span>
+                  <span><strong>统一评估标准</strong>：减少面试官主观偏差，公平公正</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+        `
+      },
+      analytics: {
+        title: '数据洞察',
+        content: `
+          <div class="space-y-6">
+            <div class="bg-teal-50 rounded-xl p-5">
+              <h4 class="font-bold text-gray-900 mb-3">✨ 核心能力</h4>
+              <ul class="space-y-2 text-sm text-gray-700">
+                <li class="flex items-start gap-2">
+                  <span class="w-1.5 h-1.5 rounded-full bg-teal-500 mt-2"></span>
+                  <span><strong>多维度看板</strong>：项目、岗位、候选人多视角数据分析</span>
+                </li>
+                <li class="flex items-start gap-2">
+                  <span class="w-1.5 h-1.5 rounded-full bg-teal-500 mt-2"></span>
+                  <span><strong>招募漏斗</strong>：从源头到入职全链路转化分析</span>
+                </li>
+                <li class="flex items-start gap-2">
+                  <span class="w-1.5 h-1.5 rounded-full bg-teal-500 mt-2"></span>
+                  <span><strong>周期报表</strong>：日报、周报、月报自动生成</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+        `
+      }
+    };
+
+    function showFeatureDetail(key) {
+      const modal = document.getElementById('featureModal');
+      const title = document.getElementById('modalTitle');
+      const content = document.getElementById('modalContent');
+      const feature = featureDetails[key];
+
+      title.textContent = feature.title;
+      content.innerHTML = feature.content;
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closeModal() {
+      const modal = document.getElementById('featureModal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    function scrollToSection(id) {
+      document.getElementById(id).scrollIntoView({ behavior: 'smooth' });
+    }
+
+    // Close modal on background click
+    document.getElementById('featureModal').addEventListener('click', function(e) {
+      if (e.target === this) closeModal();
+    });
+
+    // Close modal on Escape key
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') closeModal();
+    });
+  </script>
+</body>
+</html>
