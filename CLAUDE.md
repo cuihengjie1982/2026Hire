@@ -69,7 +69,54 @@ Frontend (Vercel) ──> Supabase PostgREST (CRUD APIs)
 **Backend (Supabase):**
 - **PostgREST**: Auto-generated CRUD REST API from Postgres schema (for standard entity CRUD)
 - **Edge Functions**: Deno runtime for complex logic (Auth, AI LLM proxy, Interview scoring)
-- Edge Functions are in `supabase/functions/` and deploy via `supabase deploy`
+- Edge Functions are in `supabase/functions/` and deploy via `supabase functions deploy`
+
+### Supabase Edge Functions
+```bash
+supabase functions deploy <name>   # 部署指定函数
+supabase functions list             # 查看已部署函数
+```
+
+### Edge Functions 路由架构
+
+存在两个路由入口：
+- **embox-api** (verify_jwt=false) — 主路由，处理 settings/users、AI config、cross-table ops、agent-executor、mineru-proxy、notifications、sms-gateway、analytics
+- **index** (verify_jwt=true) — 旧路由，处理 ai-proxy、interview-scoring、candidate-ops 等
+
+前端调用方式：
+- `supabase.functions.invoke('name', body)` → 路由到 `index`
+- `fetch('/functions/v1/embox-api/<path>')` → 路由到 `embox-api`，需手动添加 Authorization header
+
+推荐写法（参考 `src/modules/settings/api.ts` 的 `efetch` 函数）：
+```typescript
+const efetch = async <T>(path: string, method = 'GET', body?: Record<string, unknown>): Promise<T> => {
+  const base = USE_MOCK_API ? '' : API_BASE_URL;
+  const res = await fetch(`${base}/functions/v1/embox-api${path}`, {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${getAuthToken() ?? ''}`,
+    },
+    ...(body ? { body: JSON.stringify(body) } : {}),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data?.error?.message || `API error ${res.status}`);
+  return data as T;
+};
+```
+
+### 两套后端系统
+
+| 环境 | 技术栈 | 端口/地址 |
+|------|--------|-----------|
+| 本地开发 | Express (`server/`) | :4000 |
+| 生产环境 | Supabase Edge Functions (`supabase/functions/`) | `https://<project>.supabase.co/functions/v1/` |
+
+Vite 开发服务器代理 `/api` → Express :4000，但生产环境前端直接调用 Edge Functions（不经过 Express）。
+
+### 前端 Supabase 客户端
+
+`src/shared/lib/supabase.ts` 使用懒初始化：`createClient(SUPABASE_URL, SUPABASE_ANON_KEY)`。环境变量：`VITE_SUPABASE_URL` 和 `VITE_SUPABASE_ANON_KEY`。
 
 **Local Development:**
 - Frontend: `npm run dev` (Vite on :3000, proxies `/api` → Express :4000)
@@ -217,6 +264,10 @@ Backend mirrors this:
 server/src/modules/{domain}/
   {domain}.routes.ts   # Express Router with SQL queries
 ```
+
+### Frontend API 调用约定
+
+生产环境调用 Edge Functions 时，API 函数应使用 `fetch` 直接请求 `/functions/v1/embox-api/<path>`，并携带 Authorization header。`invokeEdgeFunction('settings')` 会路由到 `index` 函数而非 `embox-api`，需要确认目标路由是否正确。
 
 ### Key Modules
 - **positions/** — Job position CRUD with profile rules, scoring rules, grade rules, base score config

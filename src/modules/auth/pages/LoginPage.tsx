@@ -80,8 +80,8 @@ export const LoginPage = ({onLogin}: {onLogin: () => void}) => {
         <div className="px-12 flex flex-col justify-center z-10 pb-12 mt-12 w-full lg:max-w-4xl mx-auto">
           <h2 className="text-[48px] font-bold text-white mb-6 leading-tight tracking-tight">为具身智能寻找最适合的人</h2>
           <p className="text-white/80 text-[20px] font-light tracking-wide mb-16 flex items-center space-x-3">
-            <span className="opacity-90">ITF · ITW · MWV</span>
-            <span>三类数据采集岗位专属AI招聘平台</span>
+            <span className="opacity-90">Ego · UMI · 真机/本体数据 · 仿真/合成数据</span>
+            <span>四类数据采集岗位专属AI招聘平台</span>
           </p>
 
           <div className="grid grid-cols-3 gap-6 pr-8">
