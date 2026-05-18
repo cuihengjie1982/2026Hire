@@ -54,7 +54,7 @@ export const createOutreachRecord = async (input: CreateOutreachRecordInput): Pr
     outreachRecordsFixture.unshift(newRecord);
     return newRecord;
   }
-  const { data, error } = await (supabase.from('outreach_records').insert({
+  const { data, error } = await (supabase.from('outreach_records' as any).insert({
     candidate_id: input.candidateId,
     candidate_name: input.candidateName,
     position_id: input.positionId,
@@ -62,7 +62,7 @@ export const createOutreachRecord = async (input: CreateOutreachRecordInput): Pr
     channel: input.channel,
     status: 'pending',
     content: input.content,
-  }) as unknown).select().single() as { data: Record<string, unknown> | null; error: Error | null };
+  } as any)).select().single() as { data: Record<string, unknown> | null; error: Error | null };
   if (error) throw new Error(error.message);
   if (!data) throw new Error('Failed to create outreach record');
   return mapRecord(data as Record<string, unknown>);
@@ -90,9 +90,8 @@ export const updateOutreachRecordStatus = async (id: string, status: OutreachRec
     outreachRecordsFixture[index] = {...outreachRecordsFixture[index], status};
     return outreachRecordsFixture[index];
   }
-  const { data, error } = await (supabase
-    .from('outreach_records')
-    .update({ status }) as unknown).eq('id', id)
+  const { data, error } = await (supabase.from('outreach_records' as any)
+    .update({ status } as any) as any).eq('id', id)
     .select()
     .single() as { data: Record<string, unknown> | null; error: Error | null };
   if (error) throw new Error(error.message);

@@ -195,7 +195,7 @@ export const savePositionDetail = async (
 
   // Upsert position_details table
   const {error} = await supabase
-    .from('position_details')
+    .from('position_details' as any)
     .upsert({
       position_id: positionId,
       profile_rules: detail.profileRules,
@@ -203,7 +203,7 @@ export const savePositionDetail = async (
       grade_rules: detail.gradeRules,
       base_score_config: detail.baseScoreConfig,
       ai_prompt: detail.aiPrompt || '',
-    } as Record<string, unknown>, {onConflict: 'position_id'});
+    } as any, {onConflict: 'position_id'});
 
   if (error) throw new Error(error.message);
 
@@ -251,9 +251,7 @@ export const createPosition = async (input: CreatePositionInput): Promise<Positi
     delivery_days: input.deliveryDays,
   };
 
-  const {data, error} = await (supabase
-    .from('positions')
-    .insert(insertData) as unknown).select().single() as { data: Record<string, unknown> | null; error: Error | null };
+  const {data, error} = await (supabase.from('positions' as any).insert(insertData) as any).select().single() as { data: Record<string, unknown> | null; error: Error | null };
 
   if (error) throw new Error(error.message);
   if (!data) throw new Error('Failed to create position');
@@ -283,9 +281,7 @@ export const updatePosition = async (id: string, input: UpdatePositionInput): Pr
     delivery_days: input.deliveryDays,
   };
 
-  const {data, error} = await (supabase
-    .from('positions')
-    .update(updateData) as unknown).eq('id', id)
+  const {data, error} = await (supabase.from('positions' as any).update(updateData) as any).eq('id', id)
     .select()
     .single() as { data: Record<string, unknown> | null; error: Error | null };
 

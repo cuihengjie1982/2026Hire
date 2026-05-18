@@ -1,14 +1,30 @@
-import {invokeEdgeFunction} from '../../shared/lib/apiClient';
-import {USE_MOCK_API} from '../../shared/lib/runtime';
+import {fetchJson, invokeEdgeFunction} from '../../shared/lib/apiClient';
+import {USE_MOCK_API, API_BASE_URL, getAuthToken} from '../../shared/lib/runtime';
 import {usersFixture, permissionsFixture, rolePermissionsFixture, notificationSettingsFixture, teamMemberInvitesFixture, currentUserFixture} from './fixtures';
 import {type User, type Permission, type RolePermission, type NotificationSetting, type TeamMemberInvite, type UserRole} from './types';
+
+const efetch = async <T>(path: string, method = 'GET', body?: Record<string, unknown>): Promise<T> => {
+  const base = USE_MOCK_API ? '' : API_BASE_URL;
+  const token = getAuthToken();
+  const res = await fetch(`${base}/functions/v1/embox-api${path}`, {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+    },
+    ...(body ? { body: JSON.stringify(body) } : {}),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data?.error?.message || `API error ${res.status}`);
+  return data as T;
+};
 
 export const getCurrentUser = async (): Promise<User> => {
   if (USE_MOCK_API) {
     await new Promise(r => setTimeout(r, 120));
     return currentUserFixture;
   }
-  return invokeEdgeFunction<User>('settings', {action: 'me'});
+  return efetch<User>('/settings/users/me', 'GET');
 };
 
 export const listUsers = async (): Promise<User[]> => {
@@ -16,7 +32,7 @@ export const listUsers = async (): Promise<User[]> => {
     await new Promise(r => setTimeout(r, 120));
     return usersFixture;
   }
-  return invokeEdgeFunction<User[]>('settings', {action: 'list-users'});
+  return efetch<User[]>('/settings/users', 'GET');
 };
 
 export const updateUser = async (userId: string, data: Partial<User>): Promise<User> => {
@@ -27,11 +43,7 @@ export const updateUser = async (userId: string, data: Partial<User>): Promise<U
     Object.assign(user, data);
     return user;
   }
-  return invokeEdgeFunction<User>('settings', {
-    action: 'update-user',
-    userId,
-    ...data,
-  });
+  return efetch<User>(`/settings/users/${userId}`, 'PATCH', data);
 };
 
 export const createUser = async (data: {name: string; email: string; role: string; department?: string; password: string}): Promise<User> => {
@@ -49,10 +61,7 @@ export const createUser = async (data: {name: string; email: string; role: strin
     usersFixture.push(user);
     return user;
   }
-  return invokeEdgeFunction<User>('settings', {
-    action: 'create-user',
-    ...data,
-  });
+  return efetch<User>('/settings/users/', 'POST', data);
 };
 
 export const deleteUser = async (userId: string): Promise<void> => {
@@ -60,10 +69,15 @@ export const deleteUser = async (userId: string): Promise<void> => {
     await new Promise(r => setTimeout(r, 120));
     return;
   }
-  return invokeEdgeFunction<void>('settings', {
-    action: 'delete-user',
-    userId,
-  });
+  return efetch<void>(`/settings/users/${userId}`, 'DELETE');
+};
+
+export const resetUserPassword = async (userId: string, newPassword: string): Promise<void> => {
+  if (USE_MOCK_API) {
+    await new Promise(r => setTimeout(r, 120));
+    return;
+  }
+  return efetch<void>(`/settings/users/${userId}/reset-password`, 'POST', { newPassword });
 };
 
 export const listPermissions = async (): Promise<Permission[]> => {
@@ -71,7 +85,7 @@ export const listPermissions = async (): Promise<Permission[]> => {
     await new Promise(r => setTimeout(r, 120));
     return permissionsFixture;
   }
-  return invokeEdgeFunction<Permission[]>('settings', {action: 'permissions'});
+  return efetch<Permission[]>('/settings/permissions', 'GET');
 };
 
 export const listRolePermissions = async (): Promise<RolePermission[]> => {
@@ -79,7 +93,7 @@ export const listRolePermissions = async (): Promise<RolePermission[]> => {
     await new Promise(r => setTimeout(r, 120));
     return rolePermissionsFixture;
   }
-  return invokeEdgeFunction<RolePermission[]>('settings', {action: 'role-permissions'});
+  return efetch<RolePermission[]>('/settings/role-permissions', 'GET');
 };
 
 export const updateRolePermissions = async (role: UserRole, permissions: string[]): Promise<RolePermission> => {
@@ -90,11 +104,7 @@ export const updateRolePermissions = async (role: UserRole, permissions: string[
     rolePerm.permissions = permissions;
     return rolePerm;
   }
-  return invokeEdgeFunction<RolePermission>('settings', {
-    action: 'update-role-permissions',
-    role,
-    permissions,
-  });
+  return efetch<RolePermission>('/settings/role-permissions', 'PATCH', { role, permissions });
 };
 
 export const listNotificationSettings = async (): Promise<NotificationSetting[]> => {
@@ -102,7 +112,7 @@ export const listNotificationSettings = async (): Promise<NotificationSetting[]>
     await new Promise(r => setTimeout(r, 120));
     return notificationSettingsFixture;
   }
-  return invokeEdgeFunction<NotificationSetting[]>('settings', {action: 'notification-settings'});
+  return efetch<NotificationSetting[]>('/settings/notification-settings', 'GET');
 };
 
 export const updateNotificationSetting = async (settingId: string, enabled: boolean): Promise<NotificationSetting> => {
@@ -113,11 +123,7 @@ export const updateNotificationSetting = async (settingId: string, enabled: bool
     setting.enabled = enabled;
     return setting;
   }
-  return invokeEdgeFunction<NotificationSetting>('settings', {
-    action: 'update-notification-setting',
-    settingId,
-    enabled,
-  });
+  return efetch<NotificationSetting>(`/settings/notification-settings/${settingId}`, 'PATCH', { enabled });
 };
 
 export const listInvites = async (): Promise<TeamMemberInvite[]> => {
@@ -125,7 +131,7 @@ export const listInvites = async (): Promise<TeamMemberInvite[]> => {
     await new Promise(r => setTimeout(r, 120));
     return teamMemberInvitesFixture;
   }
-  return invokeEdgeFunction<TeamMemberInvite[]>('settings', {action: 'invites'});
+  return efetch<TeamMemberInvite[]>('/settings/invites', 'GET');
 };
 
 export const inviteTeamMember = async (email: string, role: UserRole): Promise<TeamMemberInvite> => {
@@ -141,11 +147,7 @@ export const inviteTeamMember = async (email: string, role: UserRole): Promise<T
     teamMemberInvitesFixture.push(newInvite);
     return newInvite;
   }
-  return invokeEdgeFunction<TeamMemberInvite>('settings', {
-    action: 'invite-team-member',
-    email,
-    role,
-  });
+  return efetch<TeamMemberInvite>('/settings/invites/', 'POST', { email, role, invitedBy: currentUserFixture.name });
 };
 
 export const cancelInvite = async (email: string): Promise<void> => {
@@ -155,8 +157,6 @@ export const cancelInvite = async (email: string): Promise<void> => {
     if (idx !== -1) teamMemberInvitesFixture.splice(idx, 1);
     return;
   }
-  return invokeEdgeFunction<void>('settings', {
-    action: 'cancel-invite',
-    email,
-  });
+  // Cancel invite requires role param — use recruiter as default for cancel
+  return efetch<void>(`/settings/invites/${encodeURIComponent(email)}?role=recruiter`, 'DELETE');
 };

@@ -6,6 +6,7 @@ import {
   createUser,
   updateUser,
   deleteUser,
+  resetUserPassword,
   listPermissions,
   listRolePermissions,
   updateRolePermissions,
@@ -25,7 +26,6 @@ import {
   type UserRole,
 } from '../types';
 import { roleLabels } from '../fixtures';
-import { AUTH_TOKEN_KEY } from '../../../shared/lib/runtime';
 
 type SettingsTab = 'account' | 'permissions' | 'notifications' | 'team';
 
@@ -243,16 +243,7 @@ export const SettingsPage = () => {
     if (!resetPasswordUser || !resetPasswordValue || resetPasswordValue.length < 6) return;
     setResetting(true);
     try {
-      const res = await fetch('/api/users/' + resetPasswordUser.id + '/reset-password', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem(AUTH_TOKEN_KEY)}`,
-        },
-        body: JSON.stringify({newPassword: resetPasswordValue}),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error?.message || '重置失败');
+      await resetUserPassword(resetPasswordUser.id, resetPasswordValue);
       alert(resetPasswordUser.name + ' 的密码已重置');
       setResetPasswordUser(null);
       setResetPasswordValue('');

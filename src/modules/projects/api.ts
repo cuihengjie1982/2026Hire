@@ -99,7 +99,7 @@ export const createProject = async (data: Omit<Project, 'id'>): Promise<Project>
     return newProject;
   }
 
-  const {data: row, error} = await (supabase.from('projects').insert(data) as unknown).select().single() as { data: Record<string, unknown> | null; error: Error | null };
+  const {data: row, error} = await (supabase.from('projects' as any).insert(data) as any).select().single() as { data: Record<string, unknown> | null; error: Error | null };
   if (error) throw new Error(error.message);
   if (!row) throw new Error('Failed to create project');
   return row as unknown as Project;
@@ -114,7 +114,7 @@ export const updateProjectStatus = async (id: string, status: Project['status'])
     return projectsData[index];
   }
 
-  const {data: row, error} = await (supabase.from('projects').update({status}) as unknown).eq('id', id).select().single() as { data: Record<string, unknown> | null; error: Error | null };
+  const {data: row, error} = await (supabase.from('projects' as any).update({status}) as any).eq('id', id).select().single() as { data: Record<string, unknown> | null; error: Error | null };
   if (error) throw new Error(error.message);
   if (!row) throw new Error('Project not found');
   return row as unknown as Project;
@@ -129,7 +129,7 @@ export const updateProject = async (id: string, data: Partial<Pick<Project, 'nam
     return projectsData[index];
   }
 
-  const {data: row, error} = await (supabase.from('projects').update(data) as unknown).eq('id', id).select().single() as { data: Record<string, unknown> | null; error: Error | null };
+  const {data: row, error} = await (supabase.from('projects' as any).update(data) as any).eq('id', id).select().single() as { data: Record<string, unknown> | null; error: Error | null };
   if (error) throw new Error(error.message);
   if (!row) throw new Error('Project not found');
   return row as unknown as Project;
