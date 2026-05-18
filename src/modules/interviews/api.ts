@@ -167,7 +167,7 @@ export const listInterviewTemplates = async (): Promise<InterviewTemplateSummary
   }
   const { data, error } = await supabase.from('interview_templates').select('*');
   if (error) throw new Error(error.message);
-  return (data ?? []).map(mapTemplateSummary);
+  return Array.from(new Map((data ?? []).map(r => [r.id as string, r])).values()).map(mapTemplateSummary);
 };
 
 export const getInterviewTemplateDetail = async (
@@ -631,17 +631,17 @@ export const listManagementSessions = async (): Promise<InterviewManagementSessi
     `)
     .order('created_at', { ascending: false });
   if (error) throw new Error(error.message);
-  return (data ?? []).map(mapManagementSession);
+  return Array.from(new Map((data ?? []).map(r => [r.id as string, r])).values()).map(mapManagementSession);
 };
 
 export const listInterviewResults = async (): Promise<InterviewResult[]> => {
   if (USE_MOCK_API) {
     await new Promise(r => setTimeout(r, 120));
-    return [...mockResultsData];
+    return Array.from(new Map(mockResultsData.map(r => [r.id, r])).values());
   }
   const { data, error } = await supabase.from('interview_results').select('*').order('interview_date', { ascending: false });
   if (error) throw new Error(error.message);
-  return (data ?? []).map(mapInterviewResult);
+  return Array.from(new Map((data ?? []).map(r => [r.id as string, r])).values()).map(mapInterviewResult);
 };
 
 // Mutable copy of mock results that new results get pushed into

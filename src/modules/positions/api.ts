@@ -3,10 +3,12 @@ import {getItemsFromPayload, getValueFromPayload, invokeEdgeFunction} from '../.
 import {USE_MOCK_API, getUserName} from '../../shared/lib/runtime';
 import {type CreatePositionInput, type PositionDetail, type PositionSummary, type UpdatePositionInput, type ScoringRule, type GradeRule, type BaseScoreConfig, type ProfileRule} from './types';
 
-let positionsData: PositionSummary[] = [];
+let positionsData: PositionSummary[] = (() => { try { const r = localStorage.getItem('em-box.mock.positions'); return r ? JSON.parse(r) : []; } catch { return []; } })();
 
 // In-memory store for position details (mock mode)
-let positionDetailsMap: Record<string, PositionDetail> = {};
+let positionDetailsMap: Record<string, PositionDetail> = (() => { try { const r = localStorage.getItem('em-box.mock.position-details'); return r ? JSON.parse(r) : {}; } catch { return {}; } })();
+const savePositions = () => { localStorage.setItem('em-box.mock.positions', JSON.stringify(positionsData)); localStorage.setItem('em-box.mock.position-details', JSON.stringify(positionDetailsMap)); };
+const savePositionDetails = () => { localStorage.setItem('em-box.mock.positions', JSON.stringify(positionsData)); localStorage.setItem('em-box.mock.position-details', JSON.stringify(positionDetailsMap)); };
 
 const mapPositionSummary = (raw: Record<string, unknown>): PositionSummary => ({
   id: String(raw.id ?? ''),
@@ -26,7 +28,7 @@ const mapPositionSummary = (raw: Record<string, unknown>): PositionSummary => ({
 export const listPositions = async (): Promise<PositionSummary[]> => {
   if (USE_MOCK_API) {
     await new Promise(r => setTimeout(r, 120));
-    return positionsData;
+    return Array.from(new Map(positionsData.map(p => [p.id, p])).values());
   }
 
   const {data, error} = await supabase
@@ -35,13 +37,13 @@ export const listPositions = async (): Promise<PositionSummary[]> => {
     .order('created_at', {ascending: false});
 
   if (error) throw new Error(error.message);
-  return (data || []).map(mapPositionSummary);
+  return Array.from(new Map((data || []).map(r => [r.id as string, r])).values()).map(mapPositionSummary);
 };
 
 export const listPositionsByProject = async (projectId: string): Promise<PositionSummary[]> => {
   if (USE_MOCK_API) {
     await new Promise(r => setTimeout(r, 120));
-    return positionsData.filter((p) => p.projectId === projectId);
+    return Array.from(new Map(positionsData.filter(p => p.projectId === projectId).map(p => [p.id, p])).values());
   }
 
   const {data, error} = await supabase
@@ -50,7 +52,7 @@ export const listPositionsByProject = async (projectId: string): Promise<Positio
     .eq('project_id', projectId);
 
   if (error) throw new Error(error.message);
-  return (data || []).map(mapPositionSummary);
+  return Array.from(new Map((data || []).map(r => [r.id as string, r])).values()).map(mapPositionSummary);
 };
 
 export const getPositionDetail = async (_positionId: string): Promise<PositionDetail | null> => {
@@ -190,6 +192,7 @@ export const savePositionDetail = async (
     };
     console.log('[DEBUG] savePositionDetail - stored:', JSON.stringify(updated.profileRules));
     positionDetailsMap[positionId] = updated;
+    savePositionDetails();
     return updated;
   }
 
@@ -237,6 +240,7 @@ export const createPosition = async (input: CreatePositionInput): Promise<Positi
       gradeRules: [],
       baseScoreConfig: null,
     };
+    savePositions();
     return newPosition;
   }
 
@@ -251,7 +255,7 @@ export const createPosition = async (input: CreatePositionInput): Promise<Positi
     delivery_days: input.deliveryDays,
   };
 
-  const {data, error} = await (supabase.from('positions' as any).insert(insertData) as any).select().single() as { data: Record<string, unknown> | null; error: Error | null };
+  const {data, error} = await (supabase.from('positions' as any).insert(insertData as any) as any).select().single() as { data: Record<string, unknown> | null; error: Error | null };
 
   if (error) throw new Error(error.message);
   if (!data) throw new Error('Failed to create position');
@@ -268,6 +272,7 @@ export const updatePosition = async (id: string, input: UpdatePositionInput): Pr
       ...input,
       updatedAt: new Date().toISOString(),
     };
+    savePositions();
     return positionsData[index];
   }
 
@@ -281,7 +286,7 @@ export const updatePosition = async (id: string, input: UpdatePositionInput): Pr
     delivery_days: input.deliveryDays,
   };
 
-  const {data, error} = await (supabase.from('positions' as any).update(updateData) as any).eq('id', id)
+  const {data, error} = await (supabase.from('positions' as any).update(updateData as any) as any).eq('id', id)
     .select()
     .single() as { data: Record<string, unknown> | null; error: Error | null };
 
@@ -298,6 +303,7 @@ export const deletePosition = async (id: string): Promise<void> => {
       positionsData.splice(index, 1);
     }
     delete positionDetailsMap[id];
+    savePositions();
     return;
   }
 

@@ -4,7 +4,8 @@ import {USE_MOCK_API} from '../../shared/lib/runtime';
 import {shortlistFixture} from './fixtures';
 import {type CreateShortlistEntryInput, type ShortlistEntry} from './types';
 
-let shortlistData = [...shortlistFixture];
+let shortlistData: ShortlistEntry[] = (() => { try { const r = localStorage.getItem('em-box.mock.shortlist'); return r ? JSON.parse(r) : [...shortlistFixture]; } catch { return [...shortlistFixture]; } })();
+const saveShortlist = () => localStorage.setItem('em-box.mock.shortlist', JSON.stringify(shortlistData));
 
 const mapShortlistEntry = (raw: Record<string, unknown>): ShortlistEntry => ({
   id: String(raw.id ?? ''),
@@ -23,10 +24,8 @@ const mapShortlistEntry = (raw: Record<string, unknown>): ShortlistEntry => ({
 export const listShortlist = async (projectId?: string): Promise<ShortlistEntry[]> => {
   if (USE_MOCK_API) {
     await new Promise(r => setTimeout(r, 120));
-    if (projectId) {
-      return shortlistData.filter((entry) => entry.projectId === projectId);
-    }
-    return shortlistData;
+    const base = projectId ? shortlistData.filter(entry => entry.projectId === projectId) : shortlistData;
+    return Array.from(new Map(base.map(e => [e.id, e])).values()) as ShortlistEntry[];
   }
 
   let query = supabase.from('shortlist_entries').select('*');
@@ -35,18 +34,18 @@ export const listShortlist = async (projectId?: string): Promise<ShortlistEntry[
   }
   const {data, error} = await query;
   if (error) throw new Error(error.message);
-  return (data ?? []).map(mapShortlistEntry);
+  return Array.from(new Map((data ?? []).map(r => [r.id as string, r])).values()).map(mapShortlistEntry);
 };
 
 export const listShortlistByPosition = async (positionId: string): Promise<ShortlistEntry[]> => {
   if (USE_MOCK_API) {
     await new Promise(r => setTimeout(r, 120));
-    return shortlistData.filter((entry) => entry.positionId === positionId);
+    return Array.from(new Map(shortlistData.filter(entry => entry.positionId === positionId).map(e => [e.id, e])).values());
   }
 
   const {data, error} = await supabase.from('shortlist_entries').select('*').eq('position_id', positionId);
   if (error) throw new Error(error.message);
-  return (data ?? []).map(mapShortlistEntry);
+  return Array.from(new Map((data ?? []).map(r => [r.id as string, r])).values()).map(mapShortlistEntry);
 };
 
 export const addToShortlist = async (input: CreateShortlistEntryInput): Promise<ShortlistEntry> => {
@@ -58,10 +57,11 @@ export const addToShortlist = async (input: CreateShortlistEntryInput): Promise<
       nextStep: '待处理',
     };
     shortlistData.push(newEntry);
+    saveShortlist();
     return newEntry;
   }
 
-  const {data, error} = await (supabase.from('shortlist_entries' as any).insert(input) as any).select().single() as { data: Record<string, unknown> | null; error: Error | null };
+  const {data, error} = await (supabase.from('shortlist_entries' as any).insert(input as any) as any).select().single() as { data: Record<string, unknown> | null; error: Error | null };
   if (error) throw new Error(error.message);
   if (!data) throw new Error('Failed to add to shortlist');
   return mapShortlistEntry(data as Record<string, unknown>);
@@ -76,6 +76,7 @@ export const promoteShortlistEntry = async (
     const index = shortlistData.findIndex((entry) => entry.id === id);
     if (index === -1) throw new Error('Shortlist entry not found');
     shortlistData[index] = {...shortlistData[index], nextStep};
+    saveShortlist();
     return shortlistData[index];
   }
 
@@ -86,7 +87,6 @@ export const promoteShortlistEntry = async (
       nextStep,
     },
   });
-  if (error) throw new Error(error.message);
   return mapShortlistEntry(data as Record<string, unknown>);
 };
 
@@ -104,6 +104,7 @@ export const sendShortlistInterviewInvite = async (
     const index = shortlistData.findIndex((entry) => entry.id === id);
     if (index === -1) throw new Error('Shortlist entry not found');
     shortlistData[index] = {...shortlistData[index], nextStep: '已发面试邀请'};
+    saveShortlist();
     return shortlistData[index];
   }
 
@@ -114,6 +115,5 @@ export const sendShortlistInterviewInvite = async (
       ...payload,
     },
   });
-  if (error) throw new Error(error.message);
   return mapShortlistEntry(data as Record<string, unknown>);
 };

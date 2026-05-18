@@ -194,7 +194,7 @@ export const getTalentStats = async (): Promise<TalentStats> => {
 export const listCandidates = async (): Promise<CandidateCard[]> => {
   if (USE_MOCK_API) {
     await new Promise(r => setTimeout(r, 120));
-    return candidatesData;
+    return Array.from(new Map(candidatesData.map(c => [c.id, c])).values());
   }
 
   const {data, error} = await supabase
@@ -204,7 +204,7 @@ export const listCandidates = async (): Promise<CandidateCard[]> => {
     .order('created_at', {ascending: false});
 
   if (error) throw new Error(error.message);
-  return (data || []).map(buildCandidateCardFromServer);
+  return Array.from(new Map((data ?? []).map(r => [r.id as string, r])).values()).map(buildCandidateCardFromServer);
 };
 
 export const reparseCandidate = async (id: string): Promise<CandidateCard | null> => {

@@ -27,7 +27,7 @@ import {USE_MOCK_API, API_BASE_URL, getAuthToken} from '../lib/runtime';
 // Edge Function notification API (production)
 // ---------------------------------------------------------------------------
 
-const EF_BASE = `${API_BASE_URL}/functions/v1/index`;
+const EF_BASE = `${API_BASE_URL}/functions/v1/embox-api`;
 
 async function efFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const token = getAuthToken();

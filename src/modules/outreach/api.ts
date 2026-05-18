@@ -18,6 +18,10 @@ async function efFetch<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+// localStorage-backed mock store
+let outreachData: OutreachRecord[] = (() => { try { const r = localStorage.getItem('em-box.mock.outreach'); return r ? JSON.parse(r) : [...outreachRecordsFixture]; } catch { return [...outreachRecordsFixture]; } })();
+const saveOutreach = () => localStorage.setItem('em-box.mock.outreach', JSON.stringify(outreachData));
+
 const mapRecord = (raw: Record<string, unknown>): OutreachRecord => ({
   id: String(raw.id ?? ''),
   candidateId: String(raw.candidate_id ?? raw.candidateId ?? ''),
@@ -35,11 +39,11 @@ const mapRecord = (raw: Record<string, unknown>): OutreachRecord => ({
 export const listOutreachRecords = async (): Promise<OutreachRecord[]> => {
   if (USE_MOCK_API) {
     await new Promise(r => setTimeout(r, 120));
-    return outreachRecordsFixture;
+    return Array.from(new Map(outreachData.map(r => [r.id, r])).values());
   }
   const { data, error } = await supabase.from('outreach_records').select('*').order('created_at', { ascending: false });
   if (error) throw new Error(error.message);
-  return (data ?? []).map(mapRecord);
+  return Array.from(new Map((data ?? []).map(r => [r.id as string, r])).values()).map(mapRecord);
 };
 
 export const createOutreachRecord = async (input: CreateOutreachRecordInput): Promise<OutreachRecord> => {
@@ -51,7 +55,8 @@ export const createOutreachRecord = async (input: CreateOutreachRecordInput): Pr
       status: 'pending',
       createdAt: new Date().toISOString(),
     };
-    outreachRecordsFixture.unshift(newRecord);
+    outreachData.unshift(newRecord);
+    saveOutreach();
     return newRecord;
   }
   const { data, error } = await (supabase.from('outreach_records' as any).insert({
@@ -62,7 +67,7 @@ export const createOutreachRecord = async (input: CreateOutreachRecordInput): Pr
     channel: input.channel,
     status: 'pending',
     content: input.content,
-  } as any)).select().single() as { data: Record<string, unknown> | null; error: Error | null };
+  } as any) as any).select().single() as { data: Record<string, unknown> | null; error: Error | null };
   if (error) throw new Error(error.message);
   if (!data) throw new Error('Failed to create outreach record');
   return mapRecord(data as Record<string, unknown>);
@@ -71,7 +76,7 @@ export const createOutreachRecord = async (input: CreateOutreachRecordInput): Pr
 export const listOutreachRecordsByCandidate = async (candidateId: string): Promise<OutreachRecord[]> => {
   if (USE_MOCK_API) {
     await new Promise(r => setTimeout(r, 120));
-    return outreachRecordsFixture.filter(r => r.candidateId === candidateId);
+    return outreachData.filter(r => r.candidateId === candidateId);
   }
   const { data, error } = await supabase
     .from('outreach_records')
@@ -85,13 +90,14 @@ export const listOutreachRecordsByCandidate = async (candidateId: string): Promi
 export const updateOutreachRecordStatus = async (id: string, status: OutreachRecord['status']): Promise<OutreachRecord> => {
   if (USE_MOCK_API) {
     await new Promise(r => setTimeout(r, 120));
-    const index = outreachRecordsFixture.findIndex((r) => r.id === id);
+    const index = outreachData.findIndex((r) => r.id === id);
     if (index === -1) throw new Error('Outreach record not found');
-    outreachRecordsFixture[index] = {...outreachRecordsFixture[index], status};
-    return outreachRecordsFixture[index];
+    outreachData[index] = {...outreachData[index], status};
+    saveOutreach();
+    return outreachData[index];
   }
   const { data, error } = await (supabase.from('outreach_records' as any)
-    .update({ status } as any) as any).eq('id', id)
+    .update({ status } as any) as any).eq('id' as any, id as any)
     .select()
     .single() as { data: Record<string, unknown> | null; error: Error | null };
   if (error) throw new Error(error.message);
@@ -102,9 +108,10 @@ export const updateOutreachRecordStatus = async (id: string, status: OutreachRec
 export const deleteOutreachRecord = async (id: string): Promise<void> => {
   if (USE_MOCK_API) {
     await new Promise(r => setTimeout(r, 120));
-    const index = outreachRecordsFixture.findIndex((r) => r.id === id);
+    const index = outreachData.findIndex((r) => r.id === id);
     if (index === -1) throw new Error('Outreach record not found');
-    outreachRecordsFixture.splice(index, 1);
+    outreachData.splice(index, 1);
+    saveOutreach();
     return;
   }
   const { error } = await supabase.from('outreach_records').delete().eq('id', id);
@@ -129,7 +136,8 @@ export const sendSms = async (input: SendSmsInput): Promise<OutreachRecord> => {
       smsStatus: 'sent',
       createdAt: new Date().toISOString(),
     };
-    outreachRecordsFixture.unshift(record);
+    outreachData.unshift(record);
+    saveOutreach();
     return record;
   }
   const raw = await efFetch<Record<string, unknown>>('/sms-gateway/send', {

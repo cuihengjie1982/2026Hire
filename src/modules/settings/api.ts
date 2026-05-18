@@ -1,6 +1,6 @@
 import {fetchJson, invokeEdgeFunction} from '../../shared/lib/apiClient';
 import {USE_MOCK_API, API_BASE_URL, getAuthToken} from '../../shared/lib/runtime';
-import {usersFixture, permissionsFixture, rolePermissionsFixture, notificationSettingsFixture, teamMemberInvitesFixture, currentUserFixture} from './fixtures';
+import {permissionsFixture, rolePermissionsFixture, notificationSettingsFixture, currentUserFixture} from './fixtures';
 import {type User, type Permission, type RolePermission, type NotificationSetting, type TeamMemberInvite, type UserRole} from './types';
 
 const efetch = async <T>(path: string, method = 'GET', body?: Record<string, unknown>): Promise<T> => {
@@ -19,6 +19,28 @@ const efetch = async <T>(path: string, method = 'GET', body?: Record<string, unk
   return data as T;
 };
 
+// --- localStorage-backed mock stores ---
+const STORAGE_KEYS = {
+  users: 'em-box.mock.users',
+  invites: 'em-box.mock.invites',
+} as const;
+
+const loadFromStorage = <T>(key: string, fallback: T[]): T[] => {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : fallback;
+  } catch {
+    return fallback;
+  }
+};
+
+const saveToStorage = <T>(key: string, data: T[]) => {
+  localStorage.setItem(key, JSON.stringify(data));
+};
+
+let mockUsers: User[] = loadFromStorage(STORAGE_KEYS.users, []);
+let mockInvites: TeamMemberInvite[] = loadFromStorage(STORAGE_KEYS.invites, []);
+
 export const getCurrentUser = async (): Promise<User> => {
   if (USE_MOCK_API) {
     await new Promise(r => setTimeout(r, 120));
@@ -30,7 +52,7 @@ export const getCurrentUser = async (): Promise<User> => {
 export const listUsers = async (): Promise<User[]> => {
   if (USE_MOCK_API) {
     await new Promise(r => setTimeout(r, 120));
-    return usersFixture;
+    return [...mockUsers];
   }
   return efetch<User[]>('/settings/users', 'GET');
 };
@@ -38,9 +60,10 @@ export const listUsers = async (): Promise<User[]> => {
 export const updateUser = async (userId: string, data: Partial<User>): Promise<User> => {
   if (USE_MOCK_API) {
     await new Promise(r => setTimeout(r, 120));
-    const user = usersFixture.find(u => u.id === userId);
+    const user = mockUsers.find(u => u.id === userId);
     if (!user) throw new Error('User not found');
     Object.assign(user, data);
+    saveToStorage(STORAGE_KEYS.users, mockUsers);
     return user;
   }
   return efetch<User>(`/settings/users/${userId}`, 'PATCH', data);
@@ -58,7 +81,8 @@ export const createUser = async (data: {name: string; email: string; role: strin
       status: 'active',
       createdAt: new Date().toISOString(),
     };
-    usersFixture.push(user);
+    mockUsers.push(user);
+    saveToStorage(STORAGE_KEYS.users, mockUsers);
     return user;
   }
   return efetch<User>('/settings/users/', 'POST', data);
@@ -67,6 +91,8 @@ export const createUser = async (data: {name: string; email: string; role: strin
 export const deleteUser = async (userId: string): Promise<void> => {
   if (USE_MOCK_API) {
     await new Promise(r => setTimeout(r, 120));
+    mockUsers = mockUsers.filter(u => u.id !== userId);
+    saveToStorage(STORAGE_KEYS.users, mockUsers);
     return;
   }
   return efetch<void>(`/settings/users/${userId}`, 'DELETE');
@@ -129,7 +155,7 @@ export const updateNotificationSetting = async (settingId: string, enabled: bool
 export const listInvites = async (): Promise<TeamMemberInvite[]> => {
   if (USE_MOCK_API) {
     await new Promise(r => setTimeout(r, 120));
-    return teamMemberInvitesFixture;
+    return [...mockInvites];
   }
   return efetch<TeamMemberInvite[]>('/settings/invites', 'GET');
 };
@@ -144,7 +170,8 @@ export const inviteTeamMember = async (email: string, role: UserRole): Promise<T
       invitedAt: new Date().toISOString(),
       invitedBy: currentUserFixture.name,
     };
-    teamMemberInvitesFixture.push(newInvite);
+    mockInvites.push(newInvite);
+    saveToStorage(STORAGE_KEYS.invites, mockInvites);
     return newInvite;
   }
   return efetch<TeamMemberInvite>('/settings/invites/', 'POST', { email, role, invitedBy: currentUserFixture.name });
@@ -153,10 +180,9 @@ export const inviteTeamMember = async (email: string, role: UserRole): Promise<T
 export const cancelInvite = async (email: string): Promise<void> => {
   if (USE_MOCK_API) {
     await new Promise(r => setTimeout(r, 120));
-    const idx = teamMemberInvitesFixture.findIndex(i => i.email === email);
-    if (idx !== -1) teamMemberInvitesFixture.splice(idx, 1);
+    mockInvites = mockInvites.filter(i => i.email !== email);
+    saveToStorage(STORAGE_KEYS.invites, mockInvites);
     return;
   }
-  // Cancel invite requires role param — use recruiter as default for cancel
   return efetch<void>(`/settings/invites/${encodeURIComponent(email)}?role=recruiter`, 'DELETE');
 };

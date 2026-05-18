@@ -3,7 +3,8 @@ import {USE_MOCK_API} from '../../shared/lib/runtime';
 import {contactsFixture} from './fixtures';
 import {type Contact, type ContactChannel} from './types';
 
-let contactsData = [...contactsFixture];
+let contactsData: Contact[] = (() => { try { const r = localStorage.getItem('em-box.mock.contacts'); return r ? JSON.parse(r) : [...contactsFixture]; } catch { return [...contactsFixture]; } })();
+const saveContacts = () => localStorage.setItem('em-box.mock.contacts', JSON.stringify(contactsData));
 
 const mapContact = (raw: Record<string, unknown>): Contact => ({
   id: String(raw.id ?? ''),
@@ -36,20 +37,20 @@ type CreateContactInput = {
 export const listContacts = async (projectId?: string): Promise<Contact[]> => {
   if (USE_MOCK_API) {
     await new Promise(r => setTimeout(r, 120));
-    if (projectId) return contactsData.filter(c => c.projectId === projectId);
-    return contactsData;
+    const base = projectId ? contactsData.filter(c => c.projectId === projectId) : contactsData;
+    return Array.from(new Map(base.map(c => [c.id, c])).values());
   }
   let query = supabase.from('contacts').select('*').order('created_at', { ascending: false });
   if (projectId) query = query.eq('project_id', projectId);
   const { data, error } = await query;
   if (error) throw new Error(error.message);
-  return (data ?? []).map(mapContact);
+  return Array.from(new Map((data ?? []).map(r => [r.id as string, r])).values()).map(mapContact);
 };
 
 export const listContactsByCandidate = async (candidateId: string): Promise<Contact[]> => {
   if (USE_MOCK_API) {
     await new Promise(r => setTimeout(r, 120));
-    return contactsData.filter(c => c.candidateId === candidateId);
+    return Array.from(new Map(contactsData.filter(c => c.candidateId === candidateId).map(c => [c.id, c])).values());
   }
   const { data, error } = await supabase
     .from('contacts')
@@ -57,7 +58,7 @@ export const listContactsByCandidate = async (candidateId: string): Promise<Cont
     .eq('candidate_id', candidateId)
     .order('created_at', { ascending: false });
   if (error) throw new Error(error.message);
-  return (data ?? []).map(mapContact);
+  return Array.from(new Map((data ?? []).map(r => [r.id as string, r])).values()).map(mapContact);
 };
 
 export const createContact = async (input: CreateContactInput): Promise<Contact> => {
@@ -71,6 +72,7 @@ export const createContact = async (input: CreateContactInput): Promise<Contact>
       updatedAt: new Date().toISOString(),
     };
     contactsData.push(newContact);
+    saveContacts();
     return newContact;
   }
   const { data, error } = await (supabase.from('contacts' as any).insert({
@@ -84,7 +86,7 @@ export const createContact = async (input: CreateContactInput): Promise<Contact>
     channel: input.channel,
     reason: input.reason,
     status: 'pending',
-  } as any)).select().single() as { data: Record<string, unknown> | null; error: Error | null };
+  } as any) as any).select().single() as { data: Record<string, unknown> | null; error: Error | null };
   if (error) throw new Error(error.message);
   if (!data) throw new Error('Failed to create contact');
   return mapContact(data as Record<string, unknown>);
@@ -96,6 +98,7 @@ export const updateContactStatus = async (id: string, status: Contact['status'])
     const index = contactsData.findIndex((c) => c.id === id);
     if (index === -1) throw new Error('Contact not found');
     contactsData[index] = {...contactsData[index], status, updatedAt: new Date().toISOString()};
+    saveContacts();
     return contactsData[index];
   }
   const { data, error } = await (supabase.from('contacts' as any)

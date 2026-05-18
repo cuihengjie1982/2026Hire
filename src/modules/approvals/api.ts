@@ -4,6 +4,15 @@ import {USE_MOCK_API} from '../../shared/lib/runtime';
 import {approvalRequestsFixture, interviewApprovalRequestsFixture, interviewApprovalHistoryFixture} from './fixtures';
 import {type ApprovalRequestSummary, type InterviewApprovalRequest, type ApprovalStatus, type CreateInterviewApprovalInput} from './types';
 
+// localStorage-backed mock stores
+let approvalRequestsData: ApprovalRequestSummary[] = (() => { try { const r = localStorage.getItem('em-box.mock.approvals'); return r ? JSON.parse(r) : [...approvalRequestsFixture]; } catch { return [...approvalRequestsFixture]; } })();
+let interviewApprovalRequestsData: InterviewApprovalRequest[] = (() => { try { const r = localStorage.getItem('em-box.mock.approval-requests'); return r ? JSON.parse(r) : [...interviewApprovalRequestsFixture]; } catch { return [...interviewApprovalRequestsFixture]; } })();
+let interviewApprovalHistoryData: InterviewApprovalRequest[] = (() => { try { const r = localStorage.getItem('em-box.mock.approval-history'); return r ? JSON.parse(r) : [...interviewApprovalHistoryFixture]; } catch { return [...interviewApprovalHistoryFixture]; } })();
+const saveApprovalRequests = () => localStorage.setItem('em-box.mock.approvals', JSON.stringify(approvalRequestsData));
+const saveInterviewApprovalRequests = () => localStorage.setItem('em-box.mock.approval-requests', JSON.stringify(interviewApprovalRequestsData));
+const saveInterviewApprovalHistory = () => localStorage.setItem('em-box.mock.approval-history', JSON.stringify(interviewApprovalHistoryData));
+const saveAllApprovals = () => { saveApprovalRequests(); saveInterviewApprovalRequests(); saveInterviewApprovalHistory(); };
+
 // ---------------------------------------------------------------------------
 // Response mappers: snake_case API → camelCase frontend types
 // ---------------------------------------------------------------------------
@@ -46,12 +55,12 @@ const parseJsonField = <T>(val: unknown, fallback: T): T => {
 export const listApprovalRequests = async (): Promise<ApprovalRequestSummary[]> => {
   if (USE_MOCK_API) {
     await new Promise(r => setTimeout(r, 120));
-    return approvalRequestsFixture;
+    return Array.from(new Map(approvalRequestsData.map(a => [a.id, a])).values());
   }
 
   const {data, error} = await supabase.from('approval_requests').select('*');
   if (error) throw new Error(error.message);
-  return (data ?? []) as ApprovalRequestSummary[];
+  return Array.from(new Map((data ?? []).map(r => [r.id as string, r])).values()) as ApprovalRequestSummary[];
 };
 
 export const getApprovalRequest = async (
@@ -59,7 +68,7 @@ export const getApprovalRequest = async (
 ): Promise<ApprovalRequestSummary | null> => {
   if (USE_MOCK_API) {
     await new Promise(r => setTimeout(r, 120));
-    return approvalRequestsFixture.find((item) => item.id === approvalId) ?? null;
+    return approvalRequestsData.find(item => item.id === approvalId) ?? null;
   }
 
   const {data, error} = await supabase.from('approval_requests').select('*').eq('id', approvalId).maybeSingle();
@@ -71,23 +80,23 @@ export const getApprovalRequest = async (
 export const listInterviewApprovalRequests = async (): Promise<InterviewApprovalRequest[]> => {
   if (USE_MOCK_API) {
     await new Promise(r => setTimeout(r, 120));
-    return interviewApprovalRequestsFixture;
+    return Array.from(new Map(interviewApprovalRequestsData.map(r => [r.id, r])).values());
   }
 
   const {data, error} = await supabase.from('interview_approval_requests').select('*').eq('status', 'pending');
   if (error) throw new Error(error.message);
-  return (data ?? []).map(parseInterviewApproval);
+  return Array.from(new Map((data ?? []).map(r => [r.id as string, r])).values()).map(parseInterviewApproval);
 };
 
 export const listInterviewApprovalHistory = async (): Promise<InterviewApprovalRequest[]> => {
   if (USE_MOCK_API) {
     await new Promise(r => setTimeout(r, 120));
-    return interviewApprovalHistoryFixture;
+    return Array.from(new Map(interviewApprovalHistoryData.map(r => [r.id, r])).values());
   }
 
   const {data, error} = await supabase.from('interview_approval_requests').select('*').neq('status', 'pending').order('created_at', {ascending: false});
   if (error) throw new Error(error.message);
-  return (data ?? []).map(parseInterviewApproval);
+  return Array.from(new Map((data ?? []).map(r => [r.id as string, r])).values()).map(parseInterviewApproval);
 };
 
 export const createInterviewApprovalRequest = async (
@@ -102,10 +111,11 @@ export const createInterviewApprovalRequest = async (
       requesterName: 'AI面试系统',
       createdAt: new Date().toISOString(),
     };
-    interviewApprovalRequestsFixture.unshift(request);
+    interviewApprovalRequestsData.unshift(request);
+    saveInterviewApprovalRequests();
     return request;
   }
-  const {data, error} = await supabase.from('interview_approval_requests').insert(input).select().single();
+  const {data, error} = await supabase.from('interview_approval_requests').insert(input as any).select().single();
   if (error) throw new Error(error.message);
   return parseInterviewApproval(data);
 };
@@ -118,7 +128,7 @@ export const decideInterviewApproval = async (
 ): Promise<InterviewApprovalRequest> => {
   if (USE_MOCK_API) {
     await new Promise(r => setTimeout(r, 120));
-    const request = interviewApprovalRequestsFixture.find((r) => r.id === approvalId);
+    const request = interviewApprovalRequestsData.find((r) => r.id === approvalId);
     if (!request) throw new Error('Approval request not found');
 
     request.status = decision;
@@ -126,6 +136,7 @@ export const decideInterviewApproval = async (
     request.decidedAt = new Date().toISOString();
     request.decidedComment = comment;
 
+    saveAllApprovals();
     return request;
   }
 
@@ -145,9 +156,10 @@ export const decideInterviewApproval = async (
 export const hireCandidate = async (approvalId: string): Promise<InterviewApprovalRequest> => {
   if (USE_MOCK_API) {
     await new Promise(r => setTimeout(r, 120));
-    const request = interviewApprovalHistoryFixture.find((r) => r.id === approvalId);
+    const request = interviewApprovalHistoryData.find((r) => r.id === approvalId);
     if (!request) throw new Error('Approval request not found');
     request.status = 'hired';
+    saveInterviewApprovalHistory();
     return request;
   }
 

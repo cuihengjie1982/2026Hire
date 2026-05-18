@@ -16,9 +16,29 @@ export const getSupabase = () => {
   return _supabase;
 };
 
+// Check if Supabase is configured (env vars present)
+const isSupabaseConfigured = Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
+
 // Alias for backward compatibility — lazily initialized
-export const supabase = new Proxy({} as ReturnType<typeof createClient>, {
-  get(_target, prop) {
-    return getSupabase()[prop as keyof ReturnType<typeof createClient>];
-  },
-});
+// When env vars are missing, returns a mock that simulates no active session
+// so the app can run in local/mock mode without Supabase.
+export const supabase = isSupabaseConfigured
+  ? (new Proxy({} as ReturnType<typeof createClient>, {
+      get(_target, prop) {
+        return getSupabase()[prop as keyof ReturnType<typeof createClient>];
+      },
+    }))
+  : (new Proxy({} as ReturnType<typeof createClient>, {
+      get(_target, prop) {
+        // Mock auth methods for local development without Supabase
+        if (prop === 'auth') {
+          return {
+            getSession: async () => ({ data: { session: null } }),
+            onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
+            signInWithPassword: async () => ({ data: { user: null, session: null }, error: new Error('Supabase not configured') }),
+            signOut: async () => ({}),
+          };
+        }
+        return undefined;
+      },
+    }));

@@ -4,15 +4,14 @@ import {USE_MOCK_API} from '../../shared/lib/runtime';
 import {agentStatsFixture, agentsFixture} from './fixtures';
 import {type Agent, type AgentStats, type CreateAgentInput, type AgentRunResult} from './types';
 
-let agentsData = [...agentsFixture];
+let agentsData: Agent[] = (() => { try { const r = localStorage.getItem('em-box.mock.agents'); return r ? JSON.parse(r) : [...agentsFixture]; } catch { return [...agentsFixture]; } })();
+const saveAgents = () => localStorage.setItem('em-box.mock.agents', JSON.stringify(agentsData));
 
 export const listAgents = async (projectId?: string): Promise<Agent[]> => {
   if (USE_MOCK_API) {
     await new Promise(r => setTimeout(r, 120));
-    if (projectId) {
-      return agentsData.filter((a) => a.projectId === projectId);
-    }
-    return agentsData;
+    const base = projectId ? agentsData.filter((a) => a.projectId === projectId) : agentsData;
+    return Array.from(new Map(base.map(a => [a.id, a])).values());
   }
 
   let query = supabase.from('agents').select('*');
@@ -21,7 +20,7 @@ export const listAgents = async (projectId?: string): Promise<Agent[]> => {
   }
   const {data, error} = await query;
   if (error) throw new Error(error.message);
-  return data as Agent[];
+  return Array.from(new Map((data ?? []).map(r => [r.id as string, r])).values()) as Agent[];
 };
 
 export const getAgentStats = async (): Promise<AgentStats> => {
@@ -74,10 +73,11 @@ export const createAgent = async (input: CreateAgentInput): Promise<Agent> => {
       updatedAt: new Date().toISOString(),
     };
     agentsData.push(newAgent);
+    saveAgents();
     return newAgent;
   }
 
-  const {data, error} = await supabase.from('agents').insert(input as unknown as Record<string, unknown>).select().single() as { data: Agent | null; error: Error | null };
+  const {data, error} = await (supabase.from('agents' as any).insert(input as any) as any).select().single() as { data: Agent | null; error: Error | null };
   if (error) throw new Error(error.message);
   if (!data) throw new Error('Failed to create agent');
   return data;
@@ -89,10 +89,11 @@ export const updateAgent = async (agentId: string, input: Partial<CreateAgentInp
     const index = agentsData.findIndex((a) => a.id === agentId);
     if (index === -1) throw new Error('Agent not found');
     agentsData[index] = {...agentsData[index], ...input, updatedAt: new Date().toISOString()};
+    saveAgents();
     return agentsData[index];
   }
 
-  const {data, error} = await supabase.from('agents').update(input).eq('id', agentId).select().single() as { data: Agent | null; error: Error | null };
+  const {data, error} = await (supabase.from('agents' as any).update(input as any) as any).eq('id', agentId).select().single() as { data: Agent | null; error: Error | null };
   if (error) throw new Error(error.message);
   if (!data) throw new Error('Agent not found');
   return data;
@@ -104,10 +105,11 @@ export const pauseAgent = async (agentId: string): Promise<Agent> => {
     const index = agentsData.findIndex((a) => a.id === agentId);
     if (index === -1) throw new Error('Agent not found');
     agentsData[index] = {...agentsData[index], status: 'paused'};
+    saveAgents();
     return agentsData[index];
   }
 
-  const {data, error} = await supabase.from('agents').update({status: 'paused'}).eq('id', agentId).select().single() as { data: Agent | null; error: Error | null };
+  const {data, error} = await (supabase.from('agents' as any).update({status: 'paused'} as any) as any).eq('id', agentId).select().single() as { data: Agent | null; error: Error | null };
   if (error) throw new Error(error.message);
   if (!data) throw new Error('Agent not found');
   return data;
@@ -119,10 +121,11 @@ export const resumeAgent = async (agentId: string): Promise<Agent> => {
     const index = agentsData.findIndex((a) => a.id === agentId);
     if (index === -1) throw new Error('Agent not found');
     agentsData[index] = {...agentsData[index], status: 'running'};
+    saveAgents();
     return agentsData[index];
   }
 
-  const {data, error} = await supabase.from('agents').update({status: 'running'}).eq('id', agentId).select().single() as { data: Agent | null; error: Error | null };
+  const {data, error} = await (supabase.from('agents' as any).update({status: 'running'} as any) as any).eq('id', agentId).select().single() as { data: Agent | null; error: Error | null };
   if (error) throw new Error(error.message);
   if (!data) throw new Error('Agent not found');
   return data;
@@ -135,6 +138,7 @@ export const deleteAgent = async (agentId: string): Promise<void> => {
     if (index !== -1) {
       agentsData.splice(index, 1);
     }
+    saveAgents();
     return;
   }
 

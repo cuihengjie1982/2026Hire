@@ -4,12 +4,28 @@ import {USE_MOCK_API} from '../../shared/lib/runtime';
 import {aiModelConfigsFixture} from './fixtures';
 import {type AIModelConfig, type CreateAIModelConfigInput, type AIResumeScoreResult, type AIRankingResult, type ActiveConfigResponse} from './types';
 
-let configsData = aiModelConfigsFixture.map(c => ({...c}));
+// localStorage-backed mock store
+const STORAGE_KEY = 'em-box.mock.ai-configs';
+
+const loadFromStorage = (): AIModelConfig[] => {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : aiModelConfigsFixture.map(c => ({...c}));
+  } catch {
+    return aiModelConfigsFixture.map(c => ({...c}));
+  }
+};
+
+const saveToStorage = () => {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(configsData));
+};
+
+let configsData = loadFromStorage();
 
 export const listAIModelConfigs = async (): Promise<AIModelConfig[]> => {
   if (USE_MOCK_API) {
     await new Promise(r => setTimeout(r, 120));
-    return configsData;
+    return [...configsData];
   }
   const payload = await invokeEdgeFunction<AIModelConfig[] | {items: AIModelConfig[]}>('ai-config', {action: 'list'});
   if (Array.isArray(payload)) return payload;
@@ -35,6 +51,7 @@ export const createAIModelConfig = async (input: CreateAIModelConfigInput): Prom
       updated_at: new Date().toISOString(),
     };
     configsData.push(config);
+    saveToStorage();
     return config;
   }
   return invokeEdgeFunction<AIModelConfig>('ai-config', {
@@ -57,6 +74,7 @@ export const updateAIModelConfig = async (id: string, input: Partial<CreateAIMod
         : existing.api_key_display,
       updated_at: new Date().toISOString(),
     };
+    saveToStorage();
     return configsData[index];
   }
   return invokeEdgeFunction<AIModelConfig>('ai-config', {
@@ -71,6 +89,7 @@ export const deleteAIModelConfig = async (id: string): Promise<void> => {
     await new Promise(r => setTimeout(r, 120));
     const index = configsData.findIndex(c => c.id === id);
     if (index !== -1) configsData.splice(index, 1);
+    saveToStorage();
     return;
   }
   return invokeEdgeFunction<void>('ai-config', {
@@ -149,6 +168,7 @@ export const switchActiveModel = async (configId: string): Promise<AIModelConfig
     if (idx === -1) throw new Error('Config not found');
     configsData.forEach(c => { c.is_default = false; });
     configsData[idx].is_default = true;
+    saveToStorage();
     return configsData[idx];
   }
   return invokeEdgeFunction<AIModelConfig & {envWarning?: string}>('ai-config', {

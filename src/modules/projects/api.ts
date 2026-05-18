@@ -12,7 +12,8 @@ interface GetStatsParams {
   endDate?: string;
 }
 
-let projectsData = [...projectsFixture];
+let projectsData: Project[] = (() => { try { const r = localStorage.getItem('em-box.mock.projects'); return r ? JSON.parse(r) : [...projectsFixture]; } catch { return [...projectsFixture]; } })();
+const saveProjects = () => localStorage.setItem('em-box.mock.projects', JSON.stringify(projectsData));
 
 const getMockProjectStats = (params: GetStatsParams): ProjectStats => {
   const {timeRange = 'week', startDate, endDate} = params;
@@ -79,12 +80,12 @@ export const getProjectStats = async (params: GetStatsParams = {}): Promise<Proj
 export const listProjects = async (): Promise<Project[]> => {
   if (USE_MOCK_API) {
     await new Promise((r) => setTimeout(r, 120));
-    return projectsData;
+    return Array.from(new Map(projectsData.map(p => [p.id, p])).values());
   }
 
   const {data, error} = await supabase.from('projects').select('*').order('created_at', {ascending: false});
   if (error) throw new Error(error.message);
-  return (data ?? []) as Project[];
+  return Array.from(new Map((data ?? []).map(r => [r.id as string, r])).values()) as Project[];
 };
 
 export const createProject = async (data: Omit<Project, 'id'>): Promise<Project> => {
@@ -96,10 +97,11 @@ export const createProject = async (data: Omit<Project, 'id'>): Promise<Project>
       createdAt: data.createdAt || new Date().toISOString(),
     };
     projectsData.push(newProject);
+    saveProjects();
     return newProject;
   }
 
-  const {data: row, error} = await (supabase.from('projects' as any).insert(data) as any).select().single() as { data: Record<string, unknown> | null; error: Error | null };
+  const {data: row, error} = await (supabase.from('projects' as any).insert(data as any) as any).select().single() as { data: Record<string, unknown> | null; error: Error | null };
   if (error) throw new Error(error.message);
   if (!row) throw new Error('Failed to create project');
   return row as unknown as Project;
@@ -111,10 +113,11 @@ export const updateProjectStatus = async (id: string, status: Project['status'])
     const index = projectsData.findIndex((p) => p.id === id);
     if (index === -1) throw new Error('Project not found');
     projectsData[index] = {...projectsData[index], status};
+    saveProjects();
     return projectsData[index];
   }
 
-  const {data: row, error} = await (supabase.from('projects' as any).update({status}) as any).eq('id', id).select().single() as { data: Record<string, unknown> | null; error: Error | null };
+  const {data: row, error} = await (supabase.from('projects' as any).update({status} as any) as any).eq('id', id).select().single() as { data: Record<string, unknown> | null; error: Error | null };
   if (error) throw new Error(error.message);
   if (!row) throw new Error('Project not found');
   return row as unknown as Project;
@@ -126,10 +129,11 @@ export const updateProject = async (id: string, data: Partial<Pick<Project, 'nam
     const index = projectsData.findIndex((p) => p.id === id);
     if (index === -1) throw new Error('Project not found');
     projectsData[index] = {...projectsData[index], ...data};
+    saveProjects();
     return projectsData[index];
   }
 
-  const {data: row, error} = await (supabase.from('projects' as any).update(data) as any).eq('id', id).select().single() as { data: Record<string, unknown> | null; error: Error | null };
+  const {data: row, error} = await (supabase.from('projects' as any).update(data as any) as any).eq('id', id).select().single() as { data: Record<string, unknown> | null; error: Error | null };
   if (error) throw new Error(error.message);
   if (!row) throw new Error('Project not found');
   return row as unknown as Project;
@@ -141,6 +145,7 @@ export const deleteProject = async (id: string): Promise<void> => {
     const index = projectsData.findIndex((p) => p.id === id);
     if (index === -1) throw new Error('Project not found');
     projectsData.splice(index, 1);
+    saveProjects();
     return;
   }
 
