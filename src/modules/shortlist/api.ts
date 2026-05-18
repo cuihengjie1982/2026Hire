@@ -29,9 +29,9 @@ export const listShortlist = async (projectId?: string): Promise<ShortlistEntry[
     return shortlistData;
   }
 
-  let query = supabase.from('shortlist').select('*');
+  let query = supabase.from('shortlist_entries').select('*');
   if (projectId) {
-    query = query.eq('projectId', projectId);
+    query = query.eq('project_id', projectId);
   }
   const {data, error} = await query;
   if (error) throw new Error(error.message);
@@ -44,7 +44,7 @@ export const listShortlistByPosition = async (positionId: string): Promise<Short
     return shortlistData.filter((entry) => entry.positionId === positionId);
   }
 
-  const {data, error} = await supabase.from('shortlist').select('*').eq('positionId', positionId);
+  const {data, error} = await supabase.from('shortlist_entries').select('*').eq('position_id', positionId);
   if (error) throw new Error(error.message);
   return (data ?? []).map(mapShortlistEntry);
 };
@@ -61,9 +61,10 @@ export const addToShortlist = async (input: CreateShortlistEntryInput): Promise<
     return newEntry;
   }
 
-  const {data, error} = await supabase.from('shortlist').insert(input).select().single();
+  const {data, error} = await (supabase.from('shortlist_entries').insert(input) as unknown).select().single() as { data: Record<string, unknown> | null; error: Error | null };
   if (error) throw new Error(error.message);
-  return mapShortlistEntry(data);
+  if (!data) throw new Error('Failed to add to shortlist');
+  return mapShortlistEntry(data as Record<string, unknown>);
 };
 
 export const promoteShortlistEntry = async (
@@ -86,7 +87,7 @@ export const promoteShortlistEntry = async (
     },
   });
   if (error) throw new Error(error.message);
-  return mapShortlistEntry(data);
+  return mapShortlistEntry(data as Record<string, unknown>);
 };
 
 export const sendShortlistInterviewInvite = async (
@@ -114,5 +115,5 @@ export const sendShortlistInterviewInvite = async (
     },
   });
   if (error) throw new Error(error.message);
-  return mapShortlistEntry(data);
+  return mapShortlistEntry(data as Record<string, unknown>);
 };

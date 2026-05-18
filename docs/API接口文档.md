@@ -1,6 +1,6 @@
 # EM-BOX AI招聘平台 — API 接口文档
 
-> 版本: 2.1 | 更新日期: 2026-05-11
+> 版本: 2.2 | 更新日期: 2026-05-16
 
 ## 1. 通用说明
 
@@ -2654,7 +2654,145 @@ Authorization: Bearer <jwt_token>
 
 ---
 
-## 20. 错误代码参考
+## 20. 面试评分管线 (`/api/interview-scoring`)
+
+### POST /transcribe-and-score - 音频转录与AI评分
+**描述**: 接受面试答题音频文件，使用 Whisper 转录文本，然后通过 LLM 进行结构化评分。支持两种模式：有 session 的正式面试和没有 session 的预览评分。
+
+**请求头**:
+```
+Authorization: Bearer <jwt_token>
+Content-Type: multipart/form-data
+```
+
+**表单参数**:
+- `audio`: 音频文件 (WebM/Opus 格式，MediaRecorder 生成)
+- `sessionId`: 面试会话 ID (可选，预览模式不传)
+- `questionId`: 问题 ID (可选)
+- `questionTitle`: 问题标题
+- `questionPrompt`: 问题提示词
+- `scoringGuide`: 评分指南 JSON 字符串 (可选)
+- `linkedDimensions`: 关联维度 JSON 字符串 (可选)
+- `durationSeconds`: 录音时长（秒，可选）
+
+**成功响应**:
+```json
+{
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "sessionId": "660e8400-e29b-41d4-a716-446655440000",
+  "questionId": "770e8400-e29b-41d4-a716-446655440000",
+  "questionTitle": "请介绍一下你的项目经验",
+  "transcript": "我之前在ABC公司负责了一个AI模型训练的项目...",
+  "score": 82.5,
+  "maxScore": 100,
+  "scoreReasoning": "候选人展示了丰富的项目经验，逻辑清晰，但缺少对技术细节的深入描述。",
+  "dimensionScores": [
+    {"name": "项目经验", "score": 85, "weight": 30},
+    {"name": "技术深度", "score": 75, "weight": 40},
+    {"name": "表达能力", "score": 88, "weight": 30}
+  ],
+  "llmModel": "gpt-4",
+  "llmProvider": "openai",
+  "status": "completed"
+}
+```
+
+**错误响应**:
+```json
+{
+  "error": {
+    "code": "TRANSCRIPTION_FAILED",
+    "message": "Whisper transcription failed: audio format not supported"
+  }
+}
+```
+
+---
+
+### GET /session/:sessionId - 获取会话评分列表
+**描述**: 获取指定面试会话的所有答题评分记录
+
+**请求头**:
+```
+Authorization: Bearer <jwt_token>
+```
+
+**路径参数**:
+- `sessionId`: 面试会话 ID
+
+**成功响应**:
+```json
+{
+  "data": [
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "sessionId": "660e8400-e29b-41d4-a716-446655440000",
+      "questionId": "770e8400-e29b-41d4-a716-446655440000",
+      "questionTitle": "请介绍一下你的项目经验",
+      "questionPrompt": "请描述你参与过的最有挑战性的项目...",
+      "audioDuration": 180,
+      "transcript": "我之前在ABC公司负责了一个AI模型训练的项目...",
+      "score": 82.5,
+      "maxScore": 100,
+      "scoreReasoning": "候选人展示了丰富的项目经验...",
+      "dimensionScores": [...],
+      "llmModel": "gpt-4",
+      "llmProvider": "openai",
+      "status": "completed",
+      "createdAt": "2026-05-16T10:30:00Z"
+    }
+  ]
+}
+```
+
+---
+
+### POST /aggregate/:sessionId - 聚合评分并创建审批
+**描述**: 将会话内所有已完成答题评分聚合为面试结果，并自动创建审批请求。
+
+**请求头**:
+```
+Authorization: Bearer <jwt_token>
+```
+
+**路径参数**:
+- `sessionId`: 面试会话 ID
+
+**成功响应**:
+```json
+{
+  "resultId": "880e8400-e29b-41d4-a716-446655440000",
+  "approvalRequestId": "990e8400-e29b-41d4-a716-446655440000",
+  "sessionId": "660e8400-e29b-41d4-a716-446655440000",
+  "totalScore": 82.5,
+  "grade": "A",
+  "gradeLabel": "优先录用",
+  "candidateName": "张三",
+  "position": "AI算法工程师",
+  "templateName": "AI算法工程师面试",
+  "questionAnswers": [
+    {
+      "questionTitle": "请介绍一下你的项目经验",
+      "score": 82.5,
+      "maxScore": 100
+    }
+  ]
+}
+```
+
+**错误响应**:
+```json
+{
+  "error": {
+    "code": "NO_COMPLETED_ANSWERS",
+    "message": "No completed answer scores found for this session"
+  }
+}
+```
+
+---
+
+## 21. 错误代码参考
 
 | 代码 | 说明 | 解决方案 |
 |------|------|----------|
@@ -2670,7 +2808,13 @@ Authorization: Bearer <jwt_token>
 
 ---
 
-## 21. 版本历史
+## 22. 版本历史
+
+### 版本 2.2 (2026-05-16)
+- 新增面试评分管线 API（/api/interview-scoring）
+- 支持 Whisper 语音转录 + LLM 结构化评分
+- 新增 per-question 评分记录（interview_answer_scores 表）
+- 新增评分汇总和自动审批请求创建
 
 ### 版本 2.1 (2026-05-11)
 - 新增简历解析LLM Vision视觉识别兜底 (4级降级链路第4级)
@@ -2692,7 +2836,7 @@ Authorization: Bearer <jwt_token>
 
 ---
 
-## 22. 联系信息
+## 23. 联系信息
 
 如有API相关问题，请联系技术支持：
 

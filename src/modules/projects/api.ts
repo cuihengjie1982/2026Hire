@@ -1,4 +1,5 @@
 import {supabase} from '../../shared/lib/supabase';
+import {fetchJson, mockDelay} from '../../shared/lib/apiClient';
 import {USE_MOCK_API} from '../../shared/lib/runtime';
 import {projectStatsFixture, projectsFixture} from './fixtures';
 import {type Project, type ProjectStats, type ProjectStatus} from './types';
@@ -65,12 +66,13 @@ export const getProjectStats = async (params: GetStatsParams = {}): Promise<Proj
   if (params.startDate) query.set('startDate', params.startDate);
   if (params.endDate) query.set('endDate', params.endDate);
 
-  // Stats computed from real data via supabase.rpc or direct query
-  const {data} = await supabase.from('projects').select('id', {count: 'exact'});
+  const res = await fetchJson<{activeProjects: number; candidateReserve: number; weeklyInterviews: number}>(
+    `/api/projects/stats?${query}`,
+  );
   return {
-    activeProjects: data?.length ?? 0,
-    candidateReserve: 0,
-    weeklyInterviews: 0,
+    activeProjects: res.activeProjects ?? 0,
+    candidateReserve: res.candidateReserve ?? 0,
+    weeklyInterviews: res.weeklyInterviews ?? 0,
   };
 };
 
@@ -97,9 +99,10 @@ export const createProject = async (data: Omit<Project, 'id'>): Promise<Project>
     return newProject;
   }
 
-  const {data: row, error} = await supabase.from('projects').insert(data as Record<string, unknown>).select().single();
+  const {data: row, error} = await (supabase.from('projects').insert(data) as unknown).select().single() as { data: Record<string, unknown> | null; error: Error | null };
   if (error) throw new Error(error.message);
-  return row as Project;
+  if (!row) throw new Error('Failed to create project');
+  return row as unknown as Project;
 };
 
 export const updateProjectStatus = async (id: string, status: Project['status']): Promise<Project> => {
@@ -111,9 +114,10 @@ export const updateProjectStatus = async (id: string, status: Project['status'])
     return projectsData[index];
   }
 
-  const {data: row, error} = await supabase.from('projects').update({status}).eq('id', id).select().single();
+  const {data: row, error} = await (supabase.from('projects').update({status}) as unknown).eq('id', id).select().single() as { data: Record<string, unknown> | null; error: Error | null };
   if (error) throw new Error(error.message);
-  return row as Project;
+  if (!row) throw new Error('Project not found');
+  return row as unknown as Project;
 };
 
 export const updateProject = async (id: string, data: Partial<Pick<Project, 'name' | 'city' | 'manager' | 'progress' | 'startDate' | 'endDate' | 'description' | 'status'>>): Promise<Project> => {
@@ -125,9 +129,10 @@ export const updateProject = async (id: string, data: Partial<Pick<Project, 'nam
     return projectsData[index];
   }
 
-  const {data: row, error} = await supabase.from('projects').update(data as Record<string, unknown>).eq('id', id).select().single();
+  const {data: row, error} = await (supabase.from('projects').update(data) as unknown).eq('id', id).select().single() as { data: Record<string, unknown> | null; error: Error | null };
   if (error) throw new Error(error.message);
-  return row as Project;
+  if (!row) throw new Error('Project not found');
+  return row as unknown as Project;
 };
 
 export const deleteProject = async (id: string): Promise<void> => {

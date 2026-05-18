@@ -40,13 +40,14 @@ export const getAgentStats = async (): Promise<AgentStats> => {
     paused: 0,
     pending: 0,
     completed: 0,
-  };
+  } as AgentStats;
 
   allAgents?.forEach((agent) => {
-    const status = agent.status as keyof AgentStats;
-    if (status in stats) {
-      stats[status] = (stats[status] ?? 0) + 1;
-    }
+    const status = agent.status as 'running' | 'paused' | 'pending' | 'completed';
+    if (status === 'running') stats.running++;
+    else if (status === 'paused') stats.paused++;
+    else if (status === 'pending') stats.pending++;
+    else if (status === 'completed') stats.completed++;
   });
 
   return stats;
@@ -76,9 +77,10 @@ export const createAgent = async (input: CreateAgentInput): Promise<Agent> => {
     return newAgent;
   }
 
-  const {data, error} = await supabase.from('agents').insert(input).select().single();
+  const {data, error} = await supabase.from('agents').insert(input as unknown as Record<string, unknown>).select().single() as { data: Agent | null; error: Error | null };
   if (error) throw new Error(error.message);
-  return data as Agent;
+  if (!data) throw new Error('Failed to create agent');
+  return data;
 };
 
 export const updateAgent = async (agentId: string, input: Partial<CreateAgentInput>): Promise<Agent> => {
@@ -90,9 +92,10 @@ export const updateAgent = async (agentId: string, input: Partial<CreateAgentInp
     return agentsData[index];
   }
 
-  const {data, error} = await supabase.from('agents').update(input).eq('id', agentId).select().single();
+  const {data, error} = await supabase.from('agents').update(input).eq('id', agentId).select().single() as { data: Agent | null; error: Error | null };
   if (error) throw new Error(error.message);
-  return data as Agent;
+  if (!data) throw new Error('Agent not found');
+  return data;
 };
 
 export const pauseAgent = async (agentId: string): Promise<Agent> => {
@@ -104,9 +107,10 @@ export const pauseAgent = async (agentId: string): Promise<Agent> => {
     return agentsData[index];
   }
 
-  const {data, error} = await supabase.from('agents').update({status: 'paused'}).eq('id', agentId).select().single();
+  const {data, error} = await supabase.from('agents').update({status: 'paused'}).eq('id', agentId).select().single() as { data: Agent | null; error: Error | null };
   if (error) throw new Error(error.message);
-  return data as Agent;
+  if (!data) throw new Error('Agent not found');
+  return data;
 };
 
 export const resumeAgent = async (agentId: string): Promise<Agent> => {
@@ -118,9 +122,10 @@ export const resumeAgent = async (agentId: string): Promise<Agent> => {
     return agentsData[index];
   }
 
-  const {data, error} = await supabase.from('agents').update({status: 'running'}).eq('id', agentId).select().single();
+  const {data, error} = await supabase.from('agents').update({status: 'running'}).eq('id', agentId).select().single() as { data: Agent | null; error: Error | null };
   if (error) throw new Error(error.message);
-  return data as Agent;
+  if (!data) throw new Error('Agent not found');
+  return data;
 };
 
 export const deleteAgent = async (agentId: string): Promise<void> => {
@@ -156,11 +161,9 @@ export const runAgent = async (agentId: string): Promise<Agent & {runResult: Age
     };
   }
 
-  const {data, error} = await invokeEdgeFunction<Agent & {runResult: AgentRunResult}>('agent-executor', {
-    body: {
-      agentId,
-    },
-  });
-  if (error) throw new Error(error.message);
+  const data = await invokeEdgeFunction<Agent & {runResult: AgentRunResult}>(
+    'agent-executor',
+    { agentId },
+  );
   return data;
 };

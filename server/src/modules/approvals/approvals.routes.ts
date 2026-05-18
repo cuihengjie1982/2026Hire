@@ -99,4 +99,41 @@ router.get('/history', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+// POST /:id/hire — mark approved candidate as hired
+router.post('/:id/hire', validateUuidParams('id'), async (req, res, next) => {
+  try {
+    const {id} = req.params;
+
+    // Update approval status to 'hired'
+    const row = await queryOne(
+      `UPDATE approval_requests SET status = 'hired' WHERE id = $1 AND status = 'approved' RETURNING *`,
+      [id],
+    );
+    if (!row) {
+      res.status(404).json({error: {code: 'NOT_FOUND', message: `Approval (${id}) not found or not approved`}});
+      return;
+    }
+
+    const candidateId = row.candidate_id;
+
+    // Update matching contacts to 'hired'
+    if (candidateId) {
+      await query(
+        `UPDATE contacts SET status = 'hired', updated_at = now() WHERE candidate_id = $1`,
+        [candidateId],
+      );
+    }
+
+    // Update matching shortlist entries to '已录用'
+    if (candidateId) {
+      await query(
+        `UPDATE shortlist_entries SET next_step = '已录用' WHERE candidate_id = $1`,
+        [candidateId],
+      );
+    }
+
+    res.json(row);
+  } catch (e) { next(e); }
+});
+
 export default router;

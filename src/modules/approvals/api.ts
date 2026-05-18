@@ -85,7 +85,7 @@ export const listInterviewApprovalHistory = async (): Promise<InterviewApprovalR
     return interviewApprovalHistoryFixture;
   }
 
-  const {data, error} = await supabase.from('interview_approval_requests').select('*').eq('status', '!=', 'pending').order('created_at', {ascending: false});
+  const {data, error} = await supabase.from('interview_approval_requests').select('*').neq('status', 'pending').order('created_at', {ascending: false});
   if (error) throw new Error(error.message);
   return (data ?? []).map(parseInterviewApproval);
 };
@@ -137,6 +137,22 @@ export const decideInterviewApproval = async (
       comment,
       approverName: decidedBy,
     },
+  });
+  if (error) throw new Error(error.message);
+  return parseInterviewApproval(data as Record<string, unknown>);
+};
+
+export const hireCandidate = async (approvalId: string): Promise<InterviewApprovalRequest> => {
+  if (USE_MOCK_API) {
+    await new Promise(r => setTimeout(r, 120));
+    const request = interviewApprovalHistoryFixture.find((r) => r.id === approvalId);
+    if (!request) throw new Error('Approval request not found');
+    request.status = 'hired';
+    return request;
+  }
+
+  const {data, error} = await supabase.functions.invoke('cross-table-ops', {
+    body: { action: 'hire-candidate', approvalId },
   });
   if (error) throw new Error(error.message);
   return parseInterviewApproval(data as Record<string, unknown>);

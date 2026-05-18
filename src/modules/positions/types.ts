@@ -25,6 +25,7 @@ export type CreatePositionInput = {
   description?: string;
   requiredCount?: number;
   deliveryDays?: number;
+  status?: 'active' | 'inactive';
 };
 
 export type UpdatePositionInput = {

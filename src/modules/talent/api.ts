@@ -169,7 +169,7 @@ export const getTalentStats = async (): Promise<TalentStats> => {
   const {data: gradeData, error: gradeError} = await supabase
     .from('candidates')
     .select('grade')
-    .not('original_file_name', 'is', null);
+    .not('original_file_name', 'is', null) as { data: { grade: string }[] | null; error: Error | null };
 
   if (gradeError) throw new Error(gradeError.message);
 

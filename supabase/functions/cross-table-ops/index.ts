@@ -100,3 +100,43 @@ export const approvalDecide = async (req: Request, userId: string, _userRole: st
     return jsonRes({ error: { code: 'INTERNAL_ERROR', message: 'An internal error occurred' } }, 500);
   }
 };
+
+// POST /cross-table-ops/hire-candidate
+export const hireCandidate = async (req: Request, _userId: string, _userRole: string): Promise<Response> => {
+  try {
+    const supabase = createSupabaseAdmin(req);
+    const { approvalId } = await req.json() as Record<string, unknown>;
+    if (!approvalId) return jsonRes({ error: { code: 'VALIDATION_ERROR', message: 'approvalId is required' } }, 400);
+
+    // Update approval status to 'hired'
+    const { data: approval } = await supabase.from('approval_requests')
+      .update({ status: 'hired' })
+      .eq('id', String(approvalId))
+      .eq('status', 'approved')
+      .select('*')
+      .single();
+
+    if (!approval) return jsonRes({ error: { code: 'NOT_FOUND', message: `Approval (${approvalId}) not found or not approved` } }, 404);
+
+    const a = approval as Record<string, unknown>;
+    const candidateId = String(a.candidate_id ?? '');
+
+    // Update matching contacts to 'hired'
+    if (candidateId) {
+      await supabase.from('contacts')
+        .update({ status: 'hired', updated_at: new Date().toISOString() })
+        .eq('candidate_id', candidateId);
+    }
+
+    // Update matching shortlist entries to '已录用'
+    if (candidateId) {
+      await supabase.from('shortlist_entries')
+        .update({ next_step: '已录用' })
+        .eq('candidate_id', candidateId);
+    }
+
+    return jsonRes(approval);
+  } catch {
+    return jsonRes({ error: { code: 'INTERNAL_ERROR', message: 'An internal error occurred' } }, 500);
+  }
+};

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { CheckCircle2, XCircle, Check, User, Mail, Calendar, Clock, Eye, ExternalLink, UserCheck, Users, TrendingUp } from 'lucide-react';
-import { listInterviewApprovalRequests, listInterviewApprovalHistory, decideInterviewApproval } from './modules/approvals/api';
+import { CheckCircle2, XCircle, Check, User, Mail, Calendar, Clock, Eye, ExternalLink, UserCheck, Users, TrendingUp, UserPlus } from 'lucide-react';
+import { listInterviewApprovalRequests, listInterviewApprovalHistory, decideInterviewApproval, hireCandidate } from './modules/approvals/api';
 import { getAuthToken } from './shared/lib/runtime';
 import { type InterviewApprovalRequest } from './modules/approvals/types';
 import { Pagination } from './shared/components/Pagination';
@@ -77,6 +77,18 @@ export const ApprovalsPage = () => {
     }
   };
 
+  const handleHire = async (approvalId: string) => {
+    setSubmitting(true);
+    try {
+      await hireCandidate(approvalId);
+      await loadInterviewApprovals();
+    } catch (e) {
+      console.error('Failed to hire:', e);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const getGradeStyle = (grade: InterviewApprovalRequest['interviewGrade']) => {
     switch (grade) {
       case 'excellent':
@@ -117,7 +129,7 @@ export const ApprovalsPage = () => {
   };
 
   const pendingCount = pendingInterviews.filter(i => i.status === 'pending').length;
-  const approvedList = [...pendingInterviews.filter(i => i.status === 'approved'), ...interviewHistory.filter(i => i.status === 'approved')];
+  const approvedList = [...pendingInterviews.filter(i => i.status === 'approved' || i.status === 'hired'), ...interviewHistory.filter(i => i.status === 'approved' || i.status === 'hired')];
   const rejectedList = [...pendingInterviews.filter(i => i.status === 'rejected'), ...interviewHistory.filter(i => i.status === 'rejected')];
 
   const filteredApproved = approvedList.filter(item => {
@@ -476,16 +488,33 @@ export const ApprovalsPage = () => {
                             <td className="py-4 px-6 text-gray-600 dark:text-gray-300">{item.approverName || '-'}</td>
                             <td className="py-4 px-6 text-gray-600 dark:text-gray-300">{formatDate(item.decidedAt || item.createdAt)}</td>
                             <td className="py-4 px-6">
-                              <button
-                                onClick={() => {
-                                  const misUrl = `${window.location.origin}/mis/onboarding?candidateId=${item.candidateId}&candidateName=${encodeURIComponent(item.candidateName)}&position=${encodeURIComponent(item.positionName)}&score=${item.interviewScore}`;
-                                  window.open(misUrl, '_blank');
-                                }}
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#1a4bc4] hover:bg-[#0c2b7a] text-white text-xs font-bold rounded-lg transition-colors"
-                              >
-                                <ExternalLink className="w-3.5 h-3.5" />
-                                发起入职
-                              </button>
+                              <div className="flex items-center gap-2">
+                                {item.status === 'hired' ? (
+                                  <span className="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 text-xs font-bold rounded-lg">
+                                    <UserCheck className="w-3.5 h-3.5" />
+                                    已录用
+                                  </span>
+                                ) : (
+                                  <button
+                                    onClick={() => handleHire(item.id)}
+                                    disabled={submitting}
+                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold rounded-lg transition-colors disabled:opacity-50"
+                                  >
+                                    <UserPlus className="w-3.5 h-3.5" />
+                                    确认录用
+                                  </button>
+                                )}
+                                <button
+                                  onClick={() => {
+                                    const misUrl = `${window.location.origin}/mis/onboarding?candidateId=${item.candidateId}&candidateName=${encodeURIComponent(item.candidateName)}&position=${encodeURIComponent(item.positionName)}&score=${item.interviewScore}`;
+                                    window.open(misUrl, '_blank');
+                                  }}
+                                  className="inline-flex items-center gap-1 px-2 py-1.5 text-[#1a4bc4] hover:bg-blue-50 dark:hover:bg-blue-900/20 text-xs font-medium rounded-lg transition-colors"
+                                >
+                                  <ExternalLink className="w-3 h-3" />
+                                  入职
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         );
@@ -539,7 +568,12 @@ export const ApprovalsPage = () => {
                         </td>
                         <td className="py-4 px-6 text-gray-600 dark:text-gray-300">{record.approverName || '-'}</td>
                         <td className="py-4 px-6">
-                          {record.status === 'approved' ? (
+                          {record.status === 'hired' ? (
+                            <div className="inline-flex items-center gap-1 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 px-3 py-1 rounded-full text-xs font-bold">
+                              <UserCheck className="w-3.5 h-3.5" />
+                              <span>已录用</span>
+                            </div>
+                          ) : record.status === 'approved' ? (
                             <div className="inline-flex items-center gap-1 bg-[#10b981] text-white px-3 py-1 rounded-full text-xs font-bold">
                               <Check className="w-3.5 h-3.5" />
                               <span>已通过</span>
@@ -560,17 +594,32 @@ export const ApprovalsPage = () => {
                           {record.decidedComment || '-'}
                         </td>
                         <td className="py-4 px-6">
-                          {record.status === 'approved' ? (
-                            <button
-                              onClick={() => {
-                                const misUrl = `${window.location.origin}/mis/onboarding?candidateId=${record.candidateId}&candidateName=${encodeURIComponent(record.candidateName)}&position=${encodeURIComponent(record.positionName)}&score=${record.interviewScore}`;
-                                window.open(misUrl, '_blank');
-                              }}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#1a4bc4] hover:bg-[#0c2b7a] text-white text-xs font-bold rounded-lg transition-colors"
-                            >
-                              <ExternalLink className="w-3.5 h-3.5" />
-                              发起入职
-                            </button>
+                          {record.status === 'hired' ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-1 text-emerald-600 dark:text-emerald-400 text-xs font-medium">
+                              <UserCheck className="w-3.5 h-3.5" />
+                              已完成
+                            </span>
+                          ) : record.status === 'approved' ? (
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => handleHire(record.id)}
+                                disabled={submitting}
+                                className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold rounded-lg transition-colors disabled:opacity-50"
+                              >
+                                <UserPlus className="w-3 h-3" />
+                                录用
+                              </button>
+                              <button
+                                onClick={() => {
+                                  const misUrl = `${window.location.origin}/mis/onboarding?candidateId=${record.candidateId}&candidateName=${encodeURIComponent(record.candidateName)}&position=${encodeURIComponent(record.positionName)}&score=${record.interviewScore}`;
+                                  window.open(misUrl, '_blank');
+                                }}
+                                className="inline-flex items-center gap-1 px-2 py-1 text-[#1a4bc4] hover:bg-blue-50 dark:hover:bg-blue-900/20 text-xs font-medium rounded-lg transition-colors"
+                              >
+                                <ExternalLink className="w-3 h-3" />
+                                入职
+                              </button>
+                            </div>
                           ) : (
                             <span className="text-gray-400 dark:text-gray-500 text-xs">-</span>
                           )}

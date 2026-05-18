@@ -39,7 +39,7 @@ const loadHandlers = async (): Promise<RouteHandler[]> => {
   // Agent Executor
   const { runAgent } = await import('./agent-executor/index.ts');
   // Cross-table Ops
-  const { shortlistInterviewInvite, shortlistPromote, approvalDecide } = await import('./cross-table-ops/index.ts');
+  const { shortlistInterviewInvite, shortlistPromote, approvalDecide, hireCandidate } = await import('./cross-table-ops/index.ts');
   // MinerU Proxy
   const { parseFile } = await import('./mineru-proxy/index.ts');
   // Notifications
@@ -86,6 +86,7 @@ const loadHandlers = async (): Promise<RouteHandler[]> => {
     { pattern: '/cross-table-ops/shortlist-interview-invite', methods: ['POST'], auth: 'recruiter+', handler: shortlistInterviewInvite },
     { pattern: '/cross-table-ops/shortlist-promote', methods: ['POST'], auth: 'recruiter+', handler: shortlistPromote },
     { pattern: '/cross-table-ops/approval-decide', methods: ['POST'], auth: 'hiring_manager+', handler: approvalDecide },
+    { pattern: '/cross-table-ops/hire-candidate', methods: ['POST'], auth: 'hiring_manager+', handler: hireCandidate },
     // MinerU Proxy (recruiter+ — needs to parse resumes)
     { pattern: '/mineru-proxy/parse', methods: ['POST'], auth: 'recruiter+', handler: parseFile },
     // Notifications (own user, ownership checked in handler)

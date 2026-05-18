@@ -230,16 +230,17 @@ export const createInterviewTemplate = async (
     persistDetails();
     return newTemplate;
   }
-  const { data, error } = await supabase.from('interview_templates').insert({
+  const { data: insertData, error } = await (supabase.from('interview_templates').insert({
     name: input.name,
     position_id: input.positionId,
     duration_minutes: input.durationMinutes,
     status: input.status,
     scoring_config: input.scoringConfig ? JSON.stringify(input.scoringConfig) : undefined,
     grade_rules: input.gradeRules ? JSON.stringify(input.gradeRules) : undefined,
-  }).select().single();
+  } as Record<string, unknown>).select().single() as unknown as { data: Record<string, unknown> | null; error: Error | null });
   if (error) throw new Error(error.message);
-  return mapTemplateSummary(data);
+  if (!insertData) throw new Error('Failed to create template');
+  return mapTemplateSummary(insertData as Record<string, unknown>);
 };
 
 export const updateInterviewTemplate = async (
@@ -272,12 +273,13 @@ export const updateInterviewTemplate = async (
 
   const { data, error } = await supabase
     .from('interview_templates')
-    .update(updateData)
+    .update(updateData as Record<string, unknown>)
     .eq('id', templateId)
     .select()
-    .single();
+    .single() as { data: Record<string, unknown> | null; error: Error | null };
   if (error) throw new Error(error.message);
-  return mapTemplateSummary(data);
+  if (!data) throw new Error('Failed to update template');
+  return mapTemplateSummary(data as Record<string, unknown>);
 };
 
 export const deleteInterviewTemplate = async (templateId: string): Promise<void> => {
@@ -345,9 +347,9 @@ export const saveInterviewQuestions = async (
     linked_dimensions: q.linkedDimensions ? JSON.stringify(q.linkedDimensions) : undefined,
   }));
 
-  const { data, error } = await supabase.from('interview_questions').insert(questionsToInsert).select();
+  const { data, error } = await supabase.from('interview_questions').insert(questionsToInsert as Record<string, unknown>[]).select() as { data: Record<string, unknown>[] | null; error: Error | null };
   if (error) throw new Error(error.message);
-  return (data ?? []).map(mapQuestion);
+  return (data ?? []).map((row: Record<string, unknown>) => mapQuestion(row));
 };
 
 export const addInterviewQuestion = async (
@@ -393,9 +395,10 @@ export const addInterviewQuestion = async (
     follow_ups: question.followUps ? JSON.stringify(question.followUps) : undefined,
     scoring_guide: question.scoringGuide ? JSON.stringify(question.scoringGuide) : undefined,
     linked_dimensions: question.linkedDimensions ? JSON.stringify(question.linkedDimensions) : undefined,
-  }).select().single();
+  } as Record<string, unknown>).select().single() as { data: Record<string, unknown> | null; error: Error | null };
   if (error) throw new Error(error.message);
-  return mapQuestion(data);
+  if (!data) throw new Error('Failed to save question');
+  return mapQuestion(data as Record<string, unknown>);
 };
 
 export const updateInterviewQuestion = async (
@@ -435,12 +438,13 @@ export const updateInterviewQuestion = async (
 
   const { data, error } = await supabase
     .from('interview_questions')
-    .update(updateData)
+    .update(updateData as Record<string, unknown>)
     .eq('id', questionId)
     .select()
-    .single();
+    .single() as { data: Record<string, unknown> | null; error: Error | null };
   if (error) throw new Error(error.message);
-  return mapQuestion(data);
+  if (!data) throw new Error('Failed to update question');
+  return mapQuestion(data as Record<string, unknown>);
 };
 
 export const deleteInterviewQuestion = async (
@@ -483,8 +487,9 @@ export const getInterviewSession = async (sessionId: string): Promise<InterviewS
     .from('interview_sessions')
     .select('*')
     .eq('id', sessionId)
-    .single();
+    .single() as { data: Record<string, unknown> | null; error: Error | null };
   if (error) return null;
+  if (!data) return null;
   return {
     id: data.id as string,
     candidateId: (data.candidate_id ?? data.candidateId ?? '') as string,
@@ -512,8 +517,9 @@ export const createInterviewSession = async (
     candidate_id: candidateId,
     template_id: templateId,
     status: 'created',
-  }).select().single();
+  } as Record<string, unknown>).select().single() as { data: Record<string, unknown> | null; error: Error | null };
   if (error) throw new Error(error.message);
+  if (!data) throw new Error('Failed to create session');
   return {
     id: data.id as string,
     candidateId: (data.candidate_id ?? data.candidateId ?? candidateId) as string,
@@ -534,11 +540,11 @@ export const updateSessionStatus = async (
   }
   const { data, error } = await supabase
     .from('interview_sessions')
-    .update({ status })
+    .update({ status: status } as Record<string, unknown>)
     .eq('id', sessionId)
     .select()
-    .single();
-  if (error || !data.id) return null;
+    .single() as { data: Record<string, unknown> | null; error: Error | null };
+  if (error || !data || !data.id) return null;
   return {
     id: data.id as string,
     candidateId: (data.candidate_id ?? data.candidateId ?? '') as string,
@@ -568,12 +574,12 @@ export const updateInterviewResultStatus = async (
   }
   const { data, error } = await supabase
     .from('interview_results')
-    .update({ status })
+    .update({ status } as Record<string, unknown>)
     .eq('id', resultId)
     .select()
-    .single();
+    .single() as { data: Record<string, unknown> | null; error: Error | null };
   if (error) throw new Error(error.message);
-  return mapInterviewResult(data);
+  return mapInterviewResult(data as Record<string, unknown>);
 };
 
 // --- Management, Results, Analytics ---
@@ -688,9 +694,10 @@ export const createInterviewResult = async (input: CreateInterviewResultInput): 
     grade_label: input.gradeLabel,
     dimensions: JSON.stringify(input.dimensions),
     duration: input.duration,
-  }).select().single();
+  } as Record<string, unknown>).select().single() as { data: Record<string, unknown> | null; error: Error | null };
   if (error) throw new Error(error.message);
-  return mapInterviewResult(data);
+  if (!data) throw new Error('Failed to create result');
+  return mapInterviewResult(data as Record<string, unknown>);
 };
 
 export const getAnalyticsSummary = async (timeRange = 'all'): Promise<AnalyticsSummary> => {

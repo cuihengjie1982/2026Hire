@@ -203,7 +203,7 @@ export const savePositionDetail = async (
       grade_rules: detail.gradeRules,
       base_score_config: detail.baseScoreConfig,
       ai_prompt: detail.aiPrompt || '',
-    }, {onConflict: 'position_id'});
+    } as Record<string, unknown>, {onConflict: 'position_id'});
 
   if (error) throw new Error(error.message);
 
@@ -242,7 +242,6 @@ export const createPosition = async (input: CreatePositionInput): Promise<Positi
 
   // Convert camelCase to snake_case for API
   const insertData = {
-    code: input.code,
     name: input.name,
     category: input.category,
     status: input.status || 'active',
@@ -252,13 +251,12 @@ export const createPosition = async (input: CreatePositionInput): Promise<Positi
     delivery_days: input.deliveryDays,
   };
 
-  const {data, error} = await supabase
+  const {data, error} = await (supabase
     .from('positions')
-    .insert(insertData)
-    .select()
-    .single();
+    .insert(insertData) as unknown).select().single() as { data: Record<string, unknown> | null; error: Error | null };
 
   if (error) throw new Error(error.message);
+  if (!data) throw new Error('Failed to create position');
   return mapPositionSummary(data as Record<string, unknown>);
 };
 
@@ -277,7 +275,6 @@ export const updatePosition = async (id: string, input: UpdatePositionInput): Pr
 
   // Convert camelCase to snake_case for API
   const updateData: Record<string, unknown> = {
-    code: input.code,
     name: input.name,
     category: input.category,
     status: input.status,
@@ -286,14 +283,14 @@ export const updatePosition = async (id: string, input: UpdatePositionInput): Pr
     delivery_days: input.deliveryDays,
   };
 
-  const {data, error} = await supabase
+  const {data, error} = await (supabase
     .from('positions')
-    .update(updateData)
-    .eq('id', id)
+    .update(updateData) as unknown).eq('id', id)
     .select()
-    .single();
+    .single() as { data: Record<string, unknown> | null; error: Error | null };
 
   if (error) throw new Error(error.message);
+  if (!data) throw new Error('Position not found');
   return mapPositionSummary(data as Record<string, unknown>);
 };
 

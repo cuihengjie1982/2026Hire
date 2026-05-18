@@ -21,9 +21,8 @@ router.get('/stats', async (req, res, next) => {
       query(`SELECT COUNT(*)::int AS "candidateReserve" FROM candidates`),
       query(`
         SELECT COUNT(*)::int AS "weeklyInterviews"
-        FROM projects
-        WHERE start_date IS NOT NULL
-          AND created_at >= date_trunc('week', now())
+        FROM interview_results
+        WHERE created_at >= date_trunc('week', now())
       `),
     ]);
 

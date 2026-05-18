@@ -269,7 +269,7 @@ export const ProjectsPage = () => {
         {[
           {label: '活跃项目', value: stats.activeProjects, icon: FolderKanban},
           {label: '候选人储备', value: stats.candidateReserve, icon: Users},
-          {label: '本周项目描述', value: stats.weeklyInterviews, icon: CalendarRange},
+          {label: '本周面试场次', value: stats.weeklyInterviews, icon: CalendarRange},
         ].map((item) => {
           const Icon = item.icon;
           return (
@@ -449,16 +449,6 @@ export const ProjectsPage = () => {
                   onChange={(e) => setFormData({...formData, name: e.target.value})}
                   className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
                   placeholder="请输入项目名称"
-                />
-              </div>
-              <div>
-                <label className="block text-[13px] font-medium text-gray-700 dark:text-gray-300 mb-1">项目描述</label>
-                <textarea
-                  value={formData.description}
-                  onChange={(e) => setFormData({...formData, description: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4] resize-none"
-                  rows={3}
-                  placeholder="请输入项目描述"
                 />
               </div>
               <div>

@@ -1,6 +1,6 @@
 # EM-BOX AI招聘平台 — 部署文档
 
-> 版本: 1.0 | 更新日期: 2026-05-12
+> 版本: 1.1 | 更新日期: 2026-05-16
 
 ## 目录
 
@@ -176,15 +176,30 @@ supabase/
 └── functions/
     ├── _shared/
     │   ├── database.ts           # pg 连接池 (SSL, preparedStatements=false)
-    │   └── auth.ts               # JWT 验证 + AppError 类
+    │   ├── auth.ts               # JWT 验证 + AppError 类
+    │   ├── cors.ts               # CORS 头处理
+    │   ├── rateLimit.ts          # 速率限制
+    │   ├── pdfProxy.ts           # PDF 解析 (MinerU API)
+    │   ├── scoring.ts            # 简历评分逻辑
+    │   ├── validateParams.ts     # 参数验证工具
+    │   └── errors.ts             # 统一错误处理
     ├── index.ts                  # 主路由入口
     ├── auth/
     │   ├── login/index.ts         # 登录
+    │   ├── register/index.ts      # 注册
     │   └── refresh/index.ts       # Token 刷新
     ├── ai-proxy/
     │   └── index.ts              # AI LLM 代理
-    └── interview-scoring/
-        └── index.ts              # Whisper + LLM 评分
+    ├── interview-scoring/
+    │   └── index.ts              # Whisper + LLM 评分
+    ├── candidates/index.ts       # 候选人 CRUD
+    ├── positions/index.ts        # 岗位 CRUD
+    ├── projects/index.ts         # 项目 CRUD
+    ├── interviews/index.ts       # 面试管理
+    ├── approvals/index.ts        # 审批流程
+    ├── shortlist/index.ts        # 短名单
+    ├── outreach/index.ts         # 外联管理
+    └── agents/index.ts           # AI 代理
 ```
 
 ### 4.2 配置环境变量
@@ -196,6 +211,10 @@ supabase/
 | `JWT_SECRET` | `your-production-jwt-secret-min-32-chars` | JWT 签名密钥 |
 | `SUPABASE_DB_URL` | `postgresql://postgres:[PASSWORD]@db.[PROJECT].supabase.co:6543/postgres` | 数据库连接字符串 |
 | `SUPABASE_DB_PASSWORD` | `your-db-password` | 数据库密码 |
+| `MINERU_API_TOKEN` | `your-mineru-api-token` | MinerU 简历解析 API Token |
+| `AI_PROVIDER` | `openai` | AI 提供商 (openai/anthropic/gemini 等) |
+| `AI_MODEL_NAME` | `gpt-4` | AI 模型名称 |
+| `AI_API_KEY` | `your-ai-api-key` | AI API 密钥 |
 
 ### 4.3 部署命令
 
@@ -290,6 +309,8 @@ vercel --prod
 | `VITE_API_BASE_URL` | `https://<project>.supabase.co` | PostgREST URL |
 | `VITE_GEMINI_API_KEY` | `your-gemini-api-key` | Gemini API Key |
 | `VITE_MINERU_API_TOKEN` | `your-mineru-api-token` | MinerU API Token |
+| `VITE_SUPABASE_URL` | `https://<project>.supabase.co` | Supabase 项目 URL |
+| `VITE_SUPABASE_ANON_KEY` | `your-anon-key` | Supabase 匿名密钥 |
 
 ### 6.3 本地 .env 文件
 

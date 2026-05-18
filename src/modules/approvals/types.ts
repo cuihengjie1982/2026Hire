@@ -1,4 +1,4 @@
-export type ApprovalStatus = 'pending' | 'approved' | 'rejected' | 'cancelled';
+export type ApprovalStatus = 'pending' | 'approved' | 'rejected' | 'cancelled' | 'hired';
 
 export type ApprovalType = 'agent_publish' | 'config_publish' | 'outreach_launch' | 'interview_result';
 

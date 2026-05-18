@@ -47,7 +47,7 @@ export const LoginPage = ({onLogin}: {onLogin: () => void}) => {
           .eq('id', authData.user.id)
           .single();
 
-        if (profile?.name) {
+        if (profile && profile.name) {
           setUserName(profile.name);
         }
       }

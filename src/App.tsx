@@ -1,7 +1,7 @@
 import {useEffect, useState} from 'react';
 import {AppRouter} from './app/router/AppRouter';
 import {LoginPage} from './modules/auth/pages/LoginPage';
-import {AUTH_SESSION_STORAGE_KEY, removeUserName} from './shared/lib/runtime';
+import {AUTH_SESSION_STORAGE_KEY, AUTH_TOKEN_KEY, removeUserName, setAuthToken} from './shared/lib/runtime';
 import {supabase} from './shared/lib/supabase';
 import {ErrorBoundary} from './shared/components/ErrorBoundary';
 import {ToastProvider} from './shared/components/ToastProvider';
@@ -30,6 +30,9 @@ export default function App() {
   // Listen for auth state changes
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.access_token) {
+        setAuthToken(session.access_token);
+      }
       setIsAuthenticated(!!session);
     });
     return () => subscription.unsubscribe();

@@ -34,6 +34,11 @@ export interface AgentStats {
   pushedToday: number;
   weeklyAdoptionRate: number;
   monthlyOutreach: number;
+  total: number;
+  running: number;
+  paused: number;
+  pending: number;
+  completed: number;
 }
 
 export interface CreateAgentInput {

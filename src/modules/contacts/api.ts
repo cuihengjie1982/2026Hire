@@ -73,7 +73,7 @@ export const createContact = async (input: CreateContactInput): Promise<Contact>
     contactsData.push(newContact);
     return newContact;
   }
-  const { data, error } = await supabase.from('contacts').insert({
+  const { data, error } = await (supabase.from('contacts').insert({
     candidate_id: input.candidateId,
     candidate_name: input.candidateName,
     position_id: input.positionId,
@@ -84,9 +84,10 @@ export const createContact = async (input: CreateContactInput): Promise<Contact>
     channel: input.channel,
     reason: input.reason,
     status: 'pending',
-  }).select().single();
+  }) as unknown).select().single() as { data: Record<string, unknown> | null; error: Error | null };
   if (error) throw new Error(error.message);
-  return mapContact(data);
+  if (!data) throw new Error('Failed to create contact');
+  return mapContact(data as Record<string, unknown>);
 };
 
 export const updateContactStatus = async (id: string, status: Contact['status']): Promise<Contact> => {
@@ -97,12 +98,12 @@ export const updateContactStatus = async (id: string, status: Contact['status'])
     contactsData[index] = {...contactsData[index], status, updatedAt: new Date().toISOString()};
     return contactsData[index];
   }
-  const { data, error } = await supabase
+  const { data, error } = await (supabase
     .from('contacts')
-    .update({ status, updated_at: new Date().toISOString() })
-    .eq('id', id)
+    .update({ status, updated_at: new Date().toISOString() }) as unknown).eq('id', id)
     .select()
-    .single();
+    .single() as { data: Record<string, unknown> | null; error: Error | null };
   if (error) throw new Error(error.message);
-  return mapContact(data);
+  if (!data) throw new Error('Contact not found');
+  return mapContact(data as Record<string, unknown>);
 };
