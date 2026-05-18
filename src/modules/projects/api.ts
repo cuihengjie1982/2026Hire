@@ -46,13 +46,11 @@ const getMockProjectStats = (params: GetStatsParams): ProjectStats => {
   });
 
   const activeProjects = filtered.filter((p) => p.status === '进行中').length;
-  const candidateReserve = 0;
-  const weeklyInterviews = 0;
 
   return {
-    activeProjects: activeProjects || 6,
-    candidateReserve: candidateReserve || 406,
-    weeklyInterviews: weeklyInterviews || 58,
+    activeProjects,
+    candidateReserve: 0,
+    weeklyInterviews: 0,
   };
 };
 
