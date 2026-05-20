@@ -11,8 +11,11 @@ function getAllowedOrigin(req: Request): string | null {
 
 export function getCorsHeaders(req: Request): Record<string, string> {
   const allowedOrigin = getAllowedOrigin(req);
+  // If no allowed origin matches, fall back to the request's own origin
+  // so the browser at least gets a readable error instead of a CORS blackout
+  const origin = allowedOrigin ?? req.headers.get('Origin') ?? ALLOWED_ORIGINS[0] ?? 'http://localhost:3000';
   return {
-    'Access-Control-Allow-Origin': allowedOrigin ?? ALLOWED_ORIGINS[0] ?? 'http://localhost:3000',
+    'Access-Control-Allow-Origin': origin,
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
     'Access-Control-Allow-Methods': 'POST, GET, OPTIONS, PUT, PATCH, DELETE',
     'Access-Control-Allow-Credentials': 'true',

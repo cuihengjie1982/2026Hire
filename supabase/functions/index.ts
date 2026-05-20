@@ -102,6 +102,14 @@ const loadHandlers = async (): Promise<RouteHandler[]> => {
 
 let handlers: RouteHandler[] | null = null;
 
+function withCors(response: Response, corsH: Record<string, string>): Promise<Response> {
+  const resHeaders = new Headers(response.headers);
+  Object.entries(corsH).forEach(([k, v]) => resHeaders.set(k, v));
+  return response.text().then(body =>
+    new Response(body, { status: response.status, headers: resHeaders })
+  );
+}
+
 const serverHandler = async (req: Request): Promise<Response> => {
   const corsH = getCorsHeaders(req);
 
@@ -109,57 +117,66 @@ const serverHandler = async (req: Request): Promise<Response> => {
     return new Response(null, { headers: corsH });
   }
 
-  if (!handlers) {
-    handlers = await loadHandlers();
-  }
-
-  const path = new URL(req.url).pathname;
-  const method = req.method;
-
-  // Match routes: longest pattern first, then check method
-  const matched = handlers.find(h => {
-    if (!h.methods.includes(method)) return false;
-    if (h.pattern.endsWith('/')) return path.startsWith(h.pattern);
-    return path === h.pattern || path.startsWith(h.pattern + '/');
-  });
-
-  if (!matched) {
-    return jsonRes({ error: { code: 'NOT_FOUND', message: `Route ${method} ${path} not found` } }, 404, corsH);
-  }
-
-  // Auth check
-  if (matched.auth !== 'none') {
-    let authResult;
-    switch (matched.auth) {
-      case 'admin':
-        authResult = await requireAdmin(req);
-        break;
-      case 'recruiter+':
-        authResult = await requireRecruiterOrAbove(req);
-        break;
-      case 'hiring_manager+':
-        authResult = await requireHiringManagerOrAbove(req);
-        break;
-      case 'any':
-      default:
-        authResult = await requireAuth(req);
-        break;
+  try {
+    if (!handlers) {
+      handlers = await loadHandlers();
     }
 
-    if ('error' in authResult) {
-      // Merge CORS headers into error response
-      const errResp = authResult.error;
-      const body = errResp.body;
-      return new Response(body, {
-        status: errResp.status,
-        headers: { ...corsH, 'Content-Type': 'application/json' },
-      });
+    const path = new URL(req.url).pathname;
+    const method = req.method;
+
+    // Match routes: longest pattern first, then check method
+    const matched = handlers.find(h => {
+      if (!h.methods.includes(method)) return false;
+      if (h.pattern.endsWith('/')) return path.startsWith(h.pattern);
+      return path === h.pattern || path.startsWith(h.pattern + '/');
+    });
+
+    if (!matched) {
+      return jsonRes({ error: { code: 'NOT_FOUND', message: `Route ${method} ${path} not found` } }, 404, corsH);
     }
 
-    return matched.handler(req, authResult.data.user.id, authResult.data.user.role);
-  }
+    // Auth check
+    if (matched.auth !== 'none') {
+      let authResult;
+      switch (matched.auth) {
+        case 'admin':
+          authResult = await requireAdmin(req);
+          break;
+        case 'recruiter+':
+          authResult = await requireRecruiterOrAbove(req);
+          break;
+        case 'hiring_manager+':
+          authResult = await requireHiringManagerOrAbove(req);
+          break;
+        case 'any':
+        default:
+          authResult = await requireAuth(req);
+          break;
+      }
 
-  return matched.handler(req, '', '');
+      if ('error' in authResult) {
+        const errResp = authResult.error;
+        return new Response(errResp.body, {
+          status: errResp.status,
+          headers: { ...corsH, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const response = await matched.handler(req, authResult.data.user.id, authResult.data.user.role);
+      return await withCors(response, corsH);
+    }
+
+    const response = await matched.handler(req, '', '');
+    return await withCors(response, corsH);
+  } catch (err) {
+    console.error('[embox-api] Unhandled error:', err);
+    return jsonRes(
+      { error: { code: 'INTERNAL_ERROR', message: err instanceof Error ? err.message : 'Internal server error' } },
+      500,
+      corsH,
+    );
+  }
 };
 
 Deno.serve(serverHandler);
