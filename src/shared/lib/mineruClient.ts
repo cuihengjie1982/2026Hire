@@ -1,7 +1,7 @@
 // MinerU API client for document parsing
 // Docs: https://mineru.net
 
-import {API_BASE_URL, AUTH_TOKEN_KEY} from './runtime';
+import {API_BASE_URL, AUTH_TOKEN_KEY, USE_MOCK_API} from './runtime';
 import {fetchJson} from './apiClient';
 
 // When VITE_USE_MOCK_API=false and API_BASE_URL points to Supabase,
@@ -142,8 +142,9 @@ export const parseResumeWithMinerU = async (
 
     try {
       // Use server-side proxy in production to avoid exposing MinerU token in browser
-      // Falls back to direct MinerU API call only if proxy is unavailable
-      const isProduction = API_BASE_URL.includes('supabase.co');
+      // Falls back to client-side parsing if proxy is unavailable
+      // Check both URL pattern and USE_MOCK_API flag to determine if we should use proxy
+      const isProduction = API_BASE_URL.includes('supabase.co') && USE_MOCK_API === false;
 
       if (isProduction) {
         // Server-side proxy: token stays on the server

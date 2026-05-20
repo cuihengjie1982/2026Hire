@@ -148,16 +148,23 @@ export const getPositionDetail = async (_positionId: string): Promise<PositionDe
       baseScore: (rawBaseScoreConfig as any).baseScore || (rawBaseScoreConfig as any).base_score || 50,
     } : null;
 
-    // Merge detailData if exists
+    // Merge detailData fields properly — detailData holds position_details table data
     const detail = detailData as Record<string, unknown> | null;
+
+    // Extract fields from detailData (position_details table) with fallback to positionData fields
+    const detailProfileRules = detail?.profile_rules ?? raw.profile_rules ?? (raw as any).profileRules ?? [];
+    const detailScoringRules = detail?.scoring_rules ?? raw.scoring_rules ?? (raw as any).scoringRules ?? [];
+    const detailGradeRules = detail?.grade_rules ?? raw.grade_rules ?? (raw as any).gradeRules ?? [];
+    const detailBaseScoreConfig = detail?.base_score_config ?? (raw as any).baseScoreConfig ?? null;
+    const detailAiPrompt = detail?.ai_prompt ?? raw.ai_prompt ?? (raw as any).aiPrompt ?? '';
 
     return {
       position: mapPositionSummary(raw),
-      profileRules,
-      scoringRules,
-      gradeRules: Array.isArray(raw.grade_rules) ? (raw.grade_rules as GradeRule[]) : [],
-      baseScoreConfig,
-      aiPrompt: (typeof raw.ai_prompt === 'string' ? raw.ai_prompt : '') || (typeof (raw as any).aiPrompt === 'string' ? (raw as any).aiPrompt : ''),
+      profileRules: detailProfileRules,
+      scoringRules: detailScoringRules,
+      gradeRules: detailGradeRules,
+      baseScoreConfig: detailBaseScoreConfig,
+      aiPrompt: detailAiPrompt,
     };
   }
 
