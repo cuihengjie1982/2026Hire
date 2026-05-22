@@ -2,15 +2,15 @@ import pg from 'pg';
 import {env} from './env.js';
 
 // Supabase SSL: add ?sslmode=require to connection string
-const connectionString = env.DATABASE_URL.includes('supabase')
-  ? `${env.DATABASE_URL}${env.DATABASE_URL.includes('?') ? '&' : '?'}sslmode=require`
-  : env.DATABASE_URL;
+const isSupabaseConnection = env.DATABASE_URL.includes('supabase');
+const connectionString = env.DATABASE_URL;
 
 const pool = new pg.Pool({
   connectionString,
+  ...(isSupabaseConnection ? {ssl: {rejectUnauthorized: false}} : {}),
   // Supabase transaction pooler uses port 5432 (direct) or 6543 (pooled)
   // For transaction mode (pooled), prepared statements must be disabled
-  ...(env.DATABASE_URL.includes('supabase') ? {preparedStatements: false} : {}),
+  ...(isSupabaseConnection ? {preparedStatements: false} : {}),
 });
 
 export const query = async <T extends Record<string, unknown> = Record<string, unknown>>(sql: string, params?: unknown[]): Promise<T[]> => {

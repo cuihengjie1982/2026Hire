@@ -2,6 +2,8 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import {env} from '../config/env.js';
 
+const allowedConnectSources = env.CORS_ORIGIN.split(',').map(origin => origin.trim()).filter(Boolean);
+
 export const securityMiddleware = helmet({
   contentSecurityPolicy: {
     directives: {
@@ -9,7 +11,7 @@ export const securityMiddleware = helmet({
       scriptSrc: ["'self'"],
       styleSrc: ["'self'", "'unsafe-inline'"],
       imgSrc: ["'self'", "data:", "https://api.dicebear.com"],
-      connectSrc: ["'self'", env.CORS_ORIGIN],
+      connectSrc: ["'self'", ...allowedConnectSources],
     },
   },
   crossOriginEmbedderPolicy: false,
