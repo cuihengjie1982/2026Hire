@@ -15,18 +15,20 @@ interface GetStatsParams {
 let projectsData: Project[] = (() => { try { const r = localStorage.getItem('em-box.mock.projects'); return r ? JSON.parse(r) : [...projectsFixture]; } catch { return [...projectsFixture]; } })();
 const saveProjects = () => localStorage.setItem('em-box.mock.projects', JSON.stringify(projectsData));
 
-/** camelCase → snake_case for PostgREST columns */
-const toSnake = (p: Partial<Project>): Record<string, unknown> => ({
-  name: p.name,
-  description: p.description,
-  city: p.city,
-  progress: p.progress,
-  start_date: p.startDate,
-  end_date: p.endDate,
-  status: p.status,
-  created_at: p.createdAt,
-  manager: p.manager,
-});
+/** camelCase → snake_case for PostgREST columns (empty strings → null for date cols) */
+const toSnake = (p: Partial<Project>): Record<string, unknown> => {
+  const o: Record<string, unknown> = {};
+  if (p.name !== undefined) o.name = p.name;
+  if (p.description !== undefined) o.description = p.description || null;
+  if (p.city !== undefined) o.city = p.city;
+  if (p.progress !== undefined) o.progress = p.progress;
+  if (p.startDate !== undefined) o.start_date = p.startDate || null;
+  if (p.endDate !== undefined) o.end_date = p.endDate || null;
+  if (p.status !== undefined) o.status = p.status;
+  if (p.createdAt !== undefined) o.created_at = p.createdAt || null;
+  if (p.manager !== undefined) o.manager = p.manager || null;
+  return o;
+};
 
 /** snake_case DB row → camelCase Project */
 const fromSnake = (r: Record<string, unknown>): Project => ({
