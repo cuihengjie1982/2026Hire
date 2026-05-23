@@ -15,6 +15,33 @@ interface GetStatsParams {
 let projectsData: Project[] = (() => { try { const r = localStorage.getItem('em-box.mock.projects'); return r ? JSON.parse(r) : [...projectsFixture]; } catch { return [...projectsFixture]; } })();
 const saveProjects = () => localStorage.setItem('em-box.mock.projects', JSON.stringify(projectsData));
 
+/** camelCase → snake_case for PostgREST columns */
+const toSnake = (p: Partial<Project>): Record<string, unknown> => ({
+  name: p.name,
+  description: p.description,
+  city: p.city,
+  progress: p.progress,
+  start_date: p.startDate,
+  end_date: p.endDate,
+  status: p.status,
+  created_at: p.createdAt,
+  manager: p.manager,
+});
+
+/** snake_case DB row → camelCase Project */
+const fromSnake = (r: Record<string, unknown>): Project => ({
+  id: String(r.id ?? ''),
+  name: String(r.name ?? ''),
+  description: r.description ? String(r.description) : undefined,
+  city: String(r.city ?? ''),
+  progress: Number(r.progress ?? 0),
+  startDate: (r.start_date ?? r.startDate ?? '') as string || undefined,
+  endDate: (r.end_date ?? r.endDate ?? '') as string || undefined,
+  status: String(r.status ?? '筹备中') as ProjectStatus,
+  createdAt: String(r.created_at ?? r.createdAt ?? ''),
+  manager: r.manager ? String(r.manager) : undefined,
+});
+
 const getMockProjectStats = (params: GetStatsParams): ProjectStats => {
   const {timeRange = 'week', startDate, endDate} = params;
   const now = new Date();
@@ -78,7 +105,7 @@ export const listProjects = async (): Promise<Project[]> => {
 
   const {data, error} = await supabase.from('projects').select('*').order('created_at', {ascending: false});
   if (error) throw new Error(error.message);
-  return Array.from(new Map((data ?? []).map(r => [r.id as string, r])).values()) as Project[];
+  return Array.from(new Map((data ?? []).map((r: Record<string, unknown>) => [String(r.id), fromSnake(r)])).values());
 };
 
 export const createProject = async (data: Omit<Project, 'id'>): Promise<Project> => {
@@ -94,10 +121,11 @@ export const createProject = async (data: Omit<Project, 'id'>): Promise<Project>
     return newProject;
   }
 
-  const {data: row, error} = await (supabase.from('projects' as any).insert(data as any) as any).select().single() as { data: Record<string, unknown> | null; error: Error | null };
+  const row = toSnake({...data, createdAt: data.createdAt || new Date().toISOString()});
+  const {data: result, error} = await supabase.from('projects').insert(row).select().single();
   if (error) throw new Error(error.message);
-  if (!row) throw new Error('Failed to create project');
-  return row as unknown as Project;
+  if (!result) throw new Error('Failed to create project');
+  return fromSnake(result as Record<string, unknown>);
 };
 
 export const updateProjectStatus = async (id: string, status: Project['status']): Promise<Project> => {
@@ -110,10 +138,10 @@ export const updateProjectStatus = async (id: string, status: Project['status'])
     return projectsData[index];
   }
 
-  const {data: row, error} = await (supabase.from('projects' as any).update({status} as any) as any).eq('id', id).select().single() as { data: Record<string, unknown> | null; error: Error | null };
+  const {data: row, error} = await supabase.from('projects').update({status}).eq('id', id).select().single();
   if (error) throw new Error(error.message);
   if (!row) throw new Error('Project not found');
-  return row as unknown as Project;
+  return fromSnake(row as Record<string, unknown>);
 };
 
 export const updateProject = async (id: string, data: Partial<Pick<Project, 'name' | 'city' | 'manager' | 'progress' | 'startDate' | 'endDate' | 'description' | 'status'>>): Promise<Project> => {
@@ -126,10 +154,10 @@ export const updateProject = async (id: string, data: Partial<Pick<Project, 'nam
     return projectsData[index];
   }
 
-  const {data: row, error} = await (supabase.from('projects' as any).update(data as any) as any).eq('id', id).select().single() as { data: Record<string, unknown> | null; error: Error | null };
+  const {data: row, error} = await supabase.from('projects').update(toSnake(data)).eq('id', id).select().single();
   if (error) throw new Error(error.message);
   if (!row) throw new Error('Project not found');
-  return row as unknown as Project;
+  return fromSnake(row as Record<string, unknown>);
 };
 
 export const deleteProject = async (id: string): Promise<void> => {
