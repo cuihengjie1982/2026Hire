@@ -7,6 +7,36 @@ import {type Agent, type AgentStats, type CreateAgentInput, type AgentRunResult}
 let agentsData: Agent[] = (() => { try { const r = localStorage.getItem('em-box.mock.agents'); return r ? JSON.parse(r) : [...agentsFixture]; } catch { return [...agentsFixture]; } })();
 const saveAgents = () => localStorage.setItem('em-box.mock.agents', JSON.stringify(agentsData));
 
+const mapAgent = (raw: Record<string, unknown>): Agent => ({
+  id: String(raw.id ?? ''),
+  name: String(raw.name ?? ''),
+  description: raw.description ? String(raw.description) : undefined,
+  status: String(raw.status ?? 'pending') as Agent['status'],
+  type: raw.type ? String(raw.type) as Agent['type'] : undefined,
+  projectId: String(raw.project_id ?? raw.projectId ?? ''),
+  projectName: String(raw.project_name ?? raw.projectName ?? ''),
+  roleType: String(raw.role_type ?? raw.roleType ?? ''),
+  config: raw.config as Agent['config'],
+  pushedToday: Number(raw.pushed_today ?? raw.pushedToday ?? 0),
+  approved: Number(raw.approved ?? 0),
+  rejected: Number(raw.rejected ?? 0),
+  pending: Number(raw.pending_count ?? raw.pending ?? 0),
+  adoptionRate: Number(raw.adoption_rate ?? raw.adoptionRate ?? 0),
+  updatedAt: String(raw.updated_at ?? raw.updatedAt ?? ''),
+});
+
+const agentToSnake = (input: Partial<CreateAgentInput>): Record<string, unknown> => {
+  const o: Record<string, unknown> = {};
+  if (input.name !== undefined) o.name = input.name;
+  if (input.description !== undefined) o.description = input.description || null;
+  if (input.projectId !== undefined) o.project_id = input.projectId || null;
+  if (input.projectName !== undefined) o.project_name = input.projectName || null;
+  if (input.roleType !== undefined) o.role_type = input.roleType || null;
+  if (input.type !== undefined) o.type = input.type || null;
+  if (input.config !== undefined) o.config = input.config;
+  return o;
+};
+
 export const listAgents = async (projectId?: string): Promise<Agent[]> => {
   if (USE_MOCK_API) {
     await new Promise(r => setTimeout(r, 120));
@@ -16,11 +46,11 @@ export const listAgents = async (projectId?: string): Promise<Agent[]> => {
 
   let query = supabase.from('agents').select('*');
   if (projectId) {
-    query = query.eq('projectId', projectId);
+    query = query.eq('project_id', projectId);
   }
   const {data, error} = await query;
   if (error) throw new Error(error.message);
-  return Array.from(new Map((data ?? []).map(r => [r.id as string, r])).values()) as Agent[];
+  return Array.from(new Map((data ?? []).map((r: Record<string, unknown>) => [String(r.id), mapAgent(r)])).values());
 };
 
 export const getAgentStats = async (): Promise<AgentStats> => {
@@ -77,10 +107,10 @@ export const createAgent = async (input: CreateAgentInput): Promise<Agent> => {
     return newAgent;
   }
 
-  const {data, error} = await (supabase.from('agents' as any).insert(input as any) as any).select().single() as { data: Agent | null; error: Error | null };
+  const {data, error} = await (supabase.from('agents' as any).insert(agentToSnake(input) as any) as any).select().single() as { data: Record<string, unknown> | null; error: Error | null };
   if (error) throw new Error(error.message);
   if (!data) throw new Error('Failed to create agent');
-  return data;
+  return mapAgent(data as Record<string, unknown>);
 };
 
 export const updateAgent = async (agentId: string, input: Partial<CreateAgentInput>): Promise<Agent> => {
@@ -93,10 +123,10 @@ export const updateAgent = async (agentId: string, input: Partial<CreateAgentInp
     return agentsData[index];
   }
 
-  const {data, error} = await (supabase.from('agents' as any).update(input as any) as any).eq('id', agentId).select().single() as { data: Agent | null; error: Error | null };
+  const {data, error} = await (supabase.from('agents' as any).update(agentToSnake(input) as any) as any).eq('id', agentId).select().single() as { data: Record<string, unknown> | null; error: Error | null };
   if (error) throw new Error(error.message);
   if (!data) throw new Error('Agent not found');
-  return data;
+  return mapAgent(data as Record<string, unknown>);
 };
 
 export const pauseAgent = async (agentId: string): Promise<Agent> => {

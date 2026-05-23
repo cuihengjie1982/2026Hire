@@ -253,13 +253,14 @@ export const createPosition = async (input: CreatePositionInput): Promise<Positi
 
   // Convert camelCase to snake_case for API
   const insertData = {
+    code: `POS-${Date.now()}`,
     name: input.name,
     category: input.category,
     status: input.status || 'active',
-    project_id: input.projectId,
-    description: input.description,
-    required_count: input.requiredCount,
-    delivery_days: input.deliveryDays,
+    project_id: input.projectId || null,
+    description: input.description || null,
+    required_count: input.requiredCount ?? 0,
+    delivery_days: input.deliveryDays ?? 0,
   };
 
   const {data, error} = await (supabase.from('positions' as any).insert(insertData as any) as any).select().single() as { data: Record<string, unknown> | null; error: Error | null };

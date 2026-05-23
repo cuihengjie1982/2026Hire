@@ -61,7 +61,17 @@ export const addToShortlist = async (input: CreateShortlistEntryInput): Promise<
     return newEntry;
   }
 
-  const {data, error} = await (supabase.from('shortlist_entries' as any).insert(input as any) as any).select().single() as { data: Record<string, unknown> | null; error: Error | null };
+  const {data, error} = await (supabase.from('shortlist_entries' as any).insert({
+    candidate_id: input.candidateId,
+    candidate_name: input.candidateName,
+    role: input.role,
+    position_id: input.positionId || null,
+    position_name: input.positionName || null,
+    project_id: input.projectId || null,
+    project_name: input.projectName || null,
+    fit_score: input.fitScore ?? 0,
+    grade: input.grade || null,
+  } as any) as any).select().single() as { data: Record<string, unknown> | null; error: Error | null };
   if (error) throw new Error(error.message);
   if (!data) throw new Error('Failed to add to shortlist');
   return mapShortlistEntry(data as Record<string, unknown>);
