@@ -84,7 +84,7 @@ export const getPositionDetail = async (_positionId: string): Promise<PositionDe
     .from('position_details')
     .select('*')
     .eq('position_id', _positionId)
-    .single();
+    .maybeSingle();
 
   console.log('[DEBUG] getPositionDetail - positionData:', JSON.stringify(positionData).slice(0, 500));
   console.log('[DEBUG] getPositionDetail - detailData:', JSON.stringify(detailData || {}).slice(0, 500));
@@ -267,7 +267,9 @@ export const createPosition = async (input: CreatePositionInput): Promise<Positi
 
   if (error) throw new Error(error.message);
   if (!data) throw new Error('Failed to create position');
-  return mapPositionSummary(data as Record<string, unknown>);
+  const summary = mapPositionSummary(data as Record<string, unknown>);
+  supabase.from('position_details').insert({ position_id: (data as Record<string, unknown>).id } as any).then(() => {});
+  return summary;
 };
 
 export const updatePosition = async (id: string, input: UpdatePositionInput): Promise<PositionSummary> => {

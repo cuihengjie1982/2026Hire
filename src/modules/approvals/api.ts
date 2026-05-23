@@ -83,7 +83,7 @@ export const listInterviewApprovalRequests = async (): Promise<InterviewApproval
     return Array.from(new Map(interviewApprovalRequestsData.map(r => [r.id, r])).values());
   }
 
-  const {data, error} = await supabase.from('interview_approval_requests').select('*').eq('status', 'pending');
+  const {data, error} = await supabase.from('approval_requests').select('*').eq('status', 'pending');
   if (error) throw new Error(error.message);
   return Array.from(new Map((data ?? []).map(r => [r.id as string, r])).values()).map(parseInterviewApproval);
 };
@@ -94,7 +94,7 @@ export const listInterviewApprovalHistory = async (): Promise<InterviewApprovalR
     return Array.from(new Map(interviewApprovalHistoryData.map(r => [r.id, r])).values());
   }
 
-  const {data, error} = await supabase.from('interview_approval_requests').select('*').neq('status', 'pending').order('created_at', {ascending: false});
+  const {data, error} = await supabase.from('approval_requests').select('*').neq('status', 'pending').order('created_at', {ascending: false});
   if (error) throw new Error(error.message);
   return Array.from(new Map((data ?? []).map(r => [r.id as string, r])).values()).map(parseInterviewApproval);
 };
@@ -115,7 +115,24 @@ export const createInterviewApprovalRequest = async (
     saveInterviewApprovalRequests();
     return request;
   }
-  const {data, error} = await supabase.from('interview_approval_requests').insert(input as any).select().single();
+  const insertData = {
+    type: 'interview_result',
+    candidate_id: input.candidateId,
+    candidate_name: input.candidateName,
+    candidate_email: input.candidateEmail,
+    position_id: input.positionId,
+    position_name: input.positionName,
+    interview_score: input.interviewScore,
+    interview_grade: input.interviewGrade,
+    interview_grade_label: input.interviewGradeLabel,
+    interview_date: input.interviewDate,
+    interview_duration: input.interviewDuration,
+    dimension_scores: input.dimensionScores ? JSON.stringify(input.dimensionScores) : null,
+    status: 'pending',
+    requester_name: input.requesterName ?? 'AI面试系统',
+    reason: input.reason ?? null,
+  };
+  const {data, error} = await supabase.from('approval_requests').insert(insertData as any).select().single();
   if (error) throw new Error(error.message);
   return parseInterviewApproval(data);
 };
