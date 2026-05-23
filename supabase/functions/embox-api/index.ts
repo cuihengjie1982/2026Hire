@@ -28,7 +28,7 @@ const loadHandlers = async (): Promise<RouteHandler[]> => {
   // Candidate Ops
   const { importCandidates, deleteCandidate, exportCsv, getStats, updateTags } = await import('./candidate-ops/index.ts');
   // Analytics
-  const { overview } = await import('./analytics/index.ts');
+  const { overview, projectStats } = await import('./analytics/index.ts');
   // Settings
   const {
     listUsers, getMe, createUser, updateUser, deleteUser, resetPassword,
@@ -63,6 +63,7 @@ const loadHandlers = async (): Promise<RouteHandler[]> => {
     { pattern: '/candidate-ops/', methods: ['DELETE'], auth: 'recruiter+', handler: deleteCandidate },
     // Analytics — any authenticated
     { pattern: '/analytics/overview', methods: ['GET'], auth: 'any', handler: overview },
+    { pattern: '/analytics/project-stats', methods: ['GET'], auth: 'any', handler: projectStats },
     // Settings - Users
     { pattern: '/settings/users/me', methods: ['GET'], auth: 'any', handler: getMe },
     { pattern: '/settings/users/reset-password', methods: ['POST'], auth: 'admin', handler: resetPassword },
@@ -123,9 +124,11 @@ const serverHandler = async (req: Request): Promise<Response> => {
     }
 
     const url = new URL(req.url);
-    const path = url.pathname;
+    const rawPath = url.pathname;
+    // Supabase strips /functions/v1/ but keeps the function name as prefix
+    const path = rawPath.replace(/^\/embox-api/, '') || '/';
     const method = req.method;
-    console.log('[embox-api]', method, path);
+    console.log('[embox-api]', method, 'raw:', rawPath, 'stripped:', path);
 
     // Match routes: longest pattern first, then check method
     const matched = handlers.find(h => {
@@ -135,7 +138,7 @@ const serverHandler = async (req: Request): Promise<Response> => {
     });
 
     if (!matched) {
-      return jsonRes({ error: { code: 'NOT_FOUND', message: `Route ${method} ${path} not found` } }, 404, corsH);
+      return jsonRes({ error: { code: 'NOT_FOUND', message: `Route ${method} ${path} not found (raw: ${rawPath})` } }, 404, corsH);
     }
 
     // Auth check

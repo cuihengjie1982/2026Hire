@@ -116,3 +116,24 @@ export const overview = async (req: Request, _userId: string, _userRole: string)
     return jsonRes({ error: { code: 'INTERNAL_ERROR', message: 'An internal error occurred' } }, 500);
   }
 };
+
+// GET /analytics/project-stats — project dashboard stats (active projects, candidates, weekly interviews)
+export const projectStats = async (_req: Request, _userId: string, _userRole: string): Promise<Response> => {
+  try {
+    const supabase = createSupabaseAdmin();
+
+    const [activeRes, candidateRes, weeklyRes] = await Promise.all([
+      supabase.from('projects').select('id', { count: 'exact', head: true }).eq('status', '进行中'),
+      supabase.from('candidates').select('id', { count: 'exact', head: true }),
+      supabase.from('interview_results').select('id', { count: 'exact', head: true }).gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()),
+    ]);
+
+    return jsonRes({
+      activeProjects: activeRes.count ?? 0,
+      candidateReserve: candidateRes.count ?? 0,
+      weeklyInterviews: weeklyRes.count ?? 0,
+    });
+  } catch {
+    return jsonRes({ error: { code: 'INTERNAL_ERROR', message: 'An internal error occurred' } }, 500);
+  }
+};
