@@ -60,13 +60,8 @@ export const getProjectStats = async (params: GetStatsParams = {}): Promise<Proj
     return getMockProjectStats(params);
   }
 
-  const query = new URLSearchParams();
-  if (params.timeRange) query.set('range', params.timeRange);
-  if (params.startDate) query.set('startDate', params.startDate);
-  if (params.endDate) query.set('endDate', params.endDate);
-
   const res = await fetchJson<{activeProjects: number; candidateReserve: number; weeklyInterviews: number}>(
-    `/api/projects/stats?${query}`,
+    `/functions/v1/embox-api/analytics/project-stats`,
   );
   return {
     activeProjects: res.activeProjects ?? 0,
