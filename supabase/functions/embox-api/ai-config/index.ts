@@ -18,7 +18,9 @@ export const handleAiConfig = async (req: Request, _userId: string, _userRole: s
   try {
     const supabase = createSupabaseAdmin(req);
     const url = new URL(req.url);
-    const path = url.pathname;
+    const fullPath = url.pathname;
+    // Strip function name prefix to get clean sub-path (mirrors main router logic)
+    const path = fullPath.replace(/^\/embox-api/, '') || '/';
     const prefix = '/ai-config';
     const subPath = path.startsWith(prefix) ? path.slice(prefix.length) || '/' : '/';
     const method = req.method;

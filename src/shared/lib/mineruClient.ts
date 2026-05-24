@@ -138,50 +138,113 @@ export const parseResumeWithMinerU = async (
     }
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), isImage ? 60000 : 30000); // longer for direct API call
+    const timeoutId = setTimeout(() => controller.abort(), isImage ? 180000 : 180000); // 3 min for async polling
 
     try {
       // Use server-side proxy in production to avoid exposing MinerU token in browser
+      // Two-phase async: 1) upload file → get task_id, 2) poll for results
       // Falls back to client-side parsing if proxy is unavailable
-      // Check both URL pattern and USE_MOCK_API flag to determine if we should use proxy
       const isProduction = API_BASE_URL.includes('supabase.co') && USE_MOCK_API === false;
 
       if (isProduction) {
-        // Server-side proxy: token stays on the server
-        const proxyFormData = new FormData();
-        proxyFormData.append('file', file);
+        try {
+          const token = localStorage.getItem(AUTH_TOKEN_KEY);
+          const proxyFormData = new FormData();
+          proxyFormData.append('file', file);
 
-        const token = localStorage.getItem(AUTH_TOKEN_KEY);
-        const response = await fetch(`${API_BASE_URL}/functions/v1/embox-api/mineru-proxy/parse`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
-          body: proxyFormData,
-          signal: controller.signal,
-        });
+          // Phase 1: Start extraction (upload file)
+          const startResponse = await fetch(`${API_BASE_URL}/functions/v1/embox-api/mineru-proxy/parse`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+            },
+            body: proxyFormData,
+            signal: controller.signal,
+          });
 
-        clearTimeout(timeoutId);
+          if (!startResponse.ok) {
+            throw new Error(`Parse start failed: HTTP ${startResponse.status}`);
+          }
 
-        if (response.ok) {
-          const result = await response.json();
-          if (result.content_md && result.content_md.length > 50) {
-            if (!photoBase64 && result.content_list && Array.isArray(result.content_list)) {
-              const imageEntry = result.content_list.find((item: {type: string; text: string}) => item.type === 'image' && item.text);
+          const startResult = await startResponse.json();
+          if (startResult.error) {
+            throw new Error(startResult.error.message || 'Parse start failed');
+          }
+
+          // If the proxy returned content directly (backward compat), use it
+          if (startResult.content_md && startResult.content_md.length > 50) {
+            clearTimeout(timeoutId);
+            if (!photoBase64 && startResult.content_list && Array.isArray(startResult.content_list)) {
+              const imageEntry = startResult.content_list.find((item: {type: string; text: string}) => item.type === 'image' && item.text);
               if (imageEntry) {
                 photoBase64 = imageEntry.text.startsWith('data:') ? imageEntry.text : `data:image/jpeg;base64,${imageEntry.text}`;
               }
             }
             return {
               success: true,
-              content_md: result.content_md,
-              content_list: result.content_list || [],
+              content_md: startResult.content_md,
+              content_list: startResult.content_list || [],
               photoBase64,
             };
           }
+
+          // Phase 2: Poll for results (task_id based)
+          if (startResult.task_id && startResult.status === 'processing') {
+            const maxPolls = 40; // 40 × 3s = 120s max
+            for (let i = 0; i < maxPolls; i++) {
+              await new Promise(r => setTimeout(r, 3000));
+
+              const pollResponse = await fetch(`${API_BASE_URL}/functions/v1/embox-api/mineru-proxy/poll`, {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Bearer ${token}`,
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  task_id: startResult.task_id,
+                  api_type: startResult.api_type || 'agent',
+                }),
+                signal: controller.signal,
+              });
+
+              if (!pollResponse.ok) {
+                console.warn(`[MinerU] Poll ${i + 1} failed: HTTP ${pollResponse.status}`);
+                continue;
+              }
+
+              const pollResult = await pollResponse.json();
+
+              if (pollResult.error) {
+                clearTimeout(timeoutId);
+                throw new Error(pollResult.error.message || 'Poll failed');
+              }
+
+              if (pollResult.status === 'done' && pollResult.content_md && pollResult.content_md.length > 50) {
+                clearTimeout(timeoutId);
+                if (!photoBase64 && pollResult.content_list && Array.isArray(pollResult.content_list)) {
+                  const imageEntry = pollResult.content_list.find((item: {type: string; text: string}) => item.type === 'image' && item.text);
+                  if (imageEntry) {
+                    photoBase64 = imageEntry.text.startsWith('data:') ? imageEntry.text : `data:image/jpeg;base64,${imageEntry.text}`;
+                  }
+                }
+                return {
+                  success: true,
+                  content_md: pollResult.content_md,
+                  content_list: pollResult.content_list || [],
+                  photoBase64,
+                };
+              }
+
+              console.log(`[MinerU] Poll ${i + 1}: status=${pollResult.status}, state=${pollResult.state || '?'}`);
+            }
+
+            clearTimeout(timeoutId);
+            throw new Error('MinerU extraction timed out (120s)');
+          }
+        } catch (proxyErr) {
+          clearTimeout(timeoutId);
+          console.log('MinerU proxy failed, using client-side parsing:', proxyErr);
         }
-        // Proxy failed, fall through to client-side parsing
-        console.log('MinerU proxy failed, using client-side parsing');
       } else {
         // Dev mode: direct MinerU call (token loaded from env)
         const formData = new FormData();

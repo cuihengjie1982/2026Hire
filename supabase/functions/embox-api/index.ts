@@ -41,7 +41,7 @@ const loadHandlers = async (): Promise<RouteHandler[]> => {
   // Cross-table Ops
   const { shortlistInterviewInvite, shortlistPromote, approvalDecide, hireCandidate } = await import('./cross-table-ops/index.ts');
   // MinerU Proxy
-  const { parseFile } = await import('./mineru-proxy/index.ts');
+  const { parseFile, pollResult } = await import('./mineru-proxy/index.ts');
   // Notifications
   const { listNotifications, markRead, dismissNotification } = await import('./notifications/index.ts');
   // SMS Gateway
@@ -95,6 +95,7 @@ const loadHandlers = async (): Promise<RouteHandler[]> => {
     { pattern: '/cross-table-ops/hire-candidate', methods: ['POST'], auth: 'hiring_manager+', handler: hireCandidate },
     // MinerU Proxy (recruiter+ — needs to parse resumes)
     { pattern: '/mineru-proxy/parse', methods: ['POST'], auth: 'recruiter+', handler: parseFile },
+    { pattern: '/mineru-proxy/poll', methods: ['POST'], auth: 'recruiter+', handler: pollResult },
     // Notifications (own user, ownership checked in handler)
     { pattern: '/notifications/mark-read', methods: ['PATCH'], auth: 'any', handler: markRead },
     { pattern: '/notifications/', methods: ['DELETE'], auth: 'any', handler: dismissNotification },
