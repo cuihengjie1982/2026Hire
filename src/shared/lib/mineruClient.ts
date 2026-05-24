@@ -152,7 +152,7 @@ export const parseResumeWithMinerU = async (
         proxyFormData.append('file', file);
 
         const token = localStorage.getItem(AUTH_TOKEN_KEY);
-        const response = await fetch(`${API_BASE_URL}/functions/v1/mineru-proxy/parse`, {
+        const response = await fetch(`${API_BASE_URL}/functions/v1/embox-api/mineru-proxy/parse`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
