@@ -124,13 +124,15 @@ export const handleAiConfig = async (req: Request, _userId: string, _userRole: s
       try {
         await callLLM(config, 'Reply with only: OK', 'test');
         return jsonRes({ healthy: true, latencyMs: Date.now() - start });
-      } catch {
+      } catch (e) {
+        console.error('[ai-config] health check failed:', e);
         return jsonRes({ healthy: false, latencyMs: Date.now() - start, error: 'Health check failed' }, 200);
       }
     }
 
     return jsonRes({ error: { code: 'NOT_FOUND', message: `Route ${method} ${path} not found` } }, 404);
-  } catch {
+  } catch (e) {
+    console.error('[ai-config]', e);
     return jsonRes({ error: { code: 'INTERNAL_ERROR', message: 'An internal error occurred' } }, 500);
   }
 };

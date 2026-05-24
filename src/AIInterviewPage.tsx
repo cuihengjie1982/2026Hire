@@ -107,7 +107,7 @@ export const AIInterviewPage = () => {
       const detail = await getInterviewTemplateDetail(id);
       setTemplateDetail(detail);
       if (detail) {
-        setEditQuestions(detail.questions.map(q => ({
+        setEditQuestions((detail.questions ?? []).map(q => ({
           title: q.title,
           prompt: q.prompt,
           timeLimitSeconds: q.timeLimitSeconds,
@@ -607,7 +607,7 @@ export const AIInterviewPage = () => {
 
     // Check if template has questions
     const detail = await getInterviewTemplateDetail(activeTemplateId);
-    if (!detail || detail.questions.length === 0) {
+    if (!detail || (detail.questions ?? []).length === 0) {
       alert('当前模板暂无面试题目，请先添加题目后再预览。');
       return;
     }
@@ -769,7 +769,7 @@ export const AIInterviewPage = () => {
                       setIsEditing(false);
                       // Revert to saved state
                       if (templateDetail) {
-                        setEditQuestions(templateDetail.questions.map(q => ({
+                        setEditQuestions((templateDetail.questions ?? []).map(q => ({
                           title: q.title, prompt: q.prompt, timeLimitSeconds: q.timeLimitSeconds,
                           group: q.group ?? '', followUps: q.followUps ?? [],
                           scoringGuide: q.scoringGuide ?? {standard: '', rubric: []},
@@ -1380,7 +1380,7 @@ export const AIInterviewPage = () => {
                 onClick={() => {
                   setIsEditing(false);
                   if (templateDetail) {
-                    setEditQuestions(templateDetail.questions.map(q => ({
+                    setEditQuestions((templateDetail.questions ?? []).map(q => ({
                       title: q.title, prompt: q.prompt, timeLimitSeconds: q.timeLimitSeconds,
                       group: q.group ?? '', followUps: q.followUps ?? [],
                       scoringGuide: q.scoringGuide ?? {standard: '', rubric: []},

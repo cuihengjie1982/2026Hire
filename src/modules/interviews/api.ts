@@ -1,6 +1,21 @@
-import {fetchJson, invokeEdgeFunction} from '../../shared/lib/apiClient';
+import {fetchJson} from '../../shared/lib/apiClient';
+import {USE_MOCK_API, API_BASE_URL, getAuthToken} from '../../shared/lib/runtime';
+
+const efetch = async <T>(path: string, method = 'GET', body?: unknown): Promise<T> => {
+  const base = USE_MOCK_API ? '' : API_BASE_URL;
+  const res = await fetch(`${base}/functions/v1/embox-api${path}`, {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${getAuthToken() ?? ''}`,
+    },
+    ...(body ? { body: JSON.stringify(body) } : {}),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data?.error?.message || `API error ${res.status}`);
+  return data as T;
+};
 import {supabase} from '../../shared/lib/supabase';
-import {USE_MOCK_API} from '../../shared/lib/runtime';
 import {
   type InterviewTemplateSummary,
   type InterviewTemplateDetail,
@@ -700,15 +715,27 @@ export const createInterviewResult = async (input: CreateInterviewResultInput): 
   return mapInterviewResult(data as Record<string, unknown>);
 };
 
+const mapAnalyticsSummary = (raw: Record<string, unknown>): AnalyticsSummary => ({
+  totalInterviews: Number(raw.totalInterviews ?? 0),
+  completedInterviews: Number(raw.completed ?? 0),
+  passRate: Number(raw.passRate ?? 0),
+  averageScore: Number(raw.avgScore ?? 0),
+  thisWeekCount: Number(raw.thisWeekCount ?? raw.this_week_count ?? 0),
+  thisMonthCount: Number(raw.thisMonthCount ?? raw.this_month_count ?? 0),
+  momTrend: {
+    totalChange: Number(((raw.momTrend as Record<string, unknown>)?.totalChange) ?? 0),
+    completedChange: Number(((raw.momTrend as Record<string, unknown>)?.completedChange) ?? 0),
+    avgScoreChange: Number(((raw.momTrend as Record<string, unknown>)?.avgScoreChange) ?? 0),
+  },
+});
+
 export const getAnalyticsSummary = async (timeRange = 'all'): Promise<AnalyticsSummary> => {
   if (USE_MOCK_API) {
     await new Promise(r => setTimeout(r, 120));
     return MOCK_ANALYTICS_SUMMARY;
   }
-  return invokeEdgeFunction<AnalyticsSummary>('interview-analytics', {
-    action: 'summary',
-    timeRange,
-  });
+  const raw = await efetch<Record<string, unknown>>(`/analytics/interview/summary?timeRange=${encodeURIComponent(timeRange)}`);
+  return mapAnalyticsSummary(raw);
 };
 
 export const getScoreDistribution = async (timeRange = 'all'): Promise<ScoreDistribution[]> => {
@@ -716,10 +743,7 @@ export const getScoreDistribution = async (timeRange = 'all'): Promise<ScoreDist
     await new Promise(r => setTimeout(r, 120));
     return MOCK_SCORE_DISTRIBUTION;
   }
-  return invokeEdgeFunction<ScoreDistribution[]>('interview-analytics', {
-    action: 'score-distribution',
-    timeRange,
-  });
+  return efetch<ScoreDistribution[]>(`/analytics/interview/score-distribution?timeRange=${encodeURIComponent(timeRange)}`);
 };
 
 export const getPassRateTrend = async (timeRange = 'all'): Promise<PassRateTrend[]> => {
@@ -802,10 +826,7 @@ export const getDimensionAnalysis = async (timeRange = 'all'): Promise<Dimension
       hardestQuestion: '描述一次你处理冲突的经历',
     };
   }
-  return invokeEdgeFunction<DimensionAnalysis>('interview-analytics', {
-    action: 'dimension-analysis',
-    timeRange,
-  });
+  return efetch<DimensionAnalysis>(`/analytics/interview/dimension-analysis?timeRange=${encodeURIComponent(timeRange)}`);
 };
 
 // ---------------------------------------------------------------------------
@@ -868,21 +889,17 @@ export const submitAnswerAudio = async (params: {
   if (params.linkedDimensions) formData.append('linkedDimensions', JSON.stringify(params.linkedDimensions));
   if (params.transcript) formData.append('transcript', params.transcript);
 
-  const { data, error } = await supabase.functions.invoke('interview-scoring', {
-    body: {
-      action: 'transcribe-and-score',
-      sessionId: params.sessionId,
-      questionId: params.questionId,
-      questionTitle: params.questionTitle,
-      questionPrompt: params.questionPrompt,
-      audioDuration: params.audioDuration,
-      scoringGuide: params.scoringGuide,
-      linkedDimensions: params.linkedDimensions,
-      transcript: params.transcript,
-    },
+  const data = await efetch<Record<string, unknown>>('/interview-scoring/transcribe-and-score', 'POST', {
+    sessionId: params.sessionId,
+    questionId: params.questionId,
+    questionTitle: params.questionTitle,
+    questionPrompt: params.questionPrompt,
+    audioDuration: params.audioDuration,
+    scoringGuide: params.scoringGuide,
+    linkedDimensions: params.linkedDimensions,
+    transcript: params.transcript,
   });
-  if (error) throw new Error(error.message);
-  return mapAnswerScore(data as Record<string, unknown>);
+  return mapAnswerScore(data);
 };
 
 export const getSessionAnswerScores = async (sessionId: string): Promise<AnswerScoreResult[]> => {
@@ -923,8 +940,7 @@ export const aggregateInterviewResults = async (sessionId: string): Promise<Inte
       status: 'completed',
     };
   }
-  const data = await invokeEdgeFunction<Record<string, unknown>>('interview-scoring', {
-    action: 'aggregate',
+  const data = await efetch<Record<string, unknown>>('/interview-scoring/aggregate/', 'POST', {
     sessionId,
   });
   return mapInterviewResult(data);
@@ -934,9 +950,7 @@ export const exportInterviewResultsCsv = async (): Promise<void> => {
   if (USE_MOCK_API) {
     throw new Error('导出功能需要连接后端服务');
   }
-  const data = await invokeEdgeFunction<{ csvContent: string }>('interview-analytics', {
-    action: 'export-csv',
-  });
+  const data = await efetch<{ csvContent: string }>('/analytics/interview/export-csv');
   const blob = new Blob([data.csvContent], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');

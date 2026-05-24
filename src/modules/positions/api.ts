@@ -1,5 +1,5 @@
 import {supabase} from '../../shared/lib/supabase';
-import {getItemsFromPayload, getValueFromPayload, invokeEdgeFunction} from '../../shared/lib/apiClient';
+import {getItemsFromPayload, getValueFromPayload} from '../../shared/lib/apiClient';
 import {USE_MOCK_API, getUserName} from '../../shared/lib/runtime';
 import {type CreatePositionInput, type PositionDetail, type PositionSummary, type UpdatePositionInput, type ScoringRule, type GradeRule, type BaseScoreConfig, type ProfileRule} from './types';
 
@@ -151,17 +151,43 @@ export const getPositionDetail = async (_positionId: string): Promise<PositionDe
     // Merge detailData fields properly — detailData holds position_details table data
     const detail = detailData as Record<string, unknown> | null;
 
-    // Extract fields from detailData (position_details table) with fallback to positionData fields
-    const detailProfileRules = detail?.profile_rules ?? raw.profile_rules ?? (raw as any).profileRules ?? [];
-    const detailScoringRules = detail?.scoring_rules ?? raw.scoring_rules ?? (raw as any).scoringRules ?? [];
+    // Extract raw fields from detailData (position_details table) with fallback to positionData fields
+    const rawDetailProfileRules: unknown[] = detail?.profile_rules ?? raw.profile_rules ?? (raw as any).profileRules ?? [];
+    const rawDetailScoringRules: unknown[] = detail?.scoring_rules ?? raw.scoring_rules ?? (raw as any).scoringRules ?? [];
     const detailGradeRules = detail?.grade_rules ?? raw.grade_rules ?? (raw as any).gradeRules ?? [];
     const detailBaseScoreConfig = detail?.base_score_config ?? (raw as any).baseScoreConfig ?? null;
     const detailAiPrompt = detail?.ai_prompt ?? raw.ai_prompt ?? (raw as any).aiPrompt ?? '';
 
+    // Normalize profileRules — ensure synonyms is always an array
+    const normalizedProfileRules: ProfileRule[] = rawDetailProfileRules.map((rule: any) => ({
+      keyword: rule.keyword || rule.name || '',
+      synonyms: Array.isArray(rule.synonyms) ? rule.synonyms : [],
+      category: rule.category || '',
+    }));
+
+    // Normalize scoringRules — ensure keywords is always an array
+    const normalizedScoringRules: ScoringRule[] = rawDetailScoringRules.map((rule: any) => {
+      if (rule.keywords && Array.isArray(rule.keywords)) {
+        return {
+          dimension: rule.dimension || '',
+          weight: rule.weight || 0,
+          keywords: rule.keywords,
+          matchMode: rule.matchMode || 'any',
+        };
+      }
+      const criteriaText = rule.criteria || '';
+      return {
+        dimension: rule.dimension || '',
+        weight: rule.weight || 0,
+        keywords: criteriaText.split(/[,/、\s]+/).filter((k: string) => k.length >= 2),
+        matchMode: 'any' as const,
+      };
+    });
+
     return {
       position: mapPositionSummary(raw),
-      profileRules: detailProfileRules,
-      scoringRules: detailScoringRules,
+      profileRules: normalizedProfileRules,
+      scoringRules: normalizedScoringRules,
       gradeRules: detailGradeRules,
       baseScoreConfig: detailBaseScoreConfig,
       aiPrompt: detailAiPrompt,

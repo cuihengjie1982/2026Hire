@@ -163,6 +163,8 @@ export const CandidateDetailModal = ({ isOpen, onClose, candidate, positionDetai
       // Profile matching
       if (scoreResult.debugInfo?.profileDimension) {
         const pd = scoreResult.debugInfo.profileDimension;
+        const pdMatched = pd.matched || [];
+        const pdUnmatched = pd.unmatched || [];
         checkPage(12);
         pdf.setFontSize(12);
         pdf.setTextColor(17, 24, 39);
@@ -170,20 +172,20 @@ export const CandidateDetailModal = ({ isOpen, onClose, candidate, positionDetai
         y += 6;
 
         // Matched keywords
-        if (pd.matched.length > 0) {
+        if (pdMatched.length > 0) {
           pdf.setFontSize(9);
           pdf.setTextColor(4, 120, 87);
-          const matchedText = '已匹配: ' + pd.matched.join('、');
+          const matchedText = '已匹配: ' + pdMatched.join('、');
           const lines = pdf.splitTextToSize(matchedText, contentW);
           checkPage(lines.length * 4 + 2);
           pdf.text(lines, margin, y);
           y += lines.length * 4 + 2;
         }
         // Unmatched keywords
-        if (pd.unmatched.length > 0) {
+        if (pdUnmatched.length > 0) {
           pdf.setFontSize(9);
           pdf.setTextColor(107, 114, 128);
-          const unmatchedText = '未匹配: ' + pd.unmatched.join('、');
+          const unmatchedText = '未匹配: ' + pdUnmatched.join('、');
           const lines = pdf.splitTextToSize(unmatchedText, contentW);
           checkPage(lines.length * 4 + 2);
           pdf.text(lines, margin, y);
@@ -206,9 +208,11 @@ export const CandidateDetailModal = ({ isOpen, onClose, candidate, positionDetai
           pdf.text(`${dd.dimension} (${dd.score} 分)`, margin, y);
           y += 5;
 
-          if (dd.keywords.length > 0) {
-            const matchedKw = dd.keywords.filter(k => dd.matched.includes(k));
-            const unmatchedKw = dd.keywords.filter(k => !dd.matched.includes(k));
+          const ddKeywords = dd.keywords || [];
+            const ddMatched = dd.matched || [];
+            if (ddKeywords.length > 0) {
+            const matchedKw = ddKeywords.filter(k => ddMatched.includes(k));
+            const unmatchedKw = ddKeywords.filter(k => !ddMatched.includes(k));
             pdf.setFontSize(9);
             if (matchedKw.length > 0) {
               pdf.setTextColor(4, 120, 87);
@@ -684,17 +688,19 @@ export const CandidateDetailModal = ({ isOpen, onClose, candidate, positionDetai
       }
       if (scoreResult.debugInfo?.profileDimension) {
         const pd = scoreResult.debugInfo.profileDimension;
+        const pdMatched = pd.matched || [];
+        const pdUnmatched = pd.unmatched || [];
         lines.push(`【画像匹配】${pd.score} 分`);
-        if (pd.matched.length) lines.push(`  已匹配: ${pd.matched.join('、')}`);
-        if (pd.unmatched.length) lines.push(`  未匹配: ${pd.unmatched.join('、')}`);
+        if (pdMatched.length) lines.push(`  已匹配: ${pdMatched.join('、')}`);
+        if (pdUnmatched.length) lines.push(`  未匹配: ${pdUnmatched.join('、')}`);
         lines.push('');
       }
       if (scoreResult.debugInfo?.dimensionDetails?.length) {
         lines.push('【各维度关键词】');
         scoreResult.debugInfo.dimensionDetails.forEach(dd => {
           lines.push(`  ${dd.dimension} (${dd.score} 分)`);
-          dd.keywords.forEach(kw => {
-            lines.push(`    ${dd.matched.includes(kw) ? '✓' : '✗'} ${kw}`);
+          (dd.keywords || []).forEach(kw => {
+            lines.push(`    ${(dd.matched || []).includes(kw) ? '✓' : '✗'} ${kw}`);
           });
         });
         lines.push('');

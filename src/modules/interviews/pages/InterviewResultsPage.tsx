@@ -407,11 +407,11 @@ export const InterviewResultsPage = ({ isEmbedded = false, onTabChange }: Interv
               </div>
 
               {/* Dimension Scores */}
-              {selectedResult.dimensions.length > 0 && (
+              {(selectedResult.dimensions ?? []).length > 0 && (
                 <div>
                   <div className="font-bold text-gray-900 mb-3">各维度得分</div>
                   <div className="space-y-3">
-                    {selectedResult.dimensions.map((dim, i) => {
+                    {(selectedResult.dimensions ?? []).map((dim, i) => {
                       const maxScore = dim.weight || 100;
                       const pct = maxScore > 0 ? Math.min(100, (dim.score / maxScore) * 100) : 0;
                       return (
@@ -487,7 +487,7 @@ export const InterviewResultsPage = ({ isEmbedded = false, onTabChange }: Interv
                     `时长: ${selectedResult.duration}分钟`,
                     '',
                     '各维度得分:',
-                    ...selectedResult.dimensions.map(d => `  ${d.name}: ${d.score}/${d.weight || 100}`),
+                    ...(selectedResult.dimensions ?? []).map(d => `  ${d.name}: ${d.score}/${d.weight || 100}`),
                   ].join('\n');
                   const blob = new Blob([content], { type: 'text/plain;charset=utf-8;' });
                   const link = document.createElement('a');

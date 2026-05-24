@@ -1,6 +1,21 @@
-import {fetchJson, mockDelay, invokeEdgeFunction} from '../../shared/lib/apiClient';
+import {fetchJson, mockDelay} from '../../shared/lib/apiClient';
 import {supabase} from '../../shared/lib/supabase';
-import {USE_MOCK_API} from '../../shared/lib/runtime';
+import {USE_MOCK_API, API_BASE_URL, getAuthToken} from '../../shared/lib/runtime';
+
+const efetch = async <T>(path: string, method = 'GET', body?: Record<string, unknown>): Promise<T> => {
+  const base = USE_MOCK_API ? '' : API_BASE_URL;
+  const res = await fetch(`${base}/functions/v1/embox-api${path}`, {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${getAuthToken() ?? ''}`,
+    },
+    ...(body ? { body: JSON.stringify(body) } : {}),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data?.error?.message || `API error ${res.status}`);
+  return data as T;
+};
 import {shortlistFixture} from './fixtures';
 import {type CreateShortlistEntryInput, type ShortlistEntry} from './types';
 
@@ -90,14 +105,11 @@ export const promoteShortlistEntry = async (
     return shortlistData[index];
   }
 
-  const {data, error} = await invokeEdgeFunction<Record<string, unknown>>('cross-table-ops', {
-    body: {
-      action: 'shortlist-promote',
-      shortlistEntryId: id,
-      nextStep,
-    },
+  const data = await efetch<Record<string, unknown>>('/cross-table-ops/shortlist-promote', 'POST', {
+    shortlistEntryId: id,
+    nextStep,
   });
-  return mapShortlistEntry(data as Record<string, unknown>);
+  return mapShortlistEntry(data);
 };
 
 export const sendShortlistInterviewInvite = async (
@@ -118,12 +130,9 @@ export const sendShortlistInterviewInvite = async (
     return shortlistData[index];
   }
 
-  const {data, error} = await invokeEdgeFunction<Record<string, unknown>>('cross-table-ops', {
-    body: {
-      action: 'shortlist-interview-invite',
-      shortlistEntryId: id,
-      ...payload,
-    },
+  const data = await efetch<Record<string, unknown>>('/cross-table-ops/shortlist-interview-invite', 'POST', {
+    shortlistEntryId: id,
+    ...payload,
   });
-  return mapShortlistEntry(data as Record<string, unknown>);
+  return mapShortlistEntry(data);
 };

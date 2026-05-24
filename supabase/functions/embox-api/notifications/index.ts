@@ -72,7 +72,8 @@ export const markRead = async (req: Request, userId: string, _userRole: string):
         .eq('read', false);
       return jsonRes({ success: true });
     }
-  } catch {
+  } catch (e) {
+    console.error('[notifications]', e);
     return jsonRes({ error: { code: 'INTERNAL_ERROR', message: 'An internal error occurred' } }, 500);
   }
 };
@@ -92,7 +93,8 @@ export const dismissNotification = async (req: Request, userId: string, _userRol
       .eq('user_id', userId);
 
     return jsonRes({ success: true });
-  } catch {
+  } catch (e) {
+    console.error('[notifications]', e);
     return jsonRes({ error: { code: 'INTERNAL_ERROR', message: 'An internal error occurred' } }, 500);
   }
 };

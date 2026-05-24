@@ -35,7 +35,8 @@ export const shortlistInterviewInvite = async (req: Request, _userId: string, _u
       .select('*').single();
 
     return jsonRes(updated);
-  } catch {
+  } catch (e) {
+    console.error('[cross-table-ops]', e);
     return jsonRes({ error: { code: 'INTERNAL_ERROR', message: 'An internal error occurred' } }, 500);
   }
 };
@@ -54,7 +55,8 @@ export const shortlistPromote = async (req: Request, _userId: string, _userRole:
 
     if (!data) return jsonRes({ error: { code: 'NOT_FOUND', message: `Shortlist entry (${shortlistEntryId}) not found` } }, 404);
     return jsonRes(data);
-  } catch {
+  } catch (e) {
+    console.error('[cross-table-ops]', e);
     return jsonRes({ error: { code: 'INTERNAL_ERROR', message: 'An internal error occurred' } }, 500);
   }
 };
@@ -96,7 +98,8 @@ export const approvalDecide = async (req: Request, userId: string, _userRole: st
     ).catch(() => {});
 
     return jsonRes(data);
-  } catch {
+  } catch (e) {
+    console.error('[cross-table-ops]', e);
     return jsonRes({ error: { code: 'INTERNAL_ERROR', message: 'An internal error occurred' } }, 500);
   }
 };
@@ -136,7 +139,8 @@ export const hireCandidate = async (req: Request, _userId: string, _userRole: st
     }
 
     return jsonRes(approval);
-  } catch {
+  } catch (e) {
+    console.error('[cross-table-ops]', e);
     return jsonRes({ error: { code: 'INTERNAL_ERROR', message: 'An internal error occurred' } }, 500);
   }
 };

@@ -68,12 +68,14 @@ export const parseFile = async (req: Request, _userId: string, _userRole: string
 
     if (!response.ok) {
       const errorText = await response.text();
-      return jsonRes({ error: { code: 'MINERU_ERROR', message: `MinerU API error ${response.status}` } }, 502);
+      console.error('[mineru-proxy] MinerU API error', response.status, errorText.slice(0, 500));
+      return jsonRes({ error: { code: 'MINERU_ERROR', message: `MinerU API error ${response.status}: ${errorText.slice(0, 200)}` } }, 502);
     }
 
     const result = await response.json();
     return jsonRes(result);
-  } catch {
+  } catch (e) {
+    console.error('[mineru-proxy]', e);
     return jsonRes({ error: { code: 'INTERNAL_ERROR', message: 'An internal error occurred' } }, 500);
   }
 };

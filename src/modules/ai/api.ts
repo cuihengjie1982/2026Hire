@@ -1,6 +1,20 @@
 import {fetchJson} from '../../shared/lib/apiClient';
-import {invokeEdgeFunction} from '../../shared/lib/apiClient';
-import {USE_MOCK_API} from '../../shared/lib/runtime';
+import {USE_MOCK_API, API_BASE_URL, getAuthToken} from '../../shared/lib/runtime';
+
+const efetch = async <T>(path: string, method = 'GET', body?: Record<string, unknown>): Promise<T> => {
+  const base = USE_MOCK_API ? '' : API_BASE_URL;
+  const res = await fetch(`${base}/functions/v1/embox-api${path}`, {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${getAuthToken() ?? ''}`,
+    },
+    ...(body ? { body: JSON.stringify(body) } : {}),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data?.error?.message || `API error ${res.status}`);
+  return data as T;
+};
 import {aiModelConfigsFixture} from './fixtures';
 import {type AIModelConfig, type CreateAIModelConfigInput, type AIResumeScoreResult, type AIRankingResult, type ActiveConfigResponse} from './types';
 
@@ -27,7 +41,7 @@ export const listAIModelConfigs = async (): Promise<AIModelConfig[]> => {
     await new Promise(r => setTimeout(r, 120));
     return [...configsData];
   }
-  const payload = await invokeEdgeFunction<AIModelConfig[] | {items: AIModelConfig[]}>('ai-config', {action: 'list'});
+  const payload = await efetch<AIModelConfig[] | {items: AIModelConfig[]}>('/ai-config', 'GET');
   if (Array.isArray(payload)) return payload;
   return (payload as {items: AIModelConfig[]}).items ?? [];
 };
@@ -54,9 +68,15 @@ export const createAIModelConfig = async (input: CreateAIModelConfigInput): Prom
     saveToStorage();
     return config;
   }
-  return invokeEdgeFunction<AIModelConfig>('ai-config', {
-    action: 'create',
-    ...input,
+  return efetch<AIModelConfig>('/ai-config', 'POST', {
+    name: input.name,
+    provider: input.provider,
+    model_name: input.model_name,
+    api_key: input.api_key,
+    base_url: input.base_url,
+    temperature: input.temperature,
+    max_tokens: input.max_tokens,
+    is_default: input.is_default,
   });
 };
 
@@ -77,11 +97,7 @@ export const updateAIModelConfig = async (id: string, input: Partial<CreateAIMod
     saveToStorage();
     return configsData[index];
   }
-  return invokeEdgeFunction<AIModelConfig>('ai-config', {
-    action: 'update',
-    id,
-    ...input,
-  });
+  return efetch<AIModelConfig>(`/ai-config/${id}`, 'PATCH', input as Record<string, unknown>);
 };
 
 export const deleteAIModelConfig = async (id: string): Promise<void> => {
@@ -92,10 +108,7 @@ export const deleteAIModelConfig = async (id: string): Promise<void> => {
     saveToStorage();
     return;
   }
-  return invokeEdgeFunction<void>('ai-config', {
-    action: 'delete',
-    id,
-  });
+  await efetch<{deleted: boolean}>(`/ai-config/${id}`, 'DELETE');
 };
 
 export const screenResumeWithAI = async (input: {
@@ -128,7 +141,7 @@ export const screenResumeWithAI = async (input: {
       recommendation: '推荐',
     };
   }
-  return invokeEdgeFunction<AIResumeScoreResult>('ai-proxy', {
+  return efetch<AIResumeScoreResult>('/ai-proxy', 'POST', {
     action: 'screen-resume',
     ...input,
   });
@@ -155,7 +168,7 @@ export const rankCandidatesWithAI = async (input: {
       analysisSummary: '候选人整体质量较高，排名靠前的候选人经验更为匹配。',
     };
   }
-  return invokeEdgeFunction<AIRankingResult>('ai-proxy', {
+  return efetch<AIRankingResult>('/ai-proxy', 'POST', {
     action: 'rank-candidates',
     ...input,
   });
@@ -171,10 +184,7 @@ export const switchActiveModel = async (configId: string): Promise<AIModelConfig
     saveToStorage();
     return configsData[idx];
   }
-  return invokeEdgeFunction<AIModelConfig & {envWarning?: string}>('ai-config', {
-    action: 'switch',
-    configId,
-  });
+  return efetch<AIModelConfig & {envWarning?: string}>('/ai-config/switch', 'POST', { configId });
 };
 
 export const getActiveModelConfig = async (): Promise<ActiveConfigResponse> => {
@@ -183,7 +193,7 @@ export const getActiveModelConfig = async (): Promise<ActiveConfigResponse> => {
     const active = configsData.find(c => c.is_default && c.is_active) ?? null;
     return {active};
   }
-  return invokeEdgeFunction<ActiveConfigResponse>('ai-config', {action: 'active'});
+  return efetch<ActiveConfigResponse>('/ai-config/active', 'GET');
 };
 
 export const healthCheckConfig = async (configId: string): Promise<{healthy: boolean; latencyMs: number; error?: string}> => {
@@ -191,8 +201,5 @@ export const healthCheckConfig = async (configId: string): Promise<{healthy: boo
     await new Promise(r => setTimeout(r, 500));
     return {healthy: true, latencyMs: 150};
   }
-  return invokeEdgeFunction<{healthy: boolean; latencyMs: number; error?: string}>('ai-config', {
-    action: 'health-check',
-    configId,
-  });
+  return efetch<{healthy: boolean; latencyMs: number; error?: string}>('/ai-config/health-check', 'POST', { configId });
 };

@@ -187,9 +187,9 @@ export const calculateResumeScore = (
     parsedInfo.highestEducation,
     parsedInfo.expectedSalary,
     parsedInfo.currentlyEmployed,
-    ...parsedInfo.workExperience,
-    ...parsedInfo.skills,
-    ...parsedInfo.honors,
+    ...(parsedInfo.workExperience || []),
+    ...(parsedInfo.skills || []),
+    ...(parsedInfo.honors || []),
     parsedInfo.rawText,
   ].filter(Boolean).join(' ').toLowerCase();
   const normalizedResume = normalize(resumeText);

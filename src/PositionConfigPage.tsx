@@ -102,11 +102,12 @@ export const PositionConfigPage = () => {
         setProfileRules(detail.profileRules || []);
         console.log('[DEBUG] setProfileRules called with:', detail.profileRules);
         // Handle scoringRules - check if new structured format or legacy criteria text format
-        if (detail.scoringRules.length > 0 && 'keywords' in detail.scoringRules[0]) {
-          setScoringRules(detail.scoringRules as ScoringRule[]);
+        const scoringRulesArr = detail.scoringRules || [];
+        if (scoringRulesArr.length > 0 && 'keywords' in scoringRulesArr[0]) {
+          setScoringRules(scoringRulesArr as ScoringRule[]);
         } else {
           // Legacy format - convert to structured
-          const convertedRules: ScoringRule[] = detail.scoringRules.map(r => ({
+          const convertedRules: ScoringRule[] = scoringRulesArr.map(r => ({
             dimension: r.dimension,
             weight: r.weight,
             keywords: ((r as any).criteria || '').split(/[,/、\s]+/).filter(Boolean),
@@ -431,7 +432,7 @@ export const PositionConfigPage = () => {
     content += `|---|--------|------------------|------|\n`;
     let idx = 1;
     for (const rule of profileRules) {
-      content += `| ${idx++} | ${rule.keyword} | ${rule.synonyms.join(', ')} | ${rule.category} |\n`;
+      content += `| ${idx++} | ${rule.keyword} | ${(rule.synonyms ?? []).join(', ')} | ${rule.category} |\n`;
     }
     content += '\n---\n\n';
 
@@ -446,7 +447,7 @@ export const PositionConfigPage = () => {
         const rule = scoringRules[i];
         content += `#### 维度${i + 1}：${rule.dimension}\n`;
         content += `- **权重**：${rule.weight}%\n`;
-        content += `- **关键字标签**：${rule.keywords.join(', ')}\n`;
+        content += `- **关键字标签**：${(rule.keywords ?? []).join(', ')}\n`;
         content += `- **匹配模式**：${rule.matchMode}\n\n`;
       }
     }
@@ -682,7 +683,7 @@ export const PositionConfigPage = () => {
                                   <div className="col-span-4">
                                     <input
                                       type="text"
-                                      value={rule.synonyms.join(', ')}
+                                      value={(rule.synonyms ?? []).join(', ')}
                                       onChange={(e) => handleProfileRuleChange(idx, 'synonyms', e.target.value)}
                                       disabled={!isEditing}
                                       className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#6366F1] disabled:bg-gray-50"
@@ -803,7 +804,7 @@ export const PositionConfigPage = () => {
                                   <div className="col-span-4">
                                     <input
                                       type="text"
-                                      value={rule.keywords.join(', ')}
+                                      value={(rule.keywords ?? []).join(', ')}
                                       onChange={(e) => handleScoringRuleChange(idx, 'keywords', e.target.value)}
                                       disabled={!isEditing}
                                       className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#6366F1] disabled:bg-gray-50"
@@ -1001,9 +1002,9 @@ export const PositionConfigPage = () => {
                           alert(
                             `【${activePosition.name}】评分预览\n\n` +
                             `=== 画像匹配 ===\n${baseScoreConfig ? `${baseScoreConfig.baseScore}分（技能与经验匹配占${100 - baseScoreConfig.baseScore}分）` : '未配置'}\n\n` +
-                            `=== 技能与经验匹配 ===\n${scoringRules.map(r => `${r.dimension}: ${r.weight}% - ${r.keywords.join(', ')} (${r.matchMode})`).join('\n') || '暂无'}\n\n` +
+                            `=== 技能与经验匹配 ===\n${scoringRules.map(r => `${r.dimension}: ${r.weight}% - ${(r.keywords ?? []).join(', ')} (${r.matchMode})`).join('\n') || '暂无'}\n\n` +
                             `=== 档位配置 ===\n${gradeRules.map(g => `${g.grade}档: ${g.minScore}-${g.maxScore}分`).join('\n') || '暂无'}\n\n` +
-                            `=== 画像规则 ===\n${profileRules.map(r => `${r.keyword}${r.synonyms.length ? ` (同义词: ${r.synonyms.join(', ')})` : ''}`).join('\n') || '暂无'}`
+                            `=== 画像规则 ===\n${profileRules.map(r => `${r.keyword}${(r.synonyms ?? []).length ? ` (同义词: ${r.synonyms.join(', ')})` : ''}`).join('\n') || '暂无'}`
                           );
                         }}
                         className="border border-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/30 text-gray-700 dark:text-gray-300 px-6 py-2 rounded-lg font-bold text-sm transition-colors"

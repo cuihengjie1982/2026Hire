@@ -19,6 +19,74 @@ export interface ContentPart {
   image?: { media_type: string; data: string }; // base64 without data URI prefix
 }
 
+// ---------------------------------------------------------------------------
+// Resilient fetch wrapper — timeout + retry with exponential backoff
+// ---------------------------------------------------------------------------
+
+const RETRYABLE_STATUSES = new Set([429, 502, 503, 504]);
+
+async function fetchWithRetry(
+  url: string,
+  init: RequestInit & { timeoutMs?: number; retries?: number },
+): Promise<Response> {
+  const timeoutMs = init.timeoutMs ?? 25_000;
+  const maxRetries = init.retries ?? 2;
+  // Strip custom fields before passing to fetch
+  const { timeoutMs: _t, retries: _r, ...fetchInit } = init;
+
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+      const response = await fetch(url, { ...fetchInit, signal: controller.signal });
+      clearTimeout(timer);
+
+      // Success — return immediately
+      if (response.ok) return response;
+
+      // Server error or rate limit — retryable
+      if (RETRYABLE_STATUSES.has(response.status) && attempt < maxRetries) {
+        const backoff = Math.min(1000 * Math.pow(2, attempt), 8000);
+        console.warn(`[LLM] ${response.status} on attempt ${attempt + 1}/${maxRetries + 1}, retrying in ${backoff}ms`);
+        await new Promise(r => setTimeout(r, backoff));
+        continue;
+      }
+
+      // Non-retryable error — throw immediately with full context
+      const errorText = await response.text();
+      throw new Error(`LLM API error ${response.status}: ${errorText.slice(0, 500)}`);
+    } catch (err) {
+      clearTimeout(timer);
+
+      // AbortError means timeout
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        lastError = new Error(`LLM request timed out after ${timeoutMs}ms`);
+      } else if (err instanceof TypeError && err.message.includes('fetch')) {
+        // Network error (DNS, TCP, TLS) — retryable
+        lastError = err;
+      } else {
+        lastError = err instanceof Error ? err : new Error(String(err));
+      }
+
+      // Only retry on timeout, network error, or if the error was from a retryable HTTP status
+      const isRetryable = lastError.message.includes('timed out') || lastError.message.includes('fetch');
+      if (isRetryable && attempt < maxRetries) {
+        const backoff = Math.min(1000 * Math.pow(2, attempt), 8000);
+        console.warn(`[LLM] ${lastError.message} on attempt ${attempt + 1}/${maxRetries + 1}, retrying in ${backoff}ms`);
+        await new Promise(r => setTimeout(r, backoff));
+        continue;
+      }
+
+      throw lastError;
+    }
+  }
+
+  throw lastError ?? new Error('LLM request failed after all retries');
+}
+
 /**
  * Returns the base URL that already includes the version path.
  * Append /chat/completions to get the full endpoint.
@@ -74,7 +142,7 @@ export async function callLLM(
     max_tokens: config.max_tokens ?? 4096,
   };
 
-  const response = await fetch(`${baseUrl}/chat/completions`, {
+  const response = await fetchWithRetry(`${baseUrl}/chat/completions`, {
     method: 'POST',
     headers,
     body: JSON.stringify(body),
@@ -120,7 +188,7 @@ async function callAnthropic(
     ],
   };
 
-  const response = await fetch(`${baseUrl}/messages`, {
+  const response = await fetchWithRetry(`${baseUrl}/messages`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -169,7 +237,7 @@ async function callGemini(
     },
   };
 
-  const response = await fetch(url, {
+  const response = await fetchWithRetry(url, {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify(body),
@@ -252,7 +320,7 @@ async function callOpenAIVision(
     max_tokens: config.max_tokens ?? 4096,
   };
 
-  const response = await fetch(`${baseUrl}/chat/completions`, {
+  const response = await fetchWithRetry(`${baseUrl}/chat/completions`, {
     method: 'POST',
     headers,
     body: JSON.stringify(body),
@@ -304,7 +372,7 @@ async function callAnthropicVision(
     ],
   };
 
-  const response = await fetch(`${baseUrl}/messages`, {
+  const response = await fetchWithRetry(`${baseUrl}/messages`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -364,7 +432,7 @@ async function callGeminiVision(
     },
   };
 
-  const response = await fetch(url, {
+  const response = await fetchWithRetry(url, {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify(body),

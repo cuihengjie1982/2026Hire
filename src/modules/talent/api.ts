@@ -1,6 +1,20 @@
 import {supabase} from '../../shared/lib/supabase';
-import {invokeEdgeFunction} from '../../shared/lib/apiClient';
 import {USE_MOCK_API, API_BASE_URL, getAuthToken} from '../../shared/lib/runtime';
+
+const efetch = async <T>(path: string, method = 'GET', body?: unknown): Promise<T> => {
+  const base = USE_MOCK_API ? '' : API_BASE_URL;
+  const res = await fetch(`${base}/functions/v1/embox-api${path}`, {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${getAuthToken() ?? ''}`,
+    },
+    ...(body ? { body: JSON.stringify(body) } : {}),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data?.error?.message || `API error ${res.status}`);
+  return data as T;
+};
 import {type CandidateCard, type TalentStats} from './types';
 import {parseResumeWithMinerU, extractResumeInfoFromMarkdown, type ParsedResumeInfo} from '../../shared/lib/mineruClient';
 import {calculateResumeScore, type ScoreResult} from '../../shared/lib/resumeScorer';
@@ -255,9 +269,9 @@ export const deleteCandidate = async (id: string): Promise<void> => {
     return;
   }
 
-  // Use invokeEdgeFunction for cascade delete
+  // Use Edge Function for cascade delete
   try {
-    await invokeEdgeFunction('candidate-ops', { body: { action: 'delete', id } });
+    await efetch(`/candidate-ops/${id}`, 'DELETE');
   } catch (e) {
     // Fall back to direct delete
     const {error} = await supabase
@@ -559,46 +573,45 @@ export const importResumes = async (
       }
 
       // Call edge function for import
-      const importResult = await invokeEdgeFunction<{id: string; duplicate?: boolean}>('candidate-ops', {
-        body: {
-          action: 'import',
-          candidate: {
-            name: candidateName,
-            email: parsedInfo.email || null,
-            phone: parsedInfo.phone || null,
-            location: parsedInfo.location || null,
-            source: '上传简历',
-            project_id: projectId || null,
-            position_id: positionId || null,
-            parsed_info: parsedInfo,
-            grade,
-            score_total: scoreTotal,
-            original_file_base64: originalFileBase64 || null,
-            original_file_name: originalFileName,
-          },
-        },
-      });
+      const importResult = await efetch<{imported: number; results: Array<Record<string, unknown>>}>('/candidate-ops/import', 'POST', [{
+        name: candidateName,
+        email: parsedInfo.email || null,
+        phone: parsedInfo.phone || null,
+        location: parsedInfo.location || null,
+        source: '上传简历',
+        projectId: projectId || null,
+        positionId: positionId || null,
+        parsed_info: parsedInfo,
+        grade,
+        score_total: scoreTotal,
+        original_file_base64: originalFileBase64 || null,
+        original_file_name: originalFileName,
+      }]);
 
-      const isDuplicate = importResult.duplicate === true;
+      const firstResult = importResult.results?.[0] as Record<string, unknown> | undefined;
+      const importedId = firstResult?.id as string | undefined;
+      const isDuplicate = firstResult?.duplicate === true;
       if (isDuplicate) {
         duplicates += 1;
         // Replace existing entry in candidatesData with updated version
-        const idx = candidatesData.findIndex((c) => c.id === importResult.id);
-        if (idx >= 0) {
-          candidatesData[idx] = {...candidatesData[idx], resumeParsedInfo: parsedInfo};
-        } else {
-          candidatesData = [{id: importResult.id, name: candidateName, resumeParsedInfo: parsedInfo} as CandidateCard, ...candidatesData];
+        if (importedId) {
+          const idx = candidatesData.findIndex((c) => c.id === importedId);
+          if (idx >= 0) {
+            candidatesData[idx] = {...candidatesData[idx], resumeParsedInfo: parsedInfo};
+          } else {
+            candidatesData = [{id: importedId, name: candidateName, resumeParsedInfo: parsedInfo} as CandidateCard, ...candidatesData];
+          }
         }
       } else {
-        candidatesData = [{id: importResult.id, name: candidateName, resumeParsedInfo: parsedInfo} as CandidateCard, ...candidatesData];
+        if (importedId) {
+          candidatesData = [{id: importedId, name: candidateName, resumeParsedInfo: parsedInfo} as CandidateCard, ...candidatesData];
+        }
         imported += 1;
       }
 
       const allTags = parsedInfo.skills.slice(0, 5);
-      if (allTags.length > 0 && importResult.id) {
-        await invokeEdgeFunction('candidate-ops', {
-          body: { action: 'update-tags', id: importResult.id, tags: allTags },
-        });
+      if (allTags.length > 0 && importedId) {
+        await efetch('/candidate-ops/', 'POST', { id: importedId, tags: allTags });
       }
     } catch (e) {
       console.error(`Failed to import ${file.name}:`, e);

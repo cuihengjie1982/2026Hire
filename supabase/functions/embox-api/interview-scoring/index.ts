@@ -86,7 +86,8 @@ export const transcribeAndScore = async (req: Request, _userId: string, _userRol
       try {
         const whisperResult = await transcribeAudio(audioBlob, audioBlob.type || 'audio/webm', String(openaiRow.api_key), openaiRow.base_url ? String(openaiRow.base_url) : undefined);
         transcript = whisperResult.text;
-      } catch {
+      } catch (e) {
+        console.error('[interview-scoring] Transcription failed:', e);
         await supabase.from('interview_answer_scores').update({ status: 'failed', error_message: 'Transcription failed', transcript: '' }).eq('id', answerId);
         const { data } = await supabase.from('interview_answer_scores').select('*').eq('id', answerId).single();
         return jsonRes(data);
@@ -120,13 +121,15 @@ export const transcribeAndScore = async (req: Request, _userId: string, _userRol
         status: 'completed', score, max_score: 100, score_reasoning: scoreReasoning,
         dimension_scores: JSON.stringify(dimensionScores), llm_model: llmConfig.model_name, llm_provider: llmConfig.provider,
       }).eq('id', answerId);
-    } catch {
+    } catch (e) {
+      console.error('[interview-scoring] Scoring failed:', e);
       await supabase.from('interview_answer_scores').update({ status: 'failed', error_message: 'Scoring failed' }).eq('id', answerId);
     }
 
     const { data: updated } = await supabase.from('interview_answer_scores').select('*').eq('id', answerId).single();
     return jsonRes(updated);
-  } catch {
+  } catch (e) {
+    console.error('[interview-scoring] transcribeAndScore:', e);
     return jsonRes({ error: { code: 'INTERNAL_ERROR', message: 'An internal error occurred' } }, 500);
   }
 };
@@ -244,7 +247,8 @@ export const aggregate = async (req: Request, _userId: string, _userRole: string
     ).catch(() => {});
 
     return jsonRes(result, 201);
-  } catch {
+  } catch (e) {
+    console.error('[interview-scoring] aggregate:', e);
     return jsonRes({ error: { code: 'INTERNAL_ERROR', message: 'An internal error occurred' } }, 500);
   }
 };

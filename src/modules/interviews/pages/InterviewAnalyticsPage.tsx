@@ -342,7 +342,7 @@ export const InterviewAnalyticsPage = ({ isEmbedded = false, onTabChange }: Inte
           </motion.div>
 
           {/* Dimension Analysis */}
-          {dimensionAnalysis.dimensions.length > 0 && (
+          {(dimensionAnalysis.dimensions ?? []).length > 0 && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -359,7 +359,7 @@ export const InterviewAnalyticsPage = ({ isEmbedded = false, onTabChange }: Inte
                 )}
               </div>
               <div className="space-y-4">
-                {dimensionAnalysis.dimensions.map((dim, i) => (
+                {(dimensionAnalysis.dimensions ?? []).map((dim, i) => (
                   <div key={i} className={`flex items-center gap-4 p-3 rounded-lg ${dim.name === dimensionAnalysis.weakestDimension ? 'bg-red-50 border border-red-200' : 'bg-gray-50'}`}>
                     <div className="w-24 text-sm font-medium text-gray-700 shrink-0">{dim.name}</div>
                     <div className="flex-1">
@@ -391,7 +391,7 @@ export const InterviewAnalyticsPage = ({ isEmbedded = false, onTabChange }: Inte
           )}
 
           {/* Question Difficulty Ranking */}
-          {dimensionAnalysis.questions.length > 0 && (
+          {(dimensionAnalysis.questions ?? []).length > 0 && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -418,7 +418,7 @@ export const InterviewAnalyticsPage = ({ isEmbedded = false, onTabChange }: Inte
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                    {dimensionAnalysis.questions.map((q, i) => {
+                    {(dimensionAnalysis.questions ?? []).map((q, i) => {
                       const failRate = q.totalCount > 0 ? Math.round((q.belowThresholdCount / q.totalCount) * 100) : 0;
                       const isHardest = q.questionTitle === dimensionAnalysis.hardestQuestion;
                       return (

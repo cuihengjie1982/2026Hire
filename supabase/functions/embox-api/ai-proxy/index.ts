@@ -85,7 +85,8 @@ export const proxy = async (req: Request, _userId: string, _userRole: string): P
     }
 
     return jsonRes({ error: `Unknown action: ${action}` }, 400);
-  } catch {
+  } catch (e) {
+    console.error('[ai-proxy]', e);
     return jsonRes({ error: { code: 'INTERNAL_ERROR', message: 'An internal error occurred' } }, 500);
   }
 };

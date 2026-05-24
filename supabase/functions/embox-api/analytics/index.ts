@@ -112,7 +112,8 @@ export const overview = async (req: Request, _userId: string, _userRole: string)
       agents,
       weeklyInterviews: weeklyRes.count ?? 0,
     });
-  } catch {
+  } catch (e) {
+    console.error('[analytics]', e);
     return jsonRes({ error: { code: 'INTERNAL_ERROR', message: 'An internal error occurred' } }, 500);
   }
 };
@@ -133,7 +134,273 @@ export const projectStats = async (_req: Request, _userId: string, _userRole: st
       candidateReserve: candidateRes.count ?? 0,
       weeklyInterviews: weeklyRes.count ?? 0,
     });
-  } catch {
+  } catch (e) {
+    console.error('[analytics]', e);
+    return jsonRes({ error: { code: 'INTERNAL_ERROR', message: 'An internal error occurred' } }, 500);
+  }
+};
+
+function getTimeFilter(timeRange: string) {
+  const now = new Date();
+  switch (timeRange) {
+    case 'thisWeek': {
+      const d = new Date(now); d.setDate(d.getDate() - d.getDay()); d.setHours(0, 0, 0, 0);
+      return d.toISOString();
+    }
+    case 'thisMonth': {
+      const d = new Date(now.getFullYear(), now.getMonth(), 1);
+      return d.toISOString();
+    }
+    case 'thisQuarter': {
+      const qMonth = Math.floor(now.getMonth() / 3) * 3;
+      const d = new Date(now.getFullYear(), qMonth, 1);
+      return d.toISOString();
+    }
+    case 'thisYear': {
+      const d = new Date(now.getFullYear(), 0, 1);
+      return d.toISOString();
+    }
+    default: return null;
+  }
+}
+
+// GET /analytics/interview/summary — interview analytics summary
+export const interviewSummary = async (req: Request, _userId: string, _userRole: string): Promise<Response> => {
+  try {
+    const supabase = createSupabaseAdmin(req);
+    const url = new URL(req.url);
+    const timeRange = url.searchParams.get('timeRange') || 'all';
+    const since = getTimeFilter(timeRange);
+
+    let query = supabase.from('interview_results').select('total_score, grade, status, duration');
+    if (since) query = query.gte('interview_date', since);
+    const { data: results, error } = await query;
+
+    if (error) return jsonRes({ error: { code: 'DB_ERROR', message: error.message } }, 500);
+
+    const rows = (results ?? []) as Record<string, unknown>[];
+    const total = rows.length;
+    const passGrades = ['A', 'B', 'S', 'A+', 'B+'];
+    const passed = rows.filter(r => passGrades.includes(String(r.grade ?? ''))).length;
+    const passRate = total > 0 ? Math.round((passed / total) * 10000) / 100 : 0;
+    const avgScore = total > 0
+      ? Math.round(rows.reduce((sum, r) => sum + (Number(r.total_score) || 0), 0) / total * 100) / 100
+      : 0;
+    const avgDuration = total > 0
+      ? Math.round(rows.reduce((sum, r) => sum + (Number(r.duration) || 0), 0) / total)
+      : 0;
+    const completed = rows.filter(r => r.status === 'completed').length;
+    const reviewed = rows.filter(r => r.status === 'reviewed').length;
+
+    // Grade distribution
+    const gradeCounts: Record<string, number> = {};
+    for (const r of rows) {
+      const g = String(r.grade ?? '未评级');
+      gradeCounts[g] = (gradeCounts[g] || 0) + 1;
+    }
+    const gradeDistribution = Object.entries(gradeCounts).map(([grade, count]) => ({
+      grade,
+      count,
+      percentage: total > 0 ? Math.round((count / total) * 10000) / 100 : 0,
+    }));
+
+    // Trend data (last 12 months)
+    const trendSince = new Date();
+    trendSince.setMonth(trendSince.getMonth() - 12);
+    const { data: trendData } = await supabase
+      .from('interview_results')
+      .select('interview_date, total_score, grade')
+      .gte('interview_date', trendSince.toISOString())
+      .order('interview_date', { ascending: true });
+
+    const monthlyMap = new Map<string, { total: number; passed: number; scores: number[] }>();
+    for (const t of (trendData ?? [])) {
+      const month = String(t.interview_date ?? '').substring(0, 7);
+      if (!month) continue;
+      const entry = monthlyMap.get(month) || { total: 0, passed: 0, scores: [] };
+      entry.total++;
+      entry.scores.push(Number(t.total_score ?? 0));
+      if (passGrades.includes(String(t.grade ?? ''))) entry.passed++;
+      monthlyMap.set(month, entry);
+    }
+    const trends = Array.from(monthlyMap.entries()).sort(([a], [b]) => a.localeCompare(b)).map(([month, d]) => ({
+      month,
+      total: d.total,
+      passed: d.passed,
+      passRate: d.total > 0 ? Math.round((d.passed / d.total) * 10000) / 100 : 0,
+      avgScore: d.scores.length > 0 ? Math.round(d.scores.reduce((a, b) => a + b, 0) / d.scores.length * 100) / 100 : 0,
+    }));
+
+    return jsonRes({
+      totalInterviews: total,
+      completed,
+      reviewed,
+      passRate,
+      avgScore,
+      avgDuration,
+      gradeDistribution,
+      trends,
+    });
+  } catch (e) {
+    console.error('[analytics]', e);
+    return jsonRes({ error: { code: 'INTERNAL_ERROR', message: 'An internal error occurred' } }, 500);
+  }
+};
+
+// GET /analytics/interview/score-distribution
+export const interviewScoreDistribution = async (req: Request, _userId: string, _userRole: string): Promise<Response> => {
+  try {
+    const supabase = createSupabaseAdmin(req);
+    const url = new URL(req.url);
+    const timeRange = url.searchParams.get('timeRange') || 'all';
+    const since = getTimeFilter(timeRange);
+
+    let query = supabase.from('interview_results').select('total_score');
+    if (since) query = query.gte('interview_date', since);
+    const { data: results, error } = await query;
+
+    if (error) return jsonRes({ error: { code: 'DB_ERROR', message: error.message } }, 500);
+
+    const rows = (results ?? []) as Record<string, unknown>[];
+    const total = rows.length;
+    if (total === 0) return jsonRes([]);
+
+    const buckets = [
+      { range: '0-49', min: 0, max: 49 },
+      { range: '50-59', min: 50, max: 59 },
+      { range: '60-69', min: 60, max: 69 },
+      { range: '70-79', min: 70, max: 79 },
+      { range: '80-89', min: 80, max: 89 },
+      { range: '90-100', min: 90, max: 100 },
+    ];
+
+    const distribution = buckets.map(b => {
+      const count = rows.filter(r => {
+        const s = Number(r.total_score ?? 0);
+        return s >= b.min && s <= b.max;
+      }).length;
+      return { range: b.range, count, percentage: Math.round((count / total) * 10000) / 100 };
+    });
+
+    return jsonRes(distribution);
+  } catch (e) {
+    console.error('[analytics]', e);
+    return jsonRes({ error: { code: 'INTERNAL_ERROR', message: 'An internal error occurred' } }, 500);
+  }
+};
+
+// GET /analytics/interview/dimension-analysis
+export const interviewDimensionAnalysis = async (req: Request, _userId: string, _userRole: string): Promise<Response> => {
+  try {
+    const supabase = createSupabaseAdmin(req);
+
+    const { data: results, error } = await supabase
+      .from('interview_results')
+      .select('dimensions, question_answers')
+      .not('dimensions', 'is', null);
+
+    if (error) return jsonRes({ error: { code: 'DB_ERROR', message: error.message } }, 500);
+
+    const rows = (results ?? []) as Record<string, unknown>[];
+    const dimMap = new Map<string, { scores: number[]; maxScore: number; count: number }>();
+    const qMap = new Map<string, { scores: number[]; maxScore: number; belowThreshold: number; total: number }>();
+
+    for (const row of rows) {
+      const dims = Array.isArray(row.dimensions) ? row.dimensions : [];
+      for (const d of dims) {
+        const name = String((d as any).name ?? (d as any).dimension ?? '');
+        if (!name) continue;
+        const score = Number((d as any).score ?? 0);
+        const max = Number((d as any).maxScore ?? (d as any).max_score ?? 100);
+        const entry = dimMap.get(name) || { scores: [], maxScore: max, count: 0 };
+        entry.scores.push(score);
+        entry.count++;
+        dimMap.set(name, entry);
+      }
+
+      const answers = Array.isArray(row.question_answers) ? row.question_answers : [];
+      for (const a of answers) {
+        const title = String((a as any).questionTitle ?? (a as any).question_title ?? '');
+        if (!title) continue;
+        const score = Number((a as any).score ?? 0);
+        const max = Number((a as any).maxScore ?? (a as any).max_score ?? 100);
+        const entry = qMap.get(title) || { scores: [], maxScore: max, belowThreshold: 0, total: 0 };
+        entry.scores.push(score);
+        entry.total++;
+        if (max > 0 && (score / max) < 0.6) entry.belowThreshold++;
+        qMap.set(title, entry);
+      }
+    }
+
+    const dimensions = Array.from(dimMap.entries()).map(([name, d]) => ({
+      name,
+      avgScore: d.scores.length > 0 ? Math.round(d.scores.reduce((a, b) => a + b, 0) / d.scores.length * 100) / 100 : 0,
+      maxScore: d.maxScore,
+      avgPercent: d.maxScore > 0 && d.scores.length > 0
+        ? Math.round((d.scores.reduce((a, b) => a + b, 0) / d.scores.length) / d.maxScore * 10000) / 100 : 0,
+      count: d.count,
+    }));
+
+    const questions = Array.from(qMap.entries()).map(([title, q]) => ({
+      questionTitle: title,
+      avgScore: q.scores.length > 0 ? Math.round(q.scores.reduce((a, b) => a + b, 0) / q.scores.length * 100) / 100 : 0,
+      maxScore: q.maxScore,
+      belowThresholdCount: q.belowThreshold,
+      totalCount: q.total,
+    }));
+
+    // Find weakest and hardest
+    const weakestDim = dimensions.sort((a, b) => a.avgPercent - b.avgPercent)[0];
+    const hardestQ = questions.sort((a, b) => {
+      const aRate = a.totalCount > 0 ? a.belowThresholdCount / a.totalCount : 0;
+      const bRate = b.totalCount > 0 ? b.belowThresholdCount / b.totalCount : 0;
+      return bRate - aRate;
+    })[0];
+
+    return jsonRes({
+      dimensions,
+      questions,
+      weakestDimension: weakestDim?.name ?? null,
+      hardestQuestion: hardestQ?.questionTitle ?? null,
+    });
+  } catch (e) {
+    console.error('[analytics]', e);
+    return jsonRes({ error: { code: 'INTERNAL_ERROR', message: 'An internal error occurred' } }, 500);
+  }
+};
+
+// GET /analytics/interview/export-csv
+export const interviewExportCsv = async (req: Request, _userId: string, _userRole: string): Promise<Response> => {
+  try {
+    const supabase = createSupabaseAdmin(req);
+
+    const { data: results, error } = await supabase
+      .from('interview_results')
+      .select('*')
+      .order('interview_date', { ascending: false });
+
+    if (error) return jsonRes({ error: { code: 'DB_ERROR', message: error.message } }, 500);
+
+    const rows = (results ?? []) as Record<string, unknown>[];
+    const headers = ['候选人', '邮箱', '岗位', '面试模板', '面试日期', '总分', '评级', '状态'];
+    const csvRows = [headers.join(',')];
+
+    for (const r of rows) {
+      csvRows.push([
+        `"${String(r.candidate_name ?? '')}"`,
+        `"${String(r.candidate_email ?? '')}"`,
+        `"${String(r.position ?? '')}"`,
+        `"${String(r.template_name ?? '')}"`,
+        `"${String(r.interview_date ?? '')}"`,
+        String(r.total_score ?? ''),
+        `"${String(r.grade_label ?? '')}"`,
+        `"${String(r.status ?? '')}"`,
+      ].join(','));
+    }
+
+    return jsonRes({ csvContent: csvRows.join('\n') });
+  } catch (e) {
+    console.error('[analytics]', e);
     return jsonRes({ error: { code: 'INTERNAL_ERROR', message: 'An internal error occurred' } }, 500);
   }
 };

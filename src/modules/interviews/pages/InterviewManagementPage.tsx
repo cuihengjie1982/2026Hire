@@ -329,12 +329,12 @@ export const InterviewManagementPage = ({ isEmbedded = false, onTabChange }: Int
 
                     <div className="flex flex-col items-center px-6">
                       <div className="text-sm font-medium text-gray-700">
-                        {session.progress.current}/{session.progress.total}
+                        {session.progress?.current ?? 0}/{session.progress?.total ?? 0}
                       </div>
                       <div className="w-24 h-2 bg-gray-100 rounded-full mt-1 overflow-hidden">
                         <div
                           className="h-full bg-gradient-to-r from-[#22d3ee] to-[#06b6d4] rounded-full transition-all"
-                          style={{ width: `${session.progress.total > 0 ? (session.progress.current / session.progress.total) * 100 : 0}%` }}
+                          style={{ width: `${(session.progress?.total ?? 0) > 0 ? ((session.progress?.current ?? 0) / session.progress.total) * 100 : 0}%` }}
                         />
                       </div>
                     </div>

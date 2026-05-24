@@ -1,6 +1,21 @@
-import {fetchJson, getItemsFromPayload, mockDelay, invokeEdgeFunction} from '../../shared/lib/apiClient';
+import {fetchJson, getItemsFromPayload, mockDelay} from '../../shared/lib/apiClient';
 import {supabase} from '../../shared/lib/supabase';
-import {USE_MOCK_API} from '../../shared/lib/runtime';
+import {USE_MOCK_API, API_BASE_URL, getAuthToken} from '../../shared/lib/runtime';
+
+const efetch = async <T>(path: string, method = 'GET', body?: Record<string, unknown>): Promise<T> => {
+  const base = USE_MOCK_API ? '' : API_BASE_URL;
+  const res = await fetch(`${base}/functions/v1/embox-api${path}`, {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${getAuthToken() ?? ''}`,
+    },
+    ...(body ? { body: JSON.stringify(body) } : {}),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data?.error?.message || `API error ${res.status}`);
+  return data as T;
+};
 import {agentStatsFixture, agentsFixture} from './fixtures';
 import {type Agent, type AgentStats, type CreateAgentInput, type AgentRunResult} from './types';
 
@@ -195,9 +210,6 @@ export const runAgent = async (agentId: string): Promise<Agent & {runResult: Age
     };
   }
 
-  const data = await invokeEdgeFunction<Agent & {runResult: AgentRunResult}>(
-    'agent-executor',
-    { agentId },
-  );
+  const data = await efetch<Agent & {runResult: AgentRunResult}>('/agent-executor/run', 'POST', { agentId });
   return data;
 };

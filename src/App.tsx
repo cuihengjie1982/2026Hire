@@ -10,13 +10,14 @@ import {NotificationProvider} from './shared/components/NotificationProvider';
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
     if (typeof window === 'undefined') return false;
-    // Check Supabase session first, fall back to localStorage for migration compat
-    return supabase.auth.getSession().then(({data}) => {
-      if (data.session) return true;
-      // Legacy: check localStorage flag
-      return window.localStorage.getItem(AUTH_SESSION_STORAGE_KEY) === 'true';
-    }).catch(() => window.localStorage.getItem(AUTH_SESSION_STORAGE_KEY) === 'true');
+    return window.localStorage.getItem(AUTH_SESSION_STORAGE_KEY) === 'true';
   });
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({data}) => {
+      setIsAuthenticated(!!data.session);
+    }).catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;

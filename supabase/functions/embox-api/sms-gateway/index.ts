@@ -80,7 +80,8 @@ export const sendSmsHandler = async (req: Request, _userId: string, _userRole: s
     }
 
     return jsonRes(record, 201);
-  } catch {
+  } catch (e) {
+    console.error('[sms-gateway]', e);
     return jsonRes({ error: { code: 'INTERNAL_ERROR', message: 'An internal error occurred' } }, 500);
   }
 };
@@ -91,7 +92,8 @@ export const listTemplates = async (req: Request, _userId: string, _userRole: st
     const supabase = createSupabaseAdmin(req);
     const { data } = await supabase.from('sms_templates').select('*').eq('is_active', true).order('created_at', { ascending: false });
     return jsonRes(data ?? []);
-  } catch {
+  } catch (e) {
+    console.error('[sms-gateway]', e);
     return jsonRes({ error: { code: 'INTERNAL_ERROR', message: 'An internal error occurred' } }, 500);
   }
 };
@@ -117,7 +119,8 @@ export const createTemplate = async (req: Request, _userId: string, _userRole: s
 
     if (error) return jsonRes({ error: { code: 'DB_ERROR', message: error.message } }, 400);
     return jsonRes(data, 201);
-  } catch {
+  } catch (e) {
+    console.error('[sms-gateway]', e);
     return jsonRes({ error: { code: 'INTERNAL_ERROR', message: 'An internal error occurred' } }, 500);
   }
 };

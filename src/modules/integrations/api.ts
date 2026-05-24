@@ -9,7 +9,13 @@ export const getIntegrationsOverview = async (): Promise<IntegrationOverview> =>
     return integrationsOverviewFixture;
   }
 
-  const {data, error} = await supabase.from('integrations_overview').select('*').single();
-  if (error) throw new Error(error.message);
-  return data as IntegrationOverview;
+  try {
+    const {data, error} = await supabase.from('integrations_overview').select('*').single();
+    if (error) throw new Error(error.message);
+    return data as IntegrationOverview;
+  } catch (err) {
+    // Table may not exist yet — return empty state gracefully
+    console.warn('integrations_overview not available:', err instanceof Error ? err.message : err);
+    return integrationsOverviewFixture;
+  }
 };

@@ -102,7 +102,8 @@ export const runAgent = async (req: Request, _userId: string, _userRole: string)
 
     const { data: updated } = await supabase.from('agents').select('*').eq('id', String(agentId)).single();
     return jsonRes({ ...updated, runResult: result });
-  } catch {
+  } catch (e) {
+    console.error('[agent-executor]', e);
     return jsonRes({ error: { code: 'INTERNAL_ERROR', message: 'An internal error occurred' } }, 500);
   }
 };
@@ -135,7 +136,7 @@ async function runParser(
         parsed_info: JSON.stringify({ ...pInfo, ...extracted }), updated_at: new Date().toISOString(),
       }).eq('id', String(c.id));
       parsed++;
-    } catch { failed++; }
+    } catch (e) { console.error('[agent-executor] parse candidate failed:', e); failed++; }
   }
 
   const summary = `解析 ${parsed} 份简历成功，${failed} 份失败`;
@@ -185,7 +186,7 @@ async function runScreener(
       if (['A', 'B+'].includes(grade)) approved++;
       else if (grade === 'C') rejected++;
       else pending++;
-    } catch { rejected++; }
+    } catch (e) { console.error('[agent-executor] screen candidate failed:', e); rejected++; }
   }
 
   const processed = approved + rejected + pending;

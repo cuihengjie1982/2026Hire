@@ -67,7 +67,8 @@ export const importCandidates = async (req: Request, _userId: string, _userRole:
     }
 
     return jsonRes({ imported: results.length, results });
-  } catch {
+  } catch (e) {
+    console.error('[candidate-ops]', e);
     return jsonRes({ error: { code: 'INTERNAL_ERROR', message: 'An internal error occurred' } }, 500);
   }
 };
@@ -104,7 +105,8 @@ export const deleteCandidate = async (req: Request, _userId: string, _userRole: 
     if (!data) return jsonRes({ error: { code: 'NOT_FOUND', message: `Candidate (${id}) not found` } }, 404);
 
     return jsonRes({ success: true, deleted: id });
-  } catch {
+  } catch (e) {
+    console.error('[candidate-ops]', e);
     return jsonRes({ error: { code: 'INTERNAL_ERROR', message: 'An internal error occurred' } }, 500);
   }
 };
@@ -150,7 +152,8 @@ export const exportCsv = async (req: Request, _userId: string, _userRole: string
     return new Response(csv, {
       headers: { ...corsH, 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': 'attachment; filename=candidates.csv' },
     });
-  } catch {
+  } catch (e) {
+    console.error('[candidate-ops]', e);
     return jsonRes({ error: { code: 'INTERNAL_ERROR', message: 'An internal error occurred' } }, 500);
   }
 };
@@ -179,7 +182,8 @@ export const getStats = async (req: Request, _userId: string, _userRole: string)
       monthlyNew: monthlyRes.count ?? 0,
       gradeDistribution,
     });
-  } catch {
+  } catch (e) {
+    console.error('[candidate-ops]', e);
     return jsonRes({ error: { code: 'INTERNAL_ERROR', message: 'An internal error occurred' } }, 500);
   }
 };
@@ -204,7 +208,8 @@ export const updateTags = async (req: Request, _userId: string, _userRole: strin
 
     const { data } = await supabase.from('candidate_tags').select('tag').eq('candidate_id', id).order('tag');
     return jsonRes((data ?? []).map((r: Record<string, unknown>) => r.tag));
-  } catch {
+  } catch (e) {
+    console.error('[candidate-ops]', e);
     return jsonRes({ error: { code: 'INTERNAL_ERROR', message: 'An internal error occurred' } }, 500);
   }
 };

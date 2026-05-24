@@ -28,7 +28,7 @@ const loadHandlers = async (): Promise<RouteHandler[]> => {
   // Candidate Ops
   const { importCandidates, deleteCandidate, exportCsv, getStats, updateTags } = await import('./candidate-ops/index.ts');
   // Analytics
-  const { overview } = await import('./analytics/index.ts');
+  const { overview, projectStats, interviewSummary, interviewScoreDistribution, interviewDimensionAnalysis, interviewExportCsv } = await import('./analytics/index.ts');
   // Settings
   const {
     listUsers, getMe, createUser, updateUser, deleteUser, resetPassword,
@@ -63,6 +63,12 @@ const loadHandlers = async (): Promise<RouteHandler[]> => {
     { pattern: '/candidate-ops/', methods: ['DELETE'], auth: 'recruiter+', handler: deleteCandidate },
     // Analytics — any authenticated
     { pattern: '/analytics/overview', methods: ['GET'], auth: 'any', handler: overview },
+    { pattern: '/analytics/project-stats', methods: ['GET'], auth: 'any', handler: projectStats },
+    // Interview Analytics
+    { pattern: '/analytics/interview/summary', methods: ['GET'], auth: 'any', handler: interviewSummary },
+    { pattern: '/analytics/interview/score-distribution', methods: ['GET'], auth: 'any', handler: interviewScoreDistribution },
+    { pattern: '/analytics/interview/dimension-analysis', methods: ['GET'], auth: 'any', handler: interviewDimensionAnalysis },
+    { pattern: '/analytics/interview/export-csv', methods: ['GET'], auth: 'any', handler: interviewExportCsv },
     // Settings - Users
     { pattern: '/settings/users/me', methods: ['GET'], auth: 'any', handler: getMe },
     { pattern: '/settings/users/reset-password', methods: ['POST'], auth: 'admin', handler: resetPassword },

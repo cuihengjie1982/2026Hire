@@ -10,9 +10,12 @@ import {buildResumeVisionSystemPrompt, buildResumeVisionUserMessage} from '../mo
 
 const router = Router();
 
+const SHELL_TIMEOUT_MS = 30_000; // 30s timeout for pdftotext / pdftoppm / tesseract
+const MINERU_TIMEOUT_MS = 60_000; // 60s timeout for MinerU API
+
 function extractTextWithTextutil(filePath: string): Promise<string> {
   return new Promise((resolve, reject) => {
-    exec(`pdftotext -enc UTF-8 "${filePath}" -`, {maxBuffer: 50 * 1024 * 1024}, (error, stdout) => {
+    exec(`pdftotext -enc UTF-8 "${filePath}" -`, {maxBuffer: 50 * 1024 * 1024, timeout: SHELL_TIMEOUT_MS}, (error, stdout) => {
       if (error) { reject(error); return; }
       resolve(stdout);
     });
@@ -26,18 +29,25 @@ async function extractTextWithOCR(filePath: string): Promise<string> {
 
   // Step 1: Convert PDF pages to PNG images
   await new Promise<void>((resolve, reject) => {
-    exec(`pdftoppm -png -r 300 ${JSON.stringify(filePath)} ${JSON.stringify(imgPrefix)}`, {maxBuffer: 50 * 1024 * 1024}, (err) => {
+    exec(`pdftoppm -png -r 300 ${JSON.stringify(filePath)} ${JSON.stringify(imgPrefix)}`, {maxBuffer: 50 * 1024 * 1024, timeout: SHELL_TIMEOUT_MS}, (err) => {
       if (err) reject(err); else resolve();
     });
   });
 
   // Step 2: OCR each image
-  const images = fs.readdirSync(tmpDir).filter(f => f.startsWith(ocrId) && f.endsWith('.png'));
+  let images: string[];
+  try {
+    images = fs.readdirSync(tmpDir).filter(f => f.startsWith(ocrId) && f.endsWith('.png'));
+  } catch {
+    console.log('[OCR] tmpDir does not exist, skipping OCR');
+    return '';
+  }
+
   let fullText = '';
   for (const img of images) {
     const imgPath = path.join(tmpDir, img);
     const text = await new Promise<string>((resolve, reject) => {
-      exec(`tesseract ${JSON.stringify(imgPath)} stdout -l chi_sim+eng`, {maxBuffer: 50 * 1024 * 1024}, (err, stdout) => {
+      exec(`tesseract ${JSON.stringify(imgPath)} stdout -l chi_sim+eng`, {maxBuffer: 50 * 1024 * 1024, timeout: SHELL_TIMEOUT_MS}, (err, stdout) => {
         if (err) reject(err); else resolve(stdout);
       });
     });
@@ -61,7 +71,7 @@ async function extractTextWithVisionLLM(filePath: string, fileName: string): Pro
     await new Promise<void>((resolve, reject) => {
       exec(
         `pdftoppm -png -r 150 -f 1 -l 5 ${JSON.stringify(filePath)} ${JSON.stringify(imgPrefix)}`,
-        {maxBuffer: 50 * 1024 * 1024},
+        {maxBuffer: 50 * 1024 * 1024, timeout: SHELL_TIMEOUT_MS},
         (err) => { if (err) reject(err); else resolve(); },
       );
     });
@@ -71,10 +81,16 @@ async function extractTextWithVisionLLM(filePath: string, fileName: string): Pro
   }
 
   // Step 2: Read images as base64
-  const images = fs.readdirSync(tmpDir)
-    .filter(f => f.startsWith(path.basename(imgPrefix)) && f.endsWith('.png'))
-    .sort()
-    .slice(0, 5);
+  let images: string[];
+  try {
+    images = fs.readdirSync(tmpDir)
+      .filter(f => f.startsWith(path.basename(imgPrefix)) && f.endsWith('.png'))
+      .sort()
+      .slice(0, 5);
+  } catch {
+    console.log('[VisionLLM] tmpDir does not exist');
+    return null;
+  }
 
   if (images.length === 0) {
     console.log('[VisionLLM] No page images generated');
@@ -84,8 +100,12 @@ async function extractTextWithVisionLLM(filePath: string, fileName: string): Pro
   const imageParts: ContentPart[] = [];
   for (const img of images) {
     const imgPath = path.join(tmpDir, img);
-    const data = fs.readFileSync(imgPath).toString('base64');
-    imageParts.push({type: 'image', image: {media_type: 'image/png', data}});
+    try {
+      const data = fs.readFileSync(imgPath).toString('base64');
+      imageParts.push({type: 'image', image: {media_type: 'image/png', data}});
+    } catch {
+      console.log(`[VisionLLM] Failed to read image: ${img}`);
+    }
     try { fs.unlinkSync(imgPath); } catch { /* cleanup */ }
   }
 
@@ -174,11 +194,15 @@ async function handleFileParse(req: any, res: any) {
         form.append('files', fs.createReadStream(tempFilePath), fileName || 'resume.pdf');
         form.append('model_version', 'vlm');
 
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), MINERU_TIMEOUT_MS);
         const response = await fetch(env.MINERU_API_URL, {
           method: 'POST',
           headers: {Authorization: `Bearer ${env.MINERU_API_TOKEN}`, ...form.getHeaders()},
           body: form as any,
+          signal: controller.signal,
         });
+        clearTimeout(timer);
 
         if (response.ok) {
           const result = await response.json();

@@ -10,7 +10,8 @@ export const listUsers = async (req: Request, _userId: string, _userRole: string
     const supabase = createSupabaseAdmin(req);
     const { data } = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
     return jsonRes(data ?? []);
-  } catch {
+  } catch (e) {
+    console.error('[settings]', e);
     return jsonRes({ error: { code: 'INTERNAL_ERROR', message: 'An internal error occurred' } }, 500);
   }
 };
@@ -22,7 +23,8 @@ export const getMe = async (req: Request, userId: string, _userRole: string): Pr
     const { data } = await supabase.from('profiles').select('*').eq('id', userId).single();
     if (!data) return jsonRes({ error: { code: 'NOT_FOUND', message: 'User not found' } }, 404);
     return jsonRes(data);
-  } catch {
+  } catch (e) {
+    console.error('[settings]', e);
     return jsonRes({ error: { code: 'INTERNAL_ERROR', message: 'An internal error occurred' } }, 500);
   }
 };
@@ -57,7 +59,8 @@ export const createUser = async (req: Request, _userId: string, _userRole: strin
     }).eq('id', userId).select('*').single();
 
     return jsonRes(profile, 201);
-  } catch {
+  } catch (e) {
+    console.error('[settings]', e);
     return jsonRes({ error: { code: 'INTERNAL_ERROR', message: 'An internal error occurred' } }, 500);
   }
 };
@@ -82,7 +85,8 @@ export const updateUser = async (req: Request, _userId: string, _userRole: strin
     const { data } = await supabase.from('profiles').update(updates).eq('id', id).select('*').single();
     if (!data) return jsonRes({ error: { code: 'NOT_FOUND', message: `User (${id}) not found` } }, 404);
     return jsonRes(data);
-  } catch {
+  } catch (e) {
+    console.error('[settings]', e);
     return jsonRes({ error: { code: 'INTERNAL_ERROR', message: 'An internal error occurred' } }, 500);
   }
 };
@@ -101,7 +105,8 @@ export const deleteUser = async (req: Request, _userId: string, _userRole: strin
 
     await supabase.auth.admin.deleteUser(id);
     return jsonRes({ deleted: true, id });
-  } catch {
+  } catch (e) {
+    console.error('[settings]', e);
     return jsonRes({ error: { code: 'INTERNAL_ERROR', message: 'An internal error occurred' } }, 500);
   }
 };
@@ -125,7 +130,8 @@ export const resetPassword = async (req: Request, _userId: string, _userRole: st
     if (error) return jsonRes({ error: { code: 'AUTH_ERROR', message: error.message } }, 400);
 
     return jsonRes({ success: true, message: `${(user as Record<string, unknown>).name} 的密码已重置` });
-  } catch {
+  } catch (e) {
+    console.error('[settings]', e);
     return jsonRes({ error: { code: 'INTERNAL_ERROR', message: 'An internal error occurred' } }, 500);
   }
 };
@@ -174,7 +180,8 @@ export const listNotificationSettings = async (req: Request, userId: string, _us
     const supabase = createSupabaseAdmin(req);
     const { data } = await supabase.from('notification_settings').select('*').eq('user_id', userId).order('type').order('category');
     return jsonRes(data ?? []);
-  } catch {
+  } catch (e) {
+    console.error('[settings]', e);
     return jsonRes({ error: { code: 'INTERNAL_ERROR', message: 'An internal error occurred' } }, 500);
   }
 };
@@ -201,7 +208,8 @@ export const updateNotificationSetting = async (req: Request, userId: string, _u
     const { data } = await supabase.from('notification_settings').update({ enabled }).eq('id', id).select('*').single();
     if (!data) return jsonRes({ error: { code: 'NOT_FOUND', message: `Notification setting (${id}) not found` } }, 404);
     return jsonRes(data);
-  } catch {
+  } catch (e) {
+    console.error('[settings]', e);
     return jsonRes({ error: { code: 'INTERNAL_ERROR', message: 'An internal error occurred' } }, 500);
   }
 };
@@ -212,7 +220,8 @@ export const listInvites = async (req: Request, _userId: string, _userRole: stri
     const supabase = createSupabaseAdmin(req);
     const { data } = await supabase.from('team_invites').select('*').order('invited_at', { ascending: false });
     return jsonRes(data ?? []);
-  } catch {
+  } catch (e) {
+    console.error('[settings]', e);
     return jsonRes({ error: { code: 'INTERNAL_ERROR', message: 'An internal error occurred' } }, 500);
   }
 };
@@ -229,7 +238,8 @@ export const createInvite = async (req: Request, _userId: string, _userRole: str
     }, { onConflict: 'email,role' }).select('*').single();
 
     return jsonRes(data, 201);
-  } catch {
+  } catch (e) {
+    console.error('[settings]', e);
     return jsonRes({ error: { code: 'INTERNAL_ERROR', message: 'An internal error occurred' } }, 500);
   }
 };
@@ -249,7 +259,8 @@ export const deleteInvite = async (req: Request, _userId: string, _userRole: str
     const { data } = await supabase.from('team_invites').delete().eq('email', email).eq('role', role).select('email').single();
     if (!data) return jsonRes({ error: { code: 'NOT_FOUND', message: `Invite for (${email}, ${role}) not found` } }, 404);
     return jsonRes({ deleted: true, email });
-  } catch {
+  } catch (e) {
+    console.error('[settings]', e);
     return jsonRes({ error: { code: 'INTERNAL_ERROR', message: 'An internal error occurred' } }, 500);
   }
 };

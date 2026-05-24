@@ -1,7 +1,21 @@
-import {invokeEdgeFunction} from '../../shared/lib/apiClient';
-import {USE_MOCK_API} from '../../shared/lib/runtime';
+import {USE_MOCK_API, API_BASE_URL, getAuthToken} from '../../shared/lib/runtime';
 import {insightsOverviewFixture} from './fixtures';
 import {type InsightsOverview} from './types';
+
+const efetch = async <T>(path: string, method = 'GET', body?: Record<string, unknown>): Promise<T> => {
+  const base = USE_MOCK_API ? '' : API_BASE_URL;
+  const res = await fetch(`${base}/functions/v1/embox-api${path}`, {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${getAuthToken() ?? ''}`,
+    },
+    ...(body ? { body: JSON.stringify(body) } : {}),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data?.error?.message || `API error ${res.status}`);
+  return data as T;
+};
 
 export const getInsightsOverview = async (timeRange = 'all'): Promise<InsightsOverview> => {
   if (USE_MOCK_API) {
@@ -9,8 +23,5 @@ export const getInsightsOverview = async (timeRange = 'all'): Promise<InsightsOv
     return insightsOverviewFixture;
   }
 
-  return invokeEdgeFunction<InsightsOverview>('analytics', {
-    action: 'overview',
-    timeRange,
-  });
+  return efetch<InsightsOverview>(`/analytics/overview?timeRange=${encodeURIComponent(timeRange)}`);
 };
