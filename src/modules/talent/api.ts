@@ -302,18 +302,18 @@ const findDuplicateIndex = (name: string, email?: string, phone?: string): numbe
   });
 };
 
-/** Try AI-powered resume parsing, fall back to regex */
+/** Try AI-powered resume parsing via Edge Function, fall back to regex */
 const aiParseResume = async (resumeText: string, fallback: ParsedResumeInfo): Promise<ParsedResumeInfo> => {
   if (!resumeText || resumeText.trim().length < 30) return fallback;
   try {
     const token = getAuthToken() || '';
-    const resp = await fetch(`${API_BASE_URL}/api/ai/parse-resume`, {
+    const resp = await fetch(`${API_BASE_URL}/functions/v1/embox-api/ai-proxy`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        ...(token ? {Authorization: `Bearer ${token}`} : {}),
+        'Authorization': `Bearer ${token}`,
       },
-      body: JSON.stringify({resumeText}),
+      body: JSON.stringify({action: 'parse-resume', resumeText}),
     });
     if (!resp.ok) {
       console.log('[AI Parse] Not available, using regex fallback');
@@ -611,7 +611,7 @@ export const importResumes = async (
 
       const allTags = parsedInfo.skills.slice(0, 5);
       if (allTags.length > 0 && importedId) {
-        await efetch('/candidate-ops/', 'POST', { id: importedId, tags: allTags });
+        await efetch(`/candidate-ops/${importedId}/tags`, 'POST', { tags: allTags });
       }
     } catch (e) {
       console.error(`Failed to import ${file.name}:`, e);
