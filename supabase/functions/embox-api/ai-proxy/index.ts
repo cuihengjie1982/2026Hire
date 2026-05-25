@@ -101,41 +101,15 @@ export const proxy = async (req: Request, _userId: string, _userRole: string): P
       if (!body.resumeText || body.resumeText.trim().length < 20) return jsonRes({ error: 'resumeText required (min 20 chars)' }, 400);
       config.temperature = 0.1;
       config.max_tokens = 2048;
-      const systemPrompt = `你是一个简历信息提取助手。从用户提供的简历文本中提取结构化信息，以 JSON 格式返回。\n\n必须返回以下字段（如无则留空）：name, gender, ageOrBirth, phone, email, location, highestEducation, school, major, educationTime, expectedSalary, currentlyEmployed, availability, photoBase64, skills(数组最多8个), workExperience(数组{company,role,period,desc}), honors(数组)。\n\n只返回纯 JSON。`;
+      const systemPrompt = `你是一个简历信息提取助手。从用户提供的简历文本中提取结构化信息，以 JSON 格式返回。
+
+必须返回以下字段（如无则留空）：name, gender, ageOrBirth, phone, email, location, highestEducation, school, major, expectedSalary, currentlyEmployed, availability, photoBase64, skills(数组最多8个), workExperience(数组{company,role,period,desc}), honors(数组)。
+
+只返回纯 JSON。`;
       const userMessage = `请从以下简历文本中提取结构化信息：\n\n${body.resumeText}`;
       let raw: string;
       try {
-        raw = await fetchWithHardTimeout(
-          `https://open.bigmodel.cn/api/paas/v4/chat/completions`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${config.api_key}`,
-            },
-            body: JSON.stringify({
-              model: config.model_name,
-              messages: [
-                { role: 'system', content: systemPrompt },
-                { role: 'user', content: userMessage },
-              ],
-              temperature: 0.1,
-              max_tokens: 2048,
-            }),
-          },
-          15_000, // hard cap: if Zhipu doesn't respond in 15s, bail instead of hanging
-        ).then(r => {
-          if (!r.ok) throw new Error(`Zhipu HTTP ${r.status}`);
-          return r.json().then((j: Record<string, unknown>) => {
-            const c = j?.choices?.[0]?.message?.content
-              ?? j?.output?.choices?.[0]?.message?.content
-              ?? j?.result?.choices?.[0]?.message?.content
-              ?? (typeof j?.output?.text === 'string' ? j.output.text : null)
-              ?? (typeof j?.result === 'string' ? j.result : null);
-            if (!c) { console.error('[parse-resume] bad response', JSON.stringify(j).slice(0, 200)); return '{}'; }
-            return c as string;
-          });
-        });
+        raw = await callLLM(config, systemPrompt, userMessage);
       } catch (e) {
         console.error('[parse-resume] LLM call failed:', e);
         return jsonRes({ error: { code: 'LLM_TIMEOUT', message: 'AI resume parsing timed out' } }, 408);
