@@ -305,55 +305,72 @@ const findDuplicateIndex = (name: string, email?: string, phone?: string): numbe
 /** Try AI-powered resume parsing via Edge Function, fall back to regex */
 const aiParseResume = async (resumeText: string, fallback: ParsedResumeInfo): Promise<ParsedResumeInfo> => {
   if (!resumeText || resumeText.trim().length < 30) return fallback;
-  try {
-    const token = getAuthToken() || '';
-    const resp = await fetch(`${API_BASE_URL}/functions/v1/embox-api/ai-proxy`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
-      body: JSON.stringify({action: 'parse-resume', resumeText}),
-    });
-    if (!resp.ok) {
-      console.log('[AI Parse] Not available, using regex fallback');
-      return fallback;
+
+  const maxAttempts = 3;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const token = getAuthToken() || '';
+      if (!token) {
+        console.log('[AI Parse] No auth token, using regex fallback');
+        return fallback;
+      }
+      const resp = await fetch(`${API_BASE_URL}/functions/v1/embox-api/ai-proxy`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({action: 'parse-resume', resumeText}),
+      });
+      if (!resp.ok) {
+        console.log(`[AI Parse] HTTP ${resp.status}, using regex fallback`);
+        return fallback;
+      }
+      const data = await resp.json();
+      if (!data.name && !data.phone && !data.school) {
+        console.log('[AI Parse] Empty result, using regex fallback');
+        return fallback;
+      }
+      // Map AI response to ParsedResumeInfo, filling from fallback for missing fields
+      const ai: ParsedResumeInfo = {
+        name: data.name || fallback.name,
+        email: data.email || fallback.email,
+        phone: data.phone || fallback.phone,
+        location: data.location || fallback.location,
+        education: fallback.education,
+        workExperience: Array.isArray(data.workExperience)
+          ? data.workExperience.map((e: Record<string, string>) => [e.period, e.company, e.role, e.desc].filter(Boolean).join(' '))
+          : fallback.workExperience,
+        skills: Array.isArray(data.skills) ? data.skills : fallback.skills,
+        expectedSalary: data.expectedSalary || fallback.expectedSalary,
+        currentlyEmployed: data.currentlyEmployed || fallback.currentlyEmployed,
+        photoBase64: data.photoBase64 || fallback.photoBase64,
+        gender: data.gender || fallback.gender,
+        ageOrBirth: data.ageOrBirth || fallback.ageOrBirth,
+        highestEducation: data.highestEducation || fallback.highestEducation,
+        school: data.school || fallback.school,
+        major: data.major || fallback.major,
+        educationTime: data.educationTime || fallback.educationTime,
+        honors: Array.isArray(data.honors) ? data.honors : fallback.honors,
+        availability: data.availability || fallback.availability,
+        rawText: fallback.rawText,
+      };
+      console.log('[AI Parse] Success:', data.modelUsed, JSON.stringify(ai).slice(0, 200));
+      return ai;
+    } catch (e) {
+      const msg = (e as Error).message || String(e);
+      const isRetryable = msg.includes('connection') || msg.includes('network') || msg.includes('fetch') ||
+        msg.includes('ECONNRESET') || msg.includes('ETIMEDOUT') || msg.includes('timeout');
+      console.warn(`[AI Parse] Attempt ${attempt}/${maxAttempts} failed (${isRetryable ? 'retryable' : 'fatal'}): ${msg}`);
+      if (!isRetryable || attempt === maxAttempts) {
+        console.log('[AI Parse] Using regex fallback');
+        return fallback;
+      }
+      // Wait before retry (1s, 2s, 4s...)
+      await new Promise(r => setTimeout(r, attempt * 1000));
     }
-    const data = await resp.json();
-    if (!data.name && !data.phone && !data.school) {
-      console.log('[AI Parse] Empty result, using regex fallback');
-      return fallback;
-    }
-    // Map AI response to ParsedResumeInfo, filling from fallback for missing fields
-    const ai: ParsedResumeInfo = {
-      name: data.name || fallback.name,
-      email: data.email || fallback.email,
-      phone: data.phone || fallback.phone,
-      location: data.location || fallback.location,
-      education: fallback.education,
-      workExperience: Array.isArray(data.workExperience)
-        ? data.workExperience.map((e: Record<string, string>) => [e.period, e.company, e.role, e.desc].filter(Boolean).join(' '))
-        : fallback.workExperience,
-      skills: Array.isArray(data.skills) ? data.skills : fallback.skills,
-      expectedSalary: data.expectedSalary || fallback.expectedSalary,
-      currentlyEmployed: data.currentlyEmployed || fallback.currentlyEmployed,
-      photoBase64: data.photoBase64 || fallback.photoBase64,
-      gender: data.gender || fallback.gender,
-      ageOrBirth: data.ageOrBirth || fallback.ageOrBirth,
-      highestEducation: data.highestEducation || fallback.highestEducation,
-      school: data.school || fallback.school,
-      major: data.major || fallback.major,
-      educationTime: data.educationTime || fallback.educationTime,
-      honors: Array.isArray(data.honors) ? data.honors : fallback.honors,
-      availability: data.availability || fallback.availability,
-      rawText: fallback.rawText,
-    };
-    console.log('[AI Parse] Success:', data.modelUsed, JSON.stringify(ai).slice(0, 200));
-    return ai;
-  } catch (e) {
-    console.log('[AI Parse] Failed, using regex fallback:', (e as Error).message);
-    return fallback;
   }
+  return fallback;
 };
 
 export const importResumes = async (

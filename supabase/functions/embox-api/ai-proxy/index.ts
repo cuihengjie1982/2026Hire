@@ -56,6 +56,11 @@ export const proxy = async (req: Request, _userId: string, _userRole: string): P
     const config = await resolveLLMConfig(supabase, body.aiModelConfigId);
     if (!config) return jsonRes({ error: 'No active AI model configured' }, 400);
 
+    // Reject MinerU as an LLM provider (it's a PDF parser, not a chat LLM)
+    if (config.provider === 'mineru') {
+      return jsonRes({ error: 'MinerU is not a chat LLM provider — cannot use for AI proxy actions' }, 400);
+    }
+
     if (action === 'screen-resume') {
       if (!body.resumeText) return jsonRes({ error: 'resumeText is required' }, 400);
       const systemPrompt = buildSystemPrompt(body.aiPrompt || '', body.scoringRules || []);
