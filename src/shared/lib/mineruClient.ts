@@ -200,6 +200,7 @@ export const parseResumeWithMinerU = async (
             throw new Error(`Parse start failed: HTTP ${startResponse.status}`);
           }
 
+          const startResult = await startResponse.json();
           console.log('[MinerU] Parse start:', JSON.stringify(startResult).slice(0, 300));
           // If the proxy returned content directly (backward compat), use it
           if (startResult.content_md && startResult.content_md.length > 50) {
