@@ -29,8 +29,8 @@ async function fetchWithRetry(
   url: string,
   init: RequestInit & { timeoutMs?: number; retries?: number },
 ): Promise<Response> {
-  const timeoutMs = init.timeoutMs ?? 25_000;
-  const maxRetries = init.retries ?? 2;
+  const timeoutMs = init.timeoutMs ?? 12_000;
+  const maxRetries = init.retries ?? 1;
   // Strip custom fields before passing to fetch
   const { timeoutMs: _t, retries: _r, ...fetchInit } = init;
 

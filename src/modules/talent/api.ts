@@ -86,7 +86,7 @@ const buildCandidateCardFromServer = (raw: Record<string, unknown>): CandidateCa
     !parsedInfo.major || (parsedInfo.major as string).length < 2
   );
   if (needsReparse) {
-    const reParsed = extractResumeInfoFromMarkdown(rawText, (parsedInfo.photoBase64 as string) || '');
+    const reParsed = extractResumeInfoFromMarkdown(rawText);
     // Fix name if missing or clearly wrong (including city names mistakenly stored as name)
     const currentName = parsedInfo.name as string;
     const needsNameFix = !currentName || currentName.length < 2 || ['个人优势', '基本信息', '简历'].includes(currentName) || likelyCityName;
@@ -249,7 +249,6 @@ export const reparseCandidate = async (id: string): Promise<CandidateCard | null
         honors: aiResult.honors?.length ? aiResult.honors : raw.resumeParsedInfo?.honors,
         skills: aiResult.skills?.length ? aiResult.skills : raw.resumeParsedInfo?.skills,
         workExperience: aiResult.workExperience?.length ? aiResult.workExperience : raw.resumeParsedInfo?.workExperience,
-        educationTime: aiResult.educationTime || raw.resumeParsedInfo?.educationTime,
       },
     };
     candidatesData[idx] = updated;
@@ -322,8 +321,12 @@ const aiParseResume = async (resumeText: string, fallback: ParsedResumeInfo): Pr
         },
         body: JSON.stringify({action: 'parse-resume', resumeText}),
       });
-      if (!resp.ok) {
+      if (!resp.ok && resp.status !== 408) {
         console.log(`[AI Parse] HTTP ${resp.status}, using regex fallback`);
+        return fallback;
+      }
+      if (resp.status === 408) {
+        console.log('[AI Parse] AI timeout (408), using regex fallback');
         return fallback;
       }
       const data = await resp.json();
@@ -331,7 +334,7 @@ const aiParseResume = async (resumeText: string, fallback: ParsedResumeInfo): Pr
         console.log('[AI Parse] Empty result, using regex fallback');
         return fallback;
       }
-      // Map AI response to ParsedResumeInfo, filling from fallback for missing fields
+      // aiProxy works reliably → use real AI extraction
       const ai: ParsedResumeInfo = {
         name: data.name || fallback.name,
         email: data.email || fallback.email,
@@ -350,12 +353,11 @@ const aiParseResume = async (resumeText: string, fallback: ParsedResumeInfo): Pr
         highestEducation: data.highestEducation || fallback.highestEducation,
         school: data.school || fallback.school,
         major: data.major || fallback.major,
-        educationTime: data.educationTime || fallback.educationTime,
         honors: Array.isArray(data.honors) ? data.honors : fallback.honors,
         availability: data.availability || fallback.availability,
         rawText: fallback.rawText,
       };
-      console.log('[AI Parse] Success:', data.modelUsed, JSON.stringify(ai).slice(0, 200));
+      console.log('[AI Parse] Success:', data.modelUsed);
       return ai;
     } catch (e) {
       const msg = (e as Error).message || String(e);
@@ -415,7 +417,7 @@ export const importResumes = async (
         const result = await parseResumeWithMinerU(file, MINERU_API_TOKEN);
 
         if (result.success && result.content_md) {
-          let parsedInfo = extractResumeInfoFromMarkdown(result.content_md, result.photoBase64);
+          let parsedInfo = extractResumeInfoFromMarkdown(result.content_md);
           // Attach photo from MinerU result if available
           if (result.photoBase64 && !parsedInfo.photoBase64) {
             parsedInfo.photoBase64 = result.photoBase64;
@@ -558,7 +560,7 @@ export const importResumes = async (
       const contentMd = parsed.content_md || '';
       const photoBase64 = parsed.photoBase64 || '';
 
-      let parsedInfo = extractResumeInfoFromMarkdown(contentMd, photoBase64);
+      let parsedInfo = extractResumeInfoFromMarkdown(contentMd);
       // Attach photo from MinerU result if available
       if (photoBase64 && !parsedInfo.photoBase64) {
         parsedInfo.photoBase64 = photoBase64;

@@ -45,6 +45,22 @@ export default function App() {
     setIsAuthenticated(false);
   };
 
+  // Keep JWT in sync with Supabase auth session (fixes 401 on Edge Function calls)
+  useEffect(() => {
+    const handler = () => {
+      supabase.auth.refreshSession().then(({data}) => {
+        if (data.session?.access_token) {
+          setAuthToken(data.session.access_token);
+        } else {
+          // Token refresh failed — redirect to login
+          handleLogout();
+        }
+      });
+    };
+    window.addEventListener('auth:token-expired', handler);
+    return () => window.removeEventListener('auth:token-expired', handler);
+  }, []);
+
   return (
     <ErrorBoundary>
       {isAuthenticated ? (

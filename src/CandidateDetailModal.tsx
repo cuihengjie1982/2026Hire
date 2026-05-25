@@ -1075,7 +1075,6 @@ export const CandidateDetailModal = ({ isOpen, onClose, candidate, positionDetai
                               parsedInfo?.highestEducation,
                               parsedInfo?.major,
                             ].filter(Boolean).join(' · ')}
-                            {parsedInfo?.educationTime && <span className="text-gray-400 dark:text-gray-500 ml-2">({parsedInfo.educationTime})</span>}
                           </div>
                         </>
                       )}

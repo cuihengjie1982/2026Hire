@@ -36,6 +36,11 @@ async function efFetch<T>(path: string, init?: RequestInit): Promise<T> {
   if (init?.body && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
 
   const res = await fetch(`${EF_BASE}${path}`, {...init, headers});
+  if (res.status === 401) {
+    // Token expired — dispatch a custom event so the auth layer can redirect to login
+    window.dispatchEvent(new CustomEvent('auth:token-expired'));
+    throw new Error('AUTH_EXPIRED');
+  }
   if (!res.ok) throw new Error(`Notification API error: ${res.status}`);
   return res.json() as Promise<T>;
 }
