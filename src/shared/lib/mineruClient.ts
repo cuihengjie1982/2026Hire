@@ -200,11 +200,7 @@ export const parseResumeWithMinerU = async (
             throw new Error(`Parse start failed: HTTP ${startResponse.status}`);
           }
 
-          const startResult = await startResponse.json();
-          if (startResult.error) {
-            throw new Error(startResult.error.message || 'Parse start failed');
-          }
-
+          console.log('[MinerU] Parse start:', JSON.stringify(startResult).slice(0, 300));
           // If the proxy returned content directly (backward compat), use it
           if (startResult.content_md && startResult.content_md.length > 50) {
             clearTimeout(timeoutId);
@@ -251,6 +247,7 @@ export const parseResumeWithMinerU = async (
               }
 
               const pollResult = await pollResponse.json();
+              console.log(`[MinerU] Poll ${i + 1}: status=${pollResult.status}, state=${pollResult.state || '?'}, hasContent=${!!pollResult.content_md}, contentLen=${pollResult.content_md?.length ?? 0}`);
 
               if (pollResult.error) {
                 clearTimeout(pollTimeoutId);
@@ -281,7 +278,7 @@ export const parseResumeWithMinerU = async (
           }
         } catch (proxyErr) {
           clearTimeout(timeoutId);
-          console.log('MinerU proxy failed, falling back to client-side parsing:', proxyErr);
+          console.log('[MinerU] Proxy failed, falling back to client-side parsing:', proxyErr);
         }
       } else {
         // Dev mode: direct MinerU call (token loaded from env)
@@ -316,7 +313,7 @@ export const parseResumeWithMinerU = async (
               photoBase64,
             };
           }
-          console.log('Proxy returned insufficient content, using client-side parsing');
+          console.log('[MinerU] Proxy returned insufficient content, using client-side parsing');
         }
       }
 
@@ -333,7 +330,7 @@ export const parseResumeWithMinerU = async (
 
     // For PDFs: fall back to client-side PDF parsing
     if (isPdf) {
-      console.log('Using client-side PDF parsing for:', file.name);
+      console.log('[MinerU] Using client-side PDF parsing for:', file.name);
       const pdfText = await extractTextFromPdfClientSide(file);
       if (!pdfText) {
         return {success: false, error: 'PDF parsing failed (no text extracted)'};
