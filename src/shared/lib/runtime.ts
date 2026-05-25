@@ -3,7 +3,9 @@ export const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL ?? '';
 export const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY ?? '';
 
 // Legacy API base URL (kept for backward compatibility during migration)
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:4000';
+// In production (USE_MOCK_API=false), default to Supabase URL instead of localhost
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
+  ?? (import.meta.env.VITE_USE_MOCK_API === 'false' ? SUPABASE_URL : 'http://localhost:4000');
 
 export const USE_MOCK_API = import.meta.env.VITE_USE_MOCK_API !== 'false';
 
