@@ -363,9 +363,10 @@ export const parseResumeWithMinerU = async (
 };
 
 // Extract resume info from markdown or plain text
+// Handles multiple formats: "姓名：张三", "姓名-张三", bare names, various label styles
 export const extractResumeInfoFromMarkdown = (contentMd: string): ParsedResumeInfo => {
   const lines = contentMd.split('\n').filter(l => l.trim());
-  let rawText = contentMd;
+  const rawText = contentMd;
 
   const info: ParsedResumeInfo = {
     name: '',
@@ -392,80 +393,90 @@ export const extractResumeInfoFromMarkdown = (contentMd: string): ParsedResumeIn
     const trimmed = line.trim();
     if (!trimmed) continue;
 
-    // Name
-    if (/^姓名[：:：\s]*(.+)/i.test(trimmed)) {
-      info.name = trimmed.replace(/^姓名[：:：\s]*/i, '').trim();
+    // Name: 姓名：张三, 姓名-张三, 姓名  张三, Name: Zhang San
+    if (/(?:姓名|Name|名字)[：:、\-\s]+(.+)/i.test(trimmed)) {
+      const m = trimmed.match(/(?:姓名|Name|名字)[：:、\-\s]+(.+)/i);
+      if (m) info.name = m[1].trim();
+      continue;
+    }
+    // Bare Chinese name (2-4 chars, pure Chinese, no label) — fallback if no name yet
+    if (!info.name && /^[\u4e00-\u9fa5]{2,4}$/.test(trimmed)) {
+      info.name = trimmed;
       continue;
     }
     // Gender
-    if (/(性别|gender)[：:：\s]*(.+)/i.test(trimmed)) {
-      info.gender = (trimmed.match(/(?:性别|gender)[：:：\s]*(.+)/i) || [])[1]?.trim() || '';
+    if (/(?:性别|Gender)[：:、\s]+(.+)/i.test(trimmed)) {
+      const m = trimmed.match(/(?:性别|Gender)[：:、\s]+(.+)/i);
+      if (m) info.gender = m[1].trim();
       continue;
     }
-    // Phone
-    if (/^电话[：:：\s]*(.+)/i.test(trimmed)) {
-      info.phone = (trimmed.match(/^电话[：:：\s]*(.+)/i) || [])[1]?.trim() || '';
+    // Phone: 电话: 138xxxx, Mobile: 138xxxx, 手机138xxxx
+    if (/(?:电话|Mobile|手机)[：:、\s]*([\d（）\(\)\-]{7,})/i.test(trimmed)) {
+      const m = trimmed.match(/(?:电话|Mobile|手机)[：:、\s]*([\d（）\(\)\-]{7,})/i);
+      if (m) info.phone = m[1].trim();
       continue;
     }
     // Email
-    if (/^(邮箱|电子邮件|email)[：:：\s]*(.+)/i.test(trimmed)) {
-      info.email = (trimmed.match(/^(?:邮箱|电子邮件|email)[：:：\s]*(.+)/i) || [])[1]?.trim() || '';
+    if (/(?:邮箱|邮件|Email)[：:、\s]+([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})/i.test(trimmed)) {
+      const m = trimmed.match(/(?:邮箱|邮件|Email)[：:、\s]+([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})/i);
+      if (m) info.email = m[1].trim();
       continue;
     }
     // Location
-    if (/^(居住地|所在地|location)[：:：\s]*(.+)/i.test(trimmed)) {
-      info.location = (trimmed.match(/^(?:居住地|所在地|location)[：:：\s]*(.+)/i) || [])[1]?.trim() || '';
+    if (/(?:居住地？谢邀所在地|所在城市)[：:、\s]+(.+)/i.test(trimmed)) {
+      const m = trimmed.match(/(?:居住地<minimax:tool_call>所在地|所在城市)[：:、\s]+(.+)/i);
+      if (m) info.location = m[1].trim();
       continue;
     }
-    // Education/school
-    if (/^(毕业院校|学校|教育|education)[：:：\s]*(.+)/i.test(trimmed)) {
-      info.school = (trimmed.match(/^(?:毕业院校|学校|教育|education)[：:：\s]*(.+)/i) || [])[1]?.trim() || '';
+    // School
+    if (/(?:毕业院校|学校|College|University)[：:、\s]+(.+)/i.test(trimmed)) {
+      const m = trimmed.match(/(?:毕业院校|学校|College|University)[：:、\s]+(.+)/i);
+      if (m) info.school = m[1].trim();
+      continue;
+    }
+    // Major
+    if (/(?:专业|Major|研究方向)[：:、\s]+(.+)/i.test(trimmed)) {
+      const m = trimmed.match(/(?:专业|Major|研究方向)[：:、\s]+(.+)/i);
+      if (m) info.major = m[1].trim();
+      continue;
+    }
+    // Highest education level
+    if (/(?:最高学历|学历|Education)[：:、\s]+(.+)/i.test(trimmed)) {
+      const m = trimmed.match(/(?:最高学历|学历|Education)[：:、\s]+(.+)/i);
+      if (m) info.highestEducation = m[1].trim();
       continue;
     }
     // Skills
-    if (/^(技能|skill|特长、技能)[：:：:、\s]*(.+)/i.test(trimmed)) {
-      const skillsStr = (trimmed.match(/^(?:技能|skill|特长)[：:：:、\s]*(.+)/i) || [])[1] || '';
-      const skills = skillsStr
-        .split(/[、,，]/)
-        .map(s => s.trim())
-        .filter(s => s.length > 0 && s.length < 30);
-      if (skills.length > 0) {
-        info.skills = skills;
-      }
-      continue;
-    }
-    // Experience sections — collect more lines as experience
-    if (/^(工作经历|实习经历|项目经验|项目经历|经历)[：:：]*/i.test(trimmed)) {
-      // Skip partial section headers without values — collect content below
-      const content = trimmed.replace(/^(?:工作经历|实习经历|项目经验|项目经历|经历)[：:：\s]*/i, '').trim();
-      if (content) {
-        info.workExperience.push(content);
+    if (/(?:技能|Skill|特长)[：:、\s]+(.+)/i.test(trimmed)) {
+      const m = trimmed.match(/(?:技能|Skill|特长)[：:、\s]+(.+)/i);
+      if (m) {
+        const skills = m[1].trim().split(/[、,，]/).map(s => s.trim()).filter(s => s.length > 0 && s.length < 30);
+        if (skills.length > 0) info.skills = skills;
       }
       continue;
     }
     // Age/birth
-    if (/^(年龄|出生|生日|birth)[：:：\s]*(.+)/i.test(trimmed)) {
-      info.ageOrBirth = (trimmed.match(/^(?:年龄|出生|生日|birth)[：:：\s]*(.+)/i) || [])[1]?.trim() || '';
+    if (/(?:年龄|出生年月|Birth|生日)[：:、\s]+(.+)/i.test(trimmed)) {
+      const m = trimmed.match(/(?:年龄|出生年月|Birth|生日)[：:、\s]+(.+)/i);
+      if (m) info.ageOrBirth = m[1].trim();
       continue;
     }
     // Expected salary
-    if (/^(期望薪资|salary|期望)[：:：\s]*(.+)/i.test(trimmed)) {
-      info.expectedSalary = (trimmed.match(/^(?:期望薪资|salary|期望)[：:：\s]*(.+)/i) || [])[1]?.trim() || '';
+    if (/(?:期望薪资|Salary|期望)[：:、\s]+(.+)/i.test(trimmed)) {
+      const m = trimmed.match(/(?:期望薪资|Salary|期望)[：:、\s]+(.+)/i);
+      if (m) info.expectedSalary = m[1].trim();
       continue;
     }
     // Current employment
-    if (/^(当前状态|在职状态|employment)[：:：\s]*(.+)/i.test(trimmed)) {
-      info.currentlyEmployed = (trimmed.match(/^(?:当前状态|在职状态|employment)[：:：\s]*(.+)/i) || [])[1]?.trim() || '';
+    if (/(?:当前状态|在职状态|Employment)[：:、\s]+(.+)/i.test(trimmed)) {
+      const m = trimmed.match(/(?:当前状态|在职状态|Employment)[：:、\s]+(.+)/i);
+      if (m) info.currentlyEmployed = m[1].trim();
       continue;
     }
-    // Highest education level
-    if (/^(最高学历|学历|education_level)[：:：\s]*(.+)/i.test(trimmed)) {
-      info.highestEducation = (trimmed.match(/^(?:最高学历|学历|education_level)[：:：\s]*(.+)/i) || [])[1]?.trim() || '';
-      continue;
-    }
-    // Major
-    if (/^(专业|major)[：:：\s]*(.+)/i.test(trimmed)) {
-      info.major = (trimmed.match(/^(?:专业|major)[：:：\s]*(.+)/i) || [])[1]?.trim() || '';
+    // Experience sections
+    if (/(?:工作经历|实习经历|项目经验|项目经历|经历)[：:：]*/i.test(trimmed)) {
+      const content = trimmed.replace(/(?:工作经历|实习经历|项目经验|项目经历|经历)[：:：\s]*/i, '').trim();
+      if (content) info.workExperience.push(content);
       continue;
     }
   }
