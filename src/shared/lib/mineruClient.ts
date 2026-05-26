@@ -465,6 +465,113 @@ export const extractResumeInfoFromMarkdown = (contentMd: string): ParsedResumeIn
     rawText,
   };
 
+  // Phase 2: field-label-header → value pairs.
+  // Only match headers whose label is a known field label (姓名, 电话, etc.).
+  // Skip lines that look like values (Chinese text > 4 chars) — those are
+  // section content (school names, company names), not field labels.
+  const FIELD_LABEL_HEADERS = new Set([
+    '姓名', '名字', '电话', '手机', '邮箱', '邮件', '性别', '年龄', '出生',
+    '出生年月', '居住地', '所在地', '所在城市', '毕业院校', '学校', 'college',
+    'university', '专业', 'major', '研究方向', '学历', '最高学历', '教育',
+    '期望薪资', '薪资', '工作地点', '意向岗位',
+  ]);
+
+  // Section header regex (different max length for this phase)
+  const SECTION_RE = /^#{1,2}\s*([\u4e00-\u9fa5a-zA-Z0-9]{1,15})\s*$/;
+
+  for (let i = 0; i < lines.length - 1; i++) {
+    const a = lines[i].trim();
+    const b = lines[i + 1].trim();
+    if (!a || !b) continue;
+
+    const m = a.match(SECTION_RE);
+    if (!m) continue;
+    const label = m[1];
+
+    // Only handle known field-label headers — skip section headers (教育背景, 工作经历, etc.)
+    if (!FIELD_LABEL_HEADERS.has(label) && !FIELD_LABEL_HEADERS.has(label.toLowerCase())) continue;
+
+    // Skip if b looks like a section header (it's content-as-header, not a value)
+    if (SECTION_RE.test(b)) continue;
+    // Skip if b is a date line
+    if (/^\d{4}[./\-]\d{2}[./\-]\d{2}/.test(b)) continue;
+    // Skip if b is pure noise
+    if (SKIP_PATTERNS.some(r => r.test(b))) continue;
+    // Skip if b is a long Chinese text line (likely a school/company name, not a value)
+    if (/^[\u4e00-\u9fa5]{5,}$/.test(b)) continue;
+
+    out.push(`${label}：${b}`);
+  }
+
+  // Phase 3: section-aware fallback — for resumes with no field-label headers.
+  // Track current section and capture school/company from section content.
+  // NOTE: do NOT reset currentSection on non-section headers — they may be
+  // content-as-headers (e.g., school name as # 广州岭南职业技术学院).
+  const sectionValueMap: Record<string, string> = {};
+  let currentSection = '';
+  const sectionHeaderRe = /^#{1,2}\s*([\u4e00-\u9fa5a-zA-Z0-9]{1,15})\s*$/;
+  for (let i = 0; i < lines.length; i++) {
+    const trimmed = lines[i].trim();
+    if (!trimmed) continue; // blank lines don't change section
+    const m = trimmed.match(sectionHeaderRe);
+    if (m) {
+      const label = m[1];
+      if (SECTION_HEADERS.has(label)) {
+        currentSection = label; // entering a new section
+      }
+      // Don't reset currentSection on non-section headers — school/company
+      // names often appear as content-as-headers within a section context.
+    }
+    if (!SECTION_HEADERS.has(currentSection)) continue;
+
+    if ((currentSection === '教育背景' || currentSection === '教育经历') && sectionValueMap['school'] === undefined) {
+      // Scan ahead: skip leading date lines, then take the next non-blank non-noise line.
+      // This handles "教育背景\n2021.09-2024.06\n# 广州岭南职业技术学院" correctly.
+      let schoolValue: string | null = null;
+      for (let j = i + 1; j < lines.length; j++) {
+        const nl = lines[j].trim();
+        if (!nl) continue;
+        if (SKIP_PATTERNS.some(r => r.test(nl))) continue;
+        // Date line — skip (precedes school)
+        if (/^\d{4}[./\-]/.test(nl)) continue;
+        // Header line — it's the school name as a header
+        const hm = nl.match(/^#{1,2}\s*([^\n]{1,50})\s*$/);
+        if (hm) { schoolValue = hm[1]; break; }
+        // Any other content — take it as the school value
+        schoolValue = nl; break;
+      }
+      if (schoolValue) sectionValueMap['school'] = schoolValue;
+    }
+    if ((currentSection === '教育背景' || currentSection === '教育经历') && sectionValueMap['major'] === undefined) {
+      // Non-section-header line within education section — check if it's a major name.
+      // Only treat it as a major if it contains typical major keywords (not school names).
+      const hm = trimmed.match(/^#{1,2}\s*([^\n]{2,20})\s*$/);
+      if (hm && !/^\d{4}/.test(hm[1]) && !SECTION_HEADERS.has(hm[1])) {
+        const candidate = hm[1];
+        // Skip if it looks like a school name (university/college keywords)
+        if (!/学院|大学|school|university|college/i.test(candidate)) {
+          sectionValueMap['major'] = candidate;
+        }
+      }
+    }
+    if (currentSection === '工作经历' || currentSection === '实习经历') {
+      if (sectionValueMap['workCompany'] === undefined) {
+        // Skip leading date lines, then take the next non-blank non-noise line as company name
+        let companyValue: string | null = null;
+        for (let j = i + 1; j < lines.length; j++) {
+          const nl = lines[j].trim();
+          if (!nl) continue;
+          if (SKIP_PATTERNS.some(r => r.test(nl))) continue;
+          if (/^\d{4}[./\-]/.test(nl)) continue;
+          const hm = nl.match(/^#{1,2}\s*([^\n]{1,50})\s*$/);
+          if (hm) { companyValue = hm[1]; break; }
+          companyValue = nl; break;
+        }
+        if (companyValue) sectionValueMap['workCompany'] = companyValue;
+      }
+    }
+  }
+
   for (const line of out) {
     const trimmed = line.trim();
     if (!trimmed) continue;
@@ -566,6 +673,13 @@ export const extractResumeInfoFromMarkdown = (contentMd: string): ParsedResumeIn
       if (content) info.workExperience.push(content);
       continue;
     }
+  }
+
+  // Apply section-aware extraction results (for resumes with no inline field labels)
+  if (!info.school && sectionValueMap['school']) info.school = sectionValueMap['school'];
+  if (!info.major && sectionValueMap['major']) info.major = sectionValueMap['major'];
+  if (sectionValueMap['workCompany'] && !info.workExperience.length) {
+    info.workExperience.push(sectionValueMap['workCompany']);
   }
 
   return info;
