@@ -565,9 +565,17 @@ export const importResumes = async (
       if (photoBase64 && !parsedInfo.photoBase64) {
         parsedInfo.photoBase64 = photoBase64;
       }
-      // Note: aiParseResume (LLM extraction) is skipped here — it times out with GLM-5.1
-      // The MinerU markdown + regex extraction (above) already gives good results.
-      // AI parse is still available as a manual reparse action via the reparseCandidate() function.
+
+      // LLM fallback: if MinerU gave any text, try LLM to fully parse the resume.
+      // aiParseResume handles empty text gracefully (returns fallback), so we always call it.
+      if (contentMd && contentMd.trim().length >= 20) {
+        console.log(`[Import] MinerU ok (${contentMd.length} chars), trying LLM parse for: ${file.name}`);
+        parsedInfo = await aiParseResume(contentMd, parsedInfo);
+      } else {
+        console.log(`[Import] MinerU failed/empty for: ${file.name}, trying LLM direct parse`);
+        parsedInfo = await aiParseResume(contentMd, parsedInfo);
+      }
+
       const candidateName = parsedInfo.name || file.name.replace(/\.(pdf|docx?|doc|png|jpe?g)$/i, '');
       const scoreResult = positionDetail ? calculateResumeScore(parsedInfo, positionDetail) : null;
       if (scoreResult) scoreResults.push(scoreResult);
