@@ -565,8 +565,9 @@ export const importResumes = async (
       if (photoBase64 && !parsedInfo.photoBase64) {
         parsedInfo.photoBase64 = photoBase64;
       }
-      // Always try AI parsing to fill missing fields
-      parsedInfo = await aiParseResume(contentMd, parsedInfo);
+      // Note: aiParseResume (LLM extraction) is skipped here — it times out with GLM-5.1
+      // The MinerU markdown + regex extraction (above) already gives good results.
+      // AI parse is still available as a manual reparse action via the reparseCandidate() function.
       const candidateName = parsedInfo.name || file.name.replace(/\.(pdf|docx?|doc|png|jpe?g)$/i, '');
       const scoreResult = positionDetail ? calculateResumeScore(parsedInfo, positionDetail) : null;
       if (scoreResult) scoreResults.push(scoreResult);
@@ -612,17 +613,16 @@ export const importResumes = async (
       const isDuplicate = firstResult?.duplicate === true;
       if (isDuplicate) {
         duplicates += 1;
-        // Replace existing entry in candidatesData with updated version
+        // Update local entry if it exists — otherwise let listCandidates() pull from DB
         if (importedId) {
           const idx = candidatesData.findIndex((c) => c.id === importedId);
           if (idx >= 0) {
             candidatesData[idx] = {...candidatesData[idx], resumeParsedInfo: parsedInfo};
-          } else {
-            candidatesData = [{id: importedId, name: candidateName, resumeParsedInfo: parsedInfo} as CandidateCard, ...candidatesData];
           }
         }
       } else {
-        if (importedId) {
+        // Only add to local cache if we don't have a real DB id (should not happen)
+        if (importedId && !candidatesData.find(c => c.id === importedId)) {
           candidatesData = [{id: importedId, name: candidateName, resumeParsedInfo: parsedInfo} as CandidateCard, ...candidatesData];
         }
         imported += 1;

@@ -363,9 +363,42 @@ export const parseResumeWithMinerU = async (
 };
 
 // Extract resume info from markdown or plain text
-// Handles multiple formats: "姓名：张三", "姓名-张三", bare names, various label styles
+// Handles multiple formats:
+// - "姓名：张三" (inline key-value)
+// - "# 姓名\n张三" (markdown header + next-line value)
+// - bare values (phone numbers, Chinese names)
+// - various label styles
 export const extractResumeInfoFromMarkdown = (contentMd: string): ParsedResumeInfo => {
-  const lines = contentMd.split('\n').filter(l => l.trim());
+  // Consolidate markdown-style headers: merge a line that is just a header with the
+  // next non-empty line as its value. e.g. "# 姓名\n\n温长根" → "姓名：温长根"
+  const consolidated = contentMd.split('\n').reduce<{pending: string | null; lines: string[]}>(
+    ({pending, lines}, line) => {
+      const trimmed = line.trim();
+      if (/^#{1,2}\s*[\u4e00-\u9fa5a-zA-Z]{1,10}\s*$/.test(trimmed)) {
+        // If we have a pending header with a non-blank last line, finalize it
+        if (pending && lines.length > 0 && lines[lines.length - 1] !== '') {
+          lines[lines.length - 1] = `${pending}：${lines[lines.length - 1]}`;
+        }
+        return {pending: trimmed.replace(/^#{1,2}\s*/, ''), lines};
+      }
+      if (trimmed.length > 0) {
+        if (pending) {
+          lines.push(`${pending}：${trimmed}`);
+          return {pending: null, lines};
+        } else {
+          lines.push(trimmed);
+        }
+      }
+      return {pending, lines};
+    },
+    {pending: null, lines: []},
+  );
+  // Finalize any remaining pending header with last non-empty line
+  const allLines = consolidated.pending && consolidated.lines.length > 0
+    ? [...consolidated.lines.slice(0, -1), `${consolidated.pending}：${consolidated.lines[consolidated.lines.length - 1]}`]
+    : consolidated.lines;
+  const mergedContent = allLines.join('\n');
+  const mergedLines = mergedContent.split('\n').filter(l => l.trim());
   const rawText = contentMd;
 
   const info: ParsedResumeInfo = {
@@ -389,19 +422,24 @@ export const extractResumeInfoFromMarkdown = (contentMd: string): ParsedResumeIn
     rawText,
   };
 
-  for (const line of lines) {
+  for (const line of mergedLines) {
     const trimmed = line.trim();
     if (!trimmed) continue;
 
     // Name: 姓名：张三, 姓名-张三, 姓名  张三, Name: Zhang San
+    // Also handles: "姓名：温长根" (after header consolidation merges "# 姓名\n温长根")
     if (/(?:姓名|Name|名字)[：:、\-\s]+(.+)/i.test(trimmed)) {
       const m = trimmed.match(/(?:姓名|Name|名字)[：:、\-\s]+(.+)/i);
       if (m) info.name = m[1].trim();
       continue;
     }
     // Bare Chinese name (2-4 chars, pure Chinese, no label) — fallback if no name yet
+    // Skip lines that look like role titles or section names (e.g., "形体兼职" or "教育背景")
     if (!info.name && /^[\u4e00-\u9fa5]{2,4}$/.test(trimmed)) {
-      info.name = trimmed;
+      const skipNames = ['形体兼职', '全职', '兼职', '实习', '全职', '临时', '外包', '派遣'];
+      if (!skipNames.includes(trimmed)) {
+        info.name = trimmed;
+      }
       continue;
     }
     // Gender
