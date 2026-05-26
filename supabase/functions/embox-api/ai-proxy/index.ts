@@ -13,7 +13,7 @@ interface AIModelConfig {
   max_tokens: number;
 }
 
-async function resolveLLMConfig(supabase: ReturnType<typeof createSupabaseAdmin>, preferId?: string): Promise<AIModelConfig | null> {
+async function resolveLLMConfig(supabase: ReturnType<typeof createSupabaseAdmin>, preferId?: string, forVision = false): Promise<AIModelConfig | null> {
   const getRow = async (query: ReturnType<typeof supabase.from>['select']) => {
     const { data } = await query;
     return data as Record<string, unknown> | null;
@@ -24,6 +24,23 @@ async function resolveLLMConfig(supabase: ReturnType<typeof createSupabaseAdmin>
   if (preferId) {
     configRow = await getRow(supabase.from('ai_model_configs').select('*').eq('id', preferId).eq('is_active', true).single());
   }
+
+  // For vision actions, prefer a vision-capable model
+  if (!configRow && forVision) {
+    // Known vision model name substrings — order matters (most specific first)
+    const visionPatterns = ['glm-4v', 'MiniMax-01', 'MiniMax-VL', 'gpt-4o', 'gpt-4v', 'vision', 'gemini'];
+    for (const pattern of visionPatterns) {
+      configRow = await getRow(
+        supabase.from('ai_model_configs')
+          .select('*')
+          .ilike('model_name', `%${pattern}%`)
+          .eq('is_active', true)
+          .limit(1).single(),
+      );
+      if (configRow) break;
+    }
+  }
+
   if (!configRow) {
     configRow = await getRow(supabase.from('ai_model_configs').select('*').eq('is_default', true).eq('is_active', true).limit(1).single());
   }
@@ -126,8 +143,13 @@ export const proxy = async (req: Request, _userId: string, _userRole: string): P
       const images: string[] = Array.isArray(body.images) ? body.images : [];
       if (images.length === 0) return jsonRes({ error: 'images array required for vision parse' }, 400);
 
-      config.temperature = 0.1;
-      config.max_tokens = 4096;
+      // Resolve a vision-capable model (glm-4v-plus, etc.) instead of default text model
+      const visionConfig = await resolveLLMConfig(supabase, body.aiModelConfigId, true);
+      if (!visionConfig) return jsonRes({ error: 'No active AI vision model configured' }, 400);
+      if (visionConfig.provider === 'mineru') return jsonRes({ error: 'MinerU is not a vision LLM provider' }, 400);
+
+      visionConfig.temperature = 0.1;
+      visionConfig.max_tokens = 4096;
       const systemPrompt = `你是一个简历信息提取助手。用户会发送简历的图片（可能有多页），请从图片中提取结构化信息，以 JSON 格式返回。
 
 必须返回以下字段（如无则留空）：name, gender, ageOrBirth, phone, email, location, highestEducation, school, major, expectedSalary, currentlyEmployed, availability, skills(数组最多8个), workExperience(数组，每个元素格式：{company, role, period, desc}), honors(数组)。
@@ -145,7 +167,7 @@ export const proxy = async (req: Request, _userId: string, _userRole: string): P
 
       let raw: string;
       try {
-        raw = await callVisionLLM(config, systemPrompt, parts);
+        raw = await callVisionLLM(visionConfig, systemPrompt, parts);
       } catch (e) {
         console.error('[parse-resume-vision] Vision LLM call failed:', e);
         return jsonRes({ name: '', gender: '', ageOrBirth: '', phone: '', email: '', location: '',
@@ -153,7 +175,7 @@ export const proxy = async (req: Request, _userId: string, _userRole: string): P
           honors: [], expectedSalary: '', currentlyEmployed: '', availability: '',
           _parseFailed: true, _parseError: e instanceof Error ? e.message : String(e) });
       }
-      return jsonRes({ modelUsed: config.model_name, provider: config.provider, ...parseJSONResponse(raw) });
+      return jsonRes({ modelUsed: visionConfig.model_name, provider: visionConfig.provider, ...parseJSONResponse(raw) });
     }
 
     return jsonRes({ error: `Unknown action: ${action}` }, 400);

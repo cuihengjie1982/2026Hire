@@ -19,10 +19,10 @@ async function getActiveVisionKey(): Promise<{provider: string; model: string; a
     });
     if (!resp.ok) return null;
     const configs = await resp.json() as Array<{id: string; provider: string; model_name: string; api_key: string; api_key_display: string}>;
-    // Try GLM-4V first, then MiniMax
+    // Try GLM-4V first, then MiniMax-01 (multimodal)
     const glm4v = configs.find(c => c.provider === 'zhipu' && /4v/i.test(c.model_name) && c.api_key);
     if (glm4v) return {provider: 'zhipu', model: glm4v.model_name, apiKey: glm4v.api_key};
-    const minimax = configs.find(c => c.provider === 'minimax' && c.api_key);
+    const minimax = configs.find(c => c.provider === 'minimax' && /01|vl/i.test(c.model_name) && c.api_key);
     if (minimax) return {provider: 'minimax', model: minimax.model_name, apiKey: minimax.api_key};
     return null;
   } catch { return null; }
