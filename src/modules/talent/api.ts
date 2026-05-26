@@ -16,7 +16,7 @@ const efetch = async <T>(path: string, method = 'GET', body?: unknown): Promise<
   return data as T;
 };
 import {type CandidateCard, type TalentStats} from './types';
-import {parseResumeWithMinerU, extractResumeInfoFromMarkdown, type ParsedResumeInfo} from '../../shared/lib/mineruClient';
+import {parseResumeWithMinerU, parseResumeWithVision, extractResumeInfoFromMarkdown, type ParsedResumeInfo} from '../../shared/lib/mineruClient';
 import {calculateResumeScore, type ScoreResult} from '../../shared/lib/resumeScorer';
 import {getPositionDetail} from '../positions/api';
 
@@ -566,14 +566,41 @@ export const importResumes = async (
         parsedInfo.photoBase64 = photoBase64;
       }
 
-      // LLM fallback: if MinerU gave any text, try LLM to fully parse the resume.
-      // aiParseResume handles empty text gracefully (returns fallback), so we always call it.
+      // Strategy: try LLM text parse first, then Vision LLM if extraction is poor.
+      // LLM text parse uses MinerU's markdown output — works well for clean resumes.
       if (contentMd && contentMd.trim().length >= 20) {
-        console.log(`[Import] MinerU ok (${contentMd.length} chars), trying LLM parse for: ${file.name}`);
         parsedInfo = await aiParseResume(contentMd, parsedInfo);
-      } else {
-        console.log(`[Import] MinerU failed/empty for: ${file.name}, trying LLM direct parse`);
-        parsedInfo = await aiParseResume(contentMd, parsedInfo);
+      }
+
+      // Vision LLM fallback: if MinerU gave short/no content OR text parse gave
+      // no name/phone/email, use Vision LLM to parse PDF pages as images directly.
+      // This is more reliable for scanned/image PDFs where MinerU's OCR fails.
+      const needsVision = !parsedInfo.name || (!parsedInfo.phone && !parsedInfo.email) ||
+        contentMd.trim().length < 100;
+      if (needsVision) {
+        console.log(`[Import] MinerU/parse gave poor result, trying Vision LLM for: ${file.name}`);
+        const visionInfo = await parseResumeWithVision(file);
+        // Merge: prefer Vision LLM results, keep regex fallback for missing fields
+        parsedInfo = {
+          name: visionInfo.name || parsedInfo.name,
+          gender: visionInfo.gender || parsedInfo.gender,
+          ageOrBirth: visionInfo.ageOrBirth || parsedInfo.ageOrBirth,
+          phone: visionInfo.phone || parsedInfo.phone,
+          email: visionInfo.email || parsedInfo.email,
+          location: visionInfo.location || parsedInfo.location,
+          education: parsedInfo.education,
+          highestEducation: visionInfo.highestEducation || parsedInfo.highestEducation,
+          school: visionInfo.school || parsedInfo.school,
+          major: visionInfo.major || parsedInfo.major,
+          workExperience: (visionInfo.workExperience.length > 0 ? visionInfo.workExperience : parsedInfo.workExperience),
+          skills: (visionInfo.skills.length > 0 ? visionInfo.skills : parsedInfo.skills),
+          honors: (visionInfo.honors.length > 0 ? visionInfo.honors : parsedInfo.honors),
+          expectedSalary: visionInfo.expectedSalary || parsedInfo.expectedSalary,
+          currentlyEmployed: visionInfo.currentlyEmployed || parsedInfo.currentlyEmployed,
+          availability: visionInfo.availability || parsedInfo.availability,
+          photoBase64: visionInfo.photoBase64 || parsedInfo.photoBase64,
+          rawText: parsedInfo.rawText,
+        };
       }
 
       const candidateName = parsedInfo.name || file.name.replace(/\.(pdf|docx?|doc|png|jpe?g)$/i, '');

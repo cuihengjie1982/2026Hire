@@ -111,6 +111,129 @@ const textToMarkdown = (text: string): string => {
   return markdown;
 };
 
+// Render all pages of a PDF as base64 images (for Vision LLM parsing)
+const renderPdfPagesAsImages = async (arrayBuffer: ArrayBuffer): Promise<string[]> => {
+  const PDFJS = await import('pdfjs-dist');
+  PDFJS.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.min.mjs`;
+
+  const pdf = await PDFJS.getDocument({data: new Uint8Array(arrayBuffer)}).promise;
+  const pageImages: string[] = [];
+  const maxPages = Math.min(pdf.numPages, 5); // limit to 5 pages to avoid token limits
+
+  for (let i = 1; i <= maxPages; i++) {
+    const page = await pdf.getPage(i);
+    const scale = 2.0; // 2x resolution for better OCR quality
+    const viewport = page.getViewport({scale});
+    const canvas = document.createElement('canvas');
+    canvas.height = viewport.height;
+    canvas.width = viewport.width;
+    await page.render({canvasContext: canvas.getContext('2d')!, viewport} as any).promise;
+    pageImages.push(canvas.toDataURL('image/jpeg', 0.85).split(',')[1]); // strip data URI prefix
+  }
+  return pageImages;
+};
+
+// Parse resume using Vision LLM — converts PDF pages to images and sends to AI
+export const parseResumeWithVision = async (file: File): Promise<ParsedResumeInfo> => {
+  const ext = file.name.split('.').pop()?.toLowerCase() || '';
+  const isImage = ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp'].includes(ext);
+  const arrayBuffer = await file.arrayBuffer();
+
+  let imageParts: string[] = [];
+  let mimeType = 'image/jpeg';
+
+  if (isImage) {
+    // Image file — use directly
+    const bytes = new Uint8Array(arrayBuffer);
+    let binary = '';
+    for (let i = 0; i < bytes.length; i += 8192) {
+      const chunk = bytes.subarray(i, Math.min(i + 8192, bytes.length));
+      binary += String.fromCharCode(...chunk);
+    }
+    imageParts = [btoa(binary)];
+    mimeType = `image/${ext === 'jpg' ? 'jpeg' : ext}`;
+  } else if (ext === 'pdf') {
+    // PDF — render pages as images
+    imageParts = await renderPdfPagesAsImages(arrayBuffer);
+  } else {
+    return {name: '', gender: '', ageOrBirth: '', phone: '', email: '', location: '',
+      education: '', highestEducation: '', school: '', major: '', workExperience: [],
+      skills: [], honors: [], expectedSalary: '', currentlyEmployed: '', availability: '',
+      photoBase64: '', rawText: ''};
+  }
+
+  // Also extract photo from first page if it's a PDF
+  let photoBase64 = '';
+  if (ext === 'pdf' && imageParts.length > 0) {
+    photoBase64 = `data:image/jpeg;base64,${imageParts[0]}`;
+  }
+
+  try {
+    const token = getAuthToken() || '';
+    if (!token) {
+      console.warn('[Vision] No auth token');
+      return {name: '', gender: '', ageOrBirth: '', phone: '', email: '', location: '',
+        education: '', highestEducation: '', school: '', major: '', workExperience: [],
+        skills: [], honors: [], expectedSalary: '', currentlyEmployed: '', availability: '',
+        photoBase64, rawText: ''};
+    }
+
+    const resp = await fetch(`${API_BASE_URL}/functions/v1/embox-api/ai-proxy`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`},
+      body: JSON.stringify({action: 'parse-resume-vision', images: imageParts, mimeType}),
+    });
+
+    if (!resp.ok) {
+      const err = await resp.text();
+      console.warn('[Vision] ai-proxy failed:', resp.status, err);
+      return {name: '', gender: '', ageOrBirth: '', phone: '', email: '', location: '',
+        education: '', highestEducation: '', school: '', major: '', workExperience: [],
+        skills: [], honors: [], expectedSalary: '', currentlyEmployed: '', availability: '',
+        photoBase64, rawText: ''};
+    }
+
+    const data = await resp.json();
+    if (data._parseFailed) {
+      console.warn('[Vision] parse failed:', data._parseError);
+      return {name: '', gender: '', ageOrBirth: '', phone: '', email: '', location: '',
+        education: '', highestEducation: '', school: '', major: '', workExperience: [],
+        skills: [], honors: [], expectedSalary: '', currentlyEmployed: '', availability: '',
+        photoBase64, rawText: ''};
+    }
+
+    return {
+      name: data.name || '',
+      gender: data.gender || '',
+      ageOrBirth: data.ageOrBirth || '',
+      phone: data.phone || '',
+      email: data.email || '',
+      location: data.location || '',
+      education: '',
+      highestEducation: data.highestEducation || '',
+      school: data.school || '',
+      major: data.major || '',
+      workExperience: Array.isArray(data.workExperience)
+        ? data.workExperience.map((e: Record<string, string>) =>
+            [e.period, e.company, e.role, e.desc].filter(Boolean).join(' | '))
+        : [],
+      skills: Array.isArray(data.skills) ? data.skills.slice(0, 8) : [],
+      honors: Array.isArray(data.honors) ? data.honors : [],
+      expectedSalary: data.expectedSalary || '',
+      currentlyEmployed: data.currentlyEmployed || '',
+      availability: data.availability || '',
+      photoBase64: data.photoBase64 || photoBase64,
+      rawText: '',
+    };
+  } catch (e) {
+    console.error('[Vision] parse error:', e);
+    return {name: '', gender: '', ageOrBirth: '', phone: '', email: '', location: '',
+      education: '', highestEducation: '', school: '', major: '', workExperience: [],
+      skills: [], honors: [], expectedSalary: '', currentlyEmployed: '', availability: '',
+      photoBase64, rawText: ''};
+  }
+};
+
 // Extract first page from PDF as image (base64) for photo display
 const extractPdfFirstPageImage = async (arrayBuffer: ArrayBuffer): Promise<string> => {
   try {
