@@ -8,6 +8,26 @@ const GEMINI_API_KEY = localStorage.getItem('em-box.gemini-api-key') || import.m
 const GLM_API_KEY = localStorage.getItem('em-box.glm-api-key') || import.meta.env.VITE_GLM_API_KEY || '';
 const MINIMAX_API_KEY = localStorage.getItem('em-box.minimax-api-key') || import.meta.env.VITE_MINIMAX_API_KEY || '';
 
+/** Fetch active AI model config from DB (includes API key) for browser-side Vision calls */
+async function getActiveVisionKey(): Promise<{provider: string; model: string; apiKey: string} | null> {
+  const token = getAuthToken();
+  if (!token) return null;
+  try {
+    // Fetch all configs (masked) and find a vision-capable one
+    const resp = await fetch(`${API_BASE_URL}/functions/v1/embox-api/ai-config`, {
+      headers: {'Authorization': `Bearer ${token}`},
+    });
+    if (!resp.ok) return null;
+    const configs = await resp.json() as Array<{id: string; provider: string; model_name: string; api_key: string; api_key_display: string}>;
+    // Try GLM-4V first, then MiniMax
+    const glm4v = configs.find(c => c.provider === 'zhipu' && /4v/i.test(c.model_name) && c.api_key);
+    if (glm4v) return {provider: 'zhipu', model: glm4v.model_name, apiKey: glm4v.api_key};
+    const minimax = configs.find(c => c.provider === 'minimax' && c.api_key);
+    if (minimax) return {provider: 'minimax', model: minimax.model_name, apiKey: minimax.api_key};
+    return null;
+  } catch { return null; }
+}
+
 // When VITE_USE_MOCK_API=false and API_BASE_URL points to Supabase,
 // we call MinerU API directly from the browser (bypassing the backend proxy
 // which relied on server-side exec for pdftotext/tesseract).
@@ -174,28 +194,40 @@ export const parseResumeWithVision = async (file: File): Promise<ParsedResumeInf
 
   try {
     // Try direct API calls first (GLM → MiniMax → Gemini), no server proxy needed.
-    // Fall back to ai-proxy Edge Function if no direct API keys are configured.
-    if (GLM_API_KEY) {
+    // Priority: localStorage/env keys → DB-configured keys (via getActiveVisionKey).
+    const localKeys = {glm: GLM_API_KEY, minimax: MINIMAX_API_KEY, gemini: GEMINI_API_KEY};
+
+    if (localKeys.glm) {
       const data = await callGLMVision(imageParts, mimeType, photoBase64);
       if (data) return data;
     }
-    if (MINIMAX_API_KEY) {
+    if (localKeys.minimax) {
       const data = await callMiniMaxVision(imageParts, mimeType, photoBase64);
       if (data) return data;
     }
-    if (GEMINI_API_KEY) {
+    if (localKeys.gemini) {
       const data = await callGeminiVision(imageParts, mimeType, photoBase64);
       if (data) return data;
     }
 
-    // No direct keys — try ai-proxy Edge Function (uses ai_model_configs from DB)
+    // No local keys — try to get Vision API key from DB via ai-config endpoint
+    const dbVision = await getActiveVisionKey();
+    if (dbVision) {
+      if (dbVision.provider === 'zhipu') {
+        const data = await callGLMVisionWithKey(dbVision.apiKey, dbVision.model, imageParts, mimeType, photoBase64);
+        if (data) return data;
+      }
+      if (dbVision.provider === 'minimax') {
+        const data = await callMiniMaxVisionWithKey(dbVision.apiKey, dbVision.model, imageParts, mimeType, photoBase64);
+        if (data) return data;
+      }
+    }
+
+    // Final fallback: ai-proxy Edge Function (uses DB configs)
     const token = getAuthToken() || '';
     if (!token) {
-      console.warn('[Vision] No API keys and no auth token — skipping Vision LLM');
-      return {name: '', gender: '', ageOrBirth: '', phone: '', email: '', location: '',
-        education: '', highestEducation: '', school: '', major: '', workExperience: [],
-        skills: [], honors: [], expectedSalary: '', currentlyEmployed: '', availability: '',
-        photoBase64, rawText: ''};
+      console.warn('[Vision] No API keys — skipping Vision LLM');
+      return emptyResult(photoBase64);
     }
     const resp = await fetch(`${API_BASE_URL}/functions/v1/embox-api/ai-proxy`, {
       method: 'POST',
@@ -205,27 +237,25 @@ export const parseResumeWithVision = async (file: File): Promise<ParsedResumeInf
     if (!resp.ok) {
       const err = await resp.text();
       console.warn('[Vision] ai-proxy failed:', resp.status, err);
-      return {name: '', gender: '', ageOrBirth: '', phone: '', email: '', location: '',
-        education: '', highestEducation: '', school: '', major: '', workExperience: [],
-        skills: [], honors: [], expectedSalary: '', currentlyEmployed: '', availability: '',
-        photoBase64, rawText: ''};
+      return emptyResult(photoBase64);
     }
     const data = await resp.json();
     if (data._parseFailed) {
       console.warn('[Vision] parse failed:', data._parseError);
-      return {name: '', gender: '', ageOrBirth: '', phone: '', email: '', location: '',
-        education: '', highestEducation: '', school: '', major: '', workExperience: [],
-        skills: [], honors: [], expectedSalary: '', currentlyEmployed: '', availability: '',
-        photoBase64, rawText: ''};
+      return emptyResult(photoBase64);
     }
     return normalizeVisionResult(data, photoBase64);
   } catch (e) {
     console.error('[Vision] parse error:', e);
-    return {name: '', gender: '', ageOrBirth: '', phone: '', email: '', location: '',
-      education: '', highestEducation: '', school: '', major: '', workExperience: [],
-      skills: [], honors: [], expectedSalary: '', currentlyEmployed: '', availability: '',
-      photoBase64, rawText: ''};
+    return emptyResult(photoBase64);
   }
+}
+
+function emptyResult(photoBase64: string) {
+  return {name: '', gender: '', ageOrBirth: '', phone: '', email: '', location: '',
+    education: '', highestEducation: '', school: '', major: '', workExperience: [],
+    skills: [], honors: [], expectedSalary: '', currentlyEmployed: '', availability: '',
+    photoBase64, rawText: ''};
 }
 
 /** GLM-4V-Plus Vision — OpenAI-compatible API */
@@ -272,6 +302,56 @@ async function callMiniMaxVision(imageParts: string[], mimeType: string, photoBa
     });
     clearTimeout(timeoutId);
     if (!resp.ok) { console.warn('[Vision] MiniMax failed:', resp.status); return null; }
+    const result = await resp.json() as {choices?: Array<{message?: {content?: string}}>};
+    const text = result.choices?.[0]?.message?.content || '';
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) { console.warn('[Vision] MiniMax no JSON:', text.slice(0, 100)); return null; }
+    return normalizeVisionResult(JSON.parse(jsonMatch[0]), photoBase64);
+  } catch (e) { console.warn('[Vision] MiniMax error:', e); return null; }
+}
+
+/** GLM Vision — with explicit API key and model name (from DB config) */
+async function callGLMVisionWithKey(apiKey: string, model: string, imageParts: string[], mimeType: string, photoBase64: string): Promise<ParsedResumeInfo | null> {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 60000);
+    const content: Array<Record<string, unknown>> = [
+      ...imageParts.map(data => ({type: 'image_url', image_url: {url: `data:${mimeType};base64,${data}`, detail: 'high'}})),
+      {type: 'text', text: '请从以上简历图片中提取所有结构化信息，只返回纯 JSON。格式：{name, gender, ageOrBirth, phone, email, location, highestEducation, school, major, expectedSalary, currentlyEmployed, availability, skills(数组), workExperience(数组[{company, role, period, desc}]), honors(数组)}。'},
+    ];
+    const resp = await fetch('https://open.bigmodel.cn/api/paas/v4/chat/completions', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}`},
+      signal: controller.signal,
+      body: JSON.stringify({model, messages: [{role: 'user', content}], temperature: 0.1, max_tokens: 4096, stream: false}),
+    });
+    clearTimeout(timeoutId);
+    if (!resp.ok) { console.warn('[Vision] GLM failed:', resp.status, await resp.text()); return null; }
+    const result = await resp.json() as {choices?: Array<{message?: {content?: string}}>};
+    const text = result.choices?.[0]?.message?.content || '';
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) { console.warn('[Vision] GLM no JSON:', text.slice(0, 100)); return null; }
+    return normalizeVisionResult(JSON.parse(jsonMatch[0]), photoBase64);
+  } catch (e) { console.warn('[Vision] GLM error:', e); return null; }
+}
+
+/** MiniMax Vision — with explicit API key and model name (from DB config) */
+async function callMiniMaxVisionWithKey(apiKey: string, model: string, imageParts: string[], mimeType: string, photoBase64: string): Promise<ParsedResumeInfo | null> {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 60000);
+    const content: Array<Record<string, unknown>> = [
+      ...imageParts.map(data => ({type: 'image_url', image_url: {url: `data:${mimeType};base64,${data}`, detail: 'high'}})),
+      {type: 'text', text: '请从以上简历图片中提取所有结构化信息，只返回纯 JSON。格式：{name, gender, ageOrBirth, phone, email, location, highestEducation, school, major, expectedSalary, currentlyEmployed, availability, skills(数组), workExperience(数组[{company, role, period, desc}]), honors(数组)}。'},
+    ];
+    const resp = await fetch('https://api.minimax.chat/v1/chat/completions', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}`},
+      signal: controller.signal,
+      body: JSON.stringify({model, messages: [{role: 'user', content}], temperature: 0.1, max_tokens: 4096}),
+    });
+    clearTimeout(timeoutId);
+    if (!resp.ok) { console.warn('[Vision] MiniMax failed:', resp.status, await resp.text()); return null; }
     const result = await resp.json() as {choices?: Array<{message?: {content?: string}}>};
     const text = result.choices?.[0]?.message?.content || '';
     const jsonMatch = text.match(/\{[\s\S]*\}/);
