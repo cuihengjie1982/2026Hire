@@ -369,36 +369,79 @@ export const parseResumeWithMinerU = async (
 // - bare values (phone numbers, Chinese names)
 // - various label styles
 export const extractResumeInfoFromMarkdown = (contentMd: string): ParsedResumeInfo => {
-  // Consolidate markdown-style headers: merge a line that is just a header with the
-  // next non-empty line as its value. e.g. "# 姓名\n\n温长根" → "姓名：温长根"
-  const consolidated = contentMd.split('\n').reduce<{pending: string | null; lines: string[]}>(
-    ({pending, lines}, line) => {
-      const trimmed = line.trim();
-      if (/^#{1,2}\s*[\u4e00-\u9fa5a-zA-Z]{1,10}\s*$/.test(trimmed)) {
-        // If we have a pending header with a non-blank last line, finalize it
-        if (pending && lines.length > 0 && lines[lines.length - 1] !== '') {
-          lines[lines.length - 1] = `${pending}：${lines[lines.length - 1]}`;
+  // Phase 1: consolidate inline field pairs that MinerU outputs as:
+  //   "# 姓名\n温长根"       → "姓名：温长根"
+  //   "# 电话\n16655810671"  → "电话：16655810671"
+  //
+  // Section headers (工作经历, 教育背景, etc.) are NOT merged — they mark
+  // multi-line content blocks and should not consume the next line as a value.
+  //
+  // Phase 2: extract structured fields from the consolidated line list.
+
+  const SECTION_HEADERS = new Set([
+    '基本信息', '求职意向', '自我评价', '教育背景', '教育经历', '实习经历',
+    '工作经历', '项目经历', '项目经验', '专业技能', '技能特长', '相关技能',
+    '荣誉证书', '荣誉', '获奖情况', '兴趣爱好', '个人优势', '语言能力',
+    '培训经历', '证书资质', '联系方式', '工作职责', '工作内容', '项目描述',
+  ]);
+
+  // Lines that are too noisy to keep in output for bare-value fallback matching
+  const SKIP_PATTERNS = [
+    /^\d{4}[./\-]\d{2}[./\-]\d{2}$/,           // dates like 2021.09-2024.06
+    /^[a-zA-Z0-9+/=]{20,}$/,                   // base64/gibberish remnants
+    /^(?:a|b|c|d|e|f)\)$/i,                   // list item letters like a) b)
+  ];
+
+  const FIELD_HEADER_RE = /^#{1,2}\s*([\u4e00-\u9fa5a-zA-Z0-9]{1,12})\s*$/;
+  const IS_INLINE_FIELD = /^[^\n]*[：:][^：:]{2,}$/;
+
+  const lines = contentMd.split('\n');
+  let pendingField: string | null = null;
+  const out: string[] = [];
+
+  for (const rawLine of lines) {
+    const trimmed = rawLine.trim();
+    // Always skip blank lines — they break pending-field chains
+    if (!trimmed) { pendingField = null; continue; }
+
+    const fieldMatch = trimmed.match(FIELD_HEADER_RE);
+    if (fieldMatch) {
+      const label = fieldMatch[1];
+      if (SECTION_HEADERS.has(label)) {
+        pendingField = null;
+        // Don't push section header lines — they're noise for field extraction
+      } else {
+        // Inline field header (姓名, 电话, etc.) — finalize previous pending
+        if (pendingField && out.length > 0) {
+          out[out.length - 1] = `${pendingField}：${out[out.length - 1]}`;
         }
-        return {pending: trimmed.replace(/^#{1,2}\s*/, ''), lines};
+        pendingField = label;
       }
-      if (trimmed.length > 0) {
-        if (pending) {
-          lines.push(`${pending}：${trimmed}`);
-          return {pending: null, lines};
-        } else {
-          lines.push(trimmed);
-        }
+      continue;
+    }
+
+    // Skip known noise patterns (dates, base64, list markers)
+    if (SKIP_PATTERNS.some(r => r.test(trimmed))) continue;
+
+    // Non-blank content line
+    if (pendingField) {
+      // If this line has its own inline field (has ：or:), keep it standalone
+      if (IS_INLINE_FIELD.test(trimmed)) {
+        out.push(trimmed);
+      } else {
+        // No inline field — merge with pending field header
+        out.push(`${pendingField}：${trimmed}`);
+        pendingField = null;
       }
-      return {pending, lines};
-    },
-    {pending: null, lines: []},
-  );
-  // Finalize any remaining pending header with last non-empty line
-  const allLines = consolidated.pending && consolidated.lines.length > 0
-    ? [...consolidated.lines.slice(0, -1), `${consolidated.pending}：${consolidated.lines[consolidated.lines.length - 1]}`]
-    : consolidated.lines;
-  const mergedContent = allLines.join('\n');
-  const mergedLines = mergedContent.split('\n').filter(l => l.trim());
+    } else {
+      out.push(trimmed);
+    }
+  }
+  // Finalize any remaining pending field
+  if (pendingField && out.length > 0) {
+    out[out.length - 1] = `${pendingField}：${out[out.length - 1]}`;
+  }
+
   const rawText = contentMd;
 
   const info: ParsedResumeInfo = {
@@ -422,7 +465,7 @@ export const extractResumeInfoFromMarkdown = (contentMd: string): ParsedResumeIn
     rawText,
   };
 
-  for (const line of mergedLines) {
+  for (const line of out) {
     const trimmed = line.trim();
     if (!trimmed) continue;
 
@@ -434,10 +477,16 @@ export const extractResumeInfoFromMarkdown = (contentMd: string): ParsedResumeIn
       continue;
     }
     // Bare Chinese name (2-4 chars, pure Chinese, no label) — fallback if no name yet
-    // Skip lines that look like role titles or section names (e.g., "形体兼职" or "教育背景")
+    // Skip lines that look like role titles, section names, or single-field headers
     if (!info.name && /^[\u4e00-\u9fa5]{2,4}$/.test(trimmed)) {
-      const skipNames = ['形体兼职', '全职', '兼职', '实习', '全职', '临时', '外包', '派遣'];
-      if (!skipNames.includes(trimmed)) {
+      const skipNames = new Set([
+        '形体兼职', '全职', '兼职', '实习', '临时', '外包', '派遣',
+        '基本信息', '求职意向', '自我评价', '教育背景', '教育经历',
+        '实习经历', '工作经历', '项目经历', '专业技能', '技能特长',
+        '相关技能', '荣誉证书', '兴趣爱好', '个人优势', '语言能力',
+        '培训经历', '证书资质', '联系方式', '项目描述',
+      ]);
+      if (!skipNames.has(trimmed)) {
         info.name = trimmed;
       }
       continue;
