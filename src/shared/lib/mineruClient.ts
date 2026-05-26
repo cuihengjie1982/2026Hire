@@ -5,6 +5,8 @@ import {API_BASE_URL, getAuthToken, USE_MOCK_API} from './runtime';
 import {fetchJson} from './apiClient';
 
 const GEMINI_API_KEY = localStorage.getItem('em-box.gemini-api-key') || import.meta.env.VITE_GEMINI_API_KEY || '';
+const GLM_API_KEY = localStorage.getItem('em-box.glm-api-key') || import.meta.env.VITE_GLM_API_KEY || '';
+const MINIMAX_API_KEY = localStorage.getItem('em-box.minimax-api-key') || import.meta.env.VITE_MINIMAX_API_KEY || '';
 
 // When VITE_USE_MOCK_API=false and API_BASE_URL points to Supabase,
 // we call MinerU API directly from the browser (bypassing the backend proxy
@@ -171,91 +173,51 @@ export const parseResumeWithVision = async (file: File): Promise<ParsedResumeInf
   }
 
   try {
-    // Use Gemini API directly (browser-side) — no Edge Function needed.
-    // Fall back to ai-proxy if no Gemini key is available.
-    if (!GEMINI_API_KEY) {
-      console.warn('[Vision] No Gemini API key — trying ai-proxy edge function');
-      const token = getAuthToken() || '';
-      if (!token) {
-        return {name: '', gender: '', ageOrBirth: '', phone: '', email: '', location: '',
-          education: '', highestEducation: '', school: '', major: '', workExperience: [],
-          skills: [], honors: [], expectedSalary: '', currentlyEmployed: '', availability: '',
-          photoBase64, rawText: ''};
-      }
-      const resp = await fetch(`${API_BASE_URL}/functions/v1/embox-api/ai-proxy`, {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`},
-        body: JSON.stringify({action: 'parse-resume-vision', images: imageParts, mimeType}),
-      });
-      if (!resp.ok) {
-        const err = await resp.text();
-        console.warn('[Vision] ai-proxy failed:', resp.status, err);
-        return {name: '', gender: '', ageOrBirth: '', phone: '', email: '', location: '',
-          education: '', highestEducation: '', school: '', major: '', workExperience: [],
-          skills: [], honors: [], expectedSalary: '', currentlyEmployed: '', availability: '',
-          photoBase64, rawText: ''};
-      }
-      const data = await resp.json();
-      if (data._parseFailed) {
-        console.warn('[Vision] parse failed:', data._parseError);
-        return {name: '', gender: '', ageOrBirth: '', phone: '', email: '', location: '',
-          education: '', highestEducation: '', school: '', major: '', workExperience: [],
-          skills: [], honors: [], expectedSalary: '', currentlyEmployed: '', availability: '',
-          photoBase64, rawText: ''};
-      }
-      return normalizeVisionResult(data, photoBase64);
+    // Try direct API calls first (GLM → MiniMax → Gemini), no server proxy needed.
+    // Fall back to ai-proxy Edge Function if no direct API keys are configured.
+    if (GLM_API_KEY) {
+      const data = await callGLMVision(imageParts, mimeType, photoBase64);
+      if (data) return data;
+    }
+    if (MINIMAX_API_KEY) {
+      const data = await callMiniMaxVision(imageParts, mimeType, photoBase64);
+      if (data) return data;
+    }
+    if (GEMINI_API_KEY) {
+      const data = await callGeminiVision(imageParts, mimeType, photoBase64);
+      if (data) return data;
     }
 
-    // Direct Gemini API call (browser → Gemini, no server proxy)
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 60000);
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
-
-    const parts: Array<Record<string, unknown>> = imageParts.map(data => ({
-      inlineData: { mimeType, data },
-    }));
-    parts.push({
-      text: '请从以上简历图片中提取所有结构化信息，以纯 JSON 格式返回。返回格式：{name, gender, ageOrBirth, phone, email, location, highestEducation, school, major, expectedSalary, currentlyEmployed, availability, skills(数组), workExperience(数组[{company, role, period, desc}]), honors(数组)}。只返回 JSON，不要有其他文字。',
-    });
-
-    const resp = await fetch(url, {
+    // No direct keys — try ai-proxy Edge Function (uses ai_model_configs from DB)
+    const token = getAuthToken() || '';
+    if (!token) {
+      console.warn('[Vision] No API keys and no auth token — skipping Vision LLM');
+      return {name: '', gender: '', ageOrBirth: '', phone: '', email: '', location: '',
+        education: '', highestEducation: '', school: '', major: '', workExperience: [],
+        skills: [], honors: [], expectedSalary: '', currentlyEmployed: '', availability: '',
+        photoBase64, rawText: ''};
+    }
+    const resp = await fetch(`${API_BASE_URL}/functions/v1/embox-api/ai-proxy`, {
       method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      signal: controller.signal,
-      body: JSON.stringify({contents: [{parts}], generationConfig: {temperature: 0.1, maxOutputTokens: 4096}}),
+      headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`},
+      body: JSON.stringify({action: 'parse-resume-vision', images: imageParts, mimeType}),
     });
-    clearTimeout(timeoutId);
-
     if (!resp.ok) {
       const err = await resp.text();
-      console.warn('[Vision] Gemini API failed:', resp.status, err);
+      console.warn('[Vision] ai-proxy failed:', resp.status, err);
       return {name: '', gender: '', ageOrBirth: '', phone: '', email: '', location: '',
         education: '', highestEducation: '', school: '', major: '', workExperience: [],
         skills: [], honors: [], expectedSalary: '', currentlyEmployed: '', availability: '',
         photoBase64, rawText: ''};
     }
-
-    const result = await resp.json() as {candidates?: Array<{content?: {parts?: Array<{text?: string}>}}>};
-    const text = result.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    if (!text) {
-      console.warn('[Vision] Gemini returned empty response');
+    const data = await resp.json();
+    if (data._parseFailed) {
+      console.warn('[Vision] parse failed:', data._parseError);
       return {name: '', gender: '', ageOrBirth: '', phone: '', email: '', location: '',
         education: '', highestEducation: '', school: '', major: '', workExperience: [],
         skills: [], honors: [], expectedSalary: '', currentlyEmployed: '', availability: '',
         photoBase64, rawText: ''};
     }
-
-    // Extract JSON from response
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      console.warn('[Vision] No JSON in Gemini response:', text.slice(0, 200));
-      return {name: '', gender: '', ageOrBirth: '', phone: '', email: '', location: '',
-        education: '', highestEducation: '', school: '', major: '', workExperience: [],
-        skills: [], honors: [], expectedSalary: '', currentlyEmployed: '', availability: '',
-        photoBase64, rawText: ''};
-    }
-
-    const data = JSON.parse(jsonMatch[0]);
     return normalizeVisionResult(data, photoBase64);
   } catch (e) {
     console.error('[Vision] parse error:', e);
@@ -264,6 +226,84 @@ export const parseResumeWithVision = async (file: File): Promise<ParsedResumeInf
       skills: [], honors: [], expectedSalary: '', currentlyEmployed: '', availability: '',
       photoBase64, rawText: ''};
   }
+}
+
+/** GLM-4V-Plus Vision — OpenAI-compatible API */
+async function callGLMVision(imageParts: string[], mimeType: string, photoBase64: string): Promise<ParsedResumeInfo | null> {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 60000);
+    const url = 'https://open.bigmodel.cn/api/paas/v4/chat/completions';
+    const content: Array<Record<string, unknown>> = [
+      ...imageParts.map(data => ({type: 'image_url', image_url: {url: `data:${mimeType};base64,${data}`, detail: 'high'}})),
+      {type: 'text', text: '请从以上简历图片中提取所有结构化信息，只返回纯 JSON，不要有其他文字。格式：{name, gender, ageOrBirth, phone, email, location, highestEducation, school, major, expectedSalary, currentlyEmployed, availability, skills(数组), workExperience(数组[{company, role, period, desc}]), honors(数组)}。'},
+    ];
+    const resp = await fetch(url, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${GLM_API_KEY}`},
+      signal: controller.signal,
+      body: JSON.stringify({model: 'glm-4v-plus', messages: [{role: 'user', content}], temperature: 0.1, max_tokens: 4096}),
+    });
+    clearTimeout(timeoutId);
+    if (!resp.ok) { console.warn('[Vision] GLM failed:', resp.status); return null; }
+    const result = await resp.json() as {choices?: Array<{message?: {content?: string}}>};
+    const text = result.choices?.[0]?.message?.content || '';
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) { console.warn('[Vision] GLM no JSON:', text.slice(0, 100)); return null; }
+    return normalizeVisionResult(JSON.parse(jsonMatch[0]), photoBase64);
+  } catch (e) { console.warn('[Vision] GLM error:', e); return null; }
+}
+
+/** MiniMax Vision — OpenAI-compatible API */
+async function callMiniMaxVision(imageParts: string[], mimeType: string, photoBase64: string): Promise<ParsedResumeInfo | null> {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 60000);
+    const url = 'https://api.minimax.chat/v1/chat/completions';
+    const content: Array<Record<string, unknown>> = [
+      ...imageParts.map(data => ({type: 'image_url', image_url: {url: `data:${mimeType};base64,${data}`, detail: 'high'}})),
+      {type: 'text', text: '请从以上简历图片中提取所有结构化信息，只返回纯 JSON，不要有其他文字。格式：{name, gender, ageOrBirth, phone, email, location, highestEducation, school, major, expectedSalary, currentlyEmployed, availability, skills(数组), workExperience(数组[{company, role, period, desc}]), honors(数组)}。'},
+    ];
+    const resp = await fetch(url, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${MINIMAX_API_KEY}`},
+      signal: controller.signal,
+      body: JSON.stringify({model: 'MiniMax-VL-01', messages: [{role: 'user', content}], temperature: 0.1, max_tokens: 4096}),
+    });
+    clearTimeout(timeoutId);
+    if (!resp.ok) { console.warn('[Vision] MiniMax failed:', resp.status); return null; }
+    const result = await resp.json() as {choices?: Array<{message?: {content?: string}}>};
+    const text = result.choices?.[0]?.message?.content || '';
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) { console.warn('[Vision] MiniMax no JSON:', text.slice(0, 100)); return null; }
+    return normalizeVisionResult(JSON.parse(jsonMatch[0]), photoBase64);
+  } catch (e) { console.warn('[Vision] MiniMax error:', e); return null; }
+}
+
+/** Gemini Vision */
+async function callGeminiVision(imageParts: string[], mimeType: string, photoBase64: string): Promise<ParsedResumeInfo | null> {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 60000);
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
+    const parts: Array<Record<string, unknown>> = imageParts.map(data => ({inlineData: {mimeType, data}}));
+    parts.push({
+      text: '请从以上简历图片中提取所有结构化信息，以纯 JSON 格式返回。返回格式：{name, gender, ageOrBirth, phone, email, location, highestEducation, school, major, expectedSalary, currentlyEmployed, availability, skills(数组), workExperience(数组[{company, role, period, desc}]), honors(数组)}。只返回 JSON，不要有其他文字。',
+    });
+    const resp = await fetch(url, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      signal: controller.signal,
+      body: JSON.stringify({contents: [{parts}], generationConfig: {temperature: 0.1, maxOutputTokens: 4096}}),
+    });
+    clearTimeout(timeoutId);
+    if (!resp.ok) { console.warn('[Vision] Gemini failed:', resp.status); return null; }
+    const result = await resp.json() as {candidates?: Array<{content?: {parts?: Array<{text?: string}>}}>};
+    const text = result.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) { console.warn('[Vision] Gemini no JSON:', text.slice(0, 100)); return null; }
+    return normalizeVisionResult(JSON.parse(jsonMatch[0]), photoBase64);
+  } catch (e) { console.warn('[Vision] Gemini error:', e); return null; }
 }
 
 function normalizeVisionResult(data: Record<string, unknown>, photoBase64: string): ParsedResumeInfo {
