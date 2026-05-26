@@ -34,12 +34,15 @@ describe('Projects routes', () => {
         {id: '2', name: 'Project B', status: '筹备中', created_at: '2026-01-02'},
       ];
       mockedQuery.mockResolvedValue(fakeProjects as any);
+      mockedQueryOne.mockResolvedValue({total: 2} as any);
 
       const res = await request(createApp()).get('/projects/');
       expect(res.status).toBe(200);
-      expect(res.body).toEqual(fakeProjects);
+      expect(res.body.items).toEqual(fakeProjects);
+      expect(res.body.total).toBe(2);
       expect(mockedQuery).toHaveBeenCalledWith(
         expect.stringContaining('SELECT * FROM projects'),
+        [50, 0],
       );
     });
   });

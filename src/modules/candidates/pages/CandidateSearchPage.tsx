@@ -13,8 +13,11 @@ import {navigateToPage} from '../../../navigation';
 import {type PositionSummary} from '../../positions/types';
 import {type CandidateCard} from '../types';
 import {calculateResumeScore} from '../../../shared/lib/resumeScorer';
+import type {ScoreResult} from '../../../shared/lib/resumeScorer';
+import type {ParsedResumeInfo} from '../../../shared/lib/mineruClient';
 import {screenResumeWithAI, rankCandidatesWithAI, listAIModelConfigs} from '../../ai/api';
 import {type AIResumeScoreResult} from '../../ai/types';
+import type {PositionDetail} from '../../positions/types';
 
 interface MatchHistory {
   id: string;
@@ -25,7 +28,7 @@ interface MatchHistory {
   candidateCount: number;
   candidates: CandidateCard[];
   aiSearchResults?: CandidateCard[];
-  computedScores?: Record<string, {fitScore: number[]; grade: string; scoreColor: string; gradeColor: string; scoreResult: any}>;
+  computedScores?: Record<string, {fitScore: number[]; grade: string; scoreColor: string; gradeColor: string; scoreResult: ScoreResult}>;
 }
 
 function mapRecommendationToGrade(recommendation: string): string {
@@ -62,8 +65,8 @@ function getScoreColor(score: number): string {
  * Produces structured paragraph text, not AI-readable keywords.
  */
 function buildRecommendationReason(
-  parsedInfo: any,
-  scoreResult: any,
+  parsedInfo: ParsedResumeInfo,
+  scoreResult: ScoreResult,
 ): string {
   const lines: string[] = [];
 
@@ -326,8 +329,8 @@ export const CandidateSearchPage = () => {
   const [positions, setPositions] = useState<PositionSummary[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState<string>('');
   const [selectedPositionId, setSelectedPositionId] = useState<string>('');
-  const [positionDetail, setPositionDetail] = useState<any>(null);
-  const [computedScores, setComputedScores] = useState<Record<string, {fitScore: number[]; grade: string; scoreColor: string; gradeColor: string; scoreResult: any}>>({});
+  const [positionDetail, setPositionDetail] = useState<PositionDetail | null>(null);
+  const [computedScores, setComputedScores] = useState<Record<string, {fitScore: number[]; grade: string; scoreColor: string; gradeColor: string; scoreResult: ScoreResult}>>({});
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const toastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [searchText, setSearchText] = useState('');
@@ -698,7 +701,7 @@ export const CandidateSearchPage = () => {
     console.log('[SmartMatch] gradeRules:', JSON.stringify(positionDetail.gradeRules));
     console.log('[SmartMatch] candidates count:', candidatesData.length);
 
-    const newScores: Record<string, {fitScore: number[]; grade: string; scoreColor: string; gradeColor: string; scoreResult: any}> = {};
+    const newScores: Record<string, {fitScore: number[]; grade: string; scoreColor: string; gradeColor: string; scoreResult: ScoreResult}> = {};
     candidatesData.forEach((candidate) => {
       if (candidate.resumeParsedInfo) {
         const scoreResult = calculateResumeScore(candidate.resumeParsedInfo, positionDetail);
@@ -927,7 +930,7 @@ export const CandidateSearchPage = () => {
             <button
               onClick={async () => {
                 try { await exportCandidatesCsv(); showToast("候选人数据已导出"); }
-                catch (e: any) { showToast(e.message || "导出失败"); }
+                catch (e: unknown) { showToast(e instanceof Error ? e.message : "导出失败"); }
               }}
               className="flex items-center gap-1.5 px-3 py-1.5 text-[13px] text-[#1a4bc4] border border-blue-200 dark:border-gray-700 rounded-lg hover:bg-blue-50 dark:hover:bg-gray-700/30 transition-colors"
             >
@@ -1058,7 +1061,7 @@ export const CandidateSearchPage = () => {
                     console.log('[SmartMatch] gradeRules:', JSON.stringify(positionDetail.gradeRules));
                     console.log('[SmartMatch] candidates count:', candidatesData.length, 'matchTimeWindow:', matchTimeWindow, 'matchDateFrom:', matchDateFrom, 'matchDateTo:', matchDateTo);
 
-                    const newScores: Record<string, {fitScore: number[]; grade: string; scoreColor: string; gradeColor: string; scoreResult: any}> = {};
+                    const newScores: Record<string, {fitScore: number[]; grade: string; scoreColor: string; gradeColor: string; scoreResult: ScoreResult}> = {};
                     if (candidatesData && candidatesData.length > 0) {
                       // Debug: check first candidate's resumeParsedInfo
                       const firstWithResume = candidatesData.find(c => c.resumeParsedInfo);

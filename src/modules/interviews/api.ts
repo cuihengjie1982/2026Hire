@@ -35,6 +35,10 @@ import {
   type DimensionAnalysis,
 } from './types';
 
+/** Escape hatch for supabase without generated Database types */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const db = (table: string) => supabase.from(table) as any;
+
 // ---------------------------------------------------------------------------
 // Response mappers: snake_case API → camelCase frontend types
 // ---------------------------------------------------------------------------
@@ -245,14 +249,14 @@ export const createInterviewTemplate = async (
     persistDetails();
     return newTemplate;
   }
-  const { data: insertData, error } = await (supabase.from('interview_templates').insert({
+  const { data: insertData, error } = await db('interview_templates').insert({
     name: input.name,
     position_id: input.positionId,
     duration_minutes: input.durationMinutes,
     status: input.status,
     scoring_config: input.scoringConfig ? JSON.stringify(input.scoringConfig) : undefined,
     grade_rules: input.gradeRules ? JSON.stringify(input.gradeRules) : undefined,
-  } as Record<string, unknown>).select().single() as unknown as { data: Record<string, unknown> | null; error: Error | null });
+  }).select().single() as unknown as { data: Record<string, unknown> | null; error: Error | null };
   if (error) throw new Error(error.message);
   if (!insertData) throw new Error('Failed to create template');
   return mapTemplateSummary(insertData as Record<string, unknown>);
@@ -286,12 +290,11 @@ export const updateInterviewTemplate = async (
   if (input.scoringConfig !== undefined) updateData.scoring_config = JSON.stringify(input.scoringConfig);
   if (input.gradeRules !== undefined) updateData.grade_rules = JSON.stringify(input.gradeRules);
 
-  const { data, error } = await supabase
-    .from('interview_templates')
-    .update(updateData as Record<string, unknown>)
+  const { data, error } = await db('interview_templates')
+    .update(updateData)
     .eq('id', templateId)
     .select()
-    .single() as { data: Record<string, unknown> | null; error: Error | null };
+    .single() as unknown as { data: Record<string, unknown> | null; error: Error | null };
   if (error) throw new Error(error.message);
   if (!data) throw new Error('Failed to update template');
   return mapTemplateSummary(data as Record<string, unknown>);
@@ -362,7 +365,7 @@ export const saveInterviewQuestions = async (
     linked_dimensions: q.linkedDimensions ? JSON.stringify(q.linkedDimensions) : undefined,
   }));
 
-  const { data, error } = await supabase.from('interview_questions').insert(questionsToInsert as Record<string, unknown>[]).select() as { data: Record<string, unknown>[] | null; error: Error | null };
+  const { data, error } = await db('interview_questions').insert(questionsToInsert).select() as unknown as { data: Record<string, unknown>[] | null; error: Error | null };
   if (error) throw new Error(error.message);
   return (data ?? []).map((row: Record<string, unknown>) => mapQuestion(row));
 };
@@ -401,7 +404,7 @@ export const addInterviewQuestion = async (
     persistDetails();
     return newQ;
   }
-  const { data, error } = await supabase.from('interview_questions').insert({
+  const { data, error } = await db('interview_questions').insert({
     template_id: templateId,
     title: question.title,
     prompt: question.prompt,
@@ -410,7 +413,7 @@ export const addInterviewQuestion = async (
     follow_ups: question.followUps ? JSON.stringify(question.followUps) : undefined,
     scoring_guide: question.scoringGuide ? JSON.stringify(question.scoringGuide) : undefined,
     linked_dimensions: question.linkedDimensions ? JSON.stringify(question.linkedDimensions) : undefined,
-  } as Record<string, unknown>).select().single() as { data: Record<string, unknown> | null; error: Error | null };
+  }).select().single() as unknown as { data: Record<string, unknown> | null; error: Error | null };
   if (error) throw new Error(error.message);
   if (!data) throw new Error('Failed to save question');
   return mapQuestion(data as Record<string, unknown>);
@@ -451,12 +454,11 @@ export const updateInterviewQuestion = async (
   if (input.scoringGuide !== undefined) updateData.scoring_guide = JSON.stringify(input.scoringGuide);
   if (input.linkedDimensions !== undefined) updateData.linked_dimensions = JSON.stringify(input.linkedDimensions);
 
-  const { data, error } = await supabase
-    .from('interview_questions')
-    .update(updateData as Record<string, unknown>)
+  const { data, error } = await db('interview_questions')
+    .update(updateData)
     .eq('id', questionId)
     .select()
-    .single() as { data: Record<string, unknown> | null; error: Error | null };
+    .single() as unknown as { data: Record<string, unknown> | null; error: Error | null };
   if (error) throw new Error(error.message);
   if (!data) throw new Error('Failed to update question');
   return mapQuestion(data as Record<string, unknown>);
@@ -528,11 +530,11 @@ export const createInterviewSession = async (
       status: 'created',
     };
   }
-  const { data, error } = await supabase.from('interview_sessions').insert({
+  const { data, error } = await db('interview_sessions').insert({
     candidate_id: candidateId,
     template_id: templateId,
     status: 'created',
-  } as Record<string, unknown>).select().single() as { data: Record<string, unknown> | null; error: Error | null };
+  }).select().single() as unknown as { data: Record<string, unknown> | null; error: Error | null };
   if (error) throw new Error(error.message);
   if (!data) throw new Error('Failed to create session');
   return {
@@ -553,12 +555,11 @@ export const updateSessionStatus = async (
     await new Promise(r => setTimeout(r, 120));
     return {id: sessionId, candidateId: '', templateId: '', status};
   }
-  const { data, error } = await supabase
-    .from('interview_sessions')
-    .update({ status: status } as Record<string, unknown>)
+  const { data, error } = await db('interview_sessions')
+    .update({ status })
     .eq('id', sessionId)
     .select()
-    .single() as { data: Record<string, unknown> | null; error: Error | null };
+    .single() as unknown as { data: Record<string, unknown> | null; error: Error | null };
   if (error || !data || !data.id) return null;
   return {
     id: data.id as string,
@@ -587,12 +588,11 @@ export const updateInterviewResultStatus = async (
     await new Promise(r => setTimeout(r, 120));
     return null;
   }
-  const { data, error } = await supabase
-    .from('interview_results')
-    .update({ status } as Record<string, unknown>)
+  const { data, error } = await db('interview_results')
+    .update({ status })
     .eq('id', resultId)
     .select()
-    .single() as { data: Record<string, unknown> | null; error: Error | null };
+    .single() as unknown as { data: Record<string, unknown> | null; error: Error | null };
   if (error) throw new Error(error.message);
   return mapInterviewResult(data as Record<string, unknown>);
 };
@@ -697,7 +697,7 @@ export const createInterviewResult = async (input: CreateInterviewResultInput): 
     mockResultsData.unshift(result);
     return result;
   }
-  const { data, error } = await supabase.from('interview_results').insert({
+  const { data, error } = await db('interview_results').insert({
     session_id: input.sessionId,
     candidate_id: input.candidateId,
     candidate_name: input.candidateName,
@@ -709,7 +709,7 @@ export const createInterviewResult = async (input: CreateInterviewResultInput): 
     grade_label: input.gradeLabel,
     dimensions: JSON.stringify(input.dimensions),
     duration: input.duration,
-  } as Record<string, unknown>).select().single() as { data: Record<string, unknown> | null; error: Error | null };
+  }).select().single() as unknown as { data: Record<string, unknown> | null; error: Error | null };
   if (error) throw new Error(error.message);
   if (!data) throw new Error('Failed to create result');
   return mapInterviewResult(data as Record<string, unknown>);

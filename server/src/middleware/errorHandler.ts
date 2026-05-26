@@ -1,7 +1,10 @@
 import type {Request, Response, NextFunction} from 'express';
 import {AppError} from '../shared/errors.js';
 
+const isProduction = process.env.NODE_ENV === 'production';
+
 export function errorHandler(err: Error, _req: Request, res: Response, _next: NextFunction) {
+  // 日志始终记录完整信息（供运维排查）
   console.error(`[ERROR] ${err.message}`, err.stack);
 
   if (err instanceof AppError) {
@@ -9,6 +12,7 @@ export function errorHandler(err: Error, _req: Request, res: Response, _next: Ne
       error: {
         code: err.code || 'ERROR',
         message: err.message,
+        ...(isProduction ? {} : {stack: err.stack}),
       },
     });
     return;
@@ -27,5 +31,12 @@ export function errorHandler(err: Error, _req: Request, res: Response, _next: Ne
     }
   }
 
-  res.status(500).json({error: {code: 'INTERNAL_ERROR', message: 'Internal server error'}});
+  // 未知错误：生产环境只返回通用信息，开发环境附带 stack
+  res.status(500).json({
+    error: {
+      code: 'INTERNAL_ERROR',
+      message: 'Internal server error',
+      ...(isProduction ? {} : {stack: err.stack, detail: err.message}),
+    },
+  });
 }

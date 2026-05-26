@@ -172,8 +172,7 @@ export async function runScreener(agent: Record<string, unknown>): Promise<RunRe
     return {processed: 0, approved: 0, rejected: 0, pending: 0, summary: '没有需要评分的候选人', duration: Date.now() - start};
   }
 
-  const systemPrompt = buildSystemPrompt(position.aiPrompt, position.scoringRules as Array<{dimension: string; weight: number; keywords: string[]; matchMode?: string}>);
-
+  const systemPrompt = buildSystemPrompt(position.aiPrompt, position.scoringRules as Array<{dimension: string; weight: number; keywords: string[]; matchMode?: 'all' | 'any'}>);
   let approved = 0;
   let rejected = 0;
   let pending = 0;
@@ -242,7 +241,7 @@ export async function runMatcher(agent: Record<string, unknown>): Promise<RunRes
     return {processed: 0, approved: 0, rejected: 0, pending: 0, summary: '有效简历不足 2 份', duration: Date.now() - start};
   }
 
-  const systemPrompt = buildRankingSystemPrompt(position.aiPrompt, position.scoringRules as Array<{dimension: string; weight: number; keywords: string[]; matchMode?: string}>);
+  const systemPrompt = buildRankingSystemPrompt(position.aiPrompt, position.scoringRules as Array<{dimension: string; weight: number; keywords: string[]; matchMode?: 'all' | 'any'}>);
   const userMsg = buildRankingUserMessage(indexed, position.name);
   const raw = await callLLM(aiConfig, systemPrompt, userMsg);
   const result = parseJSON(raw);

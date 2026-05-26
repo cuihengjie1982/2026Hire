@@ -3,10 +3,19 @@ import {env} from '../config/env.js';
 
 /**
  * CSRF protection for token-based APIs.
- * Since we use Bearer tokens (not cookies) for auth, CSRF risk is minimal.
- * This middleware adds a defense-in-depth layer by:
- * 1. Requiring a custom X-Requested-With header on mutating requests
- * 2. Checking Origin/Referer headers match the server or are in CORS whitelist
+ *
+ * 安全设计说明：
+ * 当前系统仅使用 Bearer Token 认证（不使用 Cookie），因此 CSRF 攻击向量本身不存在。
+ * Bearer Token 只能通过 JavaScript 代码添加到请求头，浏览器的自动 Cookie 机制不会携带它。
+ *
+ * 对 Bearer Token 请求跳过 CSRF 检查是安全的设计决策。
+ *
+ * ⚠️ 注意：如果未来引入 Cookie-based 认证（如 SSR、Session），
+ * 必须移除此 Bearer 绕过逻辑，改为对所有 mutating 请求强制 CSRF 验证。
+ *
+ * 对非 Bearer 请求的防护：
+ * 1. 要求自定义 X-Requested-With 头
+ * 2. 校验 Origin/Referer 是否匹配 CORS 白名单
  */
 
 // Parse allowed origins once at startup

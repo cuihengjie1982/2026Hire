@@ -6,13 +6,19 @@ const router = Router();
 
 const VALID_STATUSES = new Set(['pending', 'contacted', 'responded', 'failed']);
 
-// GET / — list all communication records
-router.get('/', async (_req, res, next) => {
+// GET / — list all communication records with pagination
+router.get('/', async (req, res, next) => {
   try {
-    const rows = await query(
-      `SELECT * FROM outreach_records ORDER BY created_at DESC`,
-    );
-    res.json(rows);
+    const {page = '1', pageSize = '50'} = req.query as Record<string, string>;
+    const limit = Math.min(parseInt(pageSize, 10) || 50, 200);
+    const offset = (parseInt(page, 10) - 1) * limit;
+
+    const [rows, countResult] = await Promise.all([
+      query(`SELECT * FROM outreach_records ORDER BY created_at DESC LIMIT $1 OFFSET $2`, [limit, offset]),
+      queryOne(`SELECT COUNT(*)::int AS total FROM outreach_records`),
+    ]);
+
+    res.json({items: rows, total: countResult?.total ?? 0, page: parseInt(page, 10), pageSize: limit});
   } catch (e) { next(e); }
 });
 

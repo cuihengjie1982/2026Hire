@@ -1,6 +1,6 @@
 import {Router} from 'express';
 import {queryOne, query} from '../../config/database.js';
-import {callLLM} from './llmClient.js';
+import {callLLM, callVisionLLM, type ContentPart} from './llmClient.js';
 import {AppError} from '../../shared/errors.js';
 import {buildSystemPrompt, buildUserMessage, buildRankingSystemPrompt, buildRankingUserMessage} from './promptBuilder.js';
 
@@ -250,5 +250,89 @@ function parseJSONResponse(raw: string): Record<string, unknown> {
     };
   }
 }
+
+// POST /vision-parse — Vision AI 简历图片解析（代理前端 Vision 调用，API Key 不暴露到浏览器）
+router.post('/vision-parse', async (req, res, next) => {
+  try {
+    const {imageBase64, mimeType, prompt} = req.body;
+
+    if (!imageBase64) {
+      res.status(400).json({error: 'imageBase64 is required'});
+      return;
+    }
+
+    // 查找支持 Vision 的模型配置（GLM-4V / MiniMax-VL / Gemini）
+    let row = await queryOne(
+      `SELECT * FROM ai_model_configs
+       WHERE is_active = true
+         AND (model_name ILIKE '%4v%' OR model_name ILIKE '%vl%' OR model_name ILIKE '%vision%' OR provider IN ('gemini', 'zhipu', 'minimax'))
+       ORDER BY is_default DESC, created_at DESC
+       LIMIT 1`,
+    );
+    if (!row) {
+      row = await queryOne(
+        `SELECT * FROM ai_model_configs WHERE is_active = true ORDER BY created_at DESC LIMIT 1`,
+      );
+    }
+    if (!row) {
+      res.status(400).json({error: 'No active AI model configured for vision parsing.'});
+      return;
+    }
+
+    const config = {
+      id: row.id as string,
+      provider: row.provider as string,
+      model_name: row.model_name as string,
+      api_key: row.api_key as string,
+      base_url: row.base_url as string | null,
+      temperature: 0.1,
+      max_tokens: 4096,
+    };
+
+    const visionPrompt = prompt || `你是一个简历信息提取助手。请从这张简历图片中提取结构化信息，以 JSON 格式返回。
+
+必须返回以下字段（如果简历中没有则留空字符串""）：
+- name: 姓名（2-4个中文字符）
+- gender: 性别（"男"或"女"）
+- ageOrBirth: 年龄或出生年月
+- phone: 手机号
+- email: 邮箱
+- location: 所在城市
+- highestEducation: 最高学历
+- school: 学校名称
+- major: 专业
+- educationTime: 教育时间段
+- expectedSalary: 期望薪酬
+- currentlyEmployed: 在职状态
+- availability: 到岗时间
+- photoBase64: 留空字符串
+- skills: 技能关键词数组，最多8个
+- workExperience: 工作经历数组，每项包含 {company, role, period, desc}
+- honors: 荣誉证书数组
+
+只返回纯 JSON，不要任何其他文字。`;
+
+    const contentParts: ContentPart[] = [
+      {type: 'text', text: visionPrompt},
+      {type: 'image', image: {media_type: mimeType || 'image/jpeg', data: imageBase64}},
+    ];
+
+    let rawResponse: string;
+    try {
+      rawResponse = await callVisionLLM(config, '', contentParts);
+    } catch (llmErr) {
+      throw new AppError(502,
+        `Vision AI call failed (${config.provider}/${config.model_name}): ${(llmErr as Error).message}`,
+        'AI_MODEL_ERROR');
+    }
+    const parsed = parseJSONResponse(rawResponse);
+
+    res.json({
+      modelUsed: config.model_name,
+      provider: config.provider,
+      ...parsed,
+    });
+  } catch (e) { next(e); }
+});
 
 export default router;

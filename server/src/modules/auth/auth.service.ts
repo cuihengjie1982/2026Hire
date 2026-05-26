@@ -39,9 +39,9 @@ export async function login(input: LoginInput): Promise<LoginResponse> {
 export async function refreshToken(refreshTokenStr: string) {
   if (!refreshTokenStr) throw new UnauthorizedError('Refresh token required');
 
-  let decoded: any;
+  let decoded: JwtPayload & { type: string; exp?: number };
   try {
-    decoded = jwt.verify(refreshTokenStr, env.JWT_SECRET);
+    decoded = jwt.verify(refreshTokenStr, env.JWT_SECRET) as typeof decoded;
   } catch {
     throw new UnauthorizedError('Invalid or expired refresh token');
   }

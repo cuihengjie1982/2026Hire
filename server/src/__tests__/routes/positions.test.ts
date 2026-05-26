@@ -33,13 +33,15 @@ describe('Positions routes', () => {
         {id: '1', code: 'ENG-001', name: 'Engineer', category: 'tech', projectName: 'Project A'},
       ];
       mockedQuery.mockResolvedValue(fakePositions as any);
+      mockedQueryOne.mockResolvedValue({total: 1} as any);
 
       const res = await request(createApp()).get('/positions/');
       expect(res.status).toBe(200);
-      expect(res.body).toEqual(fakePositions);
+      expect(res.body.items).toEqual(fakePositions);
+      expect(res.body.total).toBe(1);
       expect(mockedQuery).toHaveBeenCalledWith(
         expect.stringContaining('FROM positions p'),
-        [],
+        [50, 0],
       );
     });
   });

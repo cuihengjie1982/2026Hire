@@ -1,6 +1,7 @@
 import {Router} from 'express';
 import {query, queryOne} from '../../config/database.js';
 import {validateUuidParams} from '../../middleware/validateParams.js';
+import {upsertCandidate} from './candidates.service.js';
 
 const router = Router();
 
@@ -239,73 +240,12 @@ router.post('/import', async (req, res, next) => {
       return;
     }
 
-    // Check for duplicate: match by email first, then by name+phone
-    let existing: Record<string, unknown> | null = null;
-    if (email) {
-      existing = await queryOne(
-        `SELECT * FROM candidates WHERE email = $1 LIMIT 1`,
-        [email],
-      );
-    }
-    if (!existing && phone) {
-      existing = await queryOne(
-        `SELECT * FROM candidates WHERE name = $1 AND phone = $2 LIMIT 1`,
-        [name, phone],
-      );
-    }
+    const {row, duplicate, replaced} = await upsertCandidate({
+      name, email, phone, location, source, projectId, positionId,
+      parsed_info, grade, score_total, original_file_base64, original_file_name,
+    });
 
-    if (existing) {
-      // Duplicate found — update the existing record with latest data
-      const updated = await queryOne(
-        `UPDATE candidates
-         SET name = $1, email = $2, phone = $3, location = $4, source = $5,
-             project_id = $6, position_id = $7, parsed_info = $8,
-             grade = $9, score_total = $10,
-             original_file_base64 = COALESCE($11, original_file_base64),
-             original_file_name = COALESCE($12, original_file_name)
-         WHERE id = $13
-         RETURNING *`,
-        [
-          name,
-          email ?? null,
-          phone ?? null,
-          location ?? null,
-          source ?? null,
-          projectId ?? null,
-          positionId ?? null,
-          parsed_info ? JSON.stringify(parsed_info) : null,
-          grade ?? null,
-          score_total ?? null,
-          original_file_base64 ?? null,
-          original_file_name ?? null,
-          existing.id,
-        ],
-      );
-      res.status(200).json({...updated, duplicate: true, replaced: true});
-      return;
-    }
-
-    // No duplicate — insert new
-    const row = await queryOne(
-      `INSERT INTO candidates (name, email, phone, location, source, project_id, position_id, parsed_info, grade, score_total, original_file_base64, original_file_name)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-       RETURNING *`,
-      [
-        name,
-        email ?? null,
-        phone ?? null,
-        location ?? null,
-        source ?? null,
-        projectId ?? null,
-        positionId ?? null,
-        parsed_info ? JSON.stringify(parsed_info) : null,
-        grade ?? null,
-        score_total ?? null,
-        original_file_base64 ?? null,
-        original_file_name ?? null,
-      ],
-    );
-    res.status(201).json({...row, duplicate: false});
+    res.status(duplicate ? 200 : 201).json({...row, duplicate, replaced});
   } catch (e) { next(e); }
 });
 

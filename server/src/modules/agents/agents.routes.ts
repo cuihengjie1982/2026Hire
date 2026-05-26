@@ -4,20 +4,32 @@ import {runParser, runScreener, runMatcher} from './agentExecutor.js';
 
 const router = Router();
 
-// GET / — list agents, optional projectId filter
+// GET / — list agents, optional projectId filter, with pagination
 router.get('/', async (req, res, next) => {
   try {
-    const {projectId} = req.query;
-    let sql = `SELECT * FROM agents ORDER BY created_at DESC`;
+    const {projectId, page = '1', pageSize = '50'} = req.query as Record<string, string>;
+    const limit = Math.min(parseInt(pageSize, 10) || 50, 200);
+    const offset = (parseInt(page, 10) - 1) * limit;
+
+    const conditions: string[] = [];
     const params: unknown[] = [];
 
     if (projectId) {
-      sql = `SELECT * FROM agents WHERE project_id = $1 ORDER BY created_at DESC`;
+      conditions.push(`project_id = $${params.length + 1}`);
       params.push(projectId);
     }
 
-    const rows = await query(sql, params);
-    res.json(rows);
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+    const [rows, countResult] = await Promise.all([
+      query(
+        `SELECT * FROM agents ${whereClause} ORDER BY created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+        [...params, limit, offset],
+      ),
+      queryOne(`SELECT COUNT(*)::int AS total FROM agents ${whereClause}`, params),
+    ]);
+
+    res.json({items: rows, total: countResult?.total ?? 0, page: parseInt(page, 10), pageSize: limit});
   } catch (e) { next(e); }
 });
 

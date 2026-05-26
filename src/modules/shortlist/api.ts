@@ -1,21 +1,5 @@
 import {fetchJson, mockDelay} from '../../shared/lib/apiClient';
-import {supabase} from '../../shared/lib/supabase';
-import {USE_MOCK_API, API_BASE_URL, getAuthToken} from '../../shared/lib/runtime';
-
-const efetch = async <T>(path: string, method = 'GET', body?: Record<string, unknown>): Promise<T> => {
-  const base = USE_MOCK_API ? '' : API_BASE_URL;
-  const res = await fetch(`${base}/functions/v1/embox-api${path}`, {
-    method,
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${getAuthToken() ?? ''}`,
-    },
-    ...(body ? { body: JSON.stringify(body) } : {}),
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data?.error?.message || `API error ${res.status}`);
-  return data as T;
-};
+import {USE_MOCK_API} from '../../shared/lib/runtime';
 import {shortlistFixture} from './fixtures';
 import {type CreateShortlistEntryInput, type ShortlistEntry} from './types';
 
@@ -38,34 +22,29 @@ const mapShortlistEntry = (raw: Record<string, unknown>): ShortlistEntry => ({
 
 export const listShortlist = async (projectId?: string): Promise<ShortlistEntry[]> => {
   if (USE_MOCK_API) {
-    await new Promise(r => setTimeout(r, 120));
+    await mockDelay();
     const base = projectId ? shortlistData.filter(entry => entry.projectId === projectId) : shortlistData;
-    return Array.from(new Map(base.map(e => [e.id, e])).values()) as ShortlistEntry[];
+    return Array.from(new Map(base.map(e => [e.id, e])).values());
   }
 
-  let query = supabase.from('shortlist_entries').select('*');
-  if (projectId) {
-    query = query.eq('project_id', projectId);
-  }
-  const {data, error} = await query;
-  if (error) throw new Error(error.message);
-  return Array.from(new Map((data ?? []).map(r => [r.id as string, r])).values()).map(mapShortlistEntry);
+  const query = projectId ? `?projectId=${encodeURIComponent(projectId)}` : '';
+  const rows = await fetchJson<Record<string, unknown>[]>(`/api/shortlist${query}`);
+  return rows.map(mapShortlistEntry);
 };
 
 export const listShortlistByPosition = async (positionId: string): Promise<ShortlistEntry[]> => {
   if (USE_MOCK_API) {
-    await new Promise(r => setTimeout(r, 120));
+    await mockDelay();
     return Array.from(new Map(shortlistData.filter(entry => entry.positionId === positionId).map(e => [e.id, e])).values());
   }
 
-  const {data, error} = await supabase.from('shortlist_entries').select('*').eq('position_id', positionId);
-  if (error) throw new Error(error.message);
-  return Array.from(new Map((data ?? []).map(r => [r.id as string, r])).values()).map(mapShortlistEntry);
+  const rows = await fetchJson<Record<string, unknown>[]>(`/api/shortlist?positionId=${encodeURIComponent(positionId)}`);
+  return rows.map(mapShortlistEntry);
 };
 
 export const addToShortlist = async (input: CreateShortlistEntryInput): Promise<ShortlistEntry> => {
   if (USE_MOCK_API) {
-    await new Promise(r => setTimeout(r, 120));
+    await mockDelay();
     const newEntry: ShortlistEntry = {
       ...input,
       id: Date.now().toString(),
@@ -76,20 +55,11 @@ export const addToShortlist = async (input: CreateShortlistEntryInput): Promise<
     return newEntry;
   }
 
-  const {data, error} = await (supabase.from('shortlist_entries' as any).insert({
-    candidate_id: input.candidateId,
-    candidate_name: input.candidateName,
-    role: input.role,
-    position_id: input.positionId || null,
-    position_name: input.positionName || null,
-    project_id: input.projectId || null,
-    project_name: input.projectName || null,
-    fit_score: input.fitScore ?? 0,
-    grade: input.grade || null,
-  } as any) as any).select().single() as { data: Record<string, unknown> | null; error: Error | null };
-  if (error) throw new Error(error.message);
-  if (!data) throw new Error('Failed to add to shortlist');
-  return mapShortlistEntry(data as Record<string, unknown>);
+  const row = await fetchJson<Record<string, unknown>>('/api/shortlist', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+  return mapShortlistEntry(row);
 };
 
 export const promoteShortlistEntry = async (
@@ -97,7 +67,7 @@ export const promoteShortlistEntry = async (
   nextStep: string,
 ): Promise<ShortlistEntry> => {
   if (USE_MOCK_API) {
-    await new Promise(r => setTimeout(r, 120));
+    await mockDelay();
     const index = shortlistData.findIndex((entry) => entry.id === id);
     if (index === -1) throw new Error('Shortlist entry not found');
     shortlistData[index] = {...shortlistData[index], nextStep};
@@ -105,11 +75,11 @@ export const promoteShortlistEntry = async (
     return shortlistData[index];
   }
 
-  const data = await efetch<Record<string, unknown>>('/cross-table-ops/shortlist-promote', 'POST', {
-    shortlistEntryId: id,
-    nextStep,
+  const row = await fetchJson<Record<string, unknown>>(`/api/shortlist/${id}/promote`, {
+    method: 'POST',
+    body: JSON.stringify({nextStep}),
   });
-  return mapShortlistEntry(data);
+  return mapShortlistEntry(row);
 };
 
 export const sendShortlistInterviewInvite = async (
@@ -122,7 +92,7 @@ export const sendShortlistInterviewInvite = async (
   },
 ): Promise<ShortlistEntry> => {
   if (USE_MOCK_API) {
-    await new Promise(r => setTimeout(r, 120));
+    await mockDelay();
     const index = shortlistData.findIndex((entry) => entry.id === id);
     if (index === -1) throw new Error('Shortlist entry not found');
     shortlistData[index] = {...shortlistData[index], nextStep: '已发面试邀请'};
@@ -130,9 +100,96 @@ export const sendShortlistInterviewInvite = async (
     return shortlistData[index];
   }
 
-  const data = await efetch<Record<string, unknown>>('/cross-table-ops/shortlist-interview-invite', 'POST', {
-    shortlistEntryId: id,
-    ...payload,
+  const row = await fetchJson<Record<string, unknown>>(`/api/shortlist/${id}/interview-invite`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
   });
-  return mapShortlistEntry(data);
+  return mapShortlistEntry(row);
+};
+
+// Batch operations
+
+export const batchAddToShortlist = async (
+  entries: CreateShortlistEntryInput[],
+): Promise<{added: number; entries: ShortlistEntry[]}> => {
+  if (USE_MOCK_API) {
+    await mockDelay();
+    const results: ShortlistEntry[] = [];
+    for (const input of entries) {
+      const newEntry: ShortlistEntry = {
+        ...input,
+        id: Date.now().toString() + Math.random().toString(36).slice(2),
+        nextStep: '待处理',
+      };
+      shortlistData.push(newEntry);
+      results.push(newEntry);
+    }
+    saveShortlist();
+    return {added: results.length, entries: results};
+  }
+
+  const result = await fetchJson<{added: number; entries: Record<string, unknown>[]}>('/api/shortlist/batch', {
+    method: 'POST',
+    body: JSON.stringify({entries}),
+  });
+  return {added: result.added, entries: result.entries.map(mapShortlistEntry)};
+};
+
+export const batchRemoveFromShortlist = async (
+  ids: string[],
+): Promise<{removed: number; ids: string[]}> => {
+  if (USE_MOCK_API) {
+    await mockDelay();
+    shortlistData = shortlistData.filter(entry => !ids.includes(entry.id));
+    saveShortlist();
+    return {removed: ids.length, ids};
+  }
+
+  return fetchJson<{removed: number; ids: string[]}>('/api/shortlist/batch', {
+    method: 'DELETE',
+    body: JSON.stringify({ids}),
+  });
+};
+
+export const batchUpdateShortlistStatus = async (
+  ids: string[],
+  nextStep: string,
+): Promise<{updated: number; entries: ShortlistEntry[]}> => {
+  if (USE_MOCK_API) {
+    await mockDelay();
+    let count = 0;
+    const updated: ShortlistEntry[] = [];
+    for (const entry of shortlistData) {
+      if (ids.includes(entry.id)) {
+        entry.nextStep = nextStep;
+        count++;
+        updated.push(entry);
+      }
+    }
+    saveShortlist();
+    return {updated: count, entries: updated};
+  }
+
+  const result = await fetchJson<{updated: number; entries: Record<string, unknown>[]}>('/api/shortlist/batch/status', {
+    method: 'PATCH',
+    body: JSON.stringify({ids, nextStep}),
+  });
+  return {updated: result.updated, entries: result.entries.map(mapShortlistEntry)};
+};
+
+export const getShortlistHistory = async (
+  id: string,
+): Promise<{id: string; candidate_name: string; next_step: string; status_log: {status: string; at: string}[]}> => {
+  if (USE_MOCK_API) {
+    await mockDelay();
+    const entry = shortlistData.find(e => e.id === id);
+    return {
+      id,
+      candidate_name: entry?.candidateName ?? '',
+      next_step: entry?.nextStep ?? '',
+      status_log: [],
+    };
+  }
+
+  return fetchJson(`/api/shortlist/${id}/history`);
 };

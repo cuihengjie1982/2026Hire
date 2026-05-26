@@ -309,17 +309,17 @@ const aiParseResume = async (resumeText: string, fallback: ParsedResumeInfo): Pr
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
       const token = getAuthToken() || '';
-      if (!token) {
-        console.log('[AI Parse] No auth token, using regex fallback');
-        return fallback;
-      }
-      const resp = await fetch(`${API_BASE_URL}/functions/v1/embox-api/ai-proxy`, {
+      // 调用后端 /api/ai/parse-resume（本地 Express）或 /functions/v1/embox-api/ai-proxy（Supabase Edge Function）
+      // 优先使用后端路由，因为它在本地和生产环境都可用
+      const base = USE_MOCK_API ? '' : API_BASE_URL;
+      const aiUrl = `${base}/api/ai/parse-resume`;
+      const resp = await fetch(aiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
+          ...(token ? {'Authorization': `Bearer ${token}`} : {}),
         },
-        body: JSON.stringify({action: 'parse-resume', resumeText}),
+        body: JSON.stringify({resumeText}),
       });
       if (!resp.ok && resp.status !== 408) {
         console.log(`[AI Parse] HTTP ${resp.status}, using regex fallback`);
@@ -424,6 +424,40 @@ export const importResumes = async (
           }
           // Try AI parsing for better accuracy
           parsedInfo = await aiParseResume(result.content_md, parsedInfo);
+
+          // Vision LLM fallback: if regex + AI text parse gave poor results, try Vision
+          const needsVision = !parsedInfo.name || (!parsedInfo.phone && !parsedInfo.email) ||
+            result.content_md.trim().length < 100;
+          if (needsVision) {
+            console.log(`[Import] Text parse gave poor result, trying Vision LLM for: ${file.name}`);
+            try {
+              const visionInfo = await parseResumeWithVision(file);
+              // Merge: prefer Vision LLM results, keep regex fallback for missing fields
+              parsedInfo = {
+                name: visionInfo.name || parsedInfo.name,
+                gender: visionInfo.gender || parsedInfo.gender,
+                ageOrBirth: visionInfo.ageOrBirth || parsedInfo.ageOrBirth,
+                phone: visionInfo.phone || parsedInfo.phone,
+                email: visionInfo.email || parsedInfo.email,
+                location: visionInfo.location || parsedInfo.location,
+                education: parsedInfo.education,
+                highestEducation: visionInfo.highestEducation || parsedInfo.highestEducation,
+                school: visionInfo.school || parsedInfo.school,
+                major: visionInfo.major || parsedInfo.major,
+                workExperience: (visionInfo.workExperience.length > 0 ? visionInfo.workExperience : parsedInfo.workExperience),
+                skills: (visionInfo.skills.length > 0 ? visionInfo.skills : parsedInfo.skills),
+                honors: (visionInfo.honors.length > 0 ? visionInfo.honors : parsedInfo.honors),
+                expectedSalary: visionInfo.expectedSalary || parsedInfo.expectedSalary,
+                currentlyEmployed: visionInfo.currentlyEmployed || parsedInfo.currentlyEmployed,
+                availability: visionInfo.availability || parsedInfo.availability,
+                photoBase64: visionInfo.photoBase64 || parsedInfo.photoBase64,
+                rawText: parsedInfo.rawText,
+              };
+            } catch (visionErr) {
+              console.warn('[Import] Vision LLM fallback failed:', visionErr);
+            }
+          }
+
           console.log('[Import] Final parsedInfo:', JSON.stringify(parsedInfo, null, 2));
           const candidateName = parsedInfo.name || file.name.replace(/\.(pdf|docx?|doc|png|jpe?g)$/i, '');
 

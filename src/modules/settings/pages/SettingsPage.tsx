@@ -207,9 +207,9 @@ export const SettingsPage = () => {
       setShowAddUserForm(false);
       setShowAddPassword(false);
       alert(`账号 ${newUser.name} 添加成功`);
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error('Failed to add user:', e);
-      alert(e?.message || '添加失败');
+      alert(e instanceof Error ? e.message : '添加失败');
     }
   };
 

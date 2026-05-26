@@ -3,6 +3,36 @@ import {getItemsFromPayload, getValueFromPayload} from '../../shared/lib/apiClie
 import {USE_MOCK_API, getUserName} from '../../shared/lib/runtime';
 import {type CreatePositionInput, type PositionDetail, type PositionSummary, type UpdatePositionInput, type ScoringRule, type GradeRule, type BaseScoreConfig, type ProfileRule} from './types';
 
+/** Result shape for supabase single-row queries (no Database types generated) */
+type DbResult<T> = { data: T | null; error: Error | null };
+
+/**
+ * Escape hatch for supabase table operations.
+ *
+ * The supabase client was initialized without generated Database types, so
+ * `.from()` infers all tables as `never`. This cast is necessary until
+ * `supabase gen types` is run against the database schema.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const db = (table: string) => supabase.from(table) as any;
+
+/** Raw shape of profile rules from API/database before normalization */
+interface RawProfileRule {
+  keyword?: string;
+  name?: string;
+  synonyms?: unknown;
+  category?: string;
+}
+
+/** Raw shape of scoring rules from API/database before normalization */
+interface RawScoringRule {
+  dimension?: string;
+  weight?: number;
+  keywords?: string[];
+  matchMode?: string;
+  criteria?: string;
+}
+
 let positionsData: PositionSummary[] = (() => { try { const r = localStorage.getItem('em-box.mock.positions'); return r ? JSON.parse(r) : []; } catch { return []; } })();
 
 // In-memory store for position details (mock mode)
@@ -93,29 +123,29 @@ export const getPositionDetail = async (_positionId: string): Promise<PositionDe
     const raw = positionData as Record<string, unknown>;
 
     // Handle profileRules - check snake_case, camelCase, and legacy 'profile' format
-    let rawProfileRules: any[] = [];
+    let rawProfileRules: RawProfileRule[] = [];
     if (Array.isArray(raw.profile_rules)) {
       console.log('[DEBUG] getPositionDetail - using profile_rules from response');
       rawProfileRules = raw.profile_rules;
-    } else if (Array.isArray((raw as any).profileRules)) {
-      rawProfileRules = (raw as any).profileRules;
+    } else if (Array.isArray((raw as Record<string, unknown>).profileRules)) {
+      rawProfileRules = (raw as Record<string, unknown>).profileRules as RawProfileRule[];
     } else if (raw.profile && typeof raw.profile === 'object') {
       // Legacy format: profile has mustHave, niceToHave, bonus arrays
       console.log('[DEBUG] getPositionDetail - using legacy profile from response');
-      const legacyProfile = raw.profile as any;
+      const legacyProfile = raw.profile as Record<string, unknown>;
       const allItems = [
         ...(Array.isArray(legacyProfile.mustHave) ? legacyProfile.mustHave : []),
         ...(Array.isArray(legacyProfile.niceToHave) ? legacyProfile.niceToHave : []),
         ...(Array.isArray(legacyProfile.bonus) ? legacyProfile.bonus : []),
       ];
-      rawProfileRules = allItems.map((item: any) => {
+      rawProfileRules = allItems.map((item: string | RawProfileRule) => {
         if (typeof item === 'string') {
           return {keyword: item, synonyms: [], category: ''};
         }
         return {keyword: item.keyword || '', synonyms: Array.isArray(item.synonyms) ? item.synonyms : [], category: item.category || ''};
       });
     }
-    const profileRules: ProfileRule[] = rawProfileRules.map((rule: any) => ({
+    const profileRules: ProfileRule[] = rawProfileRules.map((rule: RawProfileRule) => ({
       keyword: rule.keyword || '',
       synonyms: Array.isArray(rule.synonyms) ? rule.synonyms : [],
       category: rule.category || '',
@@ -123,13 +153,13 @@ export const getPositionDetail = async (_positionId: string): Promise<PositionDe
 
     // Handle scoringRules - check if new structured format or legacy criteria text format
     const rawScoringRules = Array.isArray(raw.scoring_rules) ? raw.scoring_rules : [];
-    const scoringRules: ScoringRule[] = rawScoringRules.map((rule: any) => {
+    const scoringRules: ScoringRule[] = rawScoringRules.map((rule: RawScoringRule) => {
       if (rule.keywords && Array.isArray(rule.keywords)) {
         return {
           dimension: rule.dimension || '',
           weight: rule.weight || 0,
           keywords: rule.keywords,
-          matchMode: rule.matchMode || 'any',
+          matchMode: (rule.matchMode === 'all' ? 'all' : 'any') as ScoringRule['matchMode'],
         };
       }
       // Legacy format - convert criteria text to keywords array
@@ -143,36 +173,36 @@ export const getPositionDetail = async (_positionId: string): Promise<PositionDe
     });
 
     // Handle baseScoreConfig — only baseScore (profile weight) is needed
-    const rawBaseScoreConfig = raw.base_score_config || (raw as any).baseScoreConfig;
+    const rawBaseScoreConfig = raw.base_score_config || (raw as Record<string, unknown>).baseScoreConfig;
     const baseScoreConfig = rawBaseScoreConfig ? {
-      baseScore: (rawBaseScoreConfig as any).baseScore || (rawBaseScoreConfig as any).base_score || 50,
+      baseScore: (rawBaseScoreConfig as Record<string, unknown>).baseScore || (rawBaseScoreConfig as Record<string, unknown>).base_score || 50,
     } : null;
 
     // Merge detailData fields properly — detailData holds position_details table data
     const detail = detailData as Record<string, unknown> | null;
 
     // Extract raw fields from detailData (position_details table) with fallback to positionData fields
-    const rawDetailProfileRules: unknown[] = detail?.profile_rules ?? raw.profile_rules ?? (raw as any).profileRules ?? [];
-    const rawDetailScoringRules: unknown[] = detail?.scoring_rules ?? raw.scoring_rules ?? (raw as any).scoringRules ?? [];
-    const detailGradeRules = detail?.grade_rules ?? raw.grade_rules ?? (raw as any).gradeRules ?? [];
-    const detailBaseScoreConfig = detail?.base_score_config ?? (raw as any).baseScoreConfig ?? null;
-    const detailAiPrompt = detail?.ai_prompt ?? raw.ai_prompt ?? (raw as any).aiPrompt ?? '';
+    const rawDetailProfileRules = (detail?.profile_rules ?? raw.profile_rules ?? (raw as Record<string, unknown>).profileRules ?? []) as RawProfileRule[];
+    const rawDetailScoringRules = (detail?.scoring_rules ?? raw.scoring_rules ?? (raw as Record<string, unknown>).scoringRules ?? []) as RawScoringRule[];
+    const detailGradeRules: GradeRule[] = (detail?.grade_rules ?? raw.grade_rules ?? (raw as Record<string, unknown>).gradeRules ?? []) as GradeRule[];
+    const detailBaseScoreConfig: BaseScoreConfig | null = (detail?.base_score_config ?? (raw as Record<string, unknown>).baseScoreConfig ?? null) as BaseScoreConfig | null;
+    const detailAiPrompt: string = (detail?.ai_prompt ?? raw.ai_prompt ?? (raw as Record<string, unknown>).aiPrompt ?? '') as string;
 
     // Normalize profileRules — ensure synonyms is always an array
-    const normalizedProfileRules: ProfileRule[] = rawDetailProfileRules.map((rule: any) => ({
+    const normalizedProfileRules: ProfileRule[] = (rawDetailProfileRules as RawProfileRule[]).map((rule: RawProfileRule) => ({
       keyword: rule.keyword || rule.name || '',
       synonyms: Array.isArray(rule.synonyms) ? rule.synonyms : [],
       category: rule.category || '',
     }));
 
     // Normalize scoringRules — ensure keywords is always an array
-    const normalizedScoringRules: ScoringRule[] = rawDetailScoringRules.map((rule: any) => {
+    const normalizedScoringRules: ScoringRule[] = rawDetailScoringRules.map((rule: RawScoringRule) => {
       if (rule.keywords && Array.isArray(rule.keywords)) {
         return {
           dimension: rule.dimension || '',
           weight: rule.weight || 0,
           keywords: rule.keywords,
-          matchMode: rule.matchMode || 'any',
+          matchMode: (rule.matchMode === 'all' ? 'all' : 'any') as ScoringRule['matchMode'],
         };
       }
       const criteriaText = rule.criteria || '';
@@ -230,8 +260,7 @@ export const savePositionDetail = async (
   }
 
   // Upsert position_details table
-  const {error} = await supabase
-    .from('position_details' as any)
+  const upsertResult = await db('position_details')
     .upsert({
       position_id: positionId,
       profile_rules: detail.profileRules,
@@ -239,9 +268,9 @@ export const savePositionDetail = async (
       grade_rules: detail.gradeRules,
       base_score_config: detail.baseScoreConfig,
       ai_prompt: detail.aiPrompt || '',
-    } as any, {onConflict: 'position_id'});
+    }, {onConflict: 'position_id'}) as unknown as DbResult<null>;
 
-  if (error) throw new Error(error.message);
+  if (upsertResult.error) throw new Error(upsertResult.error.message);
 
   // Return updated detail
   return getPositionDetail(positionId);
@@ -289,12 +318,15 @@ export const createPosition = async (input: CreatePositionInput): Promise<Positi
     delivery_days: input.deliveryDays ?? 0,
   };
 
-  const {data, error} = await (supabase.from('positions' as any).insert(insertData as any) as any).select().single() as { data: Record<string, unknown> | null; error: Error | null };
+  const insertResult = await db('positions')
+    .insert(insertData)
+    .select()
+    .single() as unknown as DbResult<Record<string, unknown>>;
 
-  if (error) throw new Error(error.message);
-  if (!data) throw new Error('Failed to create position');
-  const summary = mapPositionSummary(data as Record<string, unknown>);
-  supabase.from('position_details').insert({ position_id: (data as Record<string, unknown>).id } as any).then(() => {});
+  if (insertResult.error) throw new Error(insertResult.error.message);
+  if (!insertResult.data) throw new Error('Failed to create position');
+  const summary = mapPositionSummary(insertResult.data);
+  db('position_details').insert({ position_id: insertResult.data.id }).then(() => {}, () => {});
   return summary;
 };
 
@@ -322,13 +354,15 @@ export const updatePosition = async (id: string, input: UpdatePositionInput): Pr
     delivery_days: input.deliveryDays,
   };
 
-  const {data, error} = await (supabase.from('positions' as any).update(updateData as any) as any).eq('id', id)
+  const updateResult = await db('positions')
+    .update(updateData)
+    .eq('id', id)
     .select()
-    .single() as { data: Record<string, unknown> | null; error: Error | null };
+    .single() as unknown as DbResult<Record<string, unknown>>;
 
-  if (error) throw new Error(error.message);
-  if (!data) throw new Error('Position not found');
-  return mapPositionSummary(data as Record<string, unknown>);
+  if (updateResult.error) throw new Error(updateResult.error.message);
+  if (!updateResult.data) throw new Error('Position not found');
+  return mapPositionSummary(updateResult.data);
 };
 
 export const deletePosition = async (id: string): Promise<void> => {

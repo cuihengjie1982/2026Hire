@@ -1,31 +1,32 @@
 // MinerU API client for document parsing
 // Docs: https://mineru.net
+//
+// 安全设计：Vision AI 调用通过后端代理 (/api/ai/vision-parse)，API Key 不暴露到浏览器。
+// MinerU 文档解析如果 Token 可用，仍然从前端直接调用（MinerU Token 是 JWT，风险可控）。
 
-import {API_BASE_URL, getAuthToken, USE_MOCK_API} from './runtime';
+import {API_BASE_URL, USE_MOCK_API, getAuthToken} from './runtime';
 import {fetchJson} from './apiClient';
 
-const GEMINI_API_KEY = localStorage.getItem('em-box.gemini-api-key') || import.meta.env.VITE_GEMINI_API_KEY || '';
-const GLM_API_KEY = localStorage.getItem('em-box.glm-api-key') || import.meta.env.VITE_GLM_API_KEY || '';
-const MINIMAX_API_KEY = localStorage.getItem('em-box.minimax-api-key') || import.meta.env.VITE_MINIMAX_API_KEY || '';
+// MinerU Token — 用于 PDF 文档解析（非 AI Vision，风险可控）
+const MINERU_API_TOKEN = import.meta.env.VITE_MINERU_API_TOKEN || '';
 
-/** Fetch active AI model config from DB (includes API key) for browser-side Vision calls */
-async function getActiveVisionKey(): Promise<{provider: string; model: string; apiKey: string} | null> {
-  const token = getAuthToken();
-  if (!token) return null;
+/** 通过后端代理调用 Vision AI 解析简历图片（API Key 安全，不暴露到浏览器） */
+async function parseResumeImageViaProxy(imageBase64: string, mimeType: string): Promise<ParsedResumeInfo | null> {
   try {
-    // Fetch all configs (masked) and find a vision-capable one
-    const resp = await fetch(`${API_BASE_URL}/functions/v1/embox-api/ai-config`, {
-      headers: {'Authorization': `Bearer ${token}`},
-    });
-    if (!resp.ok) return null;
-    const configs = await resp.json() as Array<{id: string; provider: string; model_name: string; api_key: string; api_key_display: string}>;
-    // Try GLM-4V first, then MiniMax-01 (multimodal)
-    const glm4v = configs.find(c => c.provider === 'zhipu' && /4v/i.test(c.model_name) && c.api_key);
-    if (glm4v) return {provider: 'zhipu', model: glm4v.model_name, apiKey: glm4v.api_key};
-    const minimax = configs.find(c => c.provider === 'minimax' && /01|vl/i.test(c.model_name) && c.api_key);
-    if (minimax) return {provider: 'minimax', model: minimax.model_name, apiKey: minimax.api_key};
+    const result = await fetchJson<Record<string, unknown>>('/api/ai/vision-parse', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({imageBase64, mimeType}),
+      timeoutMs: 120000,
+    } as RequestInit & { timeoutMs?: number });
+    if (result && result.name) {
+      return result as unknown as ParsedResumeInfo;
+    }
     return null;
-  } catch { return null; }
+  } catch (e) {
+    console.warn('[VisionProxy] 代理调用失败:', e);
+    return null;
+  }
 }
 
 // When VITE_USE_MOCK_API=false and API_BASE_URL points to Supabase,
@@ -193,58 +194,22 @@ export const parseResumeWithVision = async (file: File): Promise<ParsedResumeInf
   }
 
   try {
-    // Try direct API calls first (GLM → MiniMax → Gemini), no server proxy needed.
-    // Priority: localStorage/env keys → DB-configured keys (via getActiveVisionKey).
-    const localKeys = {glm: GLM_API_KEY, minimax: MINIMAX_API_KEY, gemini: GEMINI_API_KEY};
-
-    if (localKeys.glm) {
-      const data = await callGLMVision(imageParts, mimeType, photoBase64);
-      if (data) return data;
-    }
-    if (localKeys.minimax) {
-      const data = await callMiniMaxVision(imageParts, mimeType, photoBase64);
-      if (data) return data;
-    }
-    if (localKeys.gemini) {
-      const data = await callGeminiVision(imageParts, mimeType, photoBase64);
-      if (data) return data;
-    }
-
-    // No local keys — try to get Vision API key from DB via ai-config endpoint
-    const dbVision = await getActiveVisionKey();
-    if (dbVision) {
-      if (dbVision.provider === 'zhipu') {
-        const data = await callGLMVisionWithKey(dbVision.apiKey, dbVision.model, imageParts, mimeType, photoBase64);
-        if (data) return data;
-      }
-      if (dbVision.provider === 'minimax') {
-        const data = await callMiniMaxVisionWithKey(dbVision.apiKey, dbVision.model, imageParts, mimeType, photoBase64);
-        if (data) return data;
+    // 所有 Vision AI 调用通过后端代理，API Key 不暴露到浏览器
+    // 后端自动选择可用的 Vision 模型（GLM-4V / MiniMax-VL / Gemini）
+    for (const image of imageParts) {
+      const result = await parseResumeImageViaProxy(image, mimeType);
+      if (result && result.name) {
+        // 如果有照片，附加到结果
+        if (photoBase64 && !result.photoBase64) {
+          result.photoBase64 = photoBase64;
+        }
+        return result;
       }
     }
 
-    // Final fallback: ai-proxy Edge Function (uses DB configs)
-    const token = getAuthToken() || '';
-    if (!token) {
-      console.warn('[Vision] No API keys — skipping Vision LLM');
-      return emptyResult(photoBase64);
-    }
-    const resp = await fetch(`${API_BASE_URL}/functions/v1/embox-api/ai-proxy`, {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`},
-      body: JSON.stringify({action: 'parse-resume-vision', images: imageParts, mimeType}),
-    });
-    if (!resp.ok) {
-      const err = await resp.text();
-      console.warn('[Vision] ai-proxy failed:', resp.status, err);
-      return emptyResult(photoBase64);
-    }
-    const data = await resp.json();
-    if (data._parseFailed) {
-      console.warn('[Vision] parse failed:', data._parseError);
-      return emptyResult(photoBase64);
-    }
-    return normalizeVisionResult(data, photoBase64);
+    // 代理调用失败，返回空结果
+    console.warn('[Vision] 后端代理解析失败，返回空结果');
+    return emptyResult(photoBase64);
   } catch (e) {
     console.error('[Vision] parse error:', e);
     return emptyResult(photoBase64);
@@ -256,160 +221,6 @@ function emptyResult(photoBase64: string) {
     education: '', highestEducation: '', school: '', major: '', workExperience: [],
     skills: [], honors: [], expectedSalary: '', currentlyEmployed: '', availability: '',
     photoBase64, rawText: ''};
-}
-
-/** GLM-4V-Plus Vision — OpenAI-compatible API */
-async function callGLMVision(imageParts: string[], mimeType: string, photoBase64: string): Promise<ParsedResumeInfo | null> {
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 60000);
-    const url = 'https://open.bigmodel.cn/api/paas/v4/chat/completions';
-    const content: Array<Record<string, unknown>> = [
-      ...imageParts.map(data => ({type: 'image_url', image_url: {url: `data:${mimeType};base64,${data}`, detail: 'high'}})),
-      {type: 'text', text: '请从以上简历图片中提取所有结构化信息，只返回纯 JSON，不要有其他文字。格式：{name, gender, ageOrBirth, phone, email, location, highestEducation, school, major, expectedSalary, currentlyEmployed, availability, skills(数组), workExperience(数组[{company, role, period, desc}]), honors(数组)}。'},
-    ];
-    const resp = await fetch(url, {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${GLM_API_KEY}`},
-      signal: controller.signal,
-      body: JSON.stringify({model: 'glm-4v-plus', messages: [{role: 'user', content}], temperature: 0.1, max_tokens: 4096, stream: false}),
-    });
-    clearTimeout(timeoutId);
-    if (!resp.ok) { console.warn('[Vision] GLM failed:', resp.status); return null; }
-    const result = await resp.json() as {choices?: Array<{message?: {content?: string}}>};
-    const text = result.choices?.[0]?.message?.content || '';
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) { console.warn('[Vision] GLM no JSON:', text.slice(0, 100)); return null; }
-    return normalizeVisionResult(JSON.parse(jsonMatch[0]), photoBase64);
-  } catch (e) { console.warn('[Vision] GLM error:', e); return null; }
-}
-
-/** MiniMax Vision — OpenAI-compatible API */
-async function callMiniMaxVision(imageParts: string[], mimeType: string, photoBase64: string): Promise<ParsedResumeInfo | null> {
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 60000);
-    const url = 'https://api.minimax.chat/v1/chat/completions';
-    const content: Array<Record<string, unknown>> = [
-      ...imageParts.map(data => ({type: 'image_url', image_url: {url: `data:${mimeType};base64,${data}`, detail: 'high'}})),
-      {type: 'text', text: '请从以上简历图片中提取所有结构化信息，只返回纯 JSON，不要有其他文字。格式：{name, gender, ageOrBirth, phone, email, location, highestEducation, school, major, expectedSalary, currentlyEmployed, availability, skills(数组), workExperience(数组[{company, role, period, desc}]), honors(数组)}。'},
-    ];
-    const resp = await fetch(url, {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${MINIMAX_API_KEY}`},
-      signal: controller.signal,
-      body: JSON.stringify({model: 'MiniMax-VL-01', messages: [{role: 'user', content}], temperature: 0.1, max_tokens: 4096}),
-    });
-    clearTimeout(timeoutId);
-    if (!resp.ok) { console.warn('[Vision] MiniMax failed:', resp.status); return null; }
-    const result = await resp.json() as {choices?: Array<{message?: {content?: string}}>};
-    const text = result.choices?.[0]?.message?.content || '';
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) { console.warn('[Vision] MiniMax no JSON:', text.slice(0, 100)); return null; }
-    return normalizeVisionResult(JSON.parse(jsonMatch[0]), photoBase64);
-  } catch (e) { console.warn('[Vision] MiniMax error:', e); return null; }
-}
-
-/** GLM Vision — with explicit API key and model name (from DB config) */
-async function callGLMVisionWithKey(apiKey: string, model: string, imageParts: string[], mimeType: string, photoBase64: string): Promise<ParsedResumeInfo | null> {
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 60000);
-    const content: Array<Record<string, unknown>> = [
-      ...imageParts.map(data => ({type: 'image_url', image_url: {url: `data:${mimeType};base64,${data}`, detail: 'high'}})),
-      {type: 'text', text: '请从以上简历图片中提取所有结构化信息，只返回纯 JSON。格式：{name, gender, ageOrBirth, phone, email, location, highestEducation, school, major, expectedSalary, currentlyEmployed, availability, skills(数组), workExperience(数组[{company, role, period, desc}]), honors(数组)}。'},
-    ];
-    const resp = await fetch('https://open.bigmodel.cn/api/paas/v4/chat/completions', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}`},
-      signal: controller.signal,
-      body: JSON.stringify({model, messages: [{role: 'user', content}], temperature: 0.1, max_tokens: 4096, stream: false}),
-    });
-    clearTimeout(timeoutId);
-    if (!resp.ok) { console.warn('[Vision] GLM failed:', resp.status, await resp.text()); return null; }
-    const result = await resp.json() as {choices?: Array<{message?: {content?: string}}>};
-    const text = result.choices?.[0]?.message?.content || '';
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) { console.warn('[Vision] GLM no JSON:', text.slice(0, 100)); return null; }
-    return normalizeVisionResult(JSON.parse(jsonMatch[0]), photoBase64);
-  } catch (e) { console.warn('[Vision] GLM error:', e); return null; }
-}
-
-/** MiniMax Vision — with explicit API key and model name (from DB config) */
-async function callMiniMaxVisionWithKey(apiKey: string, model: string, imageParts: string[], mimeType: string, photoBase64: string): Promise<ParsedResumeInfo | null> {
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 60000);
-    const content: Array<Record<string, unknown>> = [
-      ...imageParts.map(data => ({type: 'image_url', image_url: {url: `data:${mimeType};base64,${data}`, detail: 'high'}})),
-      {type: 'text', text: '请从以上简历图片中提取所有结构化信息，只返回纯 JSON。格式：{name, gender, ageOrBirth, phone, email, location, highestEducation, school, major, expectedSalary, currentlyEmployed, availability, skills(数组), workExperience(数组[{company, role, period, desc}]), honors(数组)}。'},
-    ];
-    const resp = await fetch('https://api.minimax.chat/v1/chat/completions', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}`},
-      signal: controller.signal,
-      body: JSON.stringify({model, messages: [{role: 'user', content}], temperature: 0.1, max_tokens: 4096}),
-    });
-    clearTimeout(timeoutId);
-    if (!resp.ok) { console.warn('[Vision] MiniMax failed:', resp.status, await resp.text()); return null; }
-    const result = await resp.json() as {choices?: Array<{message?: {content?: string}}>};
-    const text = result.choices?.[0]?.message?.content || '';
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) { console.warn('[Vision] MiniMax no JSON:', text.slice(0, 100)); return null; }
-    return normalizeVisionResult(JSON.parse(jsonMatch[0]), photoBase64);
-  } catch (e) { console.warn('[Vision] MiniMax error:', e); return null; }
-}
-
-/** Gemini Vision */
-async function callGeminiVision(imageParts: string[], mimeType: string, photoBase64: string): Promise<ParsedResumeInfo | null> {
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 60000);
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
-    const parts: Array<Record<string, unknown>> = imageParts.map(data => ({inlineData: {mimeType, data}}));
-    parts.push({
-      text: '请从以上简历图片中提取所有结构化信息，以纯 JSON 格式返回。返回格式：{name, gender, ageOrBirth, phone, email, location, highestEducation, school, major, expectedSalary, currentlyEmployed, availability, skills(数组), workExperience(数组[{company, role, period, desc}]), honors(数组)}。只返回 JSON，不要有其他文字。',
-    });
-    const resp = await fetch(url, {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      signal: controller.signal,
-      body: JSON.stringify({contents: [{parts}], generationConfig: {temperature: 0.1, maxOutputTokens: 4096}}),
-    });
-    clearTimeout(timeoutId);
-    if (!resp.ok) { console.warn('[Vision] Gemini failed:', resp.status); return null; }
-    const result = await resp.json() as {candidates?: Array<{content?: {parts?: Array<{text?: string}>}}>};
-    const text = result.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) { console.warn('[Vision] Gemini no JSON:', text.slice(0, 100)); return null; }
-    return normalizeVisionResult(JSON.parse(jsonMatch[0]), photoBase64);
-  } catch (e) { console.warn('[Vision] Gemini error:', e); return null; }
-}
-
-function normalizeVisionResult(data: Record<string, unknown>, photoBase64: string): ParsedResumeInfo {
-  const s = (v: unknown) => String(v ?? '');
-  const arr = <T>(v: unknown): T[] => (Array.isArray(v) ? v as T[] : []);
-  return {
-    name: s(data.name),
-    gender: s(data.gender),
-    ageOrBirth: s(data.ageOrBirth),
-    phone: s(data.phone),
-    email: s(data.email),
-    location: s(data.location),
-    education: '',
-    highestEducation: s(data.highestEducation),
-    school: s(data.school),
-    major: s(data.major),
-    workExperience: arr<Record<string, string>>(data.workExperience)
-      .map(e => [e.period, e.company, e.role, e.desc].filter(Boolean).join(' | ')),
-    skills: arr<string>(data.skills).slice(0, 8),
-    honors: arr<string>(data.honors),
-    expectedSalary: s(data.expectedSalary),
-    currentlyEmployed: s(data.currentlyEmployed),
-    availability: s(data.availability),
-    photoBase64: s(data.photoBase64) || photoBase64,
-    rawText: '',
-  };
 }
 
 // Extract first page from PDF as image (base64) for photo display
@@ -878,9 +689,10 @@ export const extractResumeInfoFromMarkdown = (contentMd: string): ParsedResumeIn
     if (!trimmed) continue;
 
     // Name: 姓名：张三, 姓名-张三, 姓名  张三, Name: Zhang San
+    // Also handles: "姓 名  朱松豪" (with space between 姓 and 名)
     // Also handles: "姓名：温长根" (after header consolidation merges "# 姓名\n温长根")
-    if (/(?:姓名|Name|名字)[：:、\-\s]+(.+)/i.test(trimmed)) {
-      const m = trimmed.match(/(?:姓名|Name|名字)[：:、\-\s]+(.+)/i);
+    if (/(?:姓\s*名|Name|名字)[：:、\-\s]+(.+)/i.test(trimmed)) {
+      const m = trimmed.match(/(?:姓\s*名|Name|名字)[：:、\-\s]+(.+)/i);
       if (m) info.name = m[1].trim();
       continue;
     }
@@ -905,10 +717,14 @@ export const extractResumeInfoFromMarkdown = (contentMd: string): ParsedResumeIn
       if (m) info.gender = m[1].trim();
       continue;
     }
-    // Phone: 电话: 138xxxx, Mobile: 138xxxx, 手机138xxxx
-    if (/(?:电话|Mobile|手机)[：:、\s]*([\d（）\(\)\-]{7,})/i.test(trimmed)) {
-      const m = trimmed.match(/(?:电话|Mobile|手机)[：:、\s]*([\d（）\(\)\-]{7,})/i);
-      if (m) info.phone = m[1].trim();
+    // Phone: 电话: 138xxxx, Mobile: 138xxxx, 手机138xxxx, +86-139-xxxx
+    if (/(?:电话|Mobile|手机)[：:、\s]*([+\d（）\(\)\-]{7,})/i.test(trimmed)) {
+      const m = trimmed.match(/(?:电话|Mobile|手机)[：:、\s]*([+\d（）\(\)\-]{7,})/i);
+      if (m) {
+        // Normalize: strip hyphens and parens for +86 numbers
+        const raw = m[1].trim();
+        info.phone = raw.replace(/[\-（）\(\)]/g, '');
+      }
       continue;
     }
     // Email
@@ -917,9 +733,9 @@ export const extractResumeInfoFromMarkdown = (contentMd: string): ParsedResumeIn
       if (m) info.email = m[1].trim();
       continue;
     }
-    // Location
-    if (/(?:居住地？谢邀所在地|所在城市)[：:、\s]+(.+)/i.test(trimmed)) {
-      const m = trimmed.match(/(?:居住地<minimax:tool_call>所在地|所在城市)[：:、\s]+(.+)/i);
+    // Location: 居住地/所在地/所在城市/地点/工作地点
+    if (/(?:居住地|所在地|所在城市|地点|工作地点)[：:、\s]+(.+)/i.test(trimmed)) {
+      const m = trimmed.match(/(?:居住地|所在地|所在城市|地点|工作地点)[：:、\s]+(.+)/i);
       if (m) info.location = m[1].trim();
       continue;
     }
@@ -972,6 +788,20 @@ export const extractResumeInfoFromMarkdown = (contentMd: string): ParsedResumeIn
     if (/(?:工作经历|实习经历|项目经验|项目经历|经历)[：:：]*/i.test(trimmed)) {
       const content = trimmed.replace(/(?:工作经历|实习经历|项目经验|项目经历|经历)[：:：\s]*/i, '').trim();
       if (content) info.workExperience.push(content);
+      continue;
+    }
+    // Bare date-range work experience line: "2022-01 - 2024-01 ABC科技公司"
+    if (/^\d{4}[./\-]\d{2}\s*[-–—]\s*\d{4}[./\-]\d{2}\s+(.+)/.test(trimmed)) {
+      const m = trimmed.match(/^(\d{4}[./\-]\d{2}\s*[-–—]\s*\d{4}[./\-]\d{2})\s+(.+)/);
+      if (m) info.workExperience.push(`${m[1]} ${m[2]}`);
+      continue;
+    }
+    // Bare education date-range line: "2018-2022 清华大学 计算机科学与技术"
+    if (/^\d{4}\s*[-–—]\s*\d{4}\s+(.+)/.test(trimmed) && !info.education) {
+      info.education = trimmed;
+      // Also try to extract school name (first Chinese segment after date range)
+      const schoolMatch = trimmed.match(/^\d{4}\s*[-–—]\s*\d{4}\s+([\u4e00-\u9fa5]+)/);
+      if (schoolMatch && !info.school) info.school = schoolMatch[1];
       continue;
     }
   }

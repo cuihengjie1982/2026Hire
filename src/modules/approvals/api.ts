@@ -4,6 +4,10 @@ import {USE_MOCK_API} from '../../shared/lib/runtime';
 import {approvalRequestsFixture, interviewApprovalRequestsFixture, interviewApprovalHistoryFixture} from './fixtures';
 import {type ApprovalRequestSummary, type InterviewApprovalRequest, type ApprovalStatus, type CreateInterviewApprovalInput} from './types';
 
+/** Escape hatch for supabase without generated Database types */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const db = (table: string) => supabase.from(table) as any;
+
 // localStorage-backed mock stores
 let approvalRequestsData: ApprovalRequestSummary[] = (() => { try { const r = localStorage.getItem('em-box.mock.approvals'); return r ? JSON.parse(r) : [...approvalRequestsFixture]; } catch { return [...approvalRequestsFixture]; } })();
 let interviewApprovalRequestsData: InterviewApprovalRequest[] = (() => { try { const r = localStorage.getItem('em-box.mock.approval-requests'); return r ? JSON.parse(r) : [...interviewApprovalRequestsFixture]; } catch { return [...interviewApprovalRequestsFixture]; } })();
@@ -60,7 +64,7 @@ export const listApprovalRequests = async (): Promise<ApprovalRequestSummary[]> 
 
   const {data, error} = await supabase.from('approval_requests').select('*');
   if (error) throw new Error(error.message);
-  return Array.from(new Map((data ?? []).map(r => [r.id as string, r])).values()) as ApprovalRequestSummary[];
+  return Array.from(new Map(((data ?? []) as Record<string, unknown>[]).map(r => [r.id as string, r])).values()) as unknown as ApprovalRequestSummary[];
 };
 
 export const getApprovalRequest = async (
@@ -73,7 +77,7 @@ export const getApprovalRequest = async (
 
   const {data, error} = await supabase.from('approval_requests').select('*').eq('id', approvalId).maybeSingle();
   if (error) throw new Error(error.message);
-  return data as ApprovalRequestSummary | null;
+  return data as unknown as ApprovalRequestSummary | null;
 };
 
 // Interview Approval APIs
@@ -85,7 +89,7 @@ export const listInterviewApprovalRequests = async (): Promise<InterviewApproval
 
   const {data, error} = await supabase.from('approval_requests').select('*').eq('status', 'pending');
   if (error) throw new Error(error.message);
-  return Array.from(new Map((data ?? []).map(r => [r.id as string, r])).values()).map(parseInterviewApproval);
+  return Array.from(new Map(((data ?? []) as Record<string, unknown>[]).map(r => [r.id as string, r])).values()).map(parseInterviewApproval);
 };
 
 export const listInterviewApprovalHistory = async (): Promise<InterviewApprovalRequest[]> => {
@@ -96,7 +100,7 @@ export const listInterviewApprovalHistory = async (): Promise<InterviewApprovalR
 
   const {data, error} = await supabase.from('approval_requests').select('*').neq('status', 'pending').order('created_at', {ascending: false});
   if (error) throw new Error(error.message);
-  return Array.from(new Map((data ?? []).map(r => [r.id as string, r])).values()).map(parseInterviewApproval);
+  return Array.from(new Map(((data ?? []) as Record<string, unknown>[]).map(r => [r.id as string, r])).values()).map(parseInterviewApproval);
 };
 
 export const createInterviewApprovalRequest = async (
@@ -115,7 +119,7 @@ export const createInterviewApprovalRequest = async (
     saveInterviewApprovalRequests();
     return request;
   }
-  const insertData = {
+  const insertData: Record<string, unknown> = {
     type: 'interview_result',
     candidate_id: input.candidateId,
     candidate_name: input.candidateName,
@@ -129,10 +133,10 @@ export const createInterviewApprovalRequest = async (
     interview_duration: input.interviewDuration,
     dimension_scores: input.dimensionScores ? JSON.stringify(input.dimensionScores) : null,
     status: 'pending',
-    requester_name: input.requesterName ?? 'AI面试系统',
-    reason: input.reason ?? null,
+    requester_name: 'AI面试系统',
+    reason: null,
   };
-  const {data, error} = await supabase.from('approval_requests').insert(insertData as any).select().single();
+  const {data, error} = await db('approval_requests').insert(insertData).select().single();
   if (error) throw new Error(error.message);
   return parseInterviewApproval(data);
 };

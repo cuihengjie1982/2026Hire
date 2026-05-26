@@ -3,6 +3,7 @@ import {loginHandler, registerHandler, meHandler, refreshHandler, logoutHandler,
 import {authMiddleware} from '../../middleware/auth.js';
 import {requireRole} from '../../middleware/requireRole.js';
 import {validate} from '../../middleware/validate.js';
+import {passwordLimiter, tokenRefreshLimiter} from '../../middleware/security.js';
 
 const router = Router();
 
@@ -12,13 +13,14 @@ router.post('/login', validate([
   {field: 'password', required: true, type: 'string', minLength: 1},
 ]), loginHandler);
 
-// Refresh token (public — uses the refresh token itself for auth)
-router.post('/refresh', refreshHandler);
+// Token 刷新限流
+router.post('/refresh', tokenRefreshLimiter, refreshHandler);
 
 // Authenticated
 router.get('/me', authMiddleware, meHandler);
 router.post('/logout', authMiddleware, logoutHandler);
-router.post('/change-password', authMiddleware, changePasswordHandler);
+// 密码修改限流
+router.post('/change-password', passwordLimiter, authMiddleware, changePasswordHandler);
 
 // Admin only
 router.post('/register', authMiddleware, requireRole('admin'), validate([

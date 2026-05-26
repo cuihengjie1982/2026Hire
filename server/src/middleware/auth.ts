@@ -62,9 +62,9 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction) 
       req.user = decoded;
       next();
     }).catch(() => {
-      // If blacklist check fails, allow the request (fail open for availability)
-      req.user = decoded;
-      next();
+      // Fail-close: 如果黑名单查询失败，拒绝请求而非放行
+      // 原因：fail-open 会导致已注销的 Token 仍然可用
+      res.status(401).json({error: {code: 'TOKEN_VALIDATION_FAILED', message: 'Unable to validate token status'}});
     });
   } catch {
     res.status(401).json({error: {code: 'TOKEN_EXPIRED', message: 'Token invalid or expired'}});

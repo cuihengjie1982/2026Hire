@@ -45,7 +45,7 @@ export const LoginPage = ({onLogin}: {onLogin: () => void}) => {
           .from('profiles')
           .select('name')
           .eq('id', authData.user.id)
-          .single();
+          .single() as unknown as { data: { name: string } | null; error: Error | null };
 
         if (profile && profile.name) {
           setUserName(profile.name);

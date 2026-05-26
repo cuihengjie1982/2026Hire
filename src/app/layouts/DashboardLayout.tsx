@@ -55,7 +55,9 @@ async function ensureBusinessDataLoaded() {
     businessCache.projects = projs.map(p => ({id: p.id, title: p.name, path: '/projects'}));
     businessCache.agents = agents.map(a => ({id: a.id, title: a.name, path: '/agents'}));
     businessCache.loaded = true;
-  } catch { /* keep empty */ }
+  } catch (e) {
+    console.error('[Search] 业务数据加载失败:', e);
+  }
 }
 
 // ---------------------------------------------------------------------------

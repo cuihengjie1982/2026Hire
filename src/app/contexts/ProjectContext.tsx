@@ -36,6 +36,11 @@ export const ProjectProvider = ({children}: {children: ReactNode}) => {
         }
       } catch (e) {
         console.error('Failed to load projects:', e);
+        // 非静默：通知用户加载失败
+        const toast = document.querySelector('[data-toast-provider]') as HTMLElement | null;
+        if (toast) {
+          toast.dispatchEvent(new CustomEvent('toast', {bubbles: true, detail: {type: 'error', message: '项目列表加载失败，请刷新重试'}}));
+        }
       } finally {
         setLoading(false);
       }

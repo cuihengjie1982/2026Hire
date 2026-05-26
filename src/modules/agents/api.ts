@@ -2,6 +2,10 @@ import {fetchJson, getItemsFromPayload, mockDelay} from '../../shared/lib/apiCli
 import {supabase} from '../../shared/lib/supabase';
 import {USE_MOCK_API, API_BASE_URL, getAuthToken} from '../../shared/lib/runtime';
 
+/** Escape hatch for supabase without generated Database types */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const db = (table: string) => supabase.from(table) as any;
+
 const efetch = async <T>(path: string, method = 'GET', body?: Record<string, unknown>): Promise<T> => {
   const base = USE_MOCK_API ? '' : API_BASE_URL;
   const res = await fetch(`${base}/functions/v1/embox-api${path}`, {
@@ -59,13 +63,13 @@ export const listAgents = async (projectId?: string): Promise<Agent[]> => {
     return Array.from(new Map(base.map(a => [a.id, a])).values());
   }
 
-  let query = supabase.from('agents').select('*');
+  let query = db('agents').select('*');
   if (projectId) {
     query = query.eq('project_id', projectId);
   }
   const {data, error} = await query;
   if (error) throw new Error(error.message);
-  return Array.from(new Map((data ?? []).map((r: Record<string, unknown>) => [String(r.id), mapAgent(r)])).values());
+  return Array.from(new Map(((data ?? []) as Record<string, unknown>[]).map((r) => [String(r.id), mapAgent(r)])).values());
 };
 
 export const getAgentStats = async (): Promise<AgentStats> => {
@@ -75,7 +79,7 @@ export const getAgentStats = async (): Promise<AgentStats> => {
   }
 
   // Compute stats from agents table: count by status
-  const {data: allAgents, error} = await supabase.from('agents').select('status');
+  const {data: allAgents, error} = await db('agents').select('status');
   if (error) throw new Error(error.message);
 
   const stats: AgentStats = {
@@ -84,10 +88,14 @@ export const getAgentStats = async (): Promise<AgentStats> => {
     paused: 0,
     pending: 0,
     completed: 0,
-  } as AgentStats;
+    runningAgents: 0,
+    pushedToday: 0,
+    weeklyAdoptionRate: 0,
+    monthlyOutreach: 0,
+  };
 
-  allAgents?.forEach((agent) => {
-    const status = agent.status as 'running' | 'paused' | 'pending' | 'completed';
+  (allAgents as Record<string, unknown>[])?.forEach((agent) => {
+    const status = agent.status as string;
     if (status === 'running') stats.running++;
     else if (status === 'paused') stats.paused++;
     else if (status === 'pending') stats.pending++;
@@ -122,7 +130,7 @@ export const createAgent = async (input: CreateAgentInput): Promise<Agent> => {
     return newAgent;
   }
 
-  const {data, error} = await (supabase.from('agents' as any).insert(agentToSnake(input) as any) as any).select().single() as { data: Record<string, unknown> | null; error: Error | null };
+  const {data, error} = await db('agents').insert(agentToSnake(input)).select().single() as unknown as { data: Record<string, unknown> | null; error: Error | null };
   if (error) throw new Error(error.message);
   if (!data) throw new Error('Failed to create agent');
   return mapAgent(data as Record<string, unknown>);
@@ -138,7 +146,7 @@ export const updateAgent = async (agentId: string, input: Partial<CreateAgentInp
     return agentsData[index];
   }
 
-  const {data, error} = await (supabase.from('agents' as any).update(agentToSnake(input) as any) as any).eq('id', agentId).select().single() as { data: Record<string, unknown> | null; error: Error | null };
+  const {data, error} = await db('agents').update(agentToSnake(input)).eq('id', agentId).select().single() as unknown as { data: Record<string, unknown> | null; error: Error | null };
   if (error) throw new Error(error.message);
   if (!data) throw new Error('Agent not found');
   return mapAgent(data as Record<string, unknown>);
@@ -154,7 +162,7 @@ export const pauseAgent = async (agentId: string): Promise<Agent> => {
     return agentsData[index];
   }
 
-  const {data, error} = await (supabase.from('agents' as any).update({status: 'paused'} as any) as any).eq('id', agentId).select().single() as { data: Agent | null; error: Error | null };
+  const {data, error} = await db('agents').update({status: 'paused'}).eq('id', agentId).select().single() as unknown as { data: Agent | null; error: Error | null };
   if (error) throw new Error(error.message);
   if (!data) throw new Error('Agent not found');
   return data;
@@ -170,7 +178,7 @@ export const resumeAgent = async (agentId: string): Promise<Agent> => {
     return agentsData[index];
   }
 
-  const {data, error} = await (supabase.from('agents' as any).update({status: 'running'} as any) as any).eq('id', agentId).select().single() as { data: Agent | null; error: Error | null };
+  const {data, error} = await db('agents').update({status: 'running'}).eq('id', agentId).select().single() as unknown as { data: Agent | null; error: Error | null };
   if (error) throw new Error(error.message);
   if (!data) throw new Error('Agent not found');
   return data;
@@ -187,7 +195,7 @@ export const deleteAgent = async (agentId: string): Promise<void> => {
     return;
   }
 
-  const {error} = await supabase.from('agents').delete().eq('id', agentId);
+  const {error} = await db('agents').delete().eq('id', agentId);
   if (error) throw new Error(error.message);
 };
 

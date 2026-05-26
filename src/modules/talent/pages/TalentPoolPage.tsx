@@ -315,7 +315,7 @@ export const TalentPoolPage = () => {
             <div className="flex items-center gap-1 text-gray-600 dark:text-gray-300">
               <Clock className="w-3 h-3 text-gray-400 dark:text-gray-500 flex-shrink-0" />
               <span className="text-gray-400 dark:text-gray-500 w-10 flex-shrink-0">时间</span>
-              <span>{v(p?.educationTime)}</span>
+              <span>{v(p?.education)}</span>
             </div>
           </div>
         </div>

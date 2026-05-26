@@ -1,4 +1,4 @@
-import {Router} from 'express';
+import {Router, type Request, type Response} from 'express';
 import {exec} from 'child_process';
 import path from 'path';
 import fs from 'fs';
@@ -147,7 +147,7 @@ async function extractTextWithVisionLLM(filePath: string, fileName: string): Pro
   return text;
 }
 
-async function handleFileParse(req: any, res: any) {
+async function handleFileParse(req: Request, res: Response) {
   const {fileBase64, fileName} = req.body;
   if (!fileBase64) {
     res.status(400).json({error: 'Missing file data'});

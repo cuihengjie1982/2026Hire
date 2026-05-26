@@ -3,6 +3,54 @@ import {supabase} from './supabase';
 
 const REFRESH_TOKEN_KEY = 'em-box.refresh-token';
 
+/**
+ * 全局 Token 刷新锁 — 防止并发请求同时触发多次刷新
+ * 所有 401 请求共享同一个刷新 Promise，刷新成功后统一重试
+ */
+let refreshPromise: Promise<string | null> | null = null;
+
+/**
+ * Attempt to refresh the access token using the stored refresh token.
+ * Returns new access token on success, null on failure.
+ * Uses a global lock to prevent concurrent refresh requests.
+ */
+async function tryRefreshToken(): Promise<string | null> {
+  // 如果已有刷新请求在进行中，复用它
+  if (refreshPromise) return refreshPromise;
+
+  refreshPromise = (async () => {
+    const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
+    if (!refreshToken) return null;
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({refreshToken}),
+      });
+
+      if (!res.ok) return null;
+
+      const data = await res.json();
+      if (data.token) {
+        setAuthToken(data.token);
+        if (data.refreshToken) {
+          localStorage.setItem(REFRESH_TOKEN_KEY, data.refreshToken);
+        }
+        return data.token;
+      }
+      return null;
+    } catch {
+      return null;
+    } finally {
+      // 刷新完成后释放锁
+      refreshPromise = null;
+    }
+  })();
+
+  return refreshPromise;
+}
+
 export const buildApiUrl = (path: string) => `${API_BASE_URL}${path}`;
 
 const isFormData = (value: unknown): value is FormData =>
@@ -33,37 +81,6 @@ export const getValueFromPayload = <T>(
 
   return (payload as T) ?? null;
 };
-
-/**
- * Attempt to refresh the access token using the stored refresh token.
- * Returns new access token on success, null on failure.
- */
-async function tryRefreshToken(): Promise<string | null> {
-  const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
-  if (!refreshToken) return null;
-
-  try {
-    const res = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({refreshToken}),
-    });
-
-    if (!res.ok) return null;
-
-    const data = await res.json();
-    if (data.token) {
-      setAuthToken(data.token);
-      if (data.refreshToken) {
-        localStorage.setItem(REFRESH_TOKEN_KEY, data.refreshToken);
-      }
-      return data.token;
-    }
-    return null;
-  } catch {
-    return null;
-  }
-}
 
 export const fetchJson = async <T>(
   path: string,

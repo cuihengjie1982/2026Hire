@@ -5,7 +5,7 @@ import {testConnection} from './config/database.js';
 import {authMiddleware, cleanupExpiredTokens} from './middleware/auth.js';
 import {errorHandler} from './middleware/errorHandler.js';
 import {auditLogMiddleware} from './middleware/auditLog.js';
-import {securityMiddleware, apiLimiter, authLimiter} from './middleware/security.js';
+import {securityMiddleware, apiLimiter, authLimiter, passwordLimiter, tokenRefreshLimiter} from './middleware/security.js';
 import {csrfMiddleware} from './middleware/csrf.js';
 import {logger} from './middleware/logger.js';
 import pdfProxy from './shared/pdfProxy.js';

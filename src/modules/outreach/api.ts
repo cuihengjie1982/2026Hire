@@ -3,6 +3,10 @@ import {USE_MOCK_API, API_BASE_URL, getAuthToken} from '../../shared/lib/runtime
 import {outreachRecordsFixture, smsTemplatesFixture} from './fixtures';
 import {type OutreachRecord, type CreateOutreachRecordInput, type SmsTemplate, type SendSmsInput} from './types';
 
+/** Escape hatch for supabase without generated Database types */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const db = (table: string) => supabase.from(table) as any;
+
 const EF_BASE = `${API_BASE_URL}/functions/v1/index`;
 
 async function efFetch<T>(path: string, init?: RequestInit): Promise<T> {
@@ -41,9 +45,9 @@ export const listOutreachRecords = async (): Promise<OutreachRecord[]> => {
     await new Promise(r => setTimeout(r, 120));
     return Array.from(new Map(outreachData.map(r => [r.id, r])).values());
   }
-  const { data, error } = await supabase.from('outreach_records').select('*').order('created_at', { ascending: false });
+  const { data, error } = await db('outreach_records').select('*').order('created_at', { ascending: false });
   if (error) throw new Error(error.message);
-  return Array.from(new Map((data ?? []).map(r => [r.id as string, r])).values()).map(mapRecord);
+  return Array.from(new Map(((data ?? []) as Record<string, unknown>[]).map(r => [r.id as string, r])).values()).map(mapRecord);
 };
 
 export const createOutreachRecord = async (input: CreateOutreachRecordInput): Promise<OutreachRecord> => {
@@ -59,7 +63,7 @@ export const createOutreachRecord = async (input: CreateOutreachRecordInput): Pr
     saveOutreach();
     return newRecord;
   }
-  const { data, error } = await (supabase.from('outreach_records' as any).insert({
+  const { data, error } = await db('outreach_records').insert({
     candidate_id: input.candidateId,
     candidate_name: input.candidateName,
     position_id: input.positionId,
@@ -67,7 +71,7 @@ export const createOutreachRecord = async (input: CreateOutreachRecordInput): Pr
     channel: input.channel,
     status: 'pending',
     content: input.content,
-  } as any) as any).select().single() as { data: Record<string, unknown> | null; error: Error | null };
+  }).select().single() as unknown as { data: Record<string, unknown> | null; error: Error | null };
   if (error) throw new Error(error.message);
   if (!data) throw new Error('Failed to create outreach record');
   return mapRecord(data as Record<string, unknown>);
@@ -84,7 +88,7 @@ export const listOutreachRecordsByCandidate = async (candidateId: string): Promi
     .eq('candidate_id', candidateId)
     .order('created_at', { ascending: false });
   if (error) throw new Error(error.message);
-  return (data ?? []).map(mapRecord);
+  return ((data ?? []) as Record<string, unknown>[]).map(mapRecord);
 };
 
 export const updateOutreachRecordStatus = async (id: string, status: OutreachRecord['status']): Promise<OutreachRecord> => {
@@ -96,10 +100,10 @@ export const updateOutreachRecordStatus = async (id: string, status: OutreachRec
     saveOutreach();
     return outreachData[index];
   }
-  const { data, error } = await (supabase.from('outreach_records' as any)
-    .update({ status } as any) as any).eq('id' as any, id as any)
+  const { data, error } = await db('outreach_records')
+    .update({ status }).eq('id', id)
     .select()
-    .single() as { data: Record<string, unknown> | null; error: Error | null };
+    .single() as unknown as { data: Record<string, unknown> | null; error: Error | null };
   if (error) throw new Error(error.message);
   if (!data) throw new Error('Failed to update outreach record');
   return mapRecord(data as Record<string, unknown>);
@@ -114,7 +118,7 @@ export const deleteOutreachRecord = async (id: string): Promise<void> => {
     saveOutreach();
     return;
   }
-  const { error } = await supabase.from('outreach_records').delete().eq('id', id);
+  const { error } = await db('outreach_records').delete().eq('id', id);
   if (error) throw new Error(error.message);
 };
 

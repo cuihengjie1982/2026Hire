@@ -4,6 +4,10 @@ import {USE_MOCK_API} from '../../shared/lib/runtime';
 import {projectStatsFixture, projectsFixture} from './fixtures';
 import {type Project, type ProjectStats, type ProjectStatus} from './types';
 
+/** Escape hatch for supabase without generated Database types */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const db = (table: string) => supabase.from(table) as any;
+
 export type TimeRange = 'today' | 'week' | 'month' | 'all';
 
 interface GetStatsParams {
@@ -105,9 +109,9 @@ export const listProjects = async (): Promise<Project[]> => {
     return Array.from(new Map(projectsData.map(p => [p.id, p])).values());
   }
 
-  const {data, error} = await supabase.from('projects').select('*').order('created_at', {ascending: false});
+  const {data, error} = await db('projects').select('*').order('created_at', {ascending: false});
   if (error) throw new Error(error.message);
-  return Array.from(new Map((data ?? []).map((r: Record<string, unknown>) => [String(r.id), fromSnake(r)])).values());
+  return Array.from(new Map(((data ?? []) as Record<string, unknown>[]).map((r) => [String(r.id), fromSnake(r)])).values());
 };
 
 export const createProject = async (data: Omit<Project, 'id'>): Promise<Project> => {
@@ -124,7 +128,7 @@ export const createProject = async (data: Omit<Project, 'id'>): Promise<Project>
   }
 
   const row = toSnake({...data, createdAt: data.createdAt || new Date().toISOString()});
-  const {data: result, error} = await supabase.from('projects').insert(row).select().single();
+  const {data: result, error} = await db('projects').insert(row).select().single();
   if (error) throw new Error(error.message);
   if (!result) throw new Error('Failed to create project');
   return fromSnake(result as Record<string, unknown>);
@@ -140,7 +144,7 @@ export const updateProjectStatus = async (id: string, status: Project['status'])
     return projectsData[index];
   }
 
-  const {data: row, error} = await supabase.from('projects').update({status}).eq('id', id).select().single();
+  const {data: row, error} = await db('projects').update({status}).eq('id', id).select().single();
   if (error) throw new Error(error.message);
   if (!row) throw new Error('Project not found');
   return fromSnake(row as Record<string, unknown>);
@@ -156,7 +160,7 @@ export const updateProject = async (id: string, data: Partial<Pick<Project, 'nam
     return projectsData[index];
   }
 
-  const {data: row, error} = await supabase.from('projects').update(toSnake(data)).eq('id', id).select().single();
+  const {data: row, error} = await db('projects').update(toSnake(data)).eq('id', id).select().single();
   if (error) throw new Error(error.message);
   if (!row) throw new Error('Project not found');
   return fromSnake(row as Record<string, unknown>);
@@ -172,6 +176,6 @@ export const deleteProject = async (id: string): Promise<void> => {
     return;
   }
 
-  const {error} = await supabase.from('projects').delete().eq('id', id);
+  const {error} = await db('projects').delete().eq('id', id);
   if (error) throw new Error(error.message);
 };
