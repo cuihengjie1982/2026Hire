@@ -242,7 +242,7 @@ async function callGLMVision(imageParts: string[], mimeType: string, photoBase64
       method: 'POST',
       headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${GLM_API_KEY}`},
       signal: controller.signal,
-      body: JSON.stringify({model: 'glm-4v-plus', messages: [{role: 'user', content}], temperature: 0.1, max_tokens: 4096}),
+      body: JSON.stringify({model: 'glm-4v-plus', messages: [{role: 'user', content}], temperature: 0.1, max_tokens: 4096, stream: false}),
     });
     clearTimeout(timeoutId);
     if (!resp.ok) { console.warn('[Vision] GLM failed:', resp.status); return null; }
