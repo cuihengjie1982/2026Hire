@@ -112,7 +112,11 @@ export const proxy = async (req: Request, _userId: string, _userRole: string): P
         raw = await callLLM(config, systemPrompt, userMessage);
       } catch (e) {
         console.error('[parse-resume] LLM call failed:', e);
-        return jsonRes({ error: { code: 'LLM_TIMEOUT', message: 'AI resume parsing timed out' } }, 408);
+        // Return a 200 with empty result so the frontend's aiParseResume fallback kicks in
+        return jsonRes({ name: '', gender: '', ageOrBirth: '', phone: '', email: '', location: '',
+          highestEducation: '', school: '', major: '', skills: [], workExperience: [],
+          honors: [], expectedSalary: '', currentlyEmployed: '', availability: '', photoBase64: '',
+          _parseFailed: true, _parseError: e instanceof Error ? e.message : String(e) });
       }
       return jsonRes({ modelUsed: config.model_name, provider: config.provider, ...parseJSONResponse(raw) });
     }

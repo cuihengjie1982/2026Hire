@@ -102,7 +102,10 @@ export const deleteCandidate = async (req: Request, _userId: string, _userRole: 
     await supabase.from('candidate_tags').delete().eq('candidate_id', id);
 
     const { data } = await supabase.from('candidates').delete().eq('id', id).select('id').single();
-    if (!data) return jsonRes({ error: { code: 'NOT_FOUND', message: `Candidate (${id}) not found` } }, 404);
+    if (!data) {
+      // Already deleted or never existed — treat as success (idempotent)
+      return jsonRes({ success: true, deleted: id, alreadyDeleted: true });
+    }
 
     return jsonRes({ success: true, deleted: id });
   } catch (e) {
