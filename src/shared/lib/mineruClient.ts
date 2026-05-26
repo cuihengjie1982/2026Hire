@@ -4,6 +4,8 @@
 import {API_BASE_URL, getAuthToken, USE_MOCK_API} from './runtime';
 import {fetchJson} from './apiClient';
 
+const GEMINI_API_KEY = localStorage.getItem('em-box.gemini-api-key') || import.meta.env.VITE_GEMINI_API_KEY || '';
+
 // When VITE_USE_MOCK_API=false and API_BASE_URL points to Supabase,
 // we call MinerU API directly from the browser (bypassing the backend proxy
 // which relied on server-side exec for pdftotext/tesseract).
@@ -169,62 +171,92 @@ export const parseResumeWithVision = async (file: File): Promise<ParsedResumeInf
   }
 
   try {
-    const token = getAuthToken() || '';
-    if (!token) {
-      console.warn('[Vision] No auth token');
-      return {name: '', gender: '', ageOrBirth: '', phone: '', email: '', location: '',
-        education: '', highestEducation: '', school: '', major: '', workExperience: [],
-        skills: [], honors: [], expectedSalary: '', currentlyEmployed: '', availability: '',
-        photoBase64, rawText: ''};
+    // Use Gemini API directly (browser-side) — no Edge Function needed.
+    // Fall back to ai-proxy if no Gemini key is available.
+    if (!GEMINI_API_KEY) {
+      console.warn('[Vision] No Gemini API key — trying ai-proxy edge function');
+      const token = getAuthToken() || '';
+      if (!token) {
+        return {name: '', gender: '', ageOrBirth: '', phone: '', email: '', location: '',
+          education: '', highestEducation: '', school: '', major: '', workExperience: [],
+          skills: [], honors: [], expectedSalary: '', currentlyEmployed: '', availability: '',
+          photoBase64, rawText: ''};
+      }
+      const resp = await fetch(`${API_BASE_URL}/functions/v1/embox-api/ai-proxy`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`},
+        body: JSON.stringify({action: 'parse-resume-vision', images: imageParts, mimeType}),
+      });
+      if (!resp.ok) {
+        const err = await resp.text();
+        console.warn('[Vision] ai-proxy failed:', resp.status, err);
+        return {name: '', gender: '', ageOrBirth: '', phone: '', email: '', location: '',
+          education: '', highestEducation: '', school: '', major: '', workExperience: [],
+          skills: [], honors: [], expectedSalary: '', currentlyEmployed: '', availability: '',
+          photoBase64, rawText: ''};
+      }
+      const data = await resp.json();
+      if (data._parseFailed) {
+        console.warn('[Vision] parse failed:', data._parseError);
+        return {name: '', gender: '', ageOrBirth: '', phone: '', email: '', location: '',
+          education: '', highestEducation: '', school: '', major: '', workExperience: [],
+          skills: [], honors: [], expectedSalary: '', currentlyEmployed: '', availability: '',
+          photoBase64, rawText: ''};
+      }
+      return normalizeVisionResult(data, photoBase64);
     }
 
-    const resp = await fetch(`${API_BASE_URL}/functions/v1/embox-api/ai-proxy`, {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`},
-      body: JSON.stringify({action: 'parse-resume-vision', images: imageParts, mimeType}),
+    // Direct Gemini API call (browser → Gemini, no server proxy)
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 60000);
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
+
+    const parts: Array<Record<string, unknown>> = imageParts.map(data => ({
+      inlineData: { mimeType, data },
+    }));
+    parts.push({
+      text: '请从以上简历图片中提取所有结构化信息，以纯 JSON 格式返回。返回格式：{name, gender, ageOrBirth, phone, email, location, highestEducation, school, major, expectedSalary, currentlyEmployed, availability, skills(数组), workExperience(数组[{company, role, period, desc}]), honors(数组)}。只返回 JSON，不要有其他文字。',
     });
+
+    const resp = await fetch(url, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      signal: controller.signal,
+      body: JSON.stringify({contents: [{parts}], generationConfig: {temperature: 0.1, maxOutputTokens: 4096}}),
+    });
+    clearTimeout(timeoutId);
 
     if (!resp.ok) {
       const err = await resp.text();
-      console.warn('[Vision] ai-proxy failed:', resp.status, err);
+      console.warn('[Vision] Gemini API failed:', resp.status, err);
       return {name: '', gender: '', ageOrBirth: '', phone: '', email: '', location: '',
         education: '', highestEducation: '', school: '', major: '', workExperience: [],
         skills: [], honors: [], expectedSalary: '', currentlyEmployed: '', availability: '',
         photoBase64, rawText: ''};
     }
 
-    const data = await resp.json();
-    if (data._parseFailed) {
-      console.warn('[Vision] parse failed:', data._parseError);
+    const result = await resp.json() as {candidates?: Array<{content?: {parts?: Array<{text?: string}>}}>};
+    const text = result.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    if (!text) {
+      console.warn('[Vision] Gemini returned empty response');
       return {name: '', gender: '', ageOrBirth: '', phone: '', email: '', location: '',
         education: '', highestEducation: '', school: '', major: '', workExperience: [],
         skills: [], honors: [], expectedSalary: '', currentlyEmployed: '', availability: '',
         photoBase64, rawText: ''};
     }
 
-    return {
-      name: data.name || '',
-      gender: data.gender || '',
-      ageOrBirth: data.ageOrBirth || '',
-      phone: data.phone || '',
-      email: data.email || '',
-      location: data.location || '',
-      education: '',
-      highestEducation: data.highestEducation || '',
-      school: data.school || '',
-      major: data.major || '',
-      workExperience: Array.isArray(data.workExperience)
-        ? data.workExperience.map((e: Record<string, string>) =>
-            [e.period, e.company, e.role, e.desc].filter(Boolean).join(' | '))
-        : [],
-      skills: Array.isArray(data.skills) ? data.skills.slice(0, 8) : [],
-      honors: Array.isArray(data.honors) ? data.honors : [],
-      expectedSalary: data.expectedSalary || '',
-      currentlyEmployed: data.currentlyEmployed || '',
-      availability: data.availability || '',
-      photoBase64: data.photoBase64 || photoBase64,
-      rawText: '',
-    };
+    // Extract JSON from response
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      console.warn('[Vision] No JSON in Gemini response:', text.slice(0, 200));
+      return {name: '', gender: '', ageOrBirth: '', phone: '', email: '', location: '',
+        education: '', highestEducation: '', school: '', major: '', workExperience: [],
+        skills: [], honors: [], expectedSalary: '', currentlyEmployed: '', availability: '',
+        photoBase64, rawText: ''};
+    }
+
+    const data = JSON.parse(jsonMatch[0]);
+    return normalizeVisionResult(data, photoBase64);
   } catch (e) {
     console.error('[Vision] parse error:', e);
     return {name: '', gender: '', ageOrBirth: '', phone: '', email: '', location: '',
@@ -232,7 +264,33 @@ export const parseResumeWithVision = async (file: File): Promise<ParsedResumeInf
       skills: [], honors: [], expectedSalary: '', currentlyEmployed: '', availability: '',
       photoBase64, rawText: ''};
   }
-};
+}
+
+function normalizeVisionResult(data: Record<string, unknown>, photoBase64: string): ParsedResumeInfo {
+  const s = (v: unknown) => String(v ?? '');
+  const arr = <T>(v: unknown): T[] => (Array.isArray(v) ? v as T[] : []);
+  return {
+    name: s(data.name),
+    gender: s(data.gender),
+    ageOrBirth: s(data.ageOrBirth),
+    phone: s(data.phone),
+    email: s(data.email),
+    location: s(data.location),
+    education: '',
+    highestEducation: s(data.highestEducation),
+    school: s(data.school),
+    major: s(data.major),
+    workExperience: arr<Record<string, string>>(data.workExperience)
+      .map(e => [e.period, e.company, e.role, e.desc].filter(Boolean).join(' | ')),
+    skills: arr<string>(data.skills).slice(0, 8),
+    honors: arr<string>(data.honors),
+    expectedSalary: s(data.expectedSalary),
+    currentlyEmployed: s(data.currentlyEmployed),
+    availability: s(data.availability),
+    photoBase64: s(data.photoBase64) || photoBase64,
+    rawText: '',
+  };
+}
 
 // Extract first page from PDF as image (base64) for photo display
 const extractPdfFirstPageImage = async (arrayBuffer: ArrayBuffer): Promise<string> => {
