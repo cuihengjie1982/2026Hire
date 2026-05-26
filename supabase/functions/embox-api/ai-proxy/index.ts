@@ -1,5 +1,5 @@
 import { createSupabaseAdmin } from '../_shared/supabaseClient.ts';
-import { callLLM } from '../_shared/llmClient.ts';
+import { callLLM, callVisionLLM, type ContentPart } from '../_shared/llmClient.ts';
 import { buildSystemPrompt, buildUserMessage, buildRankingSystemPrompt, buildRankingUserMessage } from '../_shared/promptBuilder.ts';
 import { parseJSONResponse } from '../_shared/jsonParser.ts';
 
@@ -116,6 +116,41 @@ export const proxy = async (req: Request, _userId: string, _userRole: string): P
         return jsonRes({ name: '', gender: '', ageOrBirth: '', phone: '', email: '', location: '',
           highestEducation: '', school: '', major: '', skills: [], workExperience: [],
           honors: [], expectedSalary: '', currentlyEmployed: '', availability: '', photoBase64: '',
+          _parseFailed: true, _parseError: e instanceof Error ? e.message : String(e) });
+      }
+      return jsonRes({ modelUsed: config.model_name, provider: config.provider, ...parseJSONResponse(raw) });
+    }
+
+    if (action === 'parse-resume-vision') {
+      // Vision LLM: takes PDF pages as base64 images, returns structured resume JSON
+      const images: string[] = Array.isArray(body.images) ? body.images : [];
+      if (images.length === 0) return jsonRes({ error: 'images array required for vision parse' }, 400);
+
+      config.temperature = 0.1;
+      config.max_tokens = 4096;
+      const systemPrompt = `你是一个简历信息提取助手。用户会发送简历的图片（可能有多页），请从图片中提取结构化信息，以 JSON 格式返回。
+
+必须返回以下字段（如无则留空）：name, gender, ageOrBirth, phone, email, location, highestEducation, school, major, expectedSalary, currentlyEmployed, availability, skills(数组最多8个), workExperience(数组，每个元素格式：{company, role, period, desc}), honors(数组)。
+
+只返回纯 JSON，不要有其他文字。`;
+      const mimeType = body.mimeType || 'image/jpeg';
+      const parts: ContentPart[] = images.map((data: string) => ({
+        type: 'image',
+        image: { media_type: mimeType, data },
+      }));
+      parts.push({
+        type: 'text',
+        text: '请从以上简历图片中提取所有结构化信息，以纯 JSON 格式返回。',
+      });
+
+      let raw: string;
+      try {
+        raw = await callVisionLLM(config, systemPrompt, parts);
+      } catch (e) {
+        console.error('[parse-resume-vision] Vision LLM call failed:', e);
+        return jsonRes({ name: '', gender: '', ageOrBirth: '', phone: '', email: '', location: '',
+          highestEducation: '', school: '', major: '', skills: [], workExperience: [],
+          honors: [], expectedSalary: '', currentlyEmployed: '', availability: '',
           _parseFailed: true, _parseError: e instanceof Error ? e.message : String(e) });
       }
       return jsonRes({ modelUsed: config.model_name, provider: config.provider, ...parseJSONResponse(raw) });
