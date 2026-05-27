@@ -46,6 +46,8 @@ const loadHandlers = async (): Promise<RouteHandler[]> => {
   const { listNotifications, markRead, dismissNotification } = await import('./notifications/index.ts');
   // SMS Gateway
   const { sendSmsHandler, listTemplates, createTemplate } = await import('./sms-gateway/index.ts');
+  // Training Academy
+  const { handleCourses, handleEnrollments, handleAnalytics, getStats, exportEnrollmentsCsv, portalHandler } = await import('./training/index.ts');
 
   return [
     // AI Proxy — any authenticated user
@@ -104,6 +106,25 @@ const loadHandlers = async (): Promise<RouteHandler[]> => {
     { pattern: '/sms-gateway/send', methods: ['POST'], auth: 'recruiter+', handler: sendSmsHandler },
     { pattern: '/sms-gateway/templates', methods: ['GET'], auth: 'any', handler: listTemplates },
     { pattern: '/sms-gateway/templates', methods: ['POST'], auth: 'admin', handler: createTemplate },
+    // Training Academy — Courses (admin/recruiter manage, all authenticated read)
+    { pattern: '/training/courses', methods: ['GET'], auth: 'any', handler: handleCourses },
+    { pattern: '/training/courses', methods: ['POST'], auth: 'recruiter+', handler: handleCourses },
+    { pattern: '/training/courses', methods: ['PATCH'], auth: 'recruiter+', handler: handleCourses },
+    { pattern: '/training/courses', methods: ['DELETE'], auth: 'admin', handler: handleCourses },
+    // Training Academy — Enrollments
+    { pattern: '/training/enrollments', methods: ['GET'], auth: 'any', handler: handleEnrollments },
+    { pattern: '/training/enrollments', methods: ['POST'], auth: 'recruiter+', handler: handleEnrollments },
+    { pattern: '/training/enrollments', methods: ['PATCH'], auth: 'recruiter+', handler: handleEnrollments },
+    { pattern: '/training/enrollments', methods: ['DELETE'], auth: 'recruiter+', handler: handleEnrollments },
+    // Training Academy — Analytics
+    { pattern: '/training/analytics', methods: ['GET'], auth: 'any', handler: handleAnalytics },
+    { pattern: '/training/analytics/', methods: ['POST'], auth: 'any', handler: handleAnalytics },
+    // Training Academy — Stats
+    { pattern: '/training/stats', methods: ['GET'], auth: 'any', handler: getStats },
+    // Training Academy — CSV Export
+    { pattern: '/training/export', methods: ['GET'], auth: 'recruiter+', handler: exportEnrollmentsCsv },
+    // Training Academy — Public Candidate Portal (no auth)
+    { pattern: '/training/portal', methods: ['GET'], auth: 'none', handler: portalHandler },
   ];
 };
 

@@ -78,7 +78,7 @@ export const DashboardLayout = ({onLogout}: {onLogout: () => void}) => {
     () => navigationItems.find((item) => item.id === currentPageId) ?? navigationItems[0],
     [currentPageId],
   );
-  const isPreviewPage = currentPageId === 'ai-interview-preview';
+  const isPreviewPage = false;
 
   useEffect(() => {
     const handleNavigate = (event: Event) => {
@@ -150,7 +150,7 @@ export const DashboardLayout = ({onLogout}: {onLogout: () => void}) => {
                   </div>
                   {page.badge && (
                     <span className={`${page.badgeColor} text-white text-[10px] font-medium px-2 py-0.5 rounded-full`}>
-                      {page.id === 'agents' ? `${counts.runningAgents} 运行中` : page.id === 'shortlist' ? String(counts.shortlistCount) : page.id === 'approvals' ? String(counts.pendingApprovals) : page.badge}
+                      {page.id === 'approvals' ? String(counts.pendingApprovals) : page.badge}
                     </span>
                   )}
                   {page.subtext && isActive && (

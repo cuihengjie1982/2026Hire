@@ -4,13 +4,7 @@ import {navigationItems} from '../../app/navigation';
 import {PAGE_ROUTE_BY_ID, type AppPageId} from '../../navigation';
 
 // Breadcrumb hierarchy: child -> parent
-const BREADCRUMB_PARENT: Partial<Record<AppPageId, AppPageId>> = {
-  'ai-interview-preview': 'ai-interview',
-  'ai-interview-management': 'ai-interview',
-  'ai-interview-results': 'ai-interview',
-  'ai-interview-analytics': 'ai-interview',
-  'position-config': 'projects',
-};
+const BREADCRUMB_PARENT: Partial<Record<AppPageId, AppPageId>> = {};
 
 function getPageIdForPath(pathname: string): AppPageId | undefined {
   for (const [id, route] of Object.entries(PAGE_ROUTE_BY_ID)) {

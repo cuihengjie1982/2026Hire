@@ -1,5 +1,5 @@
-import {fetchJson, getItemsFromPayload} from '../../shared/lib/apiClient';
-import {USE_MOCK_API} from '../../shared/lib/runtime';
+import {getItemsFromPayload} from '../../shared/lib/apiClient';
+import {USE_MOCK_API, API_BASE_URL, getAuthToken} from '../../shared/lib/runtime';
 import {courseFixtures, enrollmentFixtures} from './fixtures';
 import {
   type TrainingCourse,
@@ -20,6 +20,23 @@ export type {
   WeaknessAnalysis,
   TrainingEffectiveness,
   CourseRecommendation,
+};
+
+// Helper to call embox-api Edge Function (production) or fall through to fetchJson (dev)
+const efetch = async <T>(path: string, method = 'GET', body?: Record<string, unknown>): Promise<T> => {
+  const base = USE_MOCK_API ? '' : API_BASE_URL;
+  const token = getAuthToken();
+  const res = await fetch(`${base}/functions/v1/embox-api${path}`, {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+    },
+    ...(body ? { body: JSON.stringify(body) } : {}),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data?.error?.message || `API error ${res.status}`);
+  return data as T;
 };
 
 // ─── Mappers ────────────────────────────────────────────────────────────
@@ -107,7 +124,7 @@ export const listCourses = async (filters?: {
   if (filters?.pageSize) params.set('pageSize', String(filters.pageSize));
 
   const qs = params.toString();
-  const payload = await fetchJson<Record<string, unknown>>(`/api/training/courses${qs ? `?${qs}` : ''}`);
+  const payload = await efetch<Record<string, unknown>>(`/training/courses${qs ? `?${qs}` : ''}`);
   return {
     items: getItemsFromPayload<Record<string, unknown>>(payload).map(mapCourse),
     total: (payload.total as number) ?? 0,
@@ -118,7 +135,7 @@ export const listCourses = async (filters?: {
 
 export const getCourse = async (id: string): Promise<TrainingCourse> => {
   if (USE_MOCK_API) { await mockDelay(); const c = courses.find(x => x.id === id); if (!c) throw new Error('Course not found'); return c; }
-  const raw = await fetchJson<Record<string, unknown>>(`/api/training/courses/${id}`);
+  const raw = await efetch<Record<string, unknown>>(`/training/courses/${id}`);
   return mapCourse(raw);
 };
 
@@ -145,10 +162,7 @@ export const createCourse = async (input: Partial<TrainingCourse> & {title: stri
     return course;
   }
 
-  const raw = await fetchJson<Record<string, unknown>>('/api/training/courses', {
-    method: 'POST',
-    body: JSON.stringify(input),
-  });
+  const raw = await efetch<Record<string, unknown>>('/training/courses', 'POST', input as unknown as Record<string, unknown>);
   return mapCourse(raw);
 };
 
@@ -161,16 +175,13 @@ export const updateCourse = async (id: string, updates: Partial<TrainingCourse>)
     return courses[idx];
   }
 
-  const raw = await fetchJson<Record<string, unknown>>(`/api/training/courses/${id}`, {
-    method: 'PATCH',
-    body: JSON.stringify(updates),
-  });
+  const raw = await efetch<Record<string, unknown>>(`/training/courses/${id}`, 'PATCH', updates as unknown as Record<string, unknown>);
   return mapCourse(raw);
 };
 
 export const deleteCourse = async (id: string): Promise<void> => {
   if (USE_MOCK_API) { await mockDelay(); courses = courses.filter(c => c.id !== id); return; }
-  await fetchJson(`/api/training/courses/${id}`, {method: 'DELETE'});
+  await efetch(`/training/courses/${id}`, 'DELETE');
 };
 
 // ─── Enrollments ────────────────────────────────────────────────────────
@@ -201,7 +212,7 @@ export const listEnrollments = async (filters?: {
   if (filters?.pageSize) params.set('pageSize', String(filters.pageSize));
 
   const qs = params.toString();
-  const payload = await fetchJson<Record<string, unknown>>(`/api/training/enrollments${qs ? `?${qs}` : ''}`);
+  const payload = await efetch<Record<string, unknown>>(`/training/enrollments${qs ? `?${qs}` : ''}`);
   return {
     items: getItemsFromPayload<Record<string, unknown>>(payload).map(mapEnrollment),
     total: (payload.total as number) ?? 0,
@@ -240,10 +251,7 @@ export const createEnrollment = async (input: {
     return enrollment;
   }
 
-  const raw = await fetchJson<Record<string, unknown>>('/api/training/enrollments', {
-    method: 'POST',
-    body: JSON.stringify(input),
-  });
+  const raw = await efetch<Record<string, unknown>>('/training/enrollments', 'POST', input as unknown as Record<string, unknown>);
   return mapEnrollment(raw);
 };
 
@@ -259,23 +267,20 @@ export const updateEnrollment = async (
     return enrollments[idx];
   }
 
-  const raw = await fetchJson<Record<string, unknown>>(`/api/training/enrollments/${id}`, {
-    method: 'PATCH',
-    body: JSON.stringify(updates),
-  });
+  const raw = await efetch<Record<string, unknown>>(`/training/enrollments/${id}`, 'PATCH', updates as unknown as Record<string, unknown>);
   return mapEnrollment(raw);
 };
 
 export const deleteEnrollment = async (id: string): Promise<void> => {
   if (USE_MOCK_API) { await mockDelay(); enrollments = enrollments.filter(e => e.id !== id); return; }
-  await fetchJson(`/api/training/enrollments/${id}`, {method: 'DELETE'});
+  await efetch(`/training/enrollments/${id}`, 'DELETE');
 };
 
 // ─── Assessments ────────────────────────────────────────────────────────
 
 export const listAssessments = async (enrollmentId: string): Promise<TrainingAssessment[]> => {
   if (USE_MOCK_API) { await mockDelay(); return assessments.filter(a => a.enrollmentId === enrollmentId); }
-  const rows = await fetchJson<Record<string, unknown>[]>(`/api/training/enrollments/${enrollmentId}/assessments`);
+  const rows = await efetch<Record<string, unknown>[]>(`/training/enrollments/${enrollmentId}/assessments`);
   return rows.map(mapAssessment);
 };
 
@@ -311,10 +316,7 @@ export const submitAssessment = async (
     return record;
   }
 
-  const raw = await fetchJson<Record<string, unknown>>(`/api/training/enrollments/${enrollmentId}/assessments`, {
-    method: 'POST',
-    body: JSON.stringify(input),
-  });
+  const raw = await efetch<Record<string, unknown>>(`/training/enrollments/${enrollmentId}/assessments`, 'POST', input as unknown as Record<string, unknown>);
   return mapAssessment(raw);
 };
 
@@ -335,7 +337,7 @@ export const getWeaknessAnalysis = async (positionId?: string): Promise<Weakness
   }
 
   const qs = positionId ? `?positionId=${encodeURIComponent(positionId)}` : '';
-  return fetchJson<WeaknessAnalysis>(`/api/training/analytics/weakness-analysis${qs}`);
+  return efetch<WeaknessAnalysis>(`/training/analytics/weakness-analysis${qs}`);
 };
 
 export const getTrainingEffectiveness = async (): Promise<TrainingEffectiveness> => {
@@ -353,7 +355,7 @@ export const getTrainingEffectiveness = async (): Promise<TrainingEffectiveness>
     };
   }
 
-  return fetchJson<TrainingEffectiveness>('/api/training/analytics/training-effectiveness');
+  return efetch<TrainingEffectiveness>('/training/analytics/training-effectiveness');
 };
 
 export const recommendCourses = async (candidateId: string): Promise<CourseRecommendation> => {
@@ -365,10 +367,7 @@ export const recommendCourses = async (candidateId: string): Promise<CourseRecom
     };
   }
 
-  const raw = await fetchJson<CourseRecommendation>('/api/training/analytics/recommend-courses', {
-    method: 'POST',
-    body: JSON.stringify({candidateId}),
-  });
+  const raw = await efetch<CourseRecommendation>('/training/analytics/recommend-courses', 'POST', {candidateId});
   return raw;
 };
 
@@ -380,9 +379,9 @@ export const exportEnrollmentsCSV = async (filters?: {status?: string; courseId?
   if (filters?.courseId) params.set('courseId', filters.courseId);
   const qs = params.toString();
 
-  const token = localStorage.getItem('em-box.auth-token') ?? '';
-  const base = USE_MOCK_API ? '' : (localStorage.getItem('em-box.api-base-url') || '');
-  const url = `${base}/api/training/export/enrollments${qs ? `?${qs}` : ''}`;
+  const token = getAuthToken() ?? '';
+  const base = USE_MOCK_API ? '' : API_BASE_URL;
+  const url = `${base}/functions/v1/embox-api/training/export/enrollments${qs ? `?${qs}` : ''}`;
 
   const resp = await fetch(url, {
     headers: {Authorization: `Bearer ${token}`},
@@ -414,5 +413,5 @@ export const getTrainingStats = async (): Promise<TrainingStats> => {
     };
   }
 
-  return fetchJson<TrainingStats>('/api/training/stats');
+  return efetch<TrainingStats>('/training/stats');
 };
