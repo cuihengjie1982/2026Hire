@@ -602,7 +602,7 @@ const exportEnrollmentsCsv = async (req: Request): Promise<Response> => {
 // Stats
 // =============================================================================
 
-export const getTrainingStats = async (req: Request): Promise<Response> => {
+const getTrainingStats = async (req: Request): Promise<Response> => {
   try {
     const supabase = createSupabaseAdmin(req);
 

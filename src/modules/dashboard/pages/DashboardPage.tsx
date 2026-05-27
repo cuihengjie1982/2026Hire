@@ -205,7 +205,7 @@ export const DashboardPage = () => {
         const [dashboardStats, results] = await Promise.all([
           USE_MOCK_API
             ? null
-            : fetch(`${API_BASE_URL}/api/stats/dashboard`, {
+            : fetch(`${API_BASE_URL}/functions/v1/embox-api/stats/dashboard`, {
                 headers: {'Authorization': `Bearer ${getAuthToken() ?? ''}`},
               }).then(r => r.json() as Promise<{
                 sidebar: {runningAgents: number; shortlistCount: number; pendingApprovals: number; totalCandidates: number};

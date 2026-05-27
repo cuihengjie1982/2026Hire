@@ -36,7 +36,7 @@ async function searchBackend(q: string): Promise<SearchResult | null> {
     return {candidates: [], positions: [], projects: [], agents: []};
   }
   try {
-    const resp = await fetch(`${API_BASE_URL}/api/stats/search?q=${encodeURIComponent(q)}`, {
+    const resp = await fetch(`${API_BASE_URL}/functions/v1/embox-api/stats/search?q=${encodeURIComponent(q)}`, {
       headers: {'Authorization': `Bearer ${getAuthToken() ?? ''}`},
     });
     if (resp.ok) return await resp.json() as SearchResult;

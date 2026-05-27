@@ -5,6 +5,7 @@ import {
   BookOpen, CheckCircle, ChevronRight, Clock, GraduationCap,
   Loader2, XCircle, AlertCircle, TrendingUp, Award,
 } from 'lucide-react';
+import {USE_MOCK_API, API_BASE_URL} from '../../../shared/lib/runtime';
 
 interface PortalEnrollment {
   id: string;
@@ -85,8 +86,14 @@ export const CandidateTrainingPortal = () => {
       return;
     }
 
-    const qs = token ? `?token=${encodeURIComponent(token)}` : '';
-    fetch(`/api/training/portal/${encodeURIComponent(candidateId)}${qs}`)
+    const params = new URLSearchParams();
+    if (token) params.set('token', token);
+    const qs = params.toString();
+    const base = USE_MOCK_API ? '' : API_BASE_URL;
+    const url = USE_MOCK_API
+      ? `/api/training/portal/${encodeURIComponent(candidateId)}${qs ? `?${qs}` : ''}`
+      : `${base}/functions/v1/embox-api/training/portal/${encodeURIComponent(candidateId)}${qs ? `?${qs}` : ''}`;
+    fetch(url)
       .then(r => {
         if (!r.ok) throw new Error(r.status === 403 ? '访问被拒绝' : '加载失败');
         return r.json();

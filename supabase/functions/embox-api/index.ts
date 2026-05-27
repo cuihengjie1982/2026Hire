@@ -48,6 +48,8 @@ const loadHandlers = async (): Promise<RouteHandler[]> => {
   const { sendSmsHandler, listTemplates, createTemplate } = await import('./sms-gateway/index.ts');
   // Training Academy
   const { handleCourses, handleEnrollments, handleAnalytics, getTrainingStats, exportEnrollmentsCsv, portalHandler } = await import('./training/index.ts');
+  // Stats (sidebar counts + unified search)
+  const { sidebarStats, searchStats, dashboardStats } = await import('./stats/index.ts');
 
   return [
     // AI Proxy — any authenticated user
@@ -125,6 +127,10 @@ const loadHandlers = async (): Promise<RouteHandler[]> => {
     { pattern: '/training/export', methods: ['GET'], auth: 'recruiter+', handler: exportEnrollmentsCsv },
     // Training Academy — Public Candidate Portal (no auth)
     { pattern: '/training/portal', methods: ['GET'], auth: 'none', handler: portalHandler },
+    // Stats — dashboard/sidebar/search (any authenticated)
+    { pattern: '/stats/dashboard', methods: ['GET'], auth: 'any', handler: dashboardStats },
+    { pattern: '/stats/sidebar', methods: ['GET'], auth: 'any', handler: sidebarStats },
+    { pattern: '/stats/search', methods: ['GET'], auth: 'any', handler: searchStats },
   ];
 };
 
@@ -151,8 +157,9 @@ const serverHandler = async (req: Request): Promise<Response> => {
         handlers = await loadHandlers();
       } catch (loadErr) {
         console.error('[embox-api] Failed to load handlers:', loadErr);
+        const msg = loadErr instanceof Error ? `${loadErr.message} | stack: ${loadErr.stack?.slice(0, 500)}` : String(loadErr);
         return jsonRes(
-          { error: { code: 'BOOT_ERROR', message: 'Failed to initialize function handlers' } },
+          { error: { code: 'BOOT_ERROR', message: `Failed to initialize: ${msg}` } },
           503,
           corsH,
         );

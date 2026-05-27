@@ -52,7 +52,9 @@ const mapCourse = (raw: Record<string, unknown>): TrainingCourse => ({
   materials: (raw.materials ?? []) as TrainingCourse['materials'],
   assessmentConfig: (raw.assessment_config ?? raw.assessmentConfig ?? {type: 'quiz', passingScore: 60}) as TrainingCourse['assessmentConfig'],
   positionId: raw.position_id ? String(raw.position_id) : undefined,
-  positionName: raw.position_name ? String(raw.position_name) : undefined,
+  positionName: (raw.positions as Record<string, unknown>)?.name
+    ? String((raw.positions as Record<string, unknown>).name)
+    : raw.position_name ? String(raw.position_name) : undefined,
   competencyDimension: raw.competency_dimension ? String(raw.competency_dimension) : undefined,
   isActive: Boolean(raw.is_active ?? raw.isActive ?? true),
   createdAt: String(raw.created_at ?? ''),
