@@ -47,7 +47,7 @@ const loadHandlers = async (): Promise<RouteHandler[]> => {
   // SMS Gateway
   const { sendSmsHandler, listTemplates, createTemplate } = await import('./sms-gateway/index.ts');
   // Training Academy
-  const { handleCourses, handleEnrollments, handleAnalytics, getStats, exportEnrollmentsCsv, portalHandler } = await import('./training/index.ts');
+  const { handleCourses, handleEnrollments, handleAnalytics, getTrainingStats, exportEnrollmentsCsv, portalHandler } = await import('./training/index.ts');
 
   return [
     // AI Proxy — any authenticated user
@@ -120,7 +120,7 @@ const loadHandlers = async (): Promise<RouteHandler[]> => {
     { pattern: '/training/analytics', methods: ['GET'], auth: 'any', handler: handleAnalytics },
     { pattern: '/training/analytics/', methods: ['POST'], auth: 'any', handler: handleAnalytics },
     // Training Academy — Stats
-    { pattern: '/training/stats', methods: ['GET'], auth: 'any', handler: getStats },
+    { pattern: '/training/stats', methods: ['GET'], auth: 'any', handler: getTrainingStats },
     // Training Academy — CSV Export
     { pattern: '/training/export', methods: ['GET'], auth: 'recruiter+', handler: exportEnrollmentsCsv },
     // Training Academy — Public Candidate Portal (no auth)
@@ -147,7 +147,16 @@ const serverHandler = async (req: Request): Promise<Response> => {
 
   try {
     if (!handlers) {
-      handlers = await loadHandlers();
+      try {
+        handlers = await loadHandlers();
+      } catch (loadErr) {
+        console.error('[embox-api] Failed to load handlers:', loadErr);
+        return jsonRes(
+          { error: { code: 'BOOT_ERROR', message: 'Failed to initialize function handlers' } },
+          503,
+          corsH,
+        );
+      }
     }
 
     const url = new URL(req.url);
