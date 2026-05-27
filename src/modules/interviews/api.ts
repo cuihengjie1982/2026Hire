@@ -1,15 +1,21 @@
 import {fetchJson} from '../../shared/lib/apiClient';
 import {USE_MOCK_API, API_BASE_URL, getAuthToken} from '../../shared/lib/runtime';
 
+const isFormData = (v: unknown): v is FormData => typeof FormData !== 'undefined' && v instanceof FormData;
+
 const efetch = async <T>(path: string, method = 'GET', body?: unknown): Promise<T> => {
   const base = USE_MOCK_API ? '' : API_BASE_URL;
+  const headers: Record<string, string> = {
+    'Authorization': `Bearer ${getAuthToken() ?? ''}`,
+  };
+  // Don't set Content-Type for FormData — browser auto-sets multipart boundary
+  if (!isFormData(body)) {
+    headers['Content-Type'] = 'application/json';
+  }
   const res = await fetch(`${base}/functions/v1/embox-api${path}`, {
     method,
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${getAuthToken() ?? ''}`,
-    },
-    ...(body ? { body: JSON.stringify(body) } : {}),
+    headers,
+    ...(body ? { body: isFormData(body) ? body : JSON.stringify(body) } : {}),
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data?.error?.message || `API error ${res.status}`);
@@ -889,16 +895,7 @@ export const submitAnswerAudio = async (params: {
   if (params.linkedDimensions) formData.append('linkedDimensions', JSON.stringify(params.linkedDimensions));
   if (params.transcript) formData.append('transcript', params.transcript);
 
-  const data = await efetch<Record<string, unknown>>('/interview-scoring/transcribe-and-score', 'POST', {
-    sessionId: params.sessionId,
-    questionId: params.questionId,
-    questionTitle: params.questionTitle,
-    questionPrompt: params.questionPrompt,
-    audioDuration: params.audioDuration,
-    scoringGuide: params.scoringGuide,
-    linkedDimensions: params.linkedDimensions,
-    transcript: params.transcript,
-  });
+  const data = await efetch<Record<string, unknown>>('/interview-scoring/transcribe-and-score', 'POST', formData);
   return mapAnswerScore(data);
 };
 

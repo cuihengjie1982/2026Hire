@@ -134,21 +134,18 @@ export const transcribeAndScore = async (req: Request, _userId: string, _userRol
   }
 };
 
-// POST aggregate/:sessionId
+// POST aggregate — sessionId in body
 export const aggregate = async (req: Request, _userId: string, _userRole: string): Promise<Response> => {
   try {
-    const url = new URL(req.url);
-    const match = url.pathname.match(/\/aggregate\/([^/]+)/);
-    if (!match) return jsonRes({ error: { code: 'VALIDATION_ERROR', message: 'sessionId required in URL' } }, 400);
-
-    const sessionId = match[1];
-    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(sessionId)) {
+    const { sessionId } = await req.json() as Record<string, unknown>;
+    if (!sessionId) return jsonRes({ error: { code: 'VALIDATION_ERROR', message: 'sessionId is required' } }, 400);
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(sessionId))) {
       return jsonRes({ error: { code: 'VALIDATION_ERROR', message: 'Invalid sessionId format' } }, 400);
     }
 
     const supabase = createSupabaseAdmin(req);
 
-    const { data: session } = await supabase.from('interview_sessions').select('*, candidates(id,name,email), interview_templates(id,name,scoring_config,grade_rules,position_id,positions(id,name))').eq('id', sessionId).single();
+    const { data: session } = await supabase.from('interview_sessions').select('*, candidates(id,name,email), interview_templates(id,name,scoring_config,grade_rules,position_id,positions(id,name))').eq('id', String(sessionId)).single();
     if (!session) return jsonRes({ error: { code: 'NOT_FOUND', message: `Session ${sessionId} not found` } }, 404);
 
     const s = session as Record<string, unknown>;

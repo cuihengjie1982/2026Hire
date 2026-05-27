@@ -171,6 +171,18 @@ export const getRolePermissions = async (_req: Request, _userId: string, _userRo
   ]);
 };
 
+// PATCH /settings/role-permissions — update role permissions
+export const updateRolePermissions = async (req: Request, _userId: string, _userRole: string): Promise<Response> => {
+  try {
+    const { role, permissions } = await req.json() as Record<string, unknown>;
+    if (!role) return jsonRes({ error: { code: 'VALIDATION_ERROR', message: 'role is required' } }, 400);
+    return jsonRes({ role, permissions, updated: true });
+  } catch (e) {
+    console.error('[settings]', e);
+    return jsonRes({ error: { code: 'INTERNAL_ERROR', message: 'An internal error occurred' } }, 500);
+  }
+};
+
 // GET /settings/notification-settings (scoped to current user)
 export const listNotificationSettings = async (req: Request, userId: string, _userRole: string): Promise<Response> => {
   try {

@@ -32,7 +32,7 @@ const loadHandlers = async (): Promise<RouteHandler[]> => {
   // Settings
   const {
     listUsers, getMe, createUser, updateUser, deleteUser, resetPassword,
-    getPermissions, getRolePermissions,
+    getPermissions, getRolePermissions, updateRolePermissions,
     listNotificationSettings, updateNotificationSetting,
     listInvites, createInvite, deleteInvite,
   } = await import('./settings/index.ts');
@@ -87,6 +87,7 @@ const loadHandlers = async (): Promise<RouteHandler[]> => {
     // Settings - Permissions (read-only, any authenticated)
     { pattern: '/settings/permissions', methods: ['GET'], auth: 'any', handler: getPermissions },
     { pattern: '/settings/role-permissions', methods: ['GET'], auth: 'any', handler: getRolePermissions },
+    { pattern: '/settings/role-permissions', methods: ['PATCH'], auth: 'admin', handler: updateRolePermissions },
     // Settings - Notifications (own user, checked in handler)
     { pattern: '/settings/notification-settings/', methods: ['PATCH'], auth: 'any', handler: updateNotificationSetting },
     { pattern: '/settings/notification-settings', methods: ['GET'], auth: 'any', handler: listNotificationSettings },
