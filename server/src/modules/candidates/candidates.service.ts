@@ -1,4 +1,5 @@
 import {queryOne} from '../../config/database.js';
+import {autoTriggerForCandidate} from '../agents/agentExecutor.js';
 
 export interface UpsertCandidateInput {
   name: string;
@@ -76,6 +77,9 @@ export async function upsertCandidate(input: UpsertCandidateInput): Promise<Upse
         existing.id,
       ],
     );
+    // Fire-and-forget: auto-trigger agents for updated candidate
+    autoTriggerForCandidate(String(existing.id), positionId ?? null).catch(() => {});
+
     return {row: updated!, duplicate: true, replaced: true};
   }
 
@@ -99,6 +103,9 @@ export async function upsertCandidate(input: UpsertCandidateInput): Promise<Upse
       original_file_name ?? null,
     ],
   );
+
+  // Fire-and-forget: auto-trigger agents for new candidate
+  autoTriggerForCandidate(String(row!.id), positionId ?? null).catch(() => {});
 
   return {row: row!, duplicate: false, replaced: false};
 }

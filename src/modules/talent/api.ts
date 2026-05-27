@@ -426,6 +426,9 @@ export const importResumes = async (
         const {parsedInfo, contentMd, photoBase64, metadata} = pipelineResult;
         const candidateName = parsedInfo.name || file.name.replace(/\.(pdf|docx?|doc|png|jpe?g)$/i, '');
 
+        // Populate rawText so AI agents can process this candidate
+        parsedInfo.rawText = contentMd || '';
+
         console.log(`[Import] ${file.name}: route=${metadata.route}, quality=${metadata.qualityScore}(${metadata.qualityLevel}), ` +
           `${metadata.totalDurationMs}ms, stages=${metadata.stagesUsed.join('→')}`);
 
@@ -534,6 +537,9 @@ export const importResumes = async (
 
       const {parsedInfo, contentMd, photoBase64, metadata} = pipelineResult;
       const candidateName = parsedInfo.name || file.name.replace(/\.(pdf|docx?|doc|png|jpe?g)$/i, '');
+
+      // Populate rawText so AI agents can process this candidate
+      parsedInfo.rawText = contentMd || '';
 
       console.log(`[Import] ${file.name}: route=${metadata.route}, quality=${metadata.qualityScore}(${metadata.qualityLevel}), ` +
         `${metadata.totalDurationMs}ms, stages=${metadata.stagesUsed.join('→')}`);

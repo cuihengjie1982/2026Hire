@@ -53,6 +53,58 @@ function mapRecToGrade(rec: string): string {
   }
 }
 
+// ─── Single-candidate processing (exported for auto-trigger) ────
+
+const PARSER_SYSTEM_PROMPT = `你是一个简历信息提取助手。从用户提供的简历文本中提取结构化信息，以 JSON 格式返回。\n\n必须返回以下字段（如果没有则留空）：name, gender, phone, email, location, highestEducation, school, major, skills(数组), workExperience(数组{company,role,period,desc})。\n\n只返回纯 JSON。`;
+
+/** Parse a single candidate's resume text with LLM. Returns extracted fields. */
+export async function parseOneCandidate(
+  supabase: ReturnType<typeof createSupabaseAdmin>,
+  aiConfig: Record<string, unknown>,
+  candidateId: string,
+  rawText: string,
+): Promise<Record<string, unknown>> {
+  const raw = await callLLM(aiConfig as Parameters<typeof callLLM>[0], PARSER_SYSTEM_PROMPT, `请从以下简历文本中提取结构化信息：\n\n${rawText.slice(0, 8000)}`);
+  const extracted = parseJSONResponse(raw);
+
+  const { data: existing } = await supabase.from('candidates').select('parsed_info').eq('id', candidateId).single();
+  const existingRow = existing as Record<string, unknown> | null;
+  const pInfo = existingRow?.parsed_info
+    ? (typeof existingRow.parsed_info === 'string' ? JSON.parse(String(existingRow.parsed_info)) : (existingRow.parsed_info as Record<string, unknown> || {}))
+    : {};
+
+  await supabase.from('candidates').update({
+    parsed_info: JSON.stringify({ ...pInfo, ...extracted }),
+    updated_at: new Date().toISOString(),
+  }).eq('id', candidateId);
+
+  return extracted;
+}
+
+/** Score a single candidate against a position's criteria. */
+export async function screenOneCandidate(
+  supabase: ReturnType<typeof createSupabaseAdmin>,
+  aiConfig: Record<string, unknown>,
+  position: { name: string; scoringRules: unknown[]; gradeRules: unknown[]; aiPrompt: string },
+  candidateId: string,
+  rawText: string,
+): Promise<{ totalScore: number; grade: string; recommendation: string }> {
+  const systemPrompt = buildSystemPrompt(position.aiPrompt, position.scoringRules as Parameters<typeof buildSystemPrompt>[1]);
+  const userMsg = buildUserMessage(rawText, position.name);
+  const raw = await callLLM(aiConfig as Parameters<typeof callLLM>[0], systemPrompt, userMsg);
+  const result = parseJSONResponse(raw);
+
+  const totalScore = Number(result.totalScore) || 0;
+  const recommendation = String(result.recommendation || '');
+  const grade = mapRecToGrade(recommendation);
+
+  await supabase.from('candidates').update({ grade, score_total: totalScore, updated_at: new Date().toISOString() }).eq('id', candidateId);
+
+  return { totalScore, grade, recommendation };
+}
+
+// ─── Agent stats update helper ───────────────────────────────────
+
 async function updateAgentStats(
   supabase: ReturnType<typeof createSupabaseAdmin>,
   agentId: string, agent: Record<string, unknown>,
@@ -76,7 +128,80 @@ async function updateAgentStats(
   }).eq('id', agentId);
 }
 
-// POST /agent-executor/run — execute an agent
+// ─── Auto-trigger: called after candidate import ─────────────────
+
+/**
+ * Find and run autoRun agents for a newly imported candidate.
+ * Called fire-and-forget from candidate-ops — errors are caught internally.
+ */
+export async function autoTriggerForCandidate(
+  supabase: ReturnType<typeof createSupabaseAdmin>,
+  candidateId: string,
+  positionId?: string | null,
+): Promise<void> {
+  try {
+    if (!positionId) return;
+
+    // Get candidate's rawText
+    const { data: candidateRow } = await supabase.from('candidates').select('parsed_info').eq('id', candidateId).single();
+    if (!candidateRow) return;
+
+    const candidate = candidateRow as Record<string, unknown>;
+    const pInfo = candidate.parsed_info
+      ? (typeof candidate.parsed_info === 'string' ? JSON.parse(String(candidate.parsed_info)) : candidate.parsed_info as Record<string, unknown>)
+      : {};
+    const rawText = String(pInfo?.rawText || pInfo?.raw_text || '');
+    if (rawText.length < 20) return;
+
+    // Find running agents with autoRun=true for this position
+    const { data: agents } = await supabase.from('agents')
+      .select('*')
+      .eq('status', 'running')
+      .in('type', ['parser', 'screener'])
+      .filter('config->>positionId', 'eq', positionId)
+      .filter('config->>autoRun', 'eq', 'true');
+
+    if (!agents || agents.length === 0) return;
+
+    for (const agent of agents as Record<string, unknown>[]) {
+      try {
+        const config = (typeof agent.config === 'string' ? JSON.parse(agent.config) : (agent.config || {})) as Record<string, unknown>;
+        const aiConfig = await resolveAIConfig(supabase, config.aiModelConfigId as string | undefined);
+        const type = String(agent.type || '');
+
+        if (type === 'parser') {
+          const hasName = pInfo?.name && String(pInfo.name).trim().length > 0;
+          if (!hasName) {
+            await parseOneCandidate(supabase, aiConfig, candidateId, rawText);
+            await updateAgentStats(supabase, String(agent.id), agent, 1, 1, 0, 0, `自动解析候选人 ${candidateId.slice(0, 8)}`);
+          }
+        } else if (type === 'screener') {
+          const { data: checkRow } = await supabase.from('candidates').select('grade, score_total').eq('id', candidateId).single();
+          const check = (checkRow ?? {}) as Record<string, unknown>;
+          const needsScoring = !check.grade || !check.score_total;
+          if (needsScoring) {
+            const position = await getPositionDetail(supabase, positionId);
+            const result = await screenOneCandidate(supabase, aiConfig, position, candidateId, rawText);
+            const approved = ['A', 'B+'].includes(result.grade) ? 1 : 0;
+            const rejected = result.grade === 'C' ? 1 : 0;
+            const pending = approved + rejected === 0 ? 1 : 0;
+            await updateAgentStats(supabase, String(agent.id), agent, 1, approved, rejected, pending,
+              `自动评分候选人 ${candidateId.slice(0, 8)}: ${result.grade}`);
+          }
+        }
+      } catch (e) {
+        console.error(`[autoTrigger] Agent ${agent.id} failed for candidate ${candidateId}:`, e);
+      }
+    }
+  } catch (e) {
+    console.error(`[autoTrigger] Failed for candidate ${candidateId}:`, e);
+  }
+}
+
+// ─── Route handler: POST /agent-executor/run ─────────────────────
+
+interface RunResult { processed: number; approved: number; rejected: number; pending: number; summary: string; duration: number; }
+
 export const runAgent = async (req: Request, _userId: string, _userRole: string): Promise<Response> => {
   try {
     const supabase = createSupabaseAdmin(req);
@@ -108,7 +233,7 @@ export const runAgent = async (req: Request, _userId: string, _userRole: string)
   }
 };
 
-interface RunResult { processed: number; approved: number; rejected: number; pending: number; summary: string; duration: number; }
+// ─── Batch agents (manual trigger, backward-compatible) ──────────
 
 async function runParser(
   supabase: ReturnType<typeof createSupabaseAdmin>,
@@ -121,8 +246,6 @@ async function runParser(
     .not('parsed_info', 'is', null)
     .order('created_at', { ascending: false }).limit(20);
 
-  const systemPrompt = `你是一个简历信息提取助手。从用户提供的简历文本中提取结构化信息，以 JSON 格式返回。\n\n必须返回以下字段（如果没有则留空）：name, gender, phone, email, location, highestEducation, school, major, skills(数组), workExperience(数组{company,role,period,desc})。\n\n只返回纯 JSON。`;
-
   let parsed = 0, failed = 0;
   for (const c of (candidates ?? []) as Record<string, unknown>[]) {
     try {
@@ -130,11 +253,7 @@ async function runParser(
       const rawText = String(pInfo?.rawText || pInfo?.raw_text || '');
       if (!rawText || rawText.length < 20) { failed++; continue; }
 
-      const raw = await callLLM(aiConfig as Parameters<typeof callLLM>[0], systemPrompt, `请从以下简历文本中提取结构化信息：\n\n${rawText.slice(0, 8000)}`);
-      const extracted = parseJSONResponse(raw);
-      await supabase.from('candidates').update({
-        parsed_info: JSON.stringify({ ...pInfo, ...extracted }), updated_at: new Date().toISOString(),
-      }).eq('id', String(c.id));
+      await parseOneCandidate(supabase, aiConfig, String(c.id), rawText);
       parsed++;
     } catch (e) { console.error('[agent-executor] parse candidate failed:', e); failed++; }
   }
@@ -153,10 +272,12 @@ async function runScreener(
   if (!config.positionId) throw new Error('请先绑定岗位');
 
   const position = await getPositionDetail(supabase, String(config.positionId));
+  const positionId = String(config.positionId);
   const start = Date.now();
 
   const { data: candidates } = await supabase.from('candidates')
     .select('id, parsed_info')
+    .eq('position_id', positionId)
     .not('parsed_info', 'is', null)
     .or('grade.is.null,grade.eq.,score_total.is.null,score_total.eq.0')
     .order('created_at', { ascending: false }).limit(20);
@@ -165,26 +286,17 @@ async function runScreener(
     return { processed: 0, approved: 0, rejected: 0, pending: 0, summary: '没有需要评分的候选人', duration: Date.now() - start };
   }
 
-  const systemPrompt = buildSystemPrompt(position.aiPrompt, position.scoringRules as Parameters<typeof buildSystemPrompt>[1]);
   let approved = 0, rejected = 0, pending = 0;
-
   for (const c of candidates as Record<string, unknown>[]) {
     try {
       const pInfo = typeof c.parsed_info === 'string' ? JSON.parse(String(c.parsed_info)) : c.parsed_info as Record<string, unknown>;
       const rawText = String(pInfo?.rawText || pInfo?.raw_text || '');
       if (!rawText || rawText.length < 20) { rejected++; continue; }
 
-      const userMsg = buildUserMessage(rawText, position.name);
-      const raw = await callLLM(aiConfig as Parameters<typeof callLLM>[0], systemPrompt, userMsg);
-      const result = parseJSONResponse(raw);
+      const result = await screenOneCandidate(supabase, aiConfig, position, String(c.id), rawText);
 
-      const totalScore = Number(result.totalScore) || 0;
-      const grade = mapRecToGrade(String(result.recommendation || ''));
-
-      await supabase.from('candidates').update({ grade, score_total: totalScore, updated_at: new Date().toISOString() }).eq('id', String(c.id));
-
-      if (['A', 'B+'].includes(grade)) approved++;
-      else if (grade === 'C') rejected++;
+      if (['A', 'B+'].includes(result.grade)) approved++;
+      else if (result.grade === 'C') rejected++;
       else pending++;
     } catch (e) { console.error('[agent-executor] screen candidate failed:', e); rejected++; }
   }
@@ -204,10 +316,12 @@ async function runMatcher(
   if (!config.positionId) throw new Error('请先绑定岗位');
 
   const position = await getPositionDetail(supabase, String(config.positionId));
+  const positionId = String(config.positionId);
   const start = Date.now();
 
   const { data: candidates } = await supabase.from('candidates')
     .select('id, parsed_info, grade, score_total')
+    .eq('position_id', positionId)
     .not('parsed_info', 'is', null)
     .not('grade', 'is', null)
     .order('score_total', { ascending: false, nullsFirst: false }).limit(20);

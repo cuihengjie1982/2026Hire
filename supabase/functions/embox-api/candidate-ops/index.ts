@@ -1,6 +1,7 @@
 import { createSupabaseAdmin } from '../_shared/supabaseClient.ts';
 import { getCorsHeaders } from '../_shared/cors.ts';
 import { notifyAdmins } from '../notifications/index.ts';
+import { autoTriggerForCandidate } from '../agent-executor/index.ts';
 
 function jsonRes(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
@@ -52,9 +53,16 @@ export const importCandidates = async (req: Request, _userId: string, _userRole:
       if (existing) {
         const { data: updated } = await supabase.from('candidates').update(row).eq('id', String(existing.id)).select('*').single();
         results.push({ ...updated, duplicate: true, replaced: true });
+        // Fire-and-forget: auto-trigger agents for updated candidate
+        autoTriggerForCandidate(supabase, String(existing.id), row.position_id as string | null).catch(() => {});
       } else {
         const { data: inserted } = await supabase.from('candidates').insert(row).select('*').single();
         results.push({ ...inserted, duplicate: false });
+        // Fire-and-forget: auto-trigger agents for new candidate
+        const insertedId = (inserted as Record<string, unknown> | null)?.id;
+        if (insertedId) {
+          autoTriggerForCandidate(supabase, String(insertedId), row.position_id as string | null).catch(() => {});
+        }
       }
     }
 

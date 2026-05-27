@@ -24,7 +24,7 @@ export const AgentsPage = () => {
 
   // New agent creation dialog
   const [showCreateDialog, setShowCreateDialog] = useState(false);
-  const [newAgent, setNewAgent] = useState({name: '', type: 'screener' as AgentType, positionId: '', aiModelConfigId: ''});
+  const [newAgent, setNewAgent] = useState({name: '', type: 'screener' as AgentType, positionId: '', aiModelConfigId: '', autoRun: false});
 
   // Data for create dialog
   const [positions, setPositions] = useState<PositionSummary[]>([]);
@@ -49,7 +49,7 @@ export const AgentsPage = () => {
 
   // Edit agent dialog
   const [editingAgent, setEditingAgent] = useState<Agent | null>(null);
-  const [editForm, setEditForm] = useState({name: '', description: '', type: 'screener' as AgentType, positionId: '', aiModelConfigId: ''});
+  const [editForm, setEditForm] = useState({name: '', description: '', type: 'screener' as AgentType, positionId: '', aiModelConfigId: '', autoRun: false});
   const [editLoading, setEditLoading] = useState(false);
 
   // Delete agent confirmation
@@ -140,10 +140,11 @@ export const AgentsPage = () => {
           positionId: newAgent.positionId || undefined,
           positionName: posName || undefined,
           aiModelConfigId: newAgent.aiModelConfigId || undefined,
+          autoRun: newAgent.autoRun,
         },
       });
       setShowCreateDialog(false);
-      setNewAgent({name: '', type: 'screener', positionId: '', aiModelConfigId: ''});
+      setNewAgent({name: '', type: 'screener', positionId: '', aiModelConfigId: '', autoRun: false});
       await loadData();
     } catch (e) {
       showToast('error', `创建失败: ${e instanceof Error ? e.message : '未知错误'}`);
@@ -202,6 +203,7 @@ export const AgentsPage = () => {
       type: agent.type ?? 'screener',
       positionId: cfg.positionId ?? '',
       aiModelConfigId: cfg.aiModelConfigId ?? '',
+      autoRun: cfg.autoRun ?? false,
     });
     setMoreMenuOpenId(null);
   };
@@ -219,6 +221,7 @@ export const AgentsPage = () => {
           positionId: editForm.positionId || undefined,
           positionName: posName || undefined,
           aiModelConfigId: editForm.aiModelConfigId || undefined,
+          autoRun: editForm.autoRun,
         },
       });
       setEditingAgent(null);
@@ -616,10 +619,21 @@ export const AgentsPage = () => {
                   ))}
                 </select>
               </div>
+              {(newAgent.type === 'parser' || newAgent.type === 'screener') && (
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={newAgent.autoRun}
+                    onChange={(e) => setNewAgent(prev => ({ ...prev, autoRun: e.target.checked }))}
+                    className="w-4 h-4 rounded border-gray-300 text-[#1a4bc4] focus:ring-[#1a4bc4]"
+                  />
+                  <span className="text-[13px] text-gray-700 dark:text-gray-300">自动运行 — 候选人导入后立即触发</span>
+                </label>
+              )}
             </div>
             <div className="flex gap-3 mt-6">
               <button
-                onClick={() => { setShowCreateDialog(false); setNewAgent({ name: '', type: 'screener', positionId: '', aiModelConfigId: '' }); }}
+                onClick={() => { setShowCreateDialog(false); setNewAgent({ name: '', type: 'screener', positionId: '', aiModelConfigId: '', autoRun: false }); }}
                 className="flex-1 px-4 py-2.5 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/30 rounded-lg text-[13px] font-medium text-gray-700 dark:text-gray-300 transition-colors"
               >
                 取消
@@ -722,6 +736,17 @@ export const AgentsPage = () => {
                   ))}
                 </select>
               </div>
+              {(editForm.type === 'parser' || editForm.type === 'screener') && (
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={editForm.autoRun}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, autoRun: e.target.checked }))}
+                    className="w-4 h-4 rounded border-gray-300 text-[#1a4bc4] focus:ring-[#1a4bc4]"
+                  />
+                  <span className="text-[13px] text-gray-700 dark:text-gray-300">自动运行 — 候选人导入后立即触发</span>
+                </label>
+              )}
             </div>
             <div className="flex gap-3 mt-6">
               <button

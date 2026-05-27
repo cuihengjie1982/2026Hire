@@ -264,10 +264,15 @@ export const TalentPoolPage = () => {
 
             {/* Basic info fields */}
             <div className="flex-1 min-w-0 space-y-1">
-              {/* Name + source badge */}
+              {/* Name + source badge + grade */}
               <div className="flex items-center gap-2">
                 <span className="font-bold text-gray-900 dark:text-white text-[15px]">{candidate.name}</span>
                 <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${candidate.sourceColor}`}>{candidate.source}</span>
+                {candidate.grade && (
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${candidate.gradeColor || 'text-gray-600 bg-gray-100'}`}>
+                    {candidate.grade}
+                  </span>
+                )}
               </div>
               {/* Age */}
               <div className="flex items-center gap-1 text-[11px] text-gray-600 dark:text-gray-300">

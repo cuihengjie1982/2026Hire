@@ -6,6 +6,7 @@ export interface AgentConfig {
   positionName?: string;
   aiModelConfigId?: string;
   autoApproveGrades?: string[];
+  autoRun?: boolean;
   processedCount?: number;
   lastRunAt?: string;
   lastRunSummary?: string;

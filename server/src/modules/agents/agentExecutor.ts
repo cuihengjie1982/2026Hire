@@ -7,6 +7,7 @@ interface AgentConfig {
   positionName?: string;
   aiModelConfigId?: string;
   autoApproveGrades?: string[];
+  autoRun?: boolean;
   processedCount?: number;
   lastRunAt?: string;
   lastRunSummary?: string;
@@ -21,8 +22,18 @@ interface RunResult {
   duration: number;
 }
 
+interface AIConfig {
+  id: string;
+  provider: string;
+  model_name: string;
+  api_key: string;
+  base_url?: string;
+  temperature: number;
+  max_tokens: number;
+}
+
 /** Resolve AI model config: specified ID → default → any active */
-async function resolveAIConfig(configId?: string) {
+async function resolveAIConfig(configId?: string): Promise<AIConfig> {
   let row = null as Record<string, unknown> | null;
   if (configId) {
     row = await queryOne(`SELECT * FROM ai_model_configs WHERE id = $1 AND is_active = true`, [configId]);
@@ -83,30 +94,9 @@ function mapRecommendationToGrade(rec: string): string {
   }
 }
 
-// ─── Parser: 简历解析 ────────────────────────────────────────────
+// ─── Single-candidate processing ────────────────────────────────
 
-export async function runParser(agent: Record<string, unknown>): Promise<RunResult> {
-  const config = (typeof agent.config === 'string' ? JSON.parse(agent.config) : agent.config || {}) as AgentConfig;
-  const aiConfig = await resolveAIConfig(config.aiModelConfigId);
-  const start = Date.now();
-
-  // Find candidates with raw text but no parsed_info
-  const candidates = await query(
-    `SELECT id, parsed_info FROM candidates
-     WHERE parsed_info IS NOT NULL
-       AND (parsed_info::text LIKE '%"rawText"%')
-       AND (parsed_info::text NOT LIKE '%"name"%'
-            OR (parsed_info->>'name') IS NULL
-            OR (parsed_info->>'name') = '')
-     ORDER BY created_at DESC
-     LIMIT 20`,
-  );
-
-  if (candidates.length === 0) {
-    return {processed: 0, approved: 0, rejected: 0, pending: 0, summary: '没有需要解析的简历', duration: Date.now() - start};
-  }
-
-  const systemPrompt = `你是一个简历信息提取助手。从用户提供的简历文本中提取结构化信息，以 JSON 格式返回。
+const PARSER_SYSTEM_PROMPT = `你是一个简历信息提取助手。从用户提供的简历文本中提取结构化信息，以 JSON 格式返回。
 
 必须返回以下字段（如果简历中没有则留空字符串""）：
 - name: 姓名
@@ -122,6 +112,79 @@ export async function runParser(agent: Record<string, unknown>): Promise<RunResu
 
 只返回纯 JSON，不要任何其他文字。`;
 
+/** Parse a single candidate's resume text with LLM. Returns extracted fields. */
+export async function parseOneCandidate(
+  aiConfig: AIConfig,
+  candidateId: string,
+  rawText: string,
+): Promise<Record<string, unknown>> {
+  const raw = await callLLM(aiConfig, PARSER_SYSTEM_PROMPT, `请从以下简历文本中提取结构化信息：\n\n${rawText.slice(0, 8000)}`);
+  const extracted = parseJSON(raw);
+
+  const existingRow = await queryOne(`SELECT parsed_info FROM candidates WHERE id = $1`, [candidateId]);
+  const pInfo = existingRow
+    ? (typeof existingRow.parsed_info === 'string' ? JSON.parse(String(existingRow.parsed_info)) : (existingRow.parsed_info as Record<string, unknown> || {}))
+    : {};
+
+  await query(
+    `UPDATE candidates SET parsed_info = $2::jsonb, updated_at = now() WHERE id = $1`,
+    [candidateId, JSON.stringify({...pInfo, ...extracted})],
+  );
+  return extracted;
+}
+
+/** Score a single candidate against a position's criteria. Returns {totalScore, grade, recommendation}. */
+export async function screenOneCandidate(
+  aiConfig: AIConfig,
+  position: { name: string; scoringRules: unknown[]; gradeRules: unknown[]; aiPrompt: string },
+  candidateId: string,
+  rawText: string,
+): Promise<{ totalScore: number; grade: string; recommendation: string }> {
+  const systemPrompt = buildSystemPrompt(
+    position.aiPrompt,
+    position.scoringRules as Array<{dimension: string; weight: number; keywords: string[]; matchMode?: 'all' | 'any'}>,
+  );
+  const userMsg = buildUserMessage(rawText, position.name);
+  const raw = await callLLM(aiConfig, systemPrompt, userMsg);
+  const result = parseJSON(raw);
+
+  const totalScore = Number(result.totalScore) || 0;
+  const recommendation = String(result.recommendation || '');
+  const grade = mapRecommendationToGrade(recommendation);
+
+  await query(
+    `UPDATE candidates SET grade = $2, score_total = $3, updated_at = now() WHERE id = $1`,
+    [candidateId, grade, totalScore],
+  );
+
+  return { totalScore, grade, recommendation };
+}
+
+// ─── Batch agents (manual trigger, backward-compatible) ─────────
+
+// ─── Parser: 简历解析 ────────────────────────────────────────────
+
+export async function runParser(agent: Record<string, unknown>): Promise<RunResult> {
+  const config = (typeof agent.config === 'string' ? JSON.parse(agent.config) : agent.config || {}) as AgentConfig;
+  const aiConfig = await resolveAIConfig(config.aiModelConfigId);
+  const start = Date.now();
+
+  // Find candidates with raw text but no parsed_info.name
+  const candidates = await query(
+    `SELECT id, parsed_info FROM candidates
+     WHERE parsed_info IS NOT NULL
+       AND (parsed_info::text LIKE '%"rawText"%')
+       AND (parsed_info::text NOT LIKE '%"name"%'
+            OR (parsed_info->>'name') IS NULL
+            OR (parsed_info->>'name') = '')
+     ORDER BY created_at DESC
+     LIMIT 20`,
+  );
+
+  if (candidates.length === 0) {
+    return {processed: 0, approved: 0, rejected: 0, pending: 0, summary: '没有需要解析的简历', duration: Date.now() - start};
+  }
+
   let parsed = 0;
   let failed = 0;
 
@@ -131,13 +194,7 @@ export async function runParser(agent: Record<string, unknown>): Promise<RunResu
       const rawText = String(pInfo?.rawText || pInfo?.raw_text || '');
       if (!rawText || rawText.length < 20) { failed++; continue; }
 
-      const raw = await callLLM(aiConfig, systemPrompt, `请从以下简历文本中提取结构化信息：\n\n${rawText.slice(0, 8000)}`);
-      const extracted = parseJSON(raw);
-
-      await query(
-        `UPDATE candidates SET parsed_info = parsed_info || $2::jsonb, updated_at = now() WHERE id = $1`,
-        [c.id, JSON.stringify({...pInfo, ...extracted})],
-      );
+      await parseOneCandidate(aiConfig, String(c.id), rawText);
       parsed++;
     } catch {
       failed++;
@@ -158,21 +215,22 @@ export async function runScreener(agent: Record<string, unknown>): Promise<RunRe
   const position = await getPositionDetail(config.positionId);
   const start = Date.now();
 
-  // Find candidates that are parsed but not yet graded (or empty grade)
+  // Find candidates for this position that are parsed but not yet graded
   const candidates = await query(
     `SELECT id, parsed_info FROM candidates
      WHERE parsed_info IS NOT NULL
        AND (grade IS NULL OR grade = '' OR score_total IS NULL OR score_total = 0)
        AND parsed_info::text LIKE '%rawText%'
+       AND position_id = $1
      ORDER BY created_at DESC
      LIMIT 20`,
+    [config.positionId],
   );
 
   if (candidates.length === 0) {
     return {processed: 0, approved: 0, rejected: 0, pending: 0, summary: '没有需要评分的候选人', duration: Date.now() - start};
   }
 
-  const systemPrompt = buildSystemPrompt(position.aiPrompt, position.scoringRules as Array<{dimension: string; weight: number; keywords: string[]; matchMode?: 'all' | 'any'}>);
   let approved = 0;
   let rejected = 0;
   let pending = 0;
@@ -183,20 +241,10 @@ export async function runScreener(agent: Record<string, unknown>): Promise<RunRe
       const rawText = String(pInfo?.rawText || pInfo?.raw_text || '');
       if (!rawText || rawText.length < 20) { rejected++; continue; }
 
-      const userMsg = buildUserMessage(rawText, position.name);
-      const raw = await callLLM(aiConfig, systemPrompt, userMsg);
-      const result = parseJSON(raw);
+      const result = await screenOneCandidate(aiConfig, position, String(c.id), rawText);
 
-      const totalScore = Number(result.totalScore) || 0;
-      const grade = mapRecommendationToGrade(String(result.recommendation || ''));
-
-      await query(
-        `UPDATE candidates SET grade = $2, score_total = $3, updated_at = now() WHERE id = $1`,
-        [c.id, grade, totalScore],
-      );
-
-      if (['A', 'B+'].includes(grade)) approved++;
-      else if (grade === 'C') rejected++;
+      if (['A', 'B+'].includes(result.grade)) approved++;
+      else if (result.grade === 'C') rejected++;
       else pending++;
     } catch {
       rejected++;
@@ -218,14 +266,16 @@ export async function runMatcher(agent: Record<string, unknown>): Promise<RunRes
   const position = await getPositionDetail(config.positionId);
   const start = Date.now();
 
-  // Get candidates that are parsed and scored
+  // Get candidates for this position that are already scored
   const candidates = await query(
     `SELECT id, parsed_info, grade, score_total FROM candidates
      WHERE parsed_info IS NOT NULL
        AND parsed_info::text LIKE '%rawText%'
        AND grade IS NOT NULL AND grade != ''
+       AND position_id = $1
      ORDER BY score_total DESC NULLS LAST
      LIMIT 20`,
+    [config.positionId],
   );
 
   if (candidates.length < 2) {
@@ -260,6 +310,88 @@ export async function runMatcher(agent: Record<string, unknown>): Promise<RunRes
     summary,
     duration: Date.now() - start,
   };
+}
+
+// ─── Auto-trigger: called after candidate import ─────────────────
+
+/**
+ * Find and run autoRun agents for a newly imported candidate.
+ * Called fire-and-forget from candidate import — errors are caught internally.
+ */
+export async function autoTriggerForCandidate(candidateId: string, positionId?: string | null): Promise<void> {
+  try {
+    if (!positionId) return; // Can't match agents without a position
+
+    // Find the candidate's rawText
+    const candidate = await queryOne(
+      `SELECT parsed_info FROM candidates WHERE id = $1`,
+      [candidateId],
+    );
+    if (!candidate) return;
+
+    const pInfo = typeof candidate.parsed_info === 'string'
+      ? JSON.parse(String(candidate.parsed_info))
+      : (candidate.parsed_info as Record<string, unknown> || {});
+    const rawText = String(pInfo?.rawText || pInfo?.raw_text || '');
+    if (rawText.length < 20) return; // Not enough text to process
+
+    // Find running agents with autoRun=true for this position
+    const agents = await query(
+      `SELECT * FROM agents
+       WHERE status = 'running'
+         AND config->>'positionId' = $1
+         AND type IN ('parser', 'screener')
+         AND config->>'autoRun' = 'true'`,
+      [positionId],
+    );
+
+    for (const agent of agents) {
+      try {
+        const config = (typeof agent.config === 'string' ? JSON.parse(agent.config) : agent.config || {}) as AgentConfig;
+        const aiConfig = await resolveAIConfig(config.aiModelConfigId);
+        const type = String(agent.type || '');
+
+        if (type === 'parser') {
+          // Check if candidate needs parsing (no name extracted yet)
+          const hasName = pInfo?.name && String(pInfo.name).trim().length > 0;
+          if (!hasName) {
+            await parseOneCandidate(aiConfig, candidateId, rawText);
+            // Re-read parsed_info for subsequent steps
+            const updated = await queryOne(`SELECT parsed_info FROM candidates WHERE id = $1`, [candidateId]);
+            if (updated) {
+              const updatedInfo = typeof updated.parsed_info === 'string'
+                ? JSON.parse(String(updated.parsed_info))
+                : (updated.parsed_info as Record<string, unknown> || {});
+              // Merge back into pInfo for screener step
+              Object.assign(pInfo as Record<string, unknown>, updatedInfo as Record<string, unknown>);
+            }
+            await updateAgentStats(String(agent.id), agent, 1, 1, 0, 0, `自动解析候选人 ${candidateId.slice(0, 8)}`);
+          }
+        } else if (type === 'screener') {
+          // Check if candidate needs scoring (no grade yet)
+          const existingGrade = await queryOne(
+            `SELECT grade, score_total FROM candidates WHERE id = $1`,
+            [candidateId],
+          );
+          const needsScoring = !existingGrade?.grade || !existingGrade?.score_total;
+          if (needsScoring) {
+            const position = await getPositionDetail(positionId);
+            const result = await screenOneCandidate(aiConfig, position, candidateId, rawText);
+            const approved = ['A', 'B+'].includes(result.grade) ? 1 : 0;
+            const rejected = result.grade === 'C' ? 1 : 0;
+            const pending = approved + rejected === 0 ? 1 : 0;
+            await updateAgentStats(String(agent.id), agent, 1, approved, rejected, pending,
+              `自动评分候选人 ${candidateId.slice(0, 8)}: ${result.grade}`);
+          }
+        }
+      } catch (e) {
+        // Fire-and-forget: log and continue to next agent
+        console.error(`[autoTrigger] Agent ${agent.id} failed for candidate ${candidateId}:`, e);
+      }
+    }
+  } catch (e) {
+    console.error(`[autoTrigger] Failed for candidate ${candidateId}:`, e);
+  }
 }
 
 // ─── Update agent stats after run ───────────────────────────────
