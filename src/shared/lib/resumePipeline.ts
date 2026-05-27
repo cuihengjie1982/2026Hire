@@ -295,8 +295,8 @@ async function extractViaTextPath(
   let info = extractResumeInfoFromMarkdown(contentMd || '');
   stages.push('regex');
 
-  // 4. AI 文本增强（如果有足够的文本）
-  if (contentMd && contentMd.trim().length >= 20) {
+  // 4. AI 文本增强（如果有足够的文本）— 仅非 mock 模式
+  if (!USE_MOCK_API && contentMd && contentMd.trim().length >= 20) {
     try {
       const aiResult = await aiTextParse(contentMd, config.authToken);
       if (aiResult) {
@@ -358,18 +358,20 @@ async function extractViaVisionPath(
     };
   }
 
-  // 批量 Vision LLM 调用（一次发送所有页面）
-  try {
-    const result = await visionParseBatch(images, mimeType, config.authToken);
-    if (result) {
-      stages.push('visionParse');
-      if (photoBase64 && !result.photoBase64) {
-        result.photoBase64 = photoBase64;
+  // 批量 Vision LLM 调用 — 仅非 mock 模式
+  if (!USE_MOCK_API) {
+    try {
+      const result = await visionParseBatch(images, mimeType, config.authToken);
+      if (result) {
+        stages.push('visionParse');
+        if (photoBase64 && !result.photoBase64) {
+          result.photoBase64 = photoBase64;
+        }
+        return {info: result, photoBase64};
       }
-      return {info: result, photoBase64};
+    } catch (e) {
+      console.warn('[Pipeline] Vision LLM batch failed:', e);
     }
-  } catch (e) {
-    console.warn('[Pipeline] Vision LLM batch failed:', e);
   }
 
   return {info: emptyResult(photoBase64), photoBase64};
