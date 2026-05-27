@@ -264,13 +264,18 @@ export const TalentPoolPage = () => {
 
             {/* Basic info fields */}
             <div className="flex-1 min-w-0 space-y-1">
-              {/* Name + source badge + grade */}
+              {/* Name + source badge + grade + score */}
               <div className="flex items-center gap-2">
                 <span className="font-bold text-gray-900 dark:text-white text-[15px]">{candidate.name}</span>
                 <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${candidate.sourceColor}`}>{candidate.source}</span>
                 {candidate.grade && (
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${candidate.gradeColor || 'text-gray-600 bg-gray-100'}`}>
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold text-white ${candidate.gradeColor || 'bg-gray-400'}`}>
                     {candidate.grade}
+                  </span>
+                )}
+                {candidate.fitScore?.[0] != null && candidate.fitScore[0] > 0 && (
+                  <span className="text-[10px] text-gray-500 dark:text-gray-400 font-medium tabular-nums">
+                    {candidate.fitScore[0]}分
                   </span>
                 )}
               </div>
@@ -418,6 +423,16 @@ export const TalentPoolPage = () => {
           <div className="flex-1 min-w-0 flex items-center gap-6 flex-wrap text-[12px]">
             {/* === 基本信息 === */}
             <span className="font-bold text-gray-900 dark:text-white whitespace-nowrap">{candidate.name}</span>
+            {candidate.grade && (
+              <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold text-white whitespace-nowrap ${candidate.gradeColor || 'bg-gray-400'}`}>
+                {candidate.grade}
+              </span>
+            )}
+            {candidate.fitScore?.[0] != null && candidate.fitScore[0] > 0 && (
+              <span className="text-gray-500 dark:text-gray-400 whitespace-nowrap font-medium tabular-nums">
+                {candidate.fitScore[0]}分
+              </span>
+            )}
             <span className="text-gray-500 dark:text-gray-400 whitespace-nowrap">{v(p?.ageOrBirth)}</span>
             <span className="text-gray-500 dark:text-gray-400 whitespace-nowrap flex items-center gap-0.5">
               <Phone className="w-3 h-3 text-gray-400 dark:text-gray-500" />
