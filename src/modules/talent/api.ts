@@ -341,7 +341,7 @@ export const importResumes = async (
   positionId?: string,
 ): Promise<{imported: number; failed: number; duplicates: number; results?: ScoreResult[]}> => {
   if (USE_MOCK_API) {
-    await new Promise(r => setTimeout(r, 2500));
+    await new Promise(r => setTimeout(r, 300));
     const newCandidates: CandidateCard[] = [];
     const scoreResults: ScoreResult[] = [];
     let duplicates = 0;

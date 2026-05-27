@@ -1,4 +1,3 @@
-import {supabase} from '../../shared/lib/supabase';
 import {USE_MOCK_API, API_BASE_URL, getAuthToken} from '../../shared/lib/runtime';
 import {approvalRequestsFixture, interviewApprovalRequestsFixture, interviewApprovalHistoryFixture} from './fixtures';
 import {type ApprovalRequestSummary, type InterviewApprovalRequest, type ApprovalStatus, type CreateInterviewApprovalInput} from './types';
@@ -72,9 +71,8 @@ export const listApprovalRequests = async (): Promise<ApprovalRequestSummary[]> 
     return Array.from(new Map(approvalRequestsData.map(a => [a.id, a])).values());
   }
 
-  const {data, error} = await supabase.from('approval_requests').select('*');
-  if (error) throw new Error(error.message);
-  return Array.from(new Map(((data ?? []) as Record<string, unknown>[]).map(r => [r.id as string, r])).values()) as unknown as ApprovalRequestSummary[];
+  const data = await efetch<Record<string, unknown>[]>('/approvals');
+  return Array.from(new Map((data ?? []).map(r => [r.id as string, r])).values()) as unknown as ApprovalRequestSummary[];
 };
 
 export const getApprovalRequest = async (
@@ -85,9 +83,7 @@ export const getApprovalRequest = async (
     return approvalRequestsData.find(item => item.id === approvalId) ?? null;
   }
 
-  const {data, error} = await supabase.from('approval_requests').select('*').eq('id', approvalId).maybeSingle();
-  if (error) throw new Error(error.message);
-  return data as unknown as ApprovalRequestSummary | null;
+  return efetch<ApprovalRequestSummary | null>(`/approvals?id=${encodeURIComponent(approvalId)}`);
 };
 
 // Interview Approval APIs
@@ -97,9 +93,8 @@ export const listInterviewApprovalRequests = async (): Promise<InterviewApproval
     return Array.from(new Map(interviewApprovalRequestsData.map(r => [r.id, r])).values());
   }
 
-  const {data, error} = await supabase.from('approval_requests').select('*').eq('status', 'pending');
-  if (error) throw new Error(error.message);
-  return Array.from(new Map(((data ?? []) as Record<string, unknown>[]).map(r => [r.id as string, r])).values()).map(parseInterviewApproval);
+  const data = await efetch<Record<string, unknown>[]>('/approvals?status=pending');
+  return Array.from(new Map((data ?? []).map(r => [r.id as string, r])).values()).map(parseInterviewApproval);
 };
 
 export const listInterviewApprovalHistory = async (): Promise<InterviewApprovalRequest[]> => {
@@ -108,9 +103,8 @@ export const listInterviewApprovalHistory = async (): Promise<InterviewApprovalR
     return Array.from(new Map(interviewApprovalHistoryData.map(r => [r.id, r])).values());
   }
 
-  const {data, error} = await supabase.from('approval_requests').select('*').neq('status', 'pending').order('created_at', {ascending: false});
-  if (error) throw new Error(error.message);
-  return Array.from(new Map(((data ?? []) as Record<string, unknown>[]).map(r => [r.id as string, r])).values()).map(parseInterviewApproval);
+  const data = await efetch<Record<string, unknown>[]>('/approvals?status_neq=pending');
+  return Array.from(new Map((data ?? []).map(r => [r.id as string, r])).values()).map(parseInterviewApproval);
 };
 
 export const createInterviewApprovalRequest = async (
@@ -165,17 +159,13 @@ export const decideInterviewApproval = async (
     return request;
   }
 
-  const {data, error} = await supabase.functions.invoke('cross-table-ops', {
-    body: {
-      action: 'approval-decide',
-      approvalId,
-      status: decision,
-      comment,
-      approverName: decidedBy,
-    },
+  const data = await efetch<Record<string, unknown>>('/approvals', 'PATCH', {
+    id: approvalId,
+    status: decision,
+    comment,
+    approverName: decidedBy,
   });
-  if (error) throw new Error(error.message);
-  return parseInterviewApproval(data as Record<string, unknown>);
+  return parseInterviewApproval(data);
 };
 
 export const hireCandidate = async (approvalId: string): Promise<InterviewApprovalRequest> => {
@@ -188,9 +178,6 @@ export const hireCandidate = async (approvalId: string): Promise<InterviewApprov
     return request;
   }
 
-  const {data, error} = await supabase.functions.invoke('cross-table-ops', {
-    body: { action: 'hire-candidate', approvalId },
-  });
-  if (error) throw new Error(error.message);
-  return parseInterviewApproval(data as Record<string, unknown>);
+  const data = await efetch<Record<string, unknown>>('/cross-table-ops/hire-candidate', 'POST', { action: 'hire-candidate', approvalId });
+  return parseInterviewApproval(data);
 };

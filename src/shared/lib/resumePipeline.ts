@@ -569,10 +569,17 @@ export async function parseResume(
 
   if (route.path === 'vision') {
     // === VISION_PATH ===
-    const visionResult = await extractViaVisionPath(file, config, stages);
-    parsedInfo = visionResult.info;
-    photoBase64 = visionResult.photoBase64;
-    visionLlmUsed = stages.includes('visionParse');
+    if (USE_MOCK_API) {
+      // Mock 模式：跳过 Vision 路径（避免 pdfjs-dist CDN worker 下载挂起）
+      parsedInfo = emptyResult();
+      photoBase64 = '';
+      stages.push('vision:skipped(mock)');
+    } else {
+      const visionResult = await extractViaVisionPath(file, config, stages);
+      parsedInfo = visionResult.info;
+      photoBase64 = visionResult.photoBase64;
+      visionLlmUsed = stages.includes('visionParse');
+    }
   } else {
     // === TEXT_PATH ===
     const textResult = await extractViaTextPath(file, route.textProbe, config, stages);
@@ -581,9 +588,9 @@ export async function parseResume(
     photoBase64 = textResult.photoBase64;
     mineruUsed = stages.includes('mineru');
 
-    // 质量检查：如果 TEXT_PATH 结果不好，升级到 VISION_PATH
+    // 质量检查：如果 TEXT_PATH 结果不好，升级到 VISION_PATH（仅非 mock 模式）
     const quality = assessQuality(parsedInfo);
-    if (quality.score < 40) {
+    if (quality.score < 40 && !USE_MOCK_API) {
       console.log(`[Pipeline] TEXT_PATH quality=${quality.score} (< 40), escalating to VISION_PATH`);
       const visionResult = await extractViaVisionPath(file, config, stages);
       if (visionResult.info.name || visionResult.info.phone) {
@@ -592,6 +599,9 @@ export async function parseResume(
         finalRoute = 'vision_fallback';
       }
       visionLlmUsed = stages.includes('visionParse');
+    } else if (quality.score < 40 && USE_MOCK_API) {
+      console.log(`[Pipeline] TEXT_PATH quality=${quality.score} (< 40), skipping vision escalation (mock mode)`);
+      stages.push('vision:skipped(mock)');
     }
   }
 

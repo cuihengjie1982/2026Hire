@@ -7,6 +7,9 @@
 import {API_BASE_URL, USE_MOCK_API, getAuthToken} from './runtime';
 import {fetchJson} from './apiClient';
 
+// pdfjs-dist worker — 使用 Vite ?url 导入本地 worker，避免 CDN 下载挂起
+import pdfjsWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
+
 // MinerU Token — 用于 PDF 文档解析（非 AI Vision，风险可控）
 const MINERU_API_TOKEN = import.meta.env.VITE_MINERU_API_TOKEN || '';
 
@@ -139,7 +142,7 @@ const textToMarkdown = (text: string): string => {
 // Render all pages of a PDF as base64 images (for Vision LLM parsing)
 export const renderPdfPagesAsImages = async (arrayBuffer: ArrayBuffer): Promise<string[]> => {
   const PDFJS = await import('pdfjs-dist');
-  PDFJS.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.min.mjs`;
+  PDFJS.GlobalWorkerOptions.workerSrc = pdfjsWorkerUrl;
 
   const pdf = await PDFJS.getDocument({data: new Uint8Array(arrayBuffer)}).promise;
   const pageImages: string[] = [];
@@ -226,9 +229,8 @@ function emptyResult(photoBase64: string) {
 // Extract first page from PDF as image (base64) for photo display
 const extractPdfFirstPageImage = async (arrayBuffer: ArrayBuffer): Promise<string> => {
   try {
-    const PDFJS = await import('pdfjs-dist');
-    const pdfjsLib = PDFJS;
-    pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.min.mjs`;
+    const pdfjsLib = await import('pdfjs-dist');
+    pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorkerUrl;
 
     const loadingTask = pdfjsLib.getDocument({data: new Uint8Array(arrayBuffer)});
     const pdf = await loadingTask.promise;

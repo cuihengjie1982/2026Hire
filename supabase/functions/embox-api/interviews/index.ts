@@ -16,6 +16,12 @@ export const handleInterviews = async (req: Request, _userId: string, _userRole:
     // ── Templates ──────────────────────────────────────────────
 
     if (path === '/templates' && method === 'GET') {
+      const id = url.searchParams.get('id');
+      if (id) {
+        const { data } = await supabase.from('interview_templates').select('*').eq('id', id).single();
+        if (!data) return jsonRes({ error: { code: 'NOT_FOUND', message: 'Template not found' } }, 404);
+        return jsonRes(data);
+      }
       const { data } = await supabase.from('interview_templates').select('*').order('created_at', { ascending: false });
       return jsonRes(data ?? []);
     }
@@ -68,6 +74,13 @@ export const handleInterviews = async (req: Request, _userId: string, _userRole:
     }
 
     // ── Questions ──────────────────────────────────────────────
+
+    if (path === '/questions' && method === 'GET') {
+      const templateId = url.searchParams.get('template_id');
+      if (!templateId) return jsonRes({ error: { code: 'VALIDATION_ERROR', message: 'template_id query param is required' } }, 400);
+      const { data } = await supabase.from('interview_questions').select('*').eq('template_id', templateId).order('sort_order', { ascending: true });
+      return jsonRes(data ?? []);
+    }
 
     if (path === '/questions' && method === 'POST') {
       const body = await req.json() as Record<string, unknown>;
@@ -149,6 +162,19 @@ export const handleInterviews = async (req: Request, _userId: string, _userRole:
 
     // ── Sessions ───────────────────────────────────────────────
 
+    if (path === '/sessions' && method === 'GET') {
+      const id = url.searchParams.get('id');
+      if (id) {
+        const { data } = await supabase.from('interview_sessions').select('*').eq('id', id).single();
+        if (!data) return jsonRes({ error: { code: 'NOT_FOUND', message: 'Session not found' } }, 404);
+        return jsonRes(data);
+      }
+      const { data } = await supabase.from('interview_sessions')
+        .select('id, candidate_id, candidate_name, candidate_email, position_name, position_id, template_id, template_name, start_time, status, progress_current, progress_total, total_score')
+        .order('created_at', { ascending: false });
+      return jsonRes(data ?? []);
+    }
+
     if (path === '/sessions' && method === 'POST') {
       const body = await req.json() as Record<string, unknown>;
       const { candidateId, templateId } = body;
@@ -187,6 +213,11 @@ export const handleInterviews = async (req: Request, _userId: string, _userRole:
 
     // ── Results ────────────────────────────────────────────────
 
+    if (path === '/results' && method === 'GET') {
+      const { data } = await supabase.from('interview_results').select('*').order('interview_date', { ascending: false });
+      return jsonRes(data ?? []);
+    }
+
     if (path === '/results' && method === 'POST') {
       const body = await req.json() as Record<string, unknown>;
       const { sessionId, candidateId, candidateName, candidateEmail, position, templateName, totalScore, grade, gradeLabel, dimensions, duration } = body;
@@ -218,6 +249,15 @@ export const handleInterviews = async (req: Request, _userId: string, _userRole:
       if (error) return jsonRes({ error: { code: 'DB_ERROR', message: error.message } }, 500);
       if (!data) return jsonRes({ error: { code: 'NOT_FOUND', message: 'Result not found' } }, 404);
       return jsonRes(data);
+    }
+
+    // ── Answer Scores ──────────────────────────────────────────
+
+    if (path === '/answer-scores' && method === 'GET') {
+      const sessionId = url.searchParams.get('session_id');
+      if (!sessionId) return jsonRes({ error: { code: 'VALIDATION_ERROR', message: 'session_id query param is required' } }, 400);
+      const { data } = await supabase.from('interview_answer_scores').select('*').eq('session_id', sessionId).order('created_at', { ascending: true });
+      return jsonRes(data ?? []);
     }
 
     return jsonRes({ error: { code: 'NOT_FOUND', message: `Route ${method} ${path} not found` } }, 404);
