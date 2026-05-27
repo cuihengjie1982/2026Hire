@@ -180,6 +180,44 @@ export const mockDelay = async (ms = 120) => {
   await new Promise((resolve) => setTimeout(resolve, ms));
 };
 
+// ---------------------------------------------------------------------------
+// In-memory request cache with TTL
+// ---------------------------------------------------------------------------
+
+interface CacheEntry<T> {
+  data: T;
+  timestamp: number;
+}
+
+const requestCache = new Map<string, CacheEntry<unknown>>();
+
+/**
+ * Wrap an async function with in-memory caching.
+ * Returns cached data if within TTL, otherwise calls the function and caches the result.
+ *
+ * @param key  Unique cache key (e.g. 'listProjects')
+ * @param fn   Async function that fetches data
+ * @param ttlMs  Cache duration in ms (default 60s)
+ */
+export async function cached<T>(key: string, fn: () => Promise<T>, ttlMs = 60_000): Promise<T> {
+  const entry = requestCache.get(key);
+  if (entry && Date.now() - entry.timestamp < ttlMs) {
+    return entry.data as T;
+  }
+  const data = await fn();
+  requestCache.set(key, {data, timestamp: Date.now()});
+  return data;
+}
+
+/** Invalidate one or all cache entries. Call after mutations (create/update/delete). */
+export function invalidateCache(key?: string): void {
+  if (key) {
+    requestCache.delete(key);
+  } else {
+    requestCache.clear();
+  }
+}
+
 /**
  * Invoke a Supabase Edge Function by name.
  * Automatically uses the current auth session.

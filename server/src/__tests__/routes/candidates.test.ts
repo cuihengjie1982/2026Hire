@@ -28,16 +28,20 @@ describe('Candidates routes', () => {
   });
 
   describe('GET /', () => {
-    it('returns candidates with tags', async () => {
+    it('returns paginated candidates with tags', async () => {
       const fakeCandidates = [
         {id: '1', name: 'Alice', tags: ['python', 'senior']},
         {id: '2', name: 'Bob', tags: ['java']},
       ];
       mockedQuery.mockResolvedValue(fakeCandidates as any);
+      mockedQueryOne.mockResolvedValue({total: 2} as any);
 
       const res = await request(createApp()).get('/candidates/');
       expect(res.status).toBe(200);
-      expect(res.body).toEqual(fakeCandidates);
+      expect(res.body.items).toEqual(fakeCandidates);
+      expect(res.body.total).toBe(2);
+      expect(res.body.page).toBe(1);
+      expect(res.body.pageSize).toBe(50);
     });
   });
 

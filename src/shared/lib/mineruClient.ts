@@ -137,7 +137,7 @@ const textToMarkdown = (text: string): string => {
 };
 
 // Render all pages of a PDF as base64 images (for Vision LLM parsing)
-const renderPdfPagesAsImages = async (arrayBuffer: ArrayBuffer): Promise<string[]> => {
+export const renderPdfPagesAsImages = async (arrayBuffer: ArrayBuffer): Promise<string[]> => {
   const PDFJS = await import('pdfjs-dist');
   PDFJS.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.min.mjs`;
 

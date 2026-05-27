@@ -8,11 +8,7 @@ import {useProject} from '../contexts/ProjectContext';
 import {NotificationBell} from '../../shared/components/NotificationProvider';
 import {Breadcrumbs} from '../../shared/components/Breadcrumbs';
 import {useSidebarCounts} from '../hooks/useSidebarCounts';
-import {getUserName} from '../../shared/lib/runtime';
-import {listCandidates} from '../../modules/talent/api';
-import {listPositions} from '../../modules/positions/api';
-import {listProjects} from '../../modules/projects/api';
-import {listAgents} from '../../modules/agents/api';
+import {getUserName, USE_MOCK_API, API_BASE_URL, getAuthToken} from '../../shared/lib/runtime';
 
 // ---------------------------------------------------------------------------
 // Search types & helpers
@@ -24,40 +20,30 @@ type SearchGroup = {
   items: {id: string; title: string; subtitle?: string; path: string}[];
 };
 
-// Business data cache — loaded once on first search
-type BusinessDataCache = {
-  loaded: boolean;
+type SearchResult = {
   candidates: {id: string; title: string; path: string}[];
   positions: {id: string; title: string; path: string}[];
   projects: {id: string; title: string; path: string}[];
   agents: {id: string; title: string; path: string}[];
 };
 
-const businessCache: BusinessDataCache = {
-  loaded: false,
-  candidates: [],
-  positions: [],
-  projects: [],
-  agents: [],
-};
+// Debounced server-side search
+let searchTimer: ReturnType<typeof setTimeout> | null = null;
 
-async function ensureBusinessDataLoaded() {
-  if (businessCache.loaded) return;
-  try {
-    const [cands, pos, projs, agents] = await Promise.all([
-      listCandidates().catch(() => []),
-      listPositions().catch(() => []),
-      listProjects().catch(() => []),
-      listAgents().catch(() => []),
-    ]);
-    businessCache.candidates = cands.map(c => ({id: c.id, title: c.name, path: '/talent'}));
-    businessCache.positions = pos.map(p => ({id: p.id, title: p.name, path: '/positions/config'}));
-    businessCache.projects = projs.map(p => ({id: p.id, title: p.name, path: '/projects'}));
-    businessCache.agents = agents.map(a => ({id: a.id, title: a.name, path: '/agents'}));
-    businessCache.loaded = true;
-  } catch (e) {
-    console.error('[Search] 业务数据加载失败:', e);
+async function searchBackend(q: string): Promise<SearchResult | null> {
+  if (USE_MOCK_API) {
+    // Mock mode: return empty (no backend available)
+    return {candidates: [], positions: [], projects: [], agents: []};
   }
+  try {
+    const resp = await fetch(`${API_BASE_URL}/api/stats/search?q=${encodeURIComponent(q)}`, {
+      headers: {'Authorization': `Bearer ${getAuthToken() ?? ''}`},
+    });
+    if (resp.ok) return await resp.json() as SearchResult;
+  } catch (e) {
+    console.warn('[Search] Backend search failed:', e);
+  }
+  return null;
 }
 
 // ---------------------------------------------------------------------------
@@ -190,38 +176,38 @@ export const DashboardLayout = ({onLogout}: {onLogout: () => void}) => {
                     setSearchGroups([]);
                     return;
                   }
-                  // Search pages locally
+                  // Search pages locally (instant)
                   const lower = q.toLowerCase();
                   const pages = navigationItems.filter(item =>
                     item.title.toLowerCase().includes(lower),
                   ).map(item => ({id: item.id, title: item.title, path: item.path}));
 
-                  // Lazy-load & search business data
-                  ensureBusinessDataLoaded().then(() => {
+                  // Debounced server-side search for business data
+                  if (searchTimer) clearTimeout(searchTimer);
+                  searchTimer = setTimeout(async () => {
+                    const result = await searchBackend(q);
                     const groups: SearchGroup[] = [];
 
                     if (pages.length > 0) {
                       groups.push({label: '页面', icon: Search, items: pages.slice(0, 3)});
                     }
-                    const cands = businessCache.candidates.filter(c => c.title.toLowerCase().includes(lower));
-                    if (cands.length > 0) {
-                      groups.push({label: '候选人', icon: Users, items: cands.slice(0, 3)});
-                    }
-                    const pos = businessCache.positions.filter(p => p.title.toLowerCase().includes(lower));
-                    if (pos.length > 0) {
-                      groups.push({label: '岗位', icon: Briefcase, items: pos.slice(0, 3)});
-                    }
-                    const projs = businessCache.projects.filter(p => p.title.toLowerCase().includes(lower));
-                    if (projs.length > 0) {
-                      groups.push({label: '项目', icon: Folder, items: projs.slice(0, 3)});
-                    }
-                    const agentResults = businessCache.agents.filter(a => a.title.toLowerCase().includes(lower));
-                    if (agentResults.length > 0) {
-                      groups.push({label: 'AI 代理', icon: Bot, items: agentResults.slice(0, 3)});
+                    if (result) {
+                      if (result.candidates.length > 0) {
+                        groups.push({label: '候选人', icon: Users, items: result.candidates});
+                      }
+                      if (result.positions.length > 0) {
+                        groups.push({label: '岗位', icon: Briefcase, items: result.positions});
+                      }
+                      if (result.projects.length > 0) {
+                        groups.push({label: '项目', icon: Folder, items: result.projects});
+                      }
+                      if (result.agents.length > 0) {
+                        groups.push({label: 'AI 代理', icon: Bot, items: result.agents});
+                      }
                     }
 
                     setSearchGroups(groups);
-                  });
+                  }, 200);
                 }}
                 className="w-full bg-[#05122e] border border-[#1a4bc4] text-sm text-white rounded-xl pl-9 pr-10 py-2 focus:outline-none focus:border-[#1a4bc4] transition-colors"
               />

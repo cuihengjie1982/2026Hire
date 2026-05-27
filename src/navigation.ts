@@ -2,23 +2,13 @@ export const NAVIGATE_EVENT = 'navigate';
 
 export type AppPageId =
   | 'dashboard'
-  | 'search'
-  | 'agents'
-  | 'shortlist'
   | 'projects'
-  | 'talent'
-  | 'contacts'
-  | 'outreach'
-  | 'insights'
-  | 'integrations'
-  | 'position-config'
-  | 'ai-interview'
-  | 'ai-interview-preview'
-  | 'ai-interview-management'
-  | 'ai-interview-results'
-  | 'ai-interview-analytics'
+  | 'candidates'
+  | 'pipeline'
+  | 'interviews'
   | 'approvals'
-  | 'settings';
+  | 'training'
+  | 'admin';
 
 export type AppNavigationDetail = {
   page: AppPageId;
@@ -26,23 +16,13 @@ export type AppNavigationDetail = {
 
 export const PAGE_ROUTE_BY_ID: Record<AppPageId, string> = {
   dashboard: '/',
-  search: '/search',
-  agents: '/agents',
-  shortlist: '/shortlist',
   projects: '/projects',
-  talent: '/talent',
-  contacts: '/contacts',
-  outreach: '/outreach',
-  insights: '/insights',
-  integrations: '/integrations',
-  'position-config': '/positions/config',
-  'ai-interview': '/interviews/templates',
-  'ai-interview-preview': '/interviews/preview',
-  'ai-interview-management': '/interviews/management',
-  'ai-interview-results': '/interviews/results',
-  'ai-interview-analytics': '/interviews/analytics',
+  candidates: '/candidates',
+  pipeline: '/pipeline',
+  interviews: '/interviews',
   approvals: '/approvals',
-  settings: '/settings',
+  training: '/training',
+  admin: '/admin',
 };
 
 export const isNavigationEvent = (
@@ -53,18 +33,24 @@ export const isNavigationEvent = (
 export const getRouteForPage = (page: AppPageId) => PAGE_ROUTE_BY_ID[page];
 
 export const getPageFromPathname = (pathname: string): AppPageId => {
-  const matched = Object.entries(PAGE_ROUTE_BY_ID).find(([, route]) =>
-    route === '/'
-      ? pathname === route
-      : pathname === route || pathname.startsWith(`${route}/`),
-  );
-  return (matched?.[0] as AppPageId | undefined) ?? 'dashboard';
-};
+  // Order matters: match more specific prefixes first
+  const routes: {page: AppPageId; route: string}[] = [
+    {page: 'dashboard', route: '/'},
+    {page: 'training', route: '/training'},
+    {page: 'interviews', route: '/interviews'},
+    {page: 'candidates', route: '/candidates'},
+    {page: 'pipeline', route: '/pipeline'},
+    {page: 'projects', route: '/projects'},
+    {page: 'approvals', route: '/approvals'},
+    {page: 'admin', route: '/admin'},
+  ];
 
-export const navigateToPage = (page: AppPageId) => {
-  window.dispatchEvent(
-    new CustomEvent<AppNavigationDetail>(NAVIGATE_EVENT, {
-      detail: {page},
-    }),
-  );
+  for (const {page, route} of routes) {
+    if (route === '/') {
+      if (pathname === '/') return page;
+    } else if (pathname === route || pathname.startsWith(`${route}/`)) {
+      return page;
+    }
+  }
+  return 'dashboard';
 };

@@ -16,9 +16,10 @@ const efetch = async <T>(path: string, method = 'GET', body?: unknown): Promise<
   return data as T;
 };
 import {type CandidateCard, type TalentStats} from './types';
-import {parseResumeWithMinerU, parseResumeWithVision, extractResumeInfoFromMarkdown, type ParsedResumeInfo} from '../../shared/lib/mineruClient';
+import {extractResumeInfoFromMarkdown, type ParsedResumeInfo} from '../../shared/lib/mineruClient';
 import {calculateResumeScore, type ScoreResult} from '../../shared/lib/resumeScorer';
 import {getPositionDetail} from '../positions/api';
+import {parseResume, type PipelineConfig} from '../../shared/lib/resumePipeline';
 
 // MinerU API token - loaded from environment variables
 const MINERU_API_TOKEN = import.meta.env.VITE_MINERU_API_TOKEN || '';
@@ -414,126 +415,59 @@ export const importResumes = async (
           console.warn('Failed to read file as base64:', e);
         }
 
-        const result = await parseResumeWithMinerU(file, MINERU_API_TOKEN);
+        // Smart routing pipeline: auto-selects TEXT_PATH or VISION_PATH
+        const pipelineResult = await parseResume(file, {
+          mineruToken: MINERU_API_TOKEN,
+          authToken: getAuthToken(),
+        });
 
-        if (result.success && result.content_md) {
-          let parsedInfo = extractResumeInfoFromMarkdown(result.content_md);
-          // Attach photo from MinerU result if available
-          if (result.photoBase64 && !parsedInfo.photoBase64) {
-            parsedInfo.photoBase64 = result.photoBase64;
-          }
-          // Try AI parsing for better accuracy
-          parsedInfo = await aiParseResume(result.content_md, parsedInfo);
+        const {parsedInfo, contentMd, photoBase64, metadata} = pipelineResult;
+        const candidateName = parsedInfo.name || file.name.replace(/\.(pdf|docx?|doc|png|jpe?g)$/i, '');
 
-          // Vision LLM fallback: if regex + AI text parse gave poor results, try Vision
-          const needsVision = !parsedInfo.name || (!parsedInfo.phone && !parsedInfo.email) ||
-            result.content_md.trim().length < 100;
-          if (needsVision) {
-            console.log(`[Import] Text parse gave poor result, trying Vision LLM for: ${file.name}`);
-            try {
-              const visionInfo = await parseResumeWithVision(file);
-              // Merge: prefer Vision LLM results, keep regex fallback for missing fields
-              parsedInfo = {
-                name: visionInfo.name || parsedInfo.name,
-                gender: visionInfo.gender || parsedInfo.gender,
-                ageOrBirth: visionInfo.ageOrBirth || parsedInfo.ageOrBirth,
-                phone: visionInfo.phone || parsedInfo.phone,
-                email: visionInfo.email || parsedInfo.email,
-                location: visionInfo.location || parsedInfo.location,
-                education: parsedInfo.education,
-                highestEducation: visionInfo.highestEducation || parsedInfo.highestEducation,
-                school: visionInfo.school || parsedInfo.school,
-                major: visionInfo.major || parsedInfo.major,
-                workExperience: (visionInfo.workExperience.length > 0 ? visionInfo.workExperience : parsedInfo.workExperience),
-                skills: (visionInfo.skills.length > 0 ? visionInfo.skills : parsedInfo.skills),
-                honors: (visionInfo.honors.length > 0 ? visionInfo.honors : parsedInfo.honors),
-                expectedSalary: visionInfo.expectedSalary || parsedInfo.expectedSalary,
-                currentlyEmployed: visionInfo.currentlyEmployed || parsedInfo.currentlyEmployed,
-                availability: visionInfo.availability || parsedInfo.availability,
-                photoBase64: visionInfo.photoBase64 || parsedInfo.photoBase64,
-                rawText: parsedInfo.rawText,
-              };
-            } catch (visionErr) {
-              console.warn('[Import] Vision LLM fallback failed:', visionErr);
-            }
-          }
+        console.log(`[Import] ${file.name}: route=${metadata.route}, quality=${metadata.qualityScore}(${metadata.qualityLevel}), ` +
+          `${metadata.totalDurationMs}ms, stages=${metadata.stagesUsed.join('→')}`);
 
-          console.log('[Import] Final parsedInfo:', JSON.stringify(parsedInfo, null, 2));
-          const candidateName = parsedInfo.name || file.name.replace(/\.(pdf|docx?|doc|png|jpe?g)$/i, '');
+        // Calculate score if position details available
+        let scoreResult: ScoreResult | null = null;
+        if (positionDetail) {
+          scoreResult = calculateResumeScore(parsedInfo, positionDetail);
+          if (scoreResult) scoreResults.push(scoreResult);
+        }
 
-          // Calculate score if position details available
-          let scoreResult: ScoreResult | null = null;
-          if (positionDetail) {
-            scoreResult = calculateResumeScore(parsedInfo, positionDetail);
-            if (scoreResult) scoreResults.push(scoreResult);
-          }
+        const positionName = positionDetail?.position.name || '';
 
-          const positionName = positionDetail?.position.name || '';
+        const candidate: CandidateCard = {
+          id: `imported-${Date.now()}-${newCandidates.length}`,
+          name: candidateName,
+          location: parsedInfo.location || '',
+          source: '上传简历',
+          sourceColor: 'text-[#0EA5E9] bg-[#E0F2FE]',
+          roles: positionName ? [positionName] : [],
+          tags: parsedInfo.skills.length > 0 ? parsedInfo.skills.slice(0, 5) : [],
+          fitScore: scoreResult ? [scoreResult.totalScore] : [],
+          scoreColor: scoreResult?.scoreColor || '',
+          grade: scoreResult?.grade || '',
+          gradeColor: scoreResult?.gradeColor || '',
+          reason: parsedInfo.email ? `邮箱: ${parsedInfo.email}` : (parsedInfo.phone ? `电话: ${parsedInfo.phone}` : ''),
+          projectId: projectId || '',
+          projectName: '',
+          positionId: positionId || '',
+          positionName,
+          rawResumeMd: contentMd,
+          resumeParsedInfo: parsedInfo,
+          scoreResult: scoreResult || undefined,
+          originalFileBase64,
+          originalFileName: file.name,
+        };
 
-          const candidate: CandidateCard = {
-            id: `imported-${Date.now()}-${newCandidates.length}`,
-            name: candidateName,
-            location: parsedInfo.location || '',
-            source: '上传简历',
-            sourceColor: 'text-[#0EA5E9] bg-[#E0F2FE]',
-            roles: positionName ? [positionName] : [],
-            tags: parsedInfo.skills.length > 0 ? parsedInfo.skills.slice(0, 5) : [],
-            fitScore: scoreResult ? [scoreResult.totalScore] : [],
-            scoreColor: scoreResult?.scoreColor || '',
-            grade: scoreResult?.grade || '',
-            gradeColor: scoreResult?.gradeColor || '',
-            reason: parsedInfo.email ? `邮箱: ${parsedInfo.email}` : (parsedInfo.phone ? `电话: ${parsedInfo.phone}` : ''),
-            projectId: projectId || '',
-            projectName: '',
-            positionId: positionId || '',
-            positionName,
-            rawResumeMd: result.content_md,
-            resumeParsedInfo: parsedInfo,
-            scoreResult: scoreResult || undefined,
-            originalFileBase64,
-            originalFileName: file.name,
-          };
-
-          // Check for duplicate and overwrite
-          const dupIdx = findDuplicateIndex(candidateName, parsedInfo.email, parsedInfo.phone);
-          if (dupIdx >= 0) {
-            // Preserve original ID, overwrite everything else
-            candidate.id = candidatesData[dupIdx].id;
-            candidatesData[dupIdx] = candidate;
-            duplicates++;
-          } else {
-            newCandidates.push(candidate);
-          }
+        // Check for duplicate and overwrite
+        const dupIdx = findDuplicateIndex(candidateName, parsedInfo.email, parsedInfo.phone);
+        if (dupIdx >= 0) {
+          candidate.id = candidatesData[dupIdx].id;
+          candidatesData[dupIdx] = candidate;
+          duplicates++;
         } else {
-          const candidateName = file.name.replace(/\.(pdf|docx?|doc|png|jpe?g)$/i, '');
-          const candidate: CandidateCard = {
-            id: `imported-${Date.now()}-${newCandidates.length}`,
-            name: candidateName,
-            location: '',
-            source: '上传简历',
-            sourceColor: 'text-[#0EA5E9] bg-[#E0F2FE]',
-            roles: [],
-            tags: [],
-            fitScore: [],
-            scoreColor: '',
-            grade: '',
-            gradeColor: '',
-            reason: result.error || '简历解析失败',
-            projectId: projectId || '',
-            projectName: '',
-            positionId: positionId || '',
-            positionName: '',
-            resumeParsedInfo: result.photoBase64 ? {photoBase64: result.photoBase64} as CandidateCard['resumeParsedInfo'] : undefined,
-          };
-
-          const dupIdx = findDuplicateIndex(candidateName);
-          if (dupIdx >= 0) {
-            candidate.id = candidatesData[dupIdx].id;
-            candidatesData[dupIdx] = candidate;
-            duplicates++;
-          } else {
-            newCandidates.push(candidate);
-          }
+          newCandidates.push(candidate);
         }
       } catch (e) {
         console.error(`Failed to parse ${file.name}:`, e);
@@ -590,54 +524,18 @@ export const importResumes = async (
 
   for (const file of files) {
     try {
-      const parsed = await parseResumeWithMinerU(file, MINERU_API_TOKEN);
-      const contentMd = parsed.content_md || '';
-      const photoBase64 = parsed.photoBase64 || '';
+      // Smart routing pipeline: auto-selects TEXT_PATH or VISION_PATH
+      const pipelineResult = await parseResume(file, {
+        mineruToken: MINERU_API_TOKEN,
+        authToken: getAuthToken(),
+      });
 
-      let parsedInfo = extractResumeInfoFromMarkdown(contentMd);
-      // Attach photo from MinerU result if available
-      if (photoBase64 && !parsedInfo.photoBase64) {
-        parsedInfo.photoBase64 = photoBase64;
-      }
-
-      // Strategy: try LLM text parse first, then Vision LLM if extraction is poor.
-      // LLM text parse uses MinerU's markdown output — works well for clean resumes.
-      if (contentMd && contentMd.trim().length >= 20) {
-        parsedInfo = await aiParseResume(contentMd, parsedInfo);
-      }
-
-      // Vision LLM fallback: if MinerU gave short/no content OR text parse gave
-      // no name/phone/email, use Vision LLM to parse PDF pages as images directly.
-      // This is more reliable for scanned/image PDFs where MinerU's OCR fails.
-      const needsVision = !parsedInfo.name || (!parsedInfo.phone && !parsedInfo.email) ||
-        contentMd.trim().length < 100;
-      if (needsVision) {
-        console.log(`[Import] MinerU/parse gave poor result, trying Vision LLM for: ${file.name}`);
-        const visionInfo = await parseResumeWithVision(file);
-        // Merge: prefer Vision LLM results, keep regex fallback for missing fields
-        parsedInfo = {
-          name: visionInfo.name || parsedInfo.name,
-          gender: visionInfo.gender || parsedInfo.gender,
-          ageOrBirth: visionInfo.ageOrBirth || parsedInfo.ageOrBirth,
-          phone: visionInfo.phone || parsedInfo.phone,
-          email: visionInfo.email || parsedInfo.email,
-          location: visionInfo.location || parsedInfo.location,
-          education: parsedInfo.education,
-          highestEducation: visionInfo.highestEducation || parsedInfo.highestEducation,
-          school: visionInfo.school || parsedInfo.school,
-          major: visionInfo.major || parsedInfo.major,
-          workExperience: (visionInfo.workExperience.length > 0 ? visionInfo.workExperience : parsedInfo.workExperience),
-          skills: (visionInfo.skills.length > 0 ? visionInfo.skills : parsedInfo.skills),
-          honors: (visionInfo.honors.length > 0 ? visionInfo.honors : parsedInfo.honors),
-          expectedSalary: visionInfo.expectedSalary || parsedInfo.expectedSalary,
-          currentlyEmployed: visionInfo.currentlyEmployed || parsedInfo.currentlyEmployed,
-          availability: visionInfo.availability || parsedInfo.availability,
-          photoBase64: visionInfo.photoBase64 || parsedInfo.photoBase64,
-          rawText: parsedInfo.rawText,
-        };
-      }
-
+      const {parsedInfo, contentMd, photoBase64, metadata} = pipelineResult;
       const candidateName = parsedInfo.name || file.name.replace(/\.(pdf|docx?|doc|png|jpe?g)$/i, '');
+
+      console.log(`[Import] ${file.name}: route=${metadata.route}, quality=${metadata.qualityScore}(${metadata.qualityLevel}), ` +
+        `${metadata.totalDurationMs}ms, stages=${metadata.stagesUsed.join('→')}`);
+
       const scoreResult = positionDetail ? calculateResumeScore(parsedInfo, positionDetail) : null;
       if (scoreResult) scoreResults.push(scoreResult);
 
@@ -682,7 +580,6 @@ export const importResumes = async (
       const isDuplicate = firstResult?.duplicate === true;
       if (isDuplicate) {
         duplicates += 1;
-        // Update local entry if it exists — otherwise let listCandidates() pull from DB
         if (importedId) {
           const idx = candidatesData.findIndex((c) => c.id === importedId);
           if (idx >= 0) {
@@ -690,7 +587,6 @@ export const importResumes = async (
           }
         }
       } else {
-        // Only add to local cache if we don't have a real DB id (should not happen)
         if (importedId && !candidatesData.find(c => c.id === importedId)) {
           candidatesData = [{id: importedId, name: candidateName, resumeParsedInfo: parsedInfo} as CandidateCard, ...candidatesData];
         }

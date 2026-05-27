@@ -1,5 +1,5 @@
 import {supabase} from '../../shared/lib/supabase';
-import {getItemsFromPayload, getValueFromPayload} from '../../shared/lib/apiClient';
+import {getItemsFromPayload, getValueFromPayload, cached, invalidateCache} from '../../shared/lib/apiClient';
 import {USE_MOCK_API, getUserName} from '../../shared/lib/runtime';
 import {type CreatePositionInput, type PositionDetail, type PositionSummary, type UpdatePositionInput, type ScoringRule, type GradeRule, type BaseScoreConfig, type ProfileRule} from './types';
 
@@ -61,13 +61,15 @@ export const listPositions = async (): Promise<PositionSummary[]> => {
     return Array.from(new Map(positionsData.map(p => [p.id, p])).values());
   }
 
-  const {data, error} = await supabase
-    .from('positions')
-    .select('*')
-    .order('created_at', {ascending: false});
+  return cached('listPositions', async () => {
+    const {data, error} = await supabase
+      .from('positions')
+      .select('*')
+      .order('created_at', {ascending: false});
 
-  if (error) throw new Error(error.message);
-  return Array.from(new Map((data || []).map(r => [r.id as string, r])).values()).map(mapPositionSummary);
+    if (error) throw new Error(error.message);
+    return Array.from(new Map((data || []).map(r => [r.id as string, r])).values()).map(mapPositionSummary);
+  });
 };
 
 export const listPositionsByProject = async (projectId: string): Promise<PositionSummary[]> => {
@@ -273,6 +275,7 @@ export const savePositionDetail = async (
   if (upsertResult.error) throw new Error(upsertResult.error.message);
 
   // Return updated detail
+  invalidateCache('listPositions');
   return getPositionDetail(positionId);
 };
 
@@ -327,6 +330,7 @@ export const createPosition = async (input: CreatePositionInput): Promise<Positi
   if (!insertResult.data) throw new Error('Failed to create position');
   const summary = mapPositionSummary(insertResult.data);
   db('position_details').insert({ position_id: insertResult.data.id }).then(() => {}, () => {});
+  invalidateCache('listPositions');
   return summary;
 };
 
@@ -362,6 +366,7 @@ export const updatePosition = async (id: string, input: UpdatePositionInput): Pr
 
   if (updateResult.error) throw new Error(updateResult.error.message);
   if (!updateResult.data) throw new Error('Position not found');
+  invalidateCache('listPositions');
   return mapPositionSummary(updateResult.data);
 };
 
@@ -383,4 +388,5 @@ export const deletePosition = async (id: string): Promise<void> => {
     .eq('id', id);
 
   if (error) throw new Error(error.message);
+  invalidateCache('listPositions');
 };

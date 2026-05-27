@@ -6,7 +6,9 @@ const router = Router();
 // GET / — list shortlist entries, optional projectId/positionId filter
 router.get('/', async (req, res, next) => {
   try {
-    const {projectId, positionId} = req.query;
+    const {projectId, positionId, page = '1', pageSize = '50'} = req.query as Record<string, string>;
+    const limit = Math.min(parseInt(pageSize, 10) || 50, 200);
+    const offset = (parseInt(page, 10) - 1) * limit;
     const conditions: string[] = [];
     const params: unknown[] = [];
 
@@ -21,14 +23,19 @@ router.get('/', async (req, res, next) => {
 
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
-    const rows = await query(
-      `SELECT se.*
-       FROM shortlist_entries se
-       ${whereClause}
-       ORDER BY se.created_at DESC`,
-      params,
-    );
-    res.json(rows);
+    const [rows, countResult] = await Promise.all([
+      query(
+        `SELECT se.*
+         FROM shortlist_entries se
+         ${whereClause}
+         ORDER BY se.created_at DESC
+         LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+        [...params, limit, offset],
+      ),
+      queryOne(`SELECT COUNT(*)::int AS total FROM shortlist_entries se ${whereClause}`, params),
+    ]);
+
+    res.json({items: rows, total: countResult?.total ?? 0, page: parseInt(page, 10), pageSize: limit});
   } catch (e) { next(e); }
 });
 

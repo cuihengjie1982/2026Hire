@@ -11,7 +11,9 @@ const router = Router();
 // to exclude seed fixture data
 router.get('/', async (req, res, next) => {
   try {
-    const {search} = req.query as Record<string, string>;
+    const {search, page = '1', pageSize = '50'} = req.query as Record<string, string>;
+    const limit = Math.min(parseInt(pageSize, 10) || 50, 200);
+    const offset = (parseInt(page, 10) - 1) * limit;
     let sql: string;
     let params: unknown[] = [];
 
@@ -30,8 +32,9 @@ router.get('/', async (req, res, next) => {
        WHERE c.original_file_name IS NOT NULL
          AND (c.name ILIKE $1 OR c.email ILIKE $1 OR c.phone ILIKE $1)
        GROUP BY c.id, p.name, pr.name
-       ORDER BY c.created_at DESC`;
-      params = [`%${search}%`];
+       ORDER BY c.created_at DESC
+       LIMIT $2 OFFSET $3`;
+      params = [`%${search}%`, limit, offset];
     } else {
       sql = `SELECT c.*,
               COALESCE(
@@ -46,11 +49,18 @@ router.get('/', async (req, res, next) => {
        LEFT JOIN projects pr ON c.project_id = pr.id
        WHERE c.original_file_name IS NOT NULL
        GROUP BY c.id, p.name, pr.name
-       ORDER BY c.created_at DESC`;
+       ORDER BY c.created_at DESC
+       LIMIT $1 OFFSET $2`;
+      params = [limit, offset];
     }
 
+    const countResult = await queryOne(
+      `SELECT COUNT(*)::int AS total FROM candidates WHERE original_file_name IS NOT NULL${search ? ` AND (name ILIKE $1 OR email ILIKE $1 OR phone ILIKE $1)` : ''}`,
+      search ? [`%${search}%`] : [],
+    );
+
     const rows = await query(sql, params);
-    res.json(rows);
+    res.json({items: rows, total: countResult?.total ?? 0, page: parseInt(page, 10), pageSize: limit});
   } catch (e) { next(e); }
 });
 

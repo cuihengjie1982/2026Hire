@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import {env} from './config/env.js';
-import {testConnection} from './config/database.js';
+import {testConnection, query, queryOne} from './config/database.js';
 import {authMiddleware, cleanupExpiredTokens} from './middleware/auth.js';
 import {errorHandler} from './middleware/errorHandler.js';
 import {auditLogMiddleware} from './middleware/auditLog.js';
@@ -25,6 +25,9 @@ import integrationsRoutes from './modules/integrations/integrations.routes.js';
 import aiConfigRoutes from './modules/ai/aiConfig.routes.js';
 import aiProxyRoutes from './modules/ai/aiProxy.routes.js';
 import scoringRoutes from './modules/interviews/scoring.routes.js';
+import statsRoutes from './modules/stats/stats.routes.js';
+import employeesRoutes from './modules/employees/employees.routes.js';
+import trainingRoutes from './modules/training/training.routes.js';
 
 const app = express();
 
@@ -80,6 +83,53 @@ app.post('/api/v1/webhooks/mis/onboarding-complete', (req, res) => {
   console.log('MIS webhook received:', req.body);
   res.json({received: true});
 });
+
+// Candidate training portal (public — candidates don't have app accounts)
+const handleTrainingPortal = async (req: import('express').Request, res: import('express').Response) => {
+  try {
+    const {candidateId} = req.params;
+    const {token} = req.query;
+
+    // Simple token verification (optional; UUID is already hard to guess)
+    const secret = env.JWT_SECRET.slice(0, 16);
+    const expected = Buffer.from(candidateId + secret).toString('base64').slice(0, 8);
+    if (token && token !== expected) {
+      res.status(403).json({error: {code: 'FORBIDDEN', message: 'Invalid access token'}});
+      return;
+    }
+
+    const enrollments = await query(
+      `SELECT te.*, tc.title AS course_title, tc.category AS course_category,
+              tc.description AS course_description, tc.difficulty,
+              tc.duration_minutes, tc.content, tc.materials
+       FROM training_enrollments te
+       JOIN training_courses tc ON tc.id = te.course_id
+       WHERE te.candidate_id = $1
+       ORDER BY te.enrolled_at DESC`,
+      [candidateId],
+    );
+
+    const result = [];
+    for (const e of enrollments) {
+      const assessments = await query(
+        `SELECT * FROM training_assessments WHERE enrollment_id = $1 ORDER BY created_at DESC`,
+        [e.id],
+      );
+      result.push({...e, assessments});
+    }
+
+    const candidate = await queryOne(
+      `SELECT id, name, email, phone FROM candidates WHERE id = $1`,
+      [candidateId],
+    );
+
+    res.json({candidate: candidate ?? null, enrollments: result});
+  } catch (e) {
+    res.status(500).json({error: {code: 'INTERNAL_ERROR', message: 'Failed to load portal data'}});
+  }
+};
+app.get('/api/training/portal/:candidateId', handleTrainingPortal);
+app.get('/api/v1/training/portal/:candidateId', handleTrainingPortal);
 
 // Health check (public)
 app.get('/api/health', (_req, res) => res.json({status: 'ok', timestamp: new Date().toISOString()}));
@@ -174,6 +224,18 @@ app.use('/api/v1/ai', aiProxyRoutes);
 // Interview scoring pipeline
 app.use('/api/interview-scoring', scoringRoutes);
 app.use('/api/v1/interview-scoring', scoringRoutes);
+
+// Stats (lightweight aggregated endpoints)
+app.use('/api/stats', statsRoutes);
+app.use('/api/v1/stats', statsRoutes);
+
+// Employee profiles, performance, competency models
+app.use('/api/employees', employeesRoutes);
+app.use('/api/v1/employees', employeesRoutes);
+
+// Training Academy (courses, enrollments, assessments, analytics)
+app.use('/api/training', trainingRoutes);
+app.use('/api/v1/training', trainingRoutes);
 
 // Error handler (must be last)
 app.use(errorHandler);

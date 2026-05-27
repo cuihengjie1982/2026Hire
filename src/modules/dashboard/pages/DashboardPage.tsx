@@ -20,17 +20,10 @@ import {
 } from 'lucide-react';
 import {useNavigate} from 'react-router-dom';
 import {useEffect, useMemo, useState, useCallback} from 'react';
-import {listCandidates, getTalentStats} from '../../talent/api';
 import {listInterviewResults} from '../../interviews/api';
-import {listApprovalRequests} from '../../approvals/api';
-import {listOutreachRecords} from '../../outreach/api';
-import {listAgents} from '../../agents/api';
-import {getItemsFromPayload} from '../../../shared/lib/apiClient';
 import {getUserName} from '../../../shared/lib/runtime';
+import {USE_MOCK_API, API_BASE_URL, getAuthToken} from '../../../shared/lib/runtime';
 import type {InterviewResult} from '../../interviews/types';
-import type {ApprovalRequestSummary} from '../../approvals/types';
-import type {OutreachRecord} from '../../outreach/types';
-import type {Agent} from '../../agents/types';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -204,31 +197,35 @@ export const DashboardPage = () => {
 
   const recentInterviews = useMemo(() => filteredResults.slice(0, 5), [filteredResults]);
 
-  // Fetch data
+  // Fetch data — uses lightweight /api/stats/dashboard for counts + interview results for chart
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [candidates, results, approvalsRaw, talentStats, outreachRecords, agentsRaw] = await Promise.all([
-          listCandidates(),
-          listInterviewResults(),
-          listApprovalRequests().catch(() => [] as ApprovalRequestSummary[]),
-          getTalentStats().catch(() => ({pendingReview: 0})),
-          listOutreachRecords().catch(() => [] as OutreachRecord[]),
-          listAgents().catch(() => [] as Agent[]),
+        // Dashboard stats (aggregated server-side, single request)
+        const [dashboardStats, results] = await Promise.all([
+          USE_MOCK_API
+            ? null
+            : fetch(`${API_BASE_URL}/api/stats/dashboard`, {
+                headers: {'Authorization': `Bearer ${getAuthToken() ?? ''}`},
+              }).then(r => r.json() as Promise<{
+                sidebar: {runningAgents: number; shortlistCount: number; pendingApprovals: number; totalCandidates: number};
+                talentStats: {totalCount: number; monthlyNew: number; gradeDistribution: Record<string, number>};
+                weeklyInterviews: number;
+                pendingOutreach: number;
+              }>).catch(() => null),
+          listInterviewResults().catch(() => [] as InterviewResult[]),
         ]);
 
-        setAllCandidateCount(candidates.length);
+        if (dashboardStats) {
+          setAllCandidateCount(dashboardStats.sidebar.totalCandidates);
+          setTaskCounts({
+            pendingApprovals: dashboardStats.sidebar.pendingApprovals,
+            pendingReviewResumes: dashboardStats.talentStats.pendingReview ?? 0,
+            pendingOutreach: dashboardStats.pendingOutreach,
+            runningAgents: dashboardStats.sidebar.runningAgents,
+          });
+        }
         setAllResults(results);
-
-        const approvals = getItemsFromPayload<ApprovalRequestSummary>(approvalsRaw);
-        const agents = Array.isArray(agentsRaw) ? agentsRaw : [];
-
-        setTaskCounts({
-          pendingApprovals: approvals.filter((a) => a.status === 'pending').length,
-          pendingReviewResumes: talentStats.pendingReview ?? 0,
-          pendingOutreach: (outreachRecords as OutreachRecord[]).filter((r) => r.status === 'pending').length,
-          runningAgents: agents.filter((a: Agent) => a.status === 'running').length,
-        });
       } catch {
         // keep defaults
       } finally {

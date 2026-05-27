@@ -1,4 +1,4 @@
-import {fetchJson, getItemsFromPayload, mockDelay} from '../../shared/lib/apiClient';
+import {fetchJson, getItemsFromPayload, mockDelay, cached, invalidateCache} from '../../shared/lib/apiClient';
 import {supabase} from '../../shared/lib/supabase';
 import {USE_MOCK_API, API_BASE_URL, getAuthToken} from '../../shared/lib/runtime';
 
@@ -63,13 +63,16 @@ export const listAgents = async (projectId?: string): Promise<Agent[]> => {
     return Array.from(new Map(base.map(a => [a.id, a])).values());
   }
 
-  let query = db('agents').select('*');
-  if (projectId) {
-    query = query.eq('project_id', projectId);
-  }
-  const {data, error} = await query;
-  if (error) throw new Error(error.message);
-  return Array.from(new Map(((data ?? []) as Record<string, unknown>[]).map((r) => [String(r.id), mapAgent(r)])).values());
+  const cacheKey = `listAgents${projectId ? `:${projectId}` : ''}`;
+  return cached(cacheKey, async () => {
+    let query = db('agents').select('*');
+    if (projectId) {
+      query = query.eq('project_id', projectId);
+    }
+    const {data, error} = await query;
+    if (error) throw new Error(error.message);
+    return Array.from(new Map(((data ?? []) as Record<string, unknown>[]).map((r) => [String(r.id), mapAgent(r)])).values());
+  });
 };
 
 export const getAgentStats = async (): Promise<AgentStats> => {
@@ -133,6 +136,7 @@ export const createAgent = async (input: CreateAgentInput): Promise<Agent> => {
   const {data, error} = await db('agents').insert(agentToSnake(input)).select().single() as unknown as { data: Record<string, unknown> | null; error: Error | null };
   if (error) throw new Error(error.message);
   if (!data) throw new Error('Failed to create agent');
+  invalidateCache(); // clear all caches on mutation
   return mapAgent(data as Record<string, unknown>);
 };
 
@@ -149,6 +153,7 @@ export const updateAgent = async (agentId: string, input: Partial<CreateAgentInp
   const {data, error} = await db('agents').update(agentToSnake(input)).eq('id', agentId).select().single() as unknown as { data: Record<string, unknown> | null; error: Error | null };
   if (error) throw new Error(error.message);
   if (!data) throw new Error('Agent not found');
+  invalidateCache();
   return mapAgent(data as Record<string, unknown>);
 };
 
@@ -165,6 +170,7 @@ export const pauseAgent = async (agentId: string): Promise<Agent> => {
   const {data, error} = await db('agents').update({status: 'paused'}).eq('id', agentId).select().single() as unknown as { data: Agent | null; error: Error | null };
   if (error) throw new Error(error.message);
   if (!data) throw new Error('Agent not found');
+  invalidateCache();
   return data;
 };
 
@@ -197,6 +203,7 @@ export const deleteAgent = async (agentId: string): Promise<void> => {
 
   const {error} = await db('agents').delete().eq('id', agentId);
   if (error) throw new Error(error.message);
+  invalidateCache();
 };
 
 export const runAgent = async (agentId: string): Promise<Agent & {runResult: AgentRunResult}> => {

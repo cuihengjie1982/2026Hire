@@ -252,12 +252,22 @@ function parseJSONResponse(raw: string): Record<string, unknown> {
 }
 
 // POST /vision-parse — Vision AI 简历图片解析（代理前端 Vision 调用，API Key 不暴露到浏览器）
+// 支持：
+//   单图: { imageBase64, mimeType, prompt }
+//   批量: { images: string[], mimeType, prompt }
 router.post('/vision-parse', async (req, res, next) => {
   try {
-    const {imageBase64, mimeType, prompt} = req.body;
+    const {imageBase64, images, mimeType, prompt} = req.body;
 
-    if (!imageBase64) {
-      res.status(400).json({error: 'imageBase64 is required'});
+    // 兼容单图和批量模式
+    const imageList: string[] = images
+      ? (Array.isArray(images) ? images : [images])
+      : imageBase64
+        ? [imageBase64]
+        : [];
+
+    if (imageList.length === 0) {
+      res.status(400).json({error: 'imageBase64 or images is required'});
       return;
     }
 
@@ -289,7 +299,9 @@ router.post('/vision-parse', async (req, res, next) => {
       max_tokens: 4096,
     };
 
-    const visionPrompt = prompt || `你是一个简历信息提取助手。请从这张简历图片中提取结构化信息，以 JSON 格式返回。
+    const pageCount = imageList.length;
+    const visionPrompt = prompt || (pageCount === 1
+      ? `你是一个简历信息提取助手。请从这张简历图片中提取结构化信息，以 JSON 格式返回。
 
 必须返回以下字段（如果简历中没有则留空字符串""）：
 - name: 姓名（2-4个中文字符）
@@ -310,12 +322,40 @@ router.post('/vision-parse', async (req, res, next) => {
 - workExperience: 工作经历数组，每项包含 {company, role, period, desc}
 - honors: 荣誉证书数组
 
-只返回纯 JSON，不要任何其他文字。`;
+只返回纯 JSON，不要任何其他文字。`
+      : `你是一个简历信息提取助手。这是一份${pageCount}页的简历，共${pageCount}张图片按顺序排列。请综合所有页面的信息提取结构化数据，以 JSON 格式返回。
 
+必须返回以下字段（如果简历中没有则留空字符串""）：
+- name: 姓名（2-4个中文字符）
+- gender: 性别（"男"或"女"）
+- ageOrBirth: 年龄或出生年月
+- phone: 手机号
+- email: 邮箱
+- location: 所在城市
+- highestEducation: 最高学历
+- school: 学校名称
+- major: 专业
+- educationTime: 教育时间段
+- expectedSalary: 期望薪酬
+- currentlyEmployed: 在职状态
+- availability: 到岗时间
+- photoBase64: 留空字符串
+- skills: 技能关键词数组，最多8个
+- workExperience: 工作经历数组，每项包含 {company, role, period, desc}（从所有页面汇总）
+- honors: 荣誉证书数组
+
+请完整提取所有页面的信息，不要遗漏。只返回纯 JSON，不要任何其他文字。`);
+
+    // 构建多图 content parts
     const contentParts: ContentPart[] = [
       {type: 'text', text: visionPrompt},
-      {type: 'image', image: {media_type: mimeType || 'image/jpeg', data: imageBase64}},
     ];
+    for (const img of imageList) {
+      contentParts.push({
+        type: 'image',
+        image: {media_type: mimeType || 'image/jpeg', data: img},
+      });
+    }
 
     let rawResponse: string;
     try {
@@ -330,6 +370,7 @@ router.post('/vision-parse', async (req, res, next) => {
     res.json({
       modelUsed: config.model_name,
       provider: config.provider,
+      pageCount,
       ...parsed,
     });
   } catch (e) { next(e); }

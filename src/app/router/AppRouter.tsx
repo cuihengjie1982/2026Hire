@@ -10,69 +10,24 @@ const DashboardPage = lazy(() =>
     default: module.DashboardPage,
   })),
 );
-const CandidateSearchPage = lazy(() =>
-  import('../../modules/candidates/pages/CandidateSearchPage').then((module) => ({
-    default: module.CandidateSearchPage,
+const ProjectManagePage = lazy(() =>
+  import('../../modules/projects/pages/ProjectManagePage').then((module) => ({
+    default: module.ProjectManagePage,
   })),
 );
-const AgentsPage = lazy(() =>
-  import('../../modules/agents/pages/AgentsPage').then((module) => ({
-    default: module.AgentsPage,
+const CandidateCenterPage = lazy(() =>
+  import('../../modules/candidates/pages/CandidateCenterPage').then((module) => ({
+    default: module.CandidateCenterPage,
   })),
 );
-const ShortlistPage = lazy(() =>
-  import('../../modules/shortlist/pages/ShortlistPage').then((module) => ({
-    default: module.ShortlistPage,
+const PipelinePage = lazy(() =>
+  import('../../modules/pipeline/pages/PipelinePage').then((module) => ({
+    default: module.PipelinePage,
   })),
 );
-const ProjectsPage = lazy(() =>
-  import('../../modules/projects/pages/ProjectsPage').then((module) => ({
-    default: module.ProjectsPage,
-  })),
-);
-const OutreachPage = lazy(() =>
-  import('../../modules/outreach/pages/OutreachPage').then((module) => ({
-    default: module.OutreachPage,
-  })),
-);
-const InsightsPage = lazy(() =>
-  import('../../modules/analytics/pages/InsightsPage').then((module) => ({
-    default: module.InsightsPage,
-  })),
-);
-const IntegrationsPage = lazy(() =>
-  import('../../modules/integrations/pages/IntegrationsPage').then((module) => ({
-    default: module.IntegrationsPage,
-  })),
-);
-const PositionConfigRoute = lazy(() =>
-  import('../../modules/positions/pages/PositionConfigRoute').then((module) => ({
-    default: module.PositionConfigRoute,
-  })),
-);
-const InterviewTemplatesPage = lazy(() =>
-  import('../../modules/interviews/pages/InterviewTemplatesPage').then((module) => ({
-    default: module.InterviewTemplatesPage,
-  })),
-);
-const InterviewPreviewPage = lazy(() =>
-  import('../../modules/interviews/pages/InterviewPreviewPage').then((module) => ({
-    default: module.InterviewPreviewPage,
-  })),
-);
-const InterviewManagementPage = lazy(() =>
-  import('../../modules/interviews/pages/InterviewManagementPage').then((module) => ({
-    default: module.InterviewManagementPage,
-  })),
-);
-const InterviewResultsPage = lazy(() =>
-  import('../../modules/interviews/pages/InterviewResultsPage').then((module) => ({
-    default: module.InterviewResultsPage,
-  })),
-);
-const InterviewAnalyticsPage = lazy(() =>
-  import('../../modules/interviews/pages/InterviewAnalyticsPage').then((module) => ({
-    default: module.InterviewAnalyticsPage,
+const InterviewCenterPage = lazy(() =>
+  import('../../modules/interviews/pages/InterviewCenterPage').then((module) => ({
+    default: module.InterviewCenterPage,
   })),
 );
 const ApprovalsRoute = lazy(() =>
@@ -80,19 +35,19 @@ const ApprovalsRoute = lazy(() =>
     default: module.ApprovalsRoute,
   })),
 );
-const TalentPoolPage = lazy(() =>
-  import('../../modules/talent/pages/TalentPoolPage').then((module) => ({
-    default: module.TalentPoolPage,
+const TrainingAcademyPage = lazy(() =>
+  import('../../modules/training/pages/TrainingAcademyPage').then((module) => ({
+    default: module.TrainingAcademyPage,
   })),
 );
-const ContactsPage = lazy(() =>
-  import('../../modules/contacts/pages/ContactsPage').then((module) => ({
-    default: module.ContactsPage,
+const SystemAdminPage = lazy(() =>
+  import('../../modules/admin/pages/SystemAdminPage').then((module) => ({
+    default: module.SystemAdminPage,
   })),
 );
-const SettingsPage = lazy(() =>
-  import('../../modules/settings/pages/SettingsPage').then((module) => ({
-    default: module.SettingsPage,
+const CandidateTrainingPortal = lazy(() =>
+  import('../../modules/training/pages/CandidateTrainingPortal').then((module) => ({
+    default: module.CandidateTrainingPortal,
   })),
 );
 
@@ -123,26 +78,17 @@ export const AppRouter = ({onLogout}: {onLogout: () => void}) => (
     <ProjectProvider>
       <Routes>
         <Route element={<DashboardLayout onLogout={onLogout} />}>
-        <Route path="/" element={withSuspense(<DashboardPage />)} />
-        <Route path="/search" element={withSuspense(<CandidateSearchPage />)} />
-        <Route path="/agents" element={withSuspense(<AgentsPage />)} />
-        <Route path="/shortlist" element={withSuspense(<ShortlistPage />)} />
-        <Route path="/projects" element={withSuspense(<ProjectsPage />)} />
-        <Route path="/outreach" element={withSuspense(<OutreachPage />)} />
-        <Route path="/insights" element={withSuspense(<InsightsPage />)} />
-        <Route path="/integrations" element={withSuspense(<IntegrationsPage />)} />
-        <Route path="/positions/config" element={withSuspense(<PositionConfigRoute />)} />
-        <Route path="/interviews/templates" element={withSuspense(<InterviewTemplatesPage />)} />
-        <Route path="/interviews/preview" element={withSuspense(<InterviewPreviewPage />)} />
-        <Route path="/interviews/management" element={withSuspense(<InterviewManagementPage />)} />
-        <Route path="/interviews/results" element={withSuspense(<InterviewResultsPage />)} />
-        <Route path="/interviews/analytics" element={withSuspense(<InterviewAnalyticsPage />)} />
-        <Route path="/approvals" element={withSuspense(<ApprovalsRoute />)} />
-        <Route path="/talent" element={withSuspense(<TalentPoolPage />)} />
-        <Route path="/contacts" element={withSuspense(<ContactsPage />)} />
-        <Route path="/settings" element={withSuspense(<SettingsPage />)} />
+          <Route path="/" element={withSuspense(<DashboardPage />)} />
+          <Route path="/projects" element={withSuspense(<ProjectManagePage />)} />
+          <Route path="/candidates" element={withSuspense(<CandidateCenterPage />)} />
+          <Route path="/pipeline" element={withSuspense(<PipelinePage />)} />
+          <Route path="/interviews" element={withSuspense(<InterviewCenterPage />)} />
+          <Route path="/approvals" element={withSuspense(<ApprovalsRoute />)} />
+          <Route path="/training" element={withSuspense(<TrainingAcademyPage />)} />
+          <Route path="/admin" element={withSuspense(<SystemAdminPage />)} />
         </Route>
         <Route path="*" element={<NotFoundPage />} />
+        <Route path="/training/portal" element={withSuspense(<CandidateTrainingPortal />)} />
       </Routes>
     </ProjectProvider>
   </BrowserRouter>

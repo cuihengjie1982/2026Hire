@@ -1,4 +1,4 @@
-import {fetchJson, mockDelay} from '../../shared/lib/apiClient';
+import {fetchJson, getItemsFromPayload, mockDelay} from '../../shared/lib/apiClient';
 import {USE_MOCK_API} from '../../shared/lib/runtime';
 import {shortlistFixture} from './fixtures';
 import {type CreateShortlistEntryInput, type ShortlistEntry} from './types';
@@ -28,7 +28,8 @@ export const listShortlist = async (projectId?: string): Promise<ShortlistEntry[
   }
 
   const query = projectId ? `?projectId=${encodeURIComponent(projectId)}` : '';
-  const rows = await fetchJson<Record<string, unknown>[]>(`/api/shortlist${query}`);
+  const payload = await fetchJson<Record<string, unknown>>(`/api/shortlist${query}`);
+  const rows = getItemsFromPayload<Record<string, unknown>>(payload);
   return rows.map(mapShortlistEntry);
 };
 
@@ -38,7 +39,8 @@ export const listShortlistByPosition = async (positionId: string): Promise<Short
     return Array.from(new Map(shortlistData.filter(entry => entry.positionId === positionId).map(e => [e.id, e])).values());
   }
 
-  const rows = await fetchJson<Record<string, unknown>[]>(`/api/shortlist?positionId=${encodeURIComponent(positionId)}`);
+  const payload = await fetchJson<Record<string, unknown>>(`/api/shortlist?positionId=${encodeURIComponent(positionId)}`);
+  const rows = getItemsFromPayload<Record<string, unknown>>(payload);
   return rows.map(mapShortlistEntry);
 };
 

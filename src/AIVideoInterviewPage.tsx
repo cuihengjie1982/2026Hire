@@ -13,6 +13,11 @@ const formatTime = (seconds: number) => {
   return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
 };
 
+// Silence detection constants
+const SILENCE_THRESHOLD = 0.02;   // RMS threshold — below this = silence
+const SILENCE_DURATION_MS = 4000; // 4 seconds of silence → auto-stop
+const DEFAULT_TOTAL_MINUTES = 20; // Default total interview duration
+
 type OverlayState = 'none' | 'countdown' | 'recording' | 'review' | 'saved' | 'completed' | 'permission' | 'network';
 type ScoringStatus = 'idle' | 'uploading' | 'transcribing' | 'scoring' | 'completed' | 'failed';
 
@@ -22,10 +27,12 @@ export const AIVideoInterviewPage = () => {
   const [templateName, setTemplateName] = useState('');
   const [isRecording, setIsRecording] = useState(false);
   const [currentQuestionIdx, setCurrentQuestionIdx] = useState(0);
-  const [timeLeft, setTimeLeft] = useState(0);
+  const [totalTimeLeft, setTotalTimeLeft] = useState(DEFAULT_TOTAL_MINUTES * 60);
   const [recordTime, setRecordTime] = useState(0);
+  const [silenceSeconds, setSilenceSeconds] = useState(0);
   const [countdown, setCountdown] = useState(3);
   const [showTips, setShowTips] = useState(false);
+  const silenceStartRef = useRef<number | null>(null);
 
   const [overlayState, setOverlayState] = useState<OverlayState>('none');
   const [remakesLeft, setRemakesLeft] = useState(2);
@@ -145,6 +152,12 @@ export const AIVideoInterviewPage = () => {
         const params = new URLSearchParams(window.location.search);
         const templateId = params.get('templateId');
 
+        // Total interview duration from URL (default 20 min)
+        const totalMinutes = parseInt(params.get('totalMinutes') || '', 10);
+        if (totalMinutes > 0 && totalMinutes <= 60) {
+          setTotalTimeLeft(totalMinutes * 60);
+        }
+
         // Read session context from URL params
         const sessionId = params.get('sessionId') || '';
         const candidateId = params.get('candidateId') || '';
@@ -164,7 +177,6 @@ export const AIVideoInterviewPage = () => {
             setQuestions(detail.questions.map((q: InterviewQuestion, i: number) => ({
               id: i + 1, title: q.title, text: q.prompt, timeLimit: q.timeLimitSeconds,
             })));
-            setTimeLeft(detail.questions[0].timeLimitSeconds);
             return;
           }
         }
@@ -181,7 +193,6 @@ export const AIVideoInterviewPage = () => {
             setQuestions(detail.questions.map((q: InterviewQuestion, i: number) => ({
               id: i + 1, title: q.title, text: q.prompt, timeLimit: q.timeLimitSeconds,
             })));
-            setTimeLeft(detail.questions[0].timeLimitSeconds);
             return;
           }
         }
@@ -363,6 +374,26 @@ export const AIVideoInterviewPage = () => {
           bars.push(Math.max(val, 0.05));
         }
         setWaveformData(bars);
+
+        // Silence detection: check average volume
+        let sum = 0;
+        for (let i = 0; i < dataArray.length; i++) sum += dataArray[i];
+        const rms = sum / dataArray.length / 255;
+
+        if (rms < SILENCE_THRESHOLD) {
+          if (!silenceStartRef.current) silenceStartRef.current = Date.now();
+          const elapsed = Date.now() - silenceStartRef.current;
+          setSilenceSeconds(Math.min(4, Math.floor(elapsed / 1000)));
+          if (elapsed >= SILENCE_DURATION_MS) {
+            // Auto-stop: silence detected for long enough
+            handleStopRecording();
+            return;
+          }
+        } else {
+          silenceStartRef.current = null;
+          setSilenceSeconds(0);
+        }
+
         waveformAnimRef.current = requestAnimationFrame(animate);
       };
       animate();
@@ -392,6 +423,9 @@ export const AIVideoInterviewPage = () => {
     stopSpeechRecognition();
     // Stop waveform animation
     stopWaveformAnimation();
+    // Reset silence detection
+    silenceStartRef.current = null;
+    setSilenceSeconds(0);
     setIsRecording(false);
     setOverlayState('review');
   };
@@ -401,6 +435,8 @@ export const AIVideoInterviewPage = () => {
     setRemakesLeft((prev) => prev - 1);
     audioChunksRef.current = [];
     currentTranscriptRef.current = '';
+    silenceStartRef.current = null;
+    setSilenceSeconds(0);
     if (speechRecognitionRef.current) {
       try { speechRecognitionRef.current.stop(); } catch { /* */ }
       speechRecognitionRef.current = null;
@@ -464,7 +500,6 @@ export const AIVideoInterviewPage = () => {
       if (currentQuestionIdx < questions.length - 1) {
         const nextIdx = currentQuestionIdx + 1;
         setCurrentQuestionIdx(nextIdx);
-        setTimeLeft(questions[nextIdx].timeLimit);
         setRemakesLeft(2);
         setOverlayState('none');
         setShowTips(false);
@@ -480,7 +515,6 @@ export const AIVideoInterviewPage = () => {
     if (currentQuestionIdx < questions.length - 1) {
       const nextIdx = currentQuestionIdx + 1;
       setCurrentQuestionIdx(nextIdx);
-      setTimeLeft(questions[nextIdx].timeLimit);
       setRemakesLeft(2);
       setOverlayState('none');
       setShowTips(false);
@@ -489,12 +523,15 @@ export const AIVideoInterviewPage = () => {
     }
   };
 
-  const handleTimeUp = () => {
+  const handleTotalTimeUp = () => {
     setIsRecording(false);
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
       mediaRecorderRef.current.stop();
     }
-    handleSubmitAnswer();
+    stopSpeechRecognition();
+    stopWaveformAnimation();
+    // End the entire interview
+    setOverlayState('completed');
   };
 
   const handleExit = () => {
@@ -589,11 +626,13 @@ export const AIVideoInterviewPage = () => {
 
   const handleRestart = () => {
     setCurrentQuestionIdx(0);
-    setTimeLeft(questions[0].timeLimit);
+    setTotalTimeLeft(DEFAULT_TOTAL_MINUTES * 60);
     setRemakesLeft(2);
     setOverlayState('none');
     setIsRecording(false);
     setRecordTime(0);
+    setSilenceSeconds(0);
+    silenceStartRef.current = null;
     setShowTips(false);
     setScoringStatus('idle');
     setAnswerScores(new Map());
@@ -608,19 +647,15 @@ export const AIVideoInterviewPage = () => {
   // Progress percentage
   const progressPct = ((currentQuestionIdx) / questions.length) * 100;
 
-  // Total interview time
-  const totalTime = questions.reduce((sum, q) => sum + q.timeLimit, 0);
-  const elapsedTotalTime = questions.slice(0, currentQuestionIdx).reduce((sum, q) => sum + q.timeLimit, 0) + recordTime;
-
   return (
     <div className="h-screen bg-[#1E1B2E] flex flex-col font-sans overflow-hidden">
       {/* Hidden hooks */}
       <ErrorStateShortcuts setOverlayState={setOverlayState} />
       <RecordingTimer
         isRecording={isRecording}
-        setTimeLeft={setTimeLeft}
+        setTotalTimeLeft={setTotalTimeLeft}
         setRecordTime={setRecordTime}
-        onTimeUp={handleTimeUp}
+        onTotalTimeUp={handleTotalTimeUp}
       />
 
       {/* Top Bar */}
@@ -651,7 +686,9 @@ export const AIVideoInterviewPage = () => {
             </div>
             <span className="text-white/50 text-xs">{Math.round(progressPct)}%</span>
           </div>
-          <span className="text-white/40 text-xs">{formatTime(elapsedTotalTime)} / {formatTime(totalTime)}</span>
+          <span className={`text-xs font-mono ${totalTimeLeft <= 120 ? 'text-red-400 font-bold' : 'text-white/40'}`}>
+            剩余 {formatTime(totalTimeLeft)}
+          </span>
           <div className="w-px h-5 bg-white/10" />
           <button onClick={handleExit} className="p-1.5 rounded-lg hover:bg-white/10 transition-colors text-white/40 hover:text-white/70" title="退出面试">
             <LogOut className="w-4 h-4" />
@@ -955,20 +992,34 @@ export const AIVideoInterviewPage = () => {
             <p className="text-gray-600 text-base leading-relaxed">{currentQ?.text}</p>
           </div>
 
-          {/* Timer Display */}
+          {/* Timer Display — recording time + silence indicator */}
           <div className="px-5 py-4 border-b border-gray-100">
             <div className="flex items-center justify-between">
-              <span className="text-gray-400 text-xs">答题时长</span>
-              <span className={`text-2xl font-mono font-bold ${timeLeft <= 30 ? 'text-red-500' : 'text-gray-900'}`}>
-                {formatTime(timeLeft)}
+              <span className="text-gray-400 text-xs">
+                {isRecording ? '录制中' : '等待录制'}
+              </span>
+              <span className={`text-2xl font-mono font-bold ${isRecording ? 'text-[#6366F1]' : 'text-gray-400'}`}>
+                {formatTime(recordTime)}
               </span>
             </div>
-            <div className="w-full bg-gray-100 rounded-full h-1.5 mt-2">
-              <div
-                className={`h-1.5 rounded-full transition-all duration-1000 ${timeLeft <= 30 ? 'bg-red-500' : 'bg-[#6366F1]'}`}
-                style={{width: `${currentQ ? (timeLeft / currentQ.timeLimit) * 100 : 0}%`}}
-              />
-            </div>
+            {isRecording && silenceSeconds > 0 && (
+              <div className="mt-2 flex items-center space-x-1.5">
+                <div className="flex space-x-0.5">
+                  {[1, 2, 3, 4].map(i => (
+                    <div
+                      key={i}
+                      className={`w-6 h-1 rounded-full ${i <= silenceSeconds ? 'bg-amber-400' : 'bg-gray-200'}`}
+                    />
+                  ))}
+                </div>
+                <span className="text-amber-500 text-xs">
+                  静默 {silenceSeconds}/4 秒后自动下一题
+                </span>
+              </div>
+            )}
+            {isRecording && silenceSeconds === 0 && (
+              <p className="mt-2 text-gray-300 text-xs">检测到声音，正在录制...</p>
+            )}
           </div>
 
           {/* Tips Section */}
@@ -998,7 +1049,6 @@ export const AIVideoInterviewPage = () => {
                   onClick={() => {
                     if (idx <= currentQuestionIdx) {
                       setCurrentQuestionIdx(idx);
-                      setTimeLeft(q.timeLimit);
                       setRemakesLeft(2);
                       setOverlayState('none');
                       setIsRecording(false);
@@ -1054,10 +1104,10 @@ export const AIVideoInterviewPage = () => {
             {isRecording && (
               <button
                 onClick={handleStopRecording}
-                className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 py-3 rounded-lg font-medium transition-colors flex items-center justify-center space-x-2"
+                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-lg font-medium transition-colors flex items-center justify-center space-x-2 shadow-lg"
               >
-                <span className="w-3 h-3 bg-red-500 rounded-sm" />
-                <span>停止录制</span>
+                <CheckCircle2 className="w-4 h-4" />
+                <span>回答完毕</span>
               </button>
             )}
             {overlayState === 'none' && !isRecording && (
@@ -1104,29 +1154,29 @@ function ErrorStateShortcuts({setOverlayState}: {setOverlayState: (s: OverlaySta
   return null;
 }
 
-// Extracted component for recording timer
+// Extracted component: total interview countdown + per-question recording time
 function RecordingTimer({
   isRecording,
-  setTimeLeft,
+  setTotalTimeLeft,
   setRecordTime,
-  onTimeUp,
+  onTotalTimeUp,
 }: {
   isRecording: boolean;
-  setTimeLeft: React.Dispatch<React.SetStateAction<number>>;
+  setTotalTimeLeft: React.Dispatch<React.SetStateAction<number>>;
   setRecordTime: React.Dispatch<React.SetStateAction<number>>;
-  onTimeUp: () => void;
+  onTotalTimeUp: () => void;
 }) {
-  const onTimeUpRef = useRef(onTimeUp);
-  onTimeUpRef.current = onTimeUp;
+  const onTotalTimeUpRef = useRef(onTotalTimeUp);
+  onTotalTimeUpRef.current = onTotalTimeUp;
 
   useEffect(() => {
     let timer: ReturnType<typeof setInterval> | null = null;
     if (isRecording) {
       timer = setInterval(() => {
-        setTimeLeft((prev) => {
+        setTotalTimeLeft((prev) => {
           if (prev <= 1) {
             if (timer) clearInterval(timer);
-            onTimeUpRef.current();
+            onTotalTimeUpRef.current();
             return 0;
           }
           return prev - 1;
@@ -1137,7 +1187,7 @@ function RecordingTimer({
     return () => {
       if (timer) clearInterval(timer);
     };
-  }, [isRecording, setTimeLeft, setRecordTime]);
+  }, [isRecording, setTotalTimeLeft, setRecordTime]);
 
   return null;
 }
