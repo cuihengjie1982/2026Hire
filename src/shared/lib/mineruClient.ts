@@ -284,9 +284,8 @@ export const parseResumeWithMinerU = async (
 
     // Controller for aborting fetch requests
     const controller = new AbortController();
-    // Hard cap: Supabase cancels Edge Function workers at ~150s. Set to 45s so we get
-    // a real HTTP response instead of a connection reset. Client-side PDF parse is the fallback.
-    const timeoutId = setTimeout(() => controller.abort(), 45000);
+    // Hard cap: 30s for initial proxy upload. Client-side PDF parse is the fallback.
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
 
     try {
       // Use server-side proxy in production to avoid exposing MinerU token in browser
@@ -335,11 +334,11 @@ export const parseResumeWithMinerU = async (
 
           // Phase 2: Poll for results (task_id based)
           if (startResult.task_id && startResult.status === 'processing') {
-            // Reset timeout for polling phase — give MinerU up to 120s to finish
+            // Reset timeout for polling phase — give MinerU up to 30s before falling back
             clearTimeout(timeoutId);
-            const pollTimeoutId = setTimeout(() => controller.abort(), 130000);
+            const pollTimeoutId = setTimeout(() => controller.abort(), 45000);
 
-            const maxPolls = 40; // 40 × 3s = 120s max
+            const maxPolls = 10; // 10 × 3s = 30s max (was 120s, reduced for better UX)
             for (let i = 0; i < maxPolls; i++) {
               await new Promise(r => setTimeout(r, 3000));
 
