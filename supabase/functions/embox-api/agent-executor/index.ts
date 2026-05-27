@@ -198,6 +198,77 @@ export async function autoTriggerForCandidate(
   }
 }
 
+// ─── Agent CRUD ─────────────────────────────────────────────────
+
+export const handleAgents = async (req: Request, _userId: string, _userRole: string): Promise<Response> => {
+  const supabase = createSupabaseAdmin(req);
+  const method = req.method;
+
+  try {
+    if (method === 'GET') {
+      const { data } = await supabase.from('agents').select('*').order('created_at', { ascending: false });
+      return jsonRes(data ?? []);
+    }
+
+    if (method === 'POST') {
+      const body = await req.json() as Record<string, unknown>;
+      const { name, type, roleType, config, projectId, projectName, description } = body;
+      if (!name) return jsonRes({ error: { code: 'VALIDATION_ERROR', message: 'name is required' } }, 400);
+
+      const { data, error } = await supabase.from('agents').insert({
+        name: String(name),
+        type: type ? String(type) : null,
+        role_type: roleType ? String(roleType) : null,
+        config: config || {},
+        project_id: projectId ? String(projectId) : null,
+        project_name: projectName ? String(projectName) : null,
+        description: description ? String(description) : null,
+        status: 'pending',
+      }).select('*').single();
+
+      if (error) return jsonRes({ error: { code: 'DB_ERROR', message: error.message } }, 500);
+      return jsonRes(data, 201);
+    }
+
+    if (method === 'PATCH') {
+      const body = await req.json() as Record<string, unknown>;
+      const { id, ...updates } = body;
+      if (!id) return jsonRes({ error: { code: 'VALIDATION_ERROR', message: 'id is required' } }, 400);
+
+      const row: Record<string, unknown> = { updated_at: new Date().toISOString() };
+      if (updates.name !== undefined) row.name = updates.name;
+      if (updates.description !== undefined) row.description = updates.description;
+      if (updates.type !== undefined) row.type = updates.type;
+      if (updates.roleType !== undefined) row.role_type = updates.roleType;
+      if (updates.config !== undefined) row.config = updates.config;
+      if (updates.status !== undefined) row.status = updates.status;
+      if (updates.projectId !== undefined) row.project_id = updates.projectId;
+      if (updates.projectName !== undefined) row.project_name = updates.projectName;
+
+      const { data, error } = await supabase.from('agents').update(row).eq('id', String(id)).select('*').single();
+      if (error) return jsonRes({ error: { code: 'DB_ERROR', message: error.message } }, 500);
+      if (!data) return jsonRes({ error: { code: 'NOT_FOUND', message: 'Agent not found' } }, 404);
+      return jsonRes(data);
+    }
+
+    if (method === 'DELETE') {
+      const body = await req.json() as Record<string, unknown>;
+      const { id } = body;
+      if (!id) return jsonRes({ error: { code: 'VALIDATION_ERROR', message: 'id is required' } }, 400);
+
+      const { data, error } = await supabase.from('agents').delete().eq('id', String(id)).select('id').single();
+      if (error) return jsonRes({ error: { code: 'DB_ERROR', message: error.message } }, 500);
+      if (!data) return jsonRes({ error: { code: 'NOT_FOUND', message: 'Agent not found' } }, 404);
+      return jsonRes({ deleted: true, id: String(id) });
+    }
+
+    return jsonRes({ error: { code: 'METHOD_NOT_ALLOWED', message: `Method ${method} not allowed` } }, 405);
+  } catch (e) {
+    console.error('[agent-executor] CRUD:', e);
+    return jsonRes({ error: { code: 'INTERNAL_ERROR', message: 'An internal error occurred' } }, 500);
+  }
+};
+
 // ─── Route handler: POST /agent-executor/run ─────────────────────
 
 interface RunResult { processed: number; approved: number; rejected: number; pending: number; summary: string; duration: number; }

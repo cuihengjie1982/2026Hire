@@ -1,12 +1,22 @@
-import {fetchJson, mockDelay} from '../../shared/lib/apiClient';
 import {supabase} from '../../shared/lib/supabase';
-import {USE_MOCK_API} from '../../shared/lib/runtime';
+import {USE_MOCK_API, API_BASE_URL, getAuthToken} from '../../shared/lib/runtime';
 import {approvalRequestsFixture, interviewApprovalRequestsFixture, interviewApprovalHistoryFixture} from './fixtures';
 import {type ApprovalRequestSummary, type InterviewApprovalRequest, type ApprovalStatus, type CreateInterviewApprovalInput} from './types';
 
-/** Escape hatch for supabase without generated Database types */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const db = (table: string) => supabase.from(table) as any;
+const efetch = async <T>(path: string, method = 'GET', body?: Record<string, unknown>): Promise<T> => {
+  const base = USE_MOCK_API ? '' : API_BASE_URL;
+  const res = await fetch(`${base}/functions/v1/embox-api${path}`, {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${getAuthToken() ?? ''}`,
+    },
+    ...(body ? { body: JSON.stringify(body) } : {}),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data?.error?.message || `API error ${res.status}`);
+  return data as T;
+};
 
 // localStorage-backed mock stores
 let approvalRequestsData: ApprovalRequestSummary[] = (() => { try { const r = localStorage.getItem('em-box.mock.approvals'); return r ? JSON.parse(r) : [...approvalRequestsFixture]; } catch { return [...approvalRequestsFixture]; } })();
@@ -119,25 +129,19 @@ export const createInterviewApprovalRequest = async (
     saveInterviewApprovalRequests();
     return request;
   }
-  const insertData: Record<string, unknown> = {
-    type: 'interview_result',
-    candidate_id: input.candidateId,
-    candidate_name: input.candidateName,
-    candidate_email: input.candidateEmail,
-    position_id: input.positionId,
-    position_name: input.positionName,
-    interview_score: input.interviewScore,
-    interview_grade: input.interviewGrade,
-    interview_grade_label: input.interviewGradeLabel,
-    interview_date: input.interviewDate,
-    interview_duration: input.interviewDuration,
-    dimension_scores: input.dimensionScores ? JSON.stringify(input.dimensionScores) : null,
-    status: 'pending',
-    requester_name: 'AI面试系统',
-    reason: null,
-  };
-  const {data, error} = await db('approval_requests').insert(insertData).select().single();
-  if (error) throw new Error(error.message);
+  const data = await efetch<Record<string, unknown>>('/approvals', 'POST', {
+    candidateId: input.candidateId,
+    candidateName: input.candidateName,
+    candidateEmail: input.candidateEmail,
+    positionId: input.positionId,
+    positionName: input.positionName,
+    interviewScore: input.interviewScore,
+    interviewGrade: input.interviewGrade,
+    interviewGradeLabel: input.interviewGradeLabel,
+    interviewDate: input.interviewDate,
+    interviewDuration: input.interviewDuration,
+    dimensionScores: input.dimensionScores,
+  });
   return parseInterviewApproval(data);
 };
 

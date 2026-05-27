@@ -41,10 +41,6 @@ import {
   type DimensionAnalysis,
 } from './types';
 
-/** Escape hatch for supabase without generated Database types */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const db = (table: string) => supabase.from(table) as any;
-
 // ---------------------------------------------------------------------------
 // Response mappers: snake_case API → camelCase frontend types
 // ---------------------------------------------------------------------------
@@ -255,17 +251,15 @@ export const createInterviewTemplate = async (
     persistDetails();
     return newTemplate;
   }
-  const { data: insertData, error } = await db('interview_templates').insert({
+  const data = await efetch<Record<string, unknown>>('/interviews/templates', 'POST', {
     name: input.name,
-    position_id: input.positionId,
-    duration_minutes: input.durationMinutes,
+    positionId: input.positionId,
+    durationMinutes: input.durationMinutes,
     status: input.status,
-    scoring_config: input.scoringConfig ? JSON.stringify(input.scoringConfig) : undefined,
-    grade_rules: input.gradeRules ? JSON.stringify(input.gradeRules) : undefined,
-  }).select().single() as unknown as { data: Record<string, unknown> | null; error: Error | null };
-  if (error) throw new Error(error.message);
-  if (!insertData) throw new Error('Failed to create template');
-  return mapTemplateSummary(insertData as Record<string, unknown>);
+    scoringConfig: input.scoringConfig,
+    gradeRules: input.gradeRules,
+  });
+  return mapTemplateSummary(data);
 };
 
 export const updateInterviewTemplate = async (
@@ -288,22 +282,16 @@ export const updateInterviewTemplate = async (
     persistDetails();
     return templatesData[idx];
   }
-  const updateData: Record<string, unknown> = {};
-  if (input.name !== undefined) updateData.name = input.name;
-  if (input.positionId !== undefined) updateData.position_id = input.positionId;
-  if (input.status !== undefined) updateData.status = input.status;
-  if (input.durationMinutes !== undefined) updateData.duration_minutes = input.durationMinutes;
-  if (input.scoringConfig !== undefined) updateData.scoring_config = JSON.stringify(input.scoringConfig);
-  if (input.gradeRules !== undefined) updateData.grade_rules = JSON.stringify(input.gradeRules);
-
-  const { data, error } = await db('interview_templates')
-    .update(updateData)
-    .eq('id', templateId)
-    .select()
-    .single() as unknown as { data: Record<string, unknown> | null; error: Error | null };
-  if (error) throw new Error(error.message);
-  if (!data) throw new Error('Failed to update template');
-  return mapTemplateSummary(data as Record<string, unknown>);
+  const data = await efetch<Record<string, unknown>>('/interviews/templates', 'PATCH', {
+    id: templateId,
+    name: input.name,
+    positionId: input.positionId,
+    status: input.status,
+    durationMinutes: input.durationMinutes,
+    scoringConfig: input.scoringConfig,
+    gradeRules: input.gradeRules,
+  });
+  return mapTemplateSummary(data);
 };
 
 export const deleteInterviewTemplate = async (templateId: string): Promise<void> => {
@@ -315,8 +303,7 @@ export const deleteInterviewTemplate = async (templateId: string): Promise<void>
     persistDetails();
     return;
   }
-  const { error } = await supabase.from('interview_templates').delete().eq('id', templateId);
-  if (error) throw new Error(error.message);
+  await efetch('/interviews/templates', 'DELETE', { id: templateId });
 };
 
 // --- Question CRUD ---
@@ -356,23 +343,18 @@ export const saveInterviewQuestions = async (
     persistDetails();
     return savedQuestions;
   }
-  // Delete existing questions and insert new ones
-  await supabase.from('interview_questions').delete().eq('template_id', templateId);
-
-  const questionsToInsert = questions.map((q, i) => ({
-    template_id: templateId,
-    title: q.title,
-    prompt: q.prompt,
-    sort_order: i + 1,
-    time_limit_seconds: q.timeLimitSeconds,
-    group_name: q.group ?? '',
-    follow_ups: q.followUps ? JSON.stringify(q.followUps) : undefined,
-    scoring_guide: q.scoringGuide ? JSON.stringify(q.scoringGuide) : undefined,
-    linked_dimensions: q.linkedDimensions ? JSON.stringify(q.linkedDimensions) : undefined,
-  }));
-
-  const { data, error } = await db('interview_questions').insert(questionsToInsert).select() as unknown as { data: Record<string, unknown>[] | null; error: Error | null };
-  if (error) throw new Error(error.message);
+  const data = await efetch<Record<string, unknown>[]>('/interviews/questions', 'POST', {
+    templateId,
+    questions: questions.map((q, i) => ({
+      title: q.title,
+      prompt: q.prompt,
+      timeLimitSeconds: q.timeLimitSeconds,
+      group: q.group ?? '',
+      followUps: q.followUps ?? [],
+      scoringGuide: q.scoringGuide ?? {standard: '', rubric: []},
+      linkedDimensions: q.linkedDimensions ?? [],
+    })),
+  });
   return (data ?? []).map((row: Record<string, unknown>) => mapQuestion(row));
 };
 
@@ -410,19 +392,17 @@ export const addInterviewQuestion = async (
     persistDetails();
     return newQ;
   }
-  const { data, error } = await db('interview_questions').insert({
-    template_id: templateId,
+  const data = await efetch<Record<string, unknown>>('/interviews/questions', 'POST', {
+    templateId,
     title: question.title,
     prompt: question.prompt,
-    time_limit_seconds: question.timeLimitSeconds,
-    group_name: question.group ?? '',
-    follow_ups: question.followUps ? JSON.stringify(question.followUps) : undefined,
-    scoring_guide: question.scoringGuide ? JSON.stringify(question.scoringGuide) : undefined,
-    linked_dimensions: question.linkedDimensions ? JSON.stringify(question.linkedDimensions) : undefined,
-  }).select().single() as unknown as { data: Record<string, unknown> | null; error: Error | null };
-  if (error) throw new Error(error.message);
-  if (!data) throw new Error('Failed to save question');
-  return mapQuestion(data as Record<string, unknown>);
+    timeLimitSeconds: question.timeLimitSeconds,
+    group: question.group ?? '',
+    followUps: question.followUps ?? [],
+    scoringGuide: question.scoringGuide ?? {standard: '', rubric: []},
+    linkedDimensions: question.linkedDimensions ?? [],
+  });
+  return mapQuestion(data);
 };
 
 export const updateInterviewQuestion = async (
@@ -451,23 +431,17 @@ export const updateInterviewQuestion = async (
     persistDetails();
     return detail.questions[qIdx];
   }
-  const updateData: Record<string, unknown> = {};
-  if (input.title !== undefined) updateData.title = input.title;
-  if (input.prompt !== undefined) updateData.prompt = input.prompt;
-  if (input.timeLimitSeconds !== undefined) updateData.time_limit_seconds = input.timeLimitSeconds;
-  if (input.group !== undefined) updateData.group_name = input.group;
-  if (input.followUps !== undefined) updateData.follow_ups = JSON.stringify(input.followUps);
-  if (input.scoringGuide !== undefined) updateData.scoring_guide = JSON.stringify(input.scoringGuide);
-  if (input.linkedDimensions !== undefined) updateData.linked_dimensions = JSON.stringify(input.linkedDimensions);
-
-  const { data, error } = await db('interview_questions')
-    .update(updateData)
-    .eq('id', questionId)
-    .select()
-    .single() as unknown as { data: Record<string, unknown> | null; error: Error | null };
-  if (error) throw new Error(error.message);
-  if (!data) throw new Error('Failed to update question');
-  return mapQuestion(data as Record<string, unknown>);
+  const data = await efetch<Record<string, unknown>>('/interviews/questions', 'PATCH', {
+    id: questionId,
+    title: input.title,
+    prompt: input.prompt,
+    timeLimitSeconds: input.timeLimitSeconds,
+    group: input.group,
+    followUps: input.followUps,
+    scoringGuide: input.scoringGuide,
+    linkedDimensions: input.linkedDimensions,
+  });
+  return mapQuestion(data);
 };
 
 export const deleteInterviewQuestion = async (
@@ -495,8 +469,7 @@ export const deleteInterviewQuestion = async (
     persistDetails();
     return;
   }
-  const { error } = await supabase.from('interview_questions').delete().eq('id', questionId);
-  if (error) throw new Error(error.message);
+  await efetch('/interviews/questions', 'DELETE', { id: questionId });
 };
 
 // --- Session ---
@@ -536,13 +509,10 @@ export const createInterviewSession = async (
       status: 'created',
     };
   }
-  const { data, error } = await db('interview_sessions').insert({
-    candidate_id: candidateId,
-    template_id: templateId,
-    status: 'created',
-  }).select().single() as unknown as { data: Record<string, unknown> | null; error: Error | null };
-  if (error) throw new Error(error.message);
-  if (!data) throw new Error('Failed to create session');
+  const data = await efetch<Record<string, unknown>>('/interviews/sessions', 'POST', {
+    candidateId,
+    templateId,
+  });
   return {
     id: data.id as string,
     candidateId: (data.candidate_id ?? data.candidateId ?? candidateId) as string,
@@ -561,12 +531,8 @@ export const updateSessionStatus = async (
     await new Promise(r => setTimeout(r, 120));
     return {id: sessionId, candidateId: '', templateId: '', status};
   }
-  const { data, error } = await db('interview_sessions')
-    .update({ status })
-    .eq('id', sessionId)
-    .select()
-    .single() as unknown as { data: Record<string, unknown> | null; error: Error | null };
-  if (error || !data || !data.id) return null;
+  const data = await efetch<Record<string, unknown>>('/interviews/sessions', 'PATCH', { id: sessionId, status });
+  if (!data || !data.id) return null;
   return {
     id: data.id as string,
     candidateId: (data.candidate_id ?? data.candidateId ?? '') as string,
@@ -582,8 +548,7 @@ export const deleteInterviewSession = async (sessionId: string): Promise<void> =
     await new Promise(r => setTimeout(r, 120));
     return;
   }
-  const { error } = await supabase.from('interview_sessions').delete().eq('id', sessionId);
-  if (error) throw new Error(error.message);
+  await efetch('/interviews/sessions', 'DELETE', { id: sessionId });
 };
 
 export const updateInterviewResultStatus = async (
@@ -594,13 +559,8 @@ export const updateInterviewResultStatus = async (
     await new Promise(r => setTimeout(r, 120));
     return null;
   }
-  const { data, error } = await db('interview_results')
-    .update({ status })
-    .eq('id', resultId)
-    .select()
-    .single() as unknown as { data: Record<string, unknown> | null; error: Error | null };
-  if (error) throw new Error(error.message);
-  return mapInterviewResult(data as Record<string, unknown>);
+  const data = await efetch<Record<string, unknown>>('/interviews/results', 'PATCH', { id: resultId, status });
+  return mapInterviewResult(data);
 };
 
 // --- Management, Results, Analytics ---
@@ -703,22 +663,20 @@ export const createInterviewResult = async (input: CreateInterviewResultInput): 
     mockResultsData.unshift(result);
     return result;
   }
-  const { data, error } = await db('interview_results').insert({
-    session_id: input.sessionId,
-    candidate_id: input.candidateId,
-    candidate_name: input.candidateName,
-    candidate_email: input.candidateEmail,
+  const data = await efetch<Record<string, unknown>>('/interviews/results', 'POST', {
+    sessionId: input.sessionId,
+    candidateId: input.candidateId,
+    candidateName: input.candidateName,
+    candidateEmail: input.candidateEmail,
     position: input.position,
-    template_name: input.templateName,
-    total_score: input.totalScore,
+    templateName: input.templateName,
+    totalScore: input.totalScore,
     grade: input.grade,
-    grade_label: input.gradeLabel,
-    dimensions: JSON.stringify(input.dimensions),
+    gradeLabel: input.gradeLabel,
+    dimensions: input.dimensions,
     duration: input.duration,
-  }).select().single() as unknown as { data: Record<string, unknown> | null; error: Error | null };
-  if (error) throw new Error(error.message);
-  if (!data) throw new Error('Failed to create result');
-  return mapInterviewResult(data as Record<string, unknown>);
+  });
+  return mapInterviewResult(data);
 };
 
 const mapAnalyticsSummary = (raw: Record<string, unknown>): AnalyticsSummary => ({

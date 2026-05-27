@@ -1,20 +1,22 @@
 import {supabase} from '../../shared/lib/supabase';
 import {getItemsFromPayload, getValueFromPayload, cached, invalidateCache} from '../../shared/lib/apiClient';
-import {USE_MOCK_API, getUserName} from '../../shared/lib/runtime';
+import {USE_MOCK_API, API_BASE_URL, getAuthToken, getUserName} from '../../shared/lib/runtime';
 import {type CreatePositionInput, type PositionDetail, type PositionSummary, type UpdatePositionInput, type ScoringRule, type GradeRule, type BaseScoreConfig, type ProfileRule} from './types';
 
-/** Result shape for supabase single-row queries (no Database types generated) */
-type DbResult<T> = { data: T | null; error: Error | null };
-
-/**
- * Escape hatch for supabase table operations.
- *
- * The supabase client was initialized without generated Database types, so
- * `.from()` infers all tables as `never`. This cast is necessary until
- * `supabase gen types` is run against the database schema.
- */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const db = (table: string) => supabase.from(table) as any;
+const efetch = async <T>(path: string, method = 'GET', body?: Record<string, unknown>): Promise<T> => {
+  const base = USE_MOCK_API ? '' : API_BASE_URL;
+  const res = await fetch(`${base}/functions/v1/embox-api${path}`, {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${getAuthToken() ?? ''}`,
+    },
+    ...(body ? { body: JSON.stringify(body) } : {}),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data?.error?.message || `API error ${res.status}`);
+  return data as T;
+};
 
 /** Raw shape of profile rules from API/database before normalization */
 interface RawProfileRule {
@@ -261,20 +263,15 @@ export const savePositionDetail = async (
     return updated;
   }
 
-  // Upsert position_details table
-  const upsertResult = await db('position_details')
-    .upsert({
-      position_id: positionId,
-      profile_rules: detail.profileRules,
-      scoring_rules: detail.scoringRules,
-      grade_rules: detail.gradeRules,
-      base_score_config: detail.baseScoreConfig,
-      ai_prompt: detail.aiPrompt || '',
-    }, {onConflict: 'position_id'}) as unknown as DbResult<null>;
+  await efetch('/positions/detail', 'POST', {
+    positionId,
+    profileRules: detail.profileRules,
+    scoringRules: detail.scoringRules,
+    gradeRules: detail.gradeRules,
+    baseScoreConfig: detail.baseScoreConfig,
+    aiPrompt: detail.aiPrompt || '',
+  });
 
-  if (upsertResult.error) throw new Error(upsertResult.error.message);
-
-  // Return updated detail
   invalidateCache('listPositions');
   return getPositionDetail(positionId);
 };
@@ -309,29 +306,17 @@ export const createPosition = async (input: CreatePositionInput): Promise<Positi
     return newPosition;
   }
 
-  // Convert camelCase to snake_case for API
-  const insertData = {
-    code: `POS-${Date.now()}`,
+  const insertResult = await efetch<Record<string, unknown>>('/positions', 'POST', {
     name: input.name,
     category: input.category,
     status: input.status || 'active',
-    project_id: input.projectId || null,
-    description: input.description || null,
-    required_count: input.requiredCount ?? 0,
-    delivery_days: input.deliveryDays ?? 0,
-  };
-
-  const insertResult = await db('positions')
-    .insert(insertData)
-    .select()
-    .single() as unknown as DbResult<Record<string, unknown>>;
-
-  if (insertResult.error) throw new Error(insertResult.error.message);
-  if (!insertResult.data) throw new Error('Failed to create position');
-  const summary = mapPositionSummary(insertResult.data);
-  db('position_details').insert({ position_id: insertResult.data.id }).then(() => {}, () => {});
+    projectId: input.projectId,
+    description: input.description,
+    requiredCount: input.requiredCount,
+    deliveryDays: input.deliveryDays,
+  });
   invalidateCache('listPositions');
-  return summary;
+  return mapPositionSummary(insertResult);
 };
 
 export const updatePosition = async (id: string, input: UpdatePositionInput): Promise<PositionSummary> => {
@@ -348,26 +333,17 @@ export const updatePosition = async (id: string, input: UpdatePositionInput): Pr
     return positionsData[index];
   }
 
-  // Convert camelCase to snake_case for API
-  const updateData: Record<string, unknown> = {
+  const updateResult = await efetch<Record<string, unknown>>('/positions', 'PATCH', {
+    id,
     name: input.name,
     category: input.category,
     status: input.status,
     description: input.description,
-    required_count: input.requiredCount,
-    delivery_days: input.deliveryDays,
-  };
-
-  const updateResult = await db('positions')
-    .update(updateData)
-    .eq('id', id)
-    .select()
-    .single() as unknown as DbResult<Record<string, unknown>>;
-
-  if (updateResult.error) throw new Error(updateResult.error.message);
-  if (!updateResult.data) throw new Error('Position not found');
+    requiredCount: input.requiredCount,
+    deliveryDays: input.deliveryDays,
+  });
   invalidateCache('listPositions');
-  return mapPositionSummary(updateResult.data);
+  return mapPositionSummary(updateResult);
 };
 
 export const deletePosition = async (id: string): Promise<void> => {
@@ -382,11 +358,6 @@ export const deletePosition = async (id: string): Promise<void> => {
     return;
   }
 
-  const {error} = await supabase
-    .from('positions')
-    .delete()
-    .eq('id', id);
-
-  if (error) throw new Error(error.message);
+  await efetch('/positions', 'DELETE', { id });
   invalidateCache('listPositions');
 };

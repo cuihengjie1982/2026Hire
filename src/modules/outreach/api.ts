@@ -1,13 +1,23 @@
-import {supabase} from '../../shared/lib/supabase';
 import {USE_MOCK_API, API_BASE_URL, getAuthToken} from '../../shared/lib/runtime';
 import {outreachRecordsFixture, smsTemplatesFixture} from './fixtures';
 import {type OutreachRecord, type CreateOutreachRecordInput, type SmsTemplate, type SendSmsInput} from './types';
 
-/** Escape hatch for supabase without generated Database types */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const db = (table: string) => supabase.from(table) as any;
+const efetch = async <T>(path: string, method = 'GET', body?: Record<string, unknown>): Promise<T> => {
+  const base = USE_MOCK_API ? '' : API_BASE_URL;
+  const res = await fetch(`${base}/functions/v1/embox-api${path}`, {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${getAuthToken() ?? ''}`,
+    },
+    ...(body ? { body: JSON.stringify(body) } : {}),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data?.error?.message || `API error ${res.status}`);
+  return data as T;
+};
 
-const EF_BASE = `${API_BASE_URL}/functions/v1/index`;
+const EF_BASE = `${API_BASE_URL}/functions/v1/embox-api`;
 
 async function efFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const token = getAuthToken();
@@ -45,9 +55,8 @@ export const listOutreachRecords = async (): Promise<OutreachRecord[]> => {
     await new Promise(r => setTimeout(r, 120));
     return Array.from(new Map(outreachData.map(r => [r.id, r])).values());
   }
-  const { data, error } = await db('outreach_records').select('*').order('created_at', { ascending: false });
-  if (error) throw new Error(error.message);
-  return Array.from(new Map(((data ?? []) as Record<string, unknown>[]).map(r => [r.id as string, r])).values()).map(mapRecord);
+  const data = await efetch<Record<string, unknown>[]>('/outreach', 'GET');
+  return Array.from(new Map((data ?? []).map(r => [r.id as string, r])).values()).map(mapRecord);
 };
 
 export const createOutreachRecord = async (input: CreateOutreachRecordInput): Promise<OutreachRecord> => {
@@ -63,18 +72,15 @@ export const createOutreachRecord = async (input: CreateOutreachRecordInput): Pr
     saveOutreach();
     return newRecord;
   }
-  const { data, error } = await db('outreach_records').insert({
-    candidate_id: input.candidateId,
-    candidate_name: input.candidateName,
-    position_id: input.positionId,
-    position_name: input.positionName,
+  const data = await efetch<Record<string, unknown>>('/outreach', 'POST', {
+    candidateId: input.candidateId,
+    candidateName: input.candidateName,
+    positionId: input.positionId,
+    positionName: input.positionName,
     channel: input.channel,
-    status: 'pending',
     content: input.content,
-  }).select().single() as unknown as { data: Record<string, unknown> | null; error: Error | null };
-  if (error) throw new Error(error.message);
-  if (!data) throw new Error('Failed to create outreach record');
-  return mapRecord(data as Record<string, unknown>);
+  });
+  return mapRecord(data);
 };
 
 export const listOutreachRecordsByCandidate = async (candidateId: string): Promise<OutreachRecord[]> => {
@@ -82,13 +88,8 @@ export const listOutreachRecordsByCandidate = async (candidateId: string): Promi
     await new Promise(r => setTimeout(r, 120));
     return outreachData.filter(r => r.candidateId === candidateId);
   }
-  const { data, error } = await supabase
-    .from('outreach_records')
-    .select('*')
-    .eq('candidate_id', candidateId)
-    .order('created_at', { ascending: false });
-  if (error) throw new Error(error.message);
-  return ((data ?? []) as Record<string, unknown>[]).map(mapRecord);
+  const data = await efetch<Record<string, unknown>[]>(`/outreach?candidate_id=${encodeURIComponent(candidateId)}`, 'GET');
+  return (data ?? []).map(mapRecord);
 };
 
 export const updateOutreachRecordStatus = async (id: string, status: OutreachRecord['status']): Promise<OutreachRecord> => {
@@ -100,13 +101,8 @@ export const updateOutreachRecordStatus = async (id: string, status: OutreachRec
     saveOutreach();
     return outreachData[index];
   }
-  const { data, error } = await db('outreach_records')
-    .update({ status }).eq('id', id)
-    .select()
-    .single() as unknown as { data: Record<string, unknown> | null; error: Error | null };
-  if (error) throw new Error(error.message);
-  if (!data) throw new Error('Failed to update outreach record');
-  return mapRecord(data as Record<string, unknown>);
+  const data = await efetch<Record<string, unknown>>('/outreach', 'PATCH', { id, status });
+  return mapRecord(data);
 };
 
 export const deleteOutreachRecord = async (id: string): Promise<void> => {
@@ -118,8 +114,7 @@ export const deleteOutreachRecord = async (id: string): Promise<void> => {
     saveOutreach();
     return;
   }
-  const { error } = await db('outreach_records').delete().eq('id', id);
-  if (error) throw new Error(error.message);
+  await efetch('/outreach', 'DELETE', { id });
 };
 
 // ── SMS ──────────────────────────────────────────────────────────
@@ -144,15 +139,12 @@ export const sendSms = async (input: SendSmsInput): Promise<OutreachRecord> => {
     saveOutreach();
     return record;
   }
-  const raw = await efFetch<Record<string, unknown>>('/sms-gateway/send', {
-    method: 'POST',
-    body: JSON.stringify({
-      candidateId: input.candidateId,
-      templateId: input.templateId,
-      templateParamSet: input.templateParamSet,
-      positionId: input.positionId,
-      positionName: input.positionName,
-    }),
+  const raw = await efetch<Record<string, unknown>>('/sms-gateway/send', 'POST', {
+    candidateId: input.candidateId,
+    templateId: input.templateId,
+    templateParamSet: input.templateParamSet,
+    positionId: input.positionId,
+    positionName: input.positionName,
   });
   return mapRecord(raw);
 };
@@ -162,7 +154,7 @@ export const listSmsTemplates = async (): Promise<SmsTemplate[]> => {
     await new Promise(r => setTimeout(r, 100));
     return smsTemplatesFixture;
   }
-  const raw = await efFetch<Record<string, unknown>[]>('/sms-gateway/templates');
+  const raw = await efetch<Record<string, unknown>[]>('/sms-gateway/templates', 'GET');
   return raw.map(r => ({
     id: String(r.id ?? ''),
     name: String(r.name ?? ''),

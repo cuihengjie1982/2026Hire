@@ -1,10 +1,5 @@
-import {fetchJson, getItemsFromPayload, mockDelay, cached, invalidateCache} from '../../shared/lib/apiClient';
-import {supabase} from '../../shared/lib/supabase';
+import {cached, invalidateCache} from '../../shared/lib/apiClient';
 import {USE_MOCK_API, API_BASE_URL, getAuthToken} from '../../shared/lib/runtime';
-
-/** Escape hatch for supabase without generated Database types */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const db = (table: string) => supabase.from(table) as any;
 
 const efetch = async <T>(path: string, method = 'GET', body?: Record<string, unknown>): Promise<T> => {
   const base = USE_MOCK_API ? '' : API_BASE_URL;
@@ -44,18 +39,6 @@ const mapAgent = (raw: Record<string, unknown>): Agent => ({
   updatedAt: String(raw.updated_at ?? raw.updatedAt ?? ''),
 });
 
-const agentToSnake = (input: Partial<CreateAgentInput>): Record<string, unknown> => {
-  const o: Record<string, unknown> = {};
-  if (input.name !== undefined) o.name = input.name;
-  if (input.description !== undefined) o.description = input.description || null;
-  if (input.projectId !== undefined) o.project_id = input.projectId || null;
-  if (input.projectName !== undefined) o.project_name = input.projectName || null;
-  if (input.roleType !== undefined) o.role_type = input.roleType || null;
-  if (input.type !== undefined) o.type = input.type || null;
-  if (input.config !== undefined) o.config = input.config;
-  return o;
-};
-
 export const listAgents = async (projectId?: string): Promise<Agent[]> => {
   if (USE_MOCK_API) {
     await new Promise(r => setTimeout(r, 120));
@@ -65,13 +48,8 @@ export const listAgents = async (projectId?: string): Promise<Agent[]> => {
 
   const cacheKey = `listAgents${projectId ? `:${projectId}` : ''}`;
   return cached(cacheKey, async () => {
-    let query = db('agents').select('*');
-    if (projectId) {
-      query = query.eq('project_id', projectId);
-    }
-    const {data, error} = await query;
-    if (error) throw new Error(error.message);
-    return Array.from(new Map(((data ?? []) as Record<string, unknown>[]).map((r) => [String(r.id), mapAgent(r)])).values());
+    const data = await efetch<Record<string, unknown>[]>('/agents', 'GET');
+    return (data ?? []).map(mapAgent);
   });
 };
 
@@ -81,12 +59,9 @@ export const getAgentStats = async (): Promise<AgentStats> => {
     return agentStatsFixture;
   }
 
-  // Compute stats from agents table: count by status
-  const {data: allAgents, error} = await db('agents').select('status');
-  if (error) throw new Error(error.message);
-
+  const agents = await listAgents();
   const stats: AgentStats = {
-    total: allAgents?.length ?? 0,
+    total: agents.length,
     running: 0,
     paused: 0,
     pending: 0,
@@ -97,12 +72,11 @@ export const getAgentStats = async (): Promise<AgentStats> => {
     monthlyOutreach: 0,
   };
 
-  (allAgents as Record<string, unknown>[])?.forEach((agent) => {
-    const status = agent.status as string;
-    if (status === 'running') stats.running++;
-    else if (status === 'paused') stats.paused++;
-    else if (status === 'pending') stats.pending++;
-    else if (status === 'completed') stats.completed++;
+  agents.forEach((agent) => {
+    if (agent.status === 'running') stats.running++;
+    else if (agent.status === 'paused') stats.paused++;
+    else if (agent.status === 'pending') stats.pending++;
+    else if (agent.status === 'completed') stats.completed++;
   });
 
   return stats;
@@ -133,11 +107,17 @@ export const createAgent = async (input: CreateAgentInput): Promise<Agent> => {
     return newAgent;
   }
 
-  const {data, error} = await db('agents').insert(agentToSnake(input)).select().single() as unknown as { data: Record<string, unknown> | null; error: Error | null };
-  if (error) throw new Error(error.message);
-  if (!data) throw new Error('Failed to create agent');
-  invalidateCache(); // clear all caches on mutation
-  return mapAgent(data as Record<string, unknown>);
+  const data = await efetch<Record<string, unknown>>('/agents', 'POST', {
+    name: input.name,
+    description: input.description,
+    type: input.type,
+    roleType: input.roleType,
+    config: input.config,
+    projectId: input.projectId,
+    projectName: input.projectName,
+  });
+  invalidateCache();
+  return mapAgent(data);
 };
 
 export const updateAgent = async (agentId: string, input: Partial<CreateAgentInput>): Promise<Agent> => {
@@ -150,11 +130,18 @@ export const updateAgent = async (agentId: string, input: Partial<CreateAgentInp
     return agentsData[index];
   }
 
-  const {data, error} = await db('agents').update(agentToSnake(input)).eq('id', agentId).select().single() as unknown as { data: Record<string, unknown> | null; error: Error | null };
-  if (error) throw new Error(error.message);
-  if (!data) throw new Error('Agent not found');
+  const data = await efetch<Record<string, unknown>>('/agents', 'PATCH', {
+    id: agentId,
+    name: input.name,
+    description: input.description,
+    type: input.type,
+    roleType: input.roleType,
+    config: input.config,
+    projectId: input.projectId,
+    projectName: input.projectName,
+  });
   invalidateCache();
-  return mapAgent(data as Record<string, unknown>);
+  return mapAgent(data);
 };
 
 export const pauseAgent = async (agentId: string): Promise<Agent> => {
@@ -167,11 +154,9 @@ export const pauseAgent = async (agentId: string): Promise<Agent> => {
     return agentsData[index];
   }
 
-  const {data, error} = await db('agents').update({status: 'paused'}).eq('id', agentId).select().single() as unknown as { data: Agent | null; error: Error | null };
-  if (error) throw new Error(error.message);
-  if (!data) throw new Error('Agent not found');
+  const data = await efetch<Record<string, unknown>>('/agents', 'PATCH', { id: agentId, status: 'paused' });
   invalidateCache();
-  return data;
+  return mapAgent(data);
 };
 
 export const resumeAgent = async (agentId: string): Promise<Agent> => {
@@ -184,10 +169,9 @@ export const resumeAgent = async (agentId: string): Promise<Agent> => {
     return agentsData[index];
   }
 
-  const {data, error} = await db('agents').update({status: 'running'}).eq('id', agentId).select().single() as unknown as { data: Agent | null; error: Error | null };
-  if (error) throw new Error(error.message);
-  if (!data) throw new Error('Agent not found');
-  return data;
+  const data = await efetch<Record<string, unknown>>('/agents', 'PATCH', { id: agentId, status: 'running' });
+  invalidateCache();
+  return mapAgent(data);
 };
 
 export const deleteAgent = async (agentId: string): Promise<void> => {
@@ -201,8 +185,7 @@ export const deleteAgent = async (agentId: string): Promise<void> => {
     return;
   }
 
-  const {error} = await db('agents').delete().eq('id', agentId);
-  if (error) throw new Error(error.message);
+  await efetch('/agents', 'DELETE', { id: agentId });
   invalidateCache();
 };
 

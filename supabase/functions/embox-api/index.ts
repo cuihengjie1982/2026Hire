@@ -37,7 +37,7 @@ const loadHandlers = async (): Promise<RouteHandler[]> => {
     listInvites, createInvite, deleteInvite,
   } = await import('./settings/index.ts');
   // Agent Executor
-  const { runAgent } = await import('./agent-executor/index.ts');
+  const { runAgent, handleAgents } = await import('./agent-executor/index.ts');
   // Cross-table Ops
   const { shortlistInterviewInvite, shortlistPromote, approvalDecide, hireCandidate } = await import('./cross-table-ops/index.ts');
   // MinerU Proxy
@@ -54,6 +54,18 @@ const loadHandlers = async (): Promise<RouteHandler[]> => {
   const { handleShortlist } = await import('./shortlist/index.ts');
   // Employees
   const { handleEmployees } = await import('./employees/index.ts');
+  // Projects
+  const { handleProjects } = await import('./projects/index.ts');
+  // Positions
+  const { handlePositions } = await import('./positions/index.ts');
+  // Interviews (CRUD for templates, questions, sessions, results)
+  const { handleInterviews } = await import('./interviews/index.ts');
+  // Approvals
+  const { handleApprovals } = await import('./approvals/index.ts');
+  // Outreach
+  const { handleOutreach } = await import('./outreach/index.ts');
+  // Contacts
+  const { handleContacts } = await import('./contacts/index.ts');
 
   return [
     // AI Proxy — any authenticated user
@@ -97,6 +109,8 @@ const loadHandlers = async (): Promise<RouteHandler[]> => {
     { pattern: '/settings/invites', methods: ['GET'], auth: 'admin', handler: listInvites },
     // Agent Executor — recruiter+
     { pattern: '/agent-executor/run', methods: ['POST'], auth: 'recruiter+', handler: runAgent },
+    // Agent CRUD — recruiter+
+    { pattern: '/agents', methods: ['GET', 'POST', 'PATCH', 'DELETE'], auth: 'recruiter+', handler: handleAgents },
     // Cross-table Ops
     { pattern: '/cross-table-ops/shortlist-interview-invite', methods: ['POST'], auth: 'recruiter+', handler: shortlistInterviewInvite },
     { pattern: '/cross-table-ops/shortlist-promote', methods: ['POST'], auth: 'recruiter+', handler: shortlistPromote },
@@ -142,6 +156,18 @@ const loadHandlers = async (): Promise<RouteHandler[]> => {
     { pattern: '/api/employees', methods: ['GET', 'POST', 'PATCH', 'DELETE'], auth: 'recruiter+', handler: handleEmployees },
     // Insights — any authenticated
     { pattern: '/api/insights', methods: ['GET'], auth: 'any', handler: overview },
+    // Projects — recruiter+
+    { pattern: '/projects', methods: ['GET', 'POST', 'PATCH', 'DELETE'], auth: 'recruiter+', handler: handleProjects },
+    // Positions — recruiter+
+    { pattern: '/positions', methods: ['GET', 'POST', 'PATCH', 'DELETE'], auth: 'recruiter+', handler: handlePositions },
+    // Interviews — recruiter+ (templates, questions, sessions, results CRUD)
+    { pattern: '/interviews/', methods: ['GET', 'POST', 'PATCH', 'DELETE'], auth: 'recruiter+', handler: handleInterviews },
+    // Approvals — recruiter+
+    { pattern: '/approvals', methods: ['GET', 'POST'], auth: 'recruiter+', handler: handleApprovals },
+    // Outreach — recruiter+
+    { pattern: '/outreach', methods: ['GET', 'POST', 'PATCH', 'DELETE'], auth: 'recruiter+', handler: handleOutreach },
+    // Contacts — recruiter+
+    { pattern: '/contacts', methods: ['GET', 'POST', 'PATCH'], auth: 'recruiter+', handler: handleContacts },
   ];
 };
 
