@@ -43,7 +43,7 @@ export const importCandidates = async (req: Request, _userId: string, _userRole:
         source: c.source ?? null,
         project_id: c.projectId ?? c.project_id ?? null,
         position_id: c.positionId ?? c.position_id ?? null,
-        parsed_info: c.parsed_info ? JSON.stringify(c.parsed_info) : null,
+        parsed_info: c.parsed_info ?? null,
         grade: c.grade ?? null,
         score_total: c.score_total ?? c.scoreTotal ?? null,
         original_file_base64: c.original_file_base64 ?? null,

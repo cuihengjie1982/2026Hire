@@ -74,7 +74,7 @@ export async function parseOneCandidate(
     : {};
 
   await supabase.from('candidates').update({
-    parsed_info: JSON.stringify({ ...pInfo, ...extracted }),
+    parsed_info: { ...pInfo, ...extracted },
     updated_at: new Date().toISOString(),
   }).eq('id', candidateId);
 
@@ -119,7 +119,7 @@ async function updateAgentStats(
   };
 
   await supabase.from('agents').update({
-    config: JSON.stringify(newConfig),
+    config: newConfig,
     pushed_today: ((agent.pushed_today as number) || 0) + processed,
     approved: ((agent.approved as number) || 0) + approved,
     rejected: ((agent.rejected as number) || 0) + rejected,
@@ -153,13 +153,25 @@ export async function autoTriggerForCandidate(
     const rawText = String(pInfo?.rawText || pInfo?.raw_text || '');
     if (rawText.length < 20) return;
 
-    // Find running agents with autoRun=true for this position
-    const { data: agents } = await supabase.from('agents')
-      .select('*')
-      .eq('status', 'running')
-      .in('type', ['parser', 'screener'])
-      .filter('config->>positionId', 'eq', positionId)
-      .filter('config->>autoRun', 'eq', 'true');
+    // Find running agents with autoRun=true:
+    // - Screener agents: must match the candidate's position
+    // - Parser agents: match position OR be global (positionId = null)
+    const [posMatch, globalParsers] = await Promise.all([
+      supabase.from('agents')
+        .select('*')
+        .eq('status', 'running')
+        .in('type', ['parser', 'screener'])
+        .filter('config->>positionId', 'eq', positionId)
+        .filter('config->>autoRun', 'eq', 'true'),
+      supabase.from('agents')
+        .select('*')
+        .eq('status', 'running')
+        .eq('type', 'parser')
+        .is('config->>positionId', null)
+        .filter('config->>autoRun', 'eq', 'true'),
+    ]);
+
+    const agents = [...(posMatch.data ?? []), ...(globalParsers.data ?? [])];
 
     if (!agents || agents.length === 0) return;
 

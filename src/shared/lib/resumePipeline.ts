@@ -595,6 +595,37 @@ function emptyResult(photoBase64 = ''): ParsedResumeInfo {
  * console.log(result.parsedInfo, result.metadata);
  * ```
  */
+/** Build a markdown representation from parsed resume fields.
+ *  Used when VISION_PATH extracts structured fields without raw text,
+ *  so AI agents have enough content for rawText-based processing. */
+function buildContentMd(info: ParsedResumeInfo): string {
+  const lines: string[] = ['# 简历'];
+  if (info.name) lines.push('\n## 基本信息', `- 姓名：${info.name}`);
+  if (info.gender) lines.push(`- 性别：${info.gender}`);
+  if (info.ageOrBirth) lines.push(`- 年龄/出生：${info.ageOrBirth}`);
+  if (info.phone) lines.push(`- 电话：${info.phone}`);
+  if (info.email) lines.push(`- 邮箱：${info.email}`);
+  if (info.location) lines.push(`- 所在地：${info.location}`);
+  if (info.currentlyEmployed) lines.push(`- 在职状态：${info.currentlyEmployed}`);
+  if (info.expectedSalary) lines.push(`- 期望薪资：${info.expectedSalary}`);
+  if (info.school || info.highestEducation || info.major) {
+    lines.push('\n## 教育信息');
+    if (info.school) lines.push(`- 学校：${info.school}`);
+    if (info.highestEducation) lines.push(`- 学历：${info.highestEducation}`);
+    if (info.major) lines.push(`- 专业：${info.major}`);
+    if (info.education) lines.push(`- 教育经历：${info.education}`);
+  }
+  if (info.workExperience.length > 0) {
+    lines.push('\n## 工作经历');
+    info.workExperience.forEach((exp) => lines.push(`- ${exp}`));
+  }
+  if (info.skills.length > 0) {
+    lines.push('\n## 技能');
+    info.skills.forEach((skill) => lines.push(`- ${skill}`));
+  }
+  return lines.join('\n');
+}
+
 export async function parseResume(
   file: File,
   config: PipelineConfig = {},
@@ -626,6 +657,7 @@ export async function parseResume(
       parsedInfo = visionResult.info;
       photoBase64 = visionResult.photoBase64;
       visionLlmUsed = stages.includes('visionParse');
+      contentMd = buildContentMd(parsedInfo);
     }
   } else {
     // === TEXT_PATH ===
