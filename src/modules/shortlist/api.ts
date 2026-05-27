@@ -1,7 +1,25 @@
-import {fetchJson, getItemsFromPayload, mockDelay} from '../../shared/lib/apiClient';
-import {USE_MOCK_API} from '../../shared/lib/runtime';
+import {getItemsFromPayload, mockDelay} from '../../shared/lib/apiClient';
+import {API_BASE_URL, getAuthToken, USE_MOCK_API} from '../../shared/lib/runtime';
 import {shortlistFixture} from './fixtures';
 import {type CreateShortlistEntryInput, type ShortlistEntry} from './types';
+
+const SHORTLIST_EF_URL = `${API_BASE_URL}/functions/v1/embox-api/api/shortlist`;
+
+const efetch = async <T>(path: string, method = 'GET', body?: unknown): Promise<T> => {
+  const res = await fetch(`${SHORTLIST_EF_URL}${path}`, {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${getAuthToken() ?? ''}`,
+    },
+    ...(body ? {body: JSON.stringify(body)} : {}),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data?.error?.message || `API error ${res.status}`);
+  }
+  return res.json() as T;
+};
 
 let shortlistData: ShortlistEntry[] = (() => { try { const r = localStorage.getItem('em-box.mock.shortlist'); return r ? JSON.parse(r) : [...shortlistFixture]; } catch { return [...shortlistFixture]; } })();
 const saveShortlist = () => localStorage.setItem('em-box.mock.shortlist', JSON.stringify(shortlistData));
@@ -28,7 +46,7 @@ export const listShortlist = async (projectId?: string): Promise<ShortlistEntry[
   }
 
   const query = projectId ? `?projectId=${encodeURIComponent(projectId)}` : '';
-  const payload = await fetchJson<Record<string, unknown>>(`/api/shortlist${query}`);
+  const payload = await efetch<Record<string, unknown>>(`${query}`);
   const rows = getItemsFromPayload<Record<string, unknown>>(payload);
   return rows.map(mapShortlistEntry);
 };
@@ -39,7 +57,7 @@ export const listShortlistByPosition = async (positionId: string): Promise<Short
     return Array.from(new Map(shortlistData.filter(entry => entry.positionId === positionId).map(e => [e.id, e])).values());
   }
 
-  const payload = await fetchJson<Record<string, unknown>>(`/api/shortlist?positionId=${encodeURIComponent(positionId)}`);
+  const payload = await efetch<Record<string, unknown>>(`?positionId=${encodeURIComponent(positionId)}`);
   const rows = getItemsFromPayload<Record<string, unknown>>(payload);
   return rows.map(mapShortlistEntry);
 };
@@ -57,10 +75,7 @@ export const addToShortlist = async (input: CreateShortlistEntryInput): Promise<
     return newEntry;
   }
 
-  const row = await fetchJson<Record<string, unknown>>('/api/shortlist', {
-    method: 'POST',
-    body: JSON.stringify(input),
-  });
+  const row = await efetch<Record<string, unknown>>('', 'POST', input);
   return mapShortlistEntry(row);
 };
 
@@ -77,10 +92,7 @@ export const promoteShortlistEntry = async (
     return shortlistData[index];
   }
 
-  const row = await fetchJson<Record<string, unknown>>(`/api/shortlist/${id}/promote`, {
-    method: 'POST',
-    body: JSON.stringify({nextStep}),
-  });
+  const row = await efetch<Record<string, unknown>>(`/${id}/promote`, 'POST', {nextStep});
   return mapShortlistEntry(row);
 };
 
@@ -102,10 +114,7 @@ export const sendShortlistInterviewInvite = async (
     return shortlistData[index];
   }
 
-  const row = await fetchJson<Record<string, unknown>>(`/api/shortlist/${id}/interview-invite`, {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  });
+  const row = await efetch<Record<string, unknown>>(`/${id}/interview-invite`, 'POST', payload);
   return mapShortlistEntry(row);
 };
 
@@ -130,10 +139,7 @@ export const batchAddToShortlist = async (
     return {added: results.length, entries: results};
   }
 
-  const result = await fetchJson<{added: number; entries: Record<string, unknown>[]}>('/api/shortlist/batch', {
-    method: 'POST',
-    body: JSON.stringify({entries}),
-  });
+  const result = await efetch<{added: number; entries: Record<string, unknown>[]}>('/batch', 'POST', {entries});
   return {added: result.added, entries: result.entries.map(mapShortlistEntry)};
 };
 
@@ -147,10 +153,7 @@ export const batchRemoveFromShortlist = async (
     return {removed: ids.length, ids};
   }
 
-  return fetchJson<{removed: number; ids: string[]}>('/api/shortlist/batch', {
-    method: 'DELETE',
-    body: JSON.stringify({ids}),
-  });
+  return efetch<{removed: number; ids: string[]}>('/batch', 'DELETE', {ids});
 };
 
 export const batchUpdateShortlistStatus = async (
@@ -172,10 +175,7 @@ export const batchUpdateShortlistStatus = async (
     return {updated: count, entries: updated};
   }
 
-  const result = await fetchJson<{updated: number; entries: Record<string, unknown>[]}>('/api/shortlist/batch/status', {
-    method: 'PATCH',
-    body: JSON.stringify({ids, nextStep}),
-  });
+  const result = await efetch<{updated: number; entries: Record<string, unknown>[]}>('/batch/status', 'PATCH', {ids, nextStep});
   return {updated: result.updated, entries: result.entries.map(mapShortlistEntry)};
 };
 
@@ -193,5 +193,5 @@ export const getShortlistHistory = async (
     };
   }
 
-  return fetchJson(`/api/shortlist/${id}/history`);
+  return efetch(`/${id}/history`);
 };

@@ -50,6 +50,8 @@ const loadHandlers = async (): Promise<RouteHandler[]> => {
   const { handleCourses, handleEnrollments, handleAnalytics, getTrainingStats, exportEnrollmentsCsv, portalHandler } = await import('./training/index.ts');
   // Stats (sidebar counts + unified search)
   const { sidebarStats, searchStats, dashboardStats } = await import('./stats/index.ts');
+  // Shortlist (pipeline)
+  const { handleShortlist } = await import('./shortlist/index.ts');
 
   return [
     // AI Proxy — any authenticated user
@@ -131,6 +133,8 @@ const loadHandlers = async (): Promise<RouteHandler[]> => {
     { pattern: '/stats/dashboard', methods: ['GET'], auth: 'any', handler: dashboardStats },
     { pattern: '/stats/sidebar', methods: ['GET'], auth: 'any', handler: sidebarStats },
     { pattern: '/stats/search', methods: ['GET'], auth: 'any', handler: searchStats },
+    // Shortlist (pipeline) — recruiter+
+    { pattern: '/api/shortlist', methods: ['GET', 'POST', 'PATCH', 'DELETE'], auth: 'recruiter+', handler: handleShortlist },
   ];
 };
 
