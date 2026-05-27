@@ -103,7 +103,7 @@ export const resetUserPassword = async (userId: string, newPassword: string): Pr
     await new Promise(r => setTimeout(r, 120));
     return;
   }
-  return efetch<void>(`/settings/users/${userId}/reset-password`, 'POST', { newPassword });
+  return efetch<void>('/settings/users/reset-password', 'POST', { userId, newPassword });
 };
 
 export const listPermissions = async (): Promise<Permission[]> => {

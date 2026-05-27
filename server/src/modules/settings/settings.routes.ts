@@ -121,16 +121,15 @@ usersRouter.delete('/:id', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-// POST /api/users/:id/reset-password — admin resets user password
-usersRouter.post('/:id/reset-password', async (req, res, next) => {
+// POST /api/users/reset-password — admin resets user password
+usersRouter.post('/reset-password', async (req, res, next) => {
   try {
     if (!req.user || req.user.role !== 'admin') {
       res.status(403).json({error: {code: 'FORBIDDEN', message: 'Admin only'}});
       return;
     }
 
-    const {id} = req.params;
-    const {newPassword} = req.body;
+    const {userId: id, newPassword} = req.body;
 
     if (!newPassword || newPassword.length < 6) {
       res.status(400).json({error: {code: 'VALIDATION_ERROR', message: '新密码至少 6 位'}});

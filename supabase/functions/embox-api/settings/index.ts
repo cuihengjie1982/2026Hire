@@ -111,16 +111,13 @@ export const deleteUser = async (req: Request, _userId: string, _userRole: strin
   }
 };
 
-// POST /settings/users/:id/reset-password (admin only)
+// POST /settings/users/reset-password (admin only)
 export const resetPassword = async (req: Request, _userId: string, _userRole: string): Promise<Response> => {
   try {
     const supabase = createSupabaseAdmin(req);
-    const url = new URL(req.url);
-    const match = url.pathname.match(/\/settings\/users\/([^/]+)\/reset-password/);
-    if (!match) return jsonRes({ error: { code: 'VALIDATION_ERROR', message: 'User ID required' } }, 400);
-    const id = match[1];
 
-    const { newPassword } = await req.json() as Record<string, unknown>;
+    const { userId: id, newPassword } = await req.json() as Record<string, unknown>;
+    if (!id) return jsonRes({ error: { code: 'VALIDATION_ERROR', message: 'User ID required' } }, 400);
     if (!newPassword || String(newPassword).length < 6) return jsonRes({ error: { code: 'VALIDATION_ERROR', message: '新密码至少 6 位' } }, 400);
 
     const { data: user } = await supabase.from('profiles').select('id, name').eq('id', id).single();
