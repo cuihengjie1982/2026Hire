@@ -67,7 +67,7 @@ const extractTextFromPdfClientSide = async (file: File): Promise<string | null> 
 };
 
 // Convert extracted text to markdown-like format
-const textToMarkdown = (text: string): string => {
+export const textToMarkdown = (text: string): string => {
   // Step 1: Remove binary garbage (long base64-like strings, control chars)
   let cleaned = text
     .replace(/[a-zA-Z0-9+/=]{20,}/g, '')  // Remove base64/hex strings (lowered threshold)

@@ -14,6 +14,7 @@ import {
   parseResumeWithMinerU,
   extractResumeInfoFromMarkdown,
   renderPdfPagesAsImages,
+  textToMarkdown,
 } from './mineruClient';
 import {USE_MOCK_API, API_BASE_URL, getAuthToken} from './runtime';
 
@@ -270,9 +271,9 @@ async function extractViaTextPath(
     }
   }
 
-  // 2. 如果 MinerU 失败，使用探测文本或客户端提取
+  // 2. 如果 MinerU 失败，使用探测文本或客户端提取（textToMarkdown 修复中文碎片化）
   if (!contentMd && probeText) {
-    contentMd = `# 简历\n\n${probeText}`;
+    contentMd = textToMarkdown(probeText);
     stages.push('textProbe');
   } else if (!contentMd) {
     // 最后尝试 pdf-parse
@@ -282,7 +283,7 @@ async function extractViaTextPath(
       // @ts-expect-error pdf-parse v2 API
       const pdfResult = await PDFParse.getText(data);
       if (pdfResult.text) {
-        contentMd = `# 简历\n\n${pdfResult.text}`;
+        contentMd = textToMarkdown(pdfResult.text);
         stages.push('pdfParse');
       }
     } catch (e) {
