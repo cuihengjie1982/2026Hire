@@ -52,6 +52,8 @@ const loadHandlers = async (): Promise<RouteHandler[]> => {
   const { sidebarStats, searchStats, dashboardStats } = await import('./stats/index.ts');
   // Shortlist (pipeline)
   const { handleShortlist } = await import('./shortlist/index.ts');
+  // Employees
+  const { handleEmployees } = await import('./employees/index.ts');
 
   return [
     // AI Proxy — any authenticated user
@@ -135,6 +137,10 @@ const loadHandlers = async (): Promise<RouteHandler[]> => {
     { pattern: '/stats/search', methods: ['GET'], auth: 'any', handler: searchStats },
     // Shortlist (pipeline) — recruiter+
     { pattern: '/api/shortlist', methods: ['GET', 'POST', 'PATCH', 'DELETE'], auth: 'recruiter+', handler: handleShortlist },
+    // Employees — recruiter+
+    { pattern: '/api/employees', methods: ['GET', 'POST', 'PATCH', 'DELETE'], auth: 'recruiter+', handler: handleEmployees },
+    // Insights — any authenticated
+    { pattern: '/api/insights', methods: ['GET'], auth: 'any', handler: overview },
   ];
 };
 

@@ -1,4 +1,4 @@
-import {API_BASE_URL, AUTH_TOKEN_KEY, getAuthToken, setAuthToken} from './runtime';
+import {API_BASE_URL, AUTH_TOKEN_KEY, USE_MOCK_API, getAuthToken, setAuthToken} from './runtime';
 import {supabase} from './supabase';
 
 const REFRESH_TOKEN_KEY = 'em-box.refresh-token';
@@ -51,7 +51,18 @@ async function tryRefreshToken(): Promise<string | null> {
   return refreshPromise;
 }
 
-export const buildApiUrl = (path: string) => `${API_BASE_URL}${path}`;
+export const buildApiUrl = (path: string) => {
+  const base = API_BASE_URL;
+  // Already an absolute URL or Edge Function path — don't transform
+  if (path.startsWith('http') || path.startsWith('/functions/')) {
+    return `${base}${path}`;
+  }
+  // In production (non-localhost), route /api/* through Edge Function
+  if (!USE_MOCK_API && !base.includes('localhost') && path.startsWith('/api/')) {
+    return `${base}/functions/v1/embox-api${path}`;
+  }
+  return `${base}${path}`;
+};
 
 const isFormData = (value: unknown): value is FormData =>
   typeof FormData !== 'undefined' && value instanceof FormData;

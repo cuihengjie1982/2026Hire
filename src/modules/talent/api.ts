@@ -309,11 +309,13 @@ const aiParseResume = async (resumeText: string, fallback: ParsedResumeInfo): Pr
   const maxAttempts = 3;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
-      const token = getAuthToken() || '';
-      // 调用后端 /api/ai/parse-resume（本地 Express）或 /functions/v1/embox-api/ai-proxy（Supabase Edge Function）
-      // 优先使用后端路由，因为它在本地和生产环境都可用
-      const base = USE_MOCK_API ? '' : API_BASE_URL;
-      const aiUrl = `${base}/api/ai/parse-resume`;
+	      const token = getAuthToken() || '';
+	      // Dev: Vite proxy → Express. Prod: Edge Function → /ai-proxy
+	      const base = USE_MOCK_API ? '' : API_BASE_URL;
+	      const isLocalDev = base.includes('localhost') || base.includes('127.0.0.1');
+	      const aiUrl = isLocalDev
+	        ? `${base}/api/ai/parse-resume`
+	        : `${base}/functions/v1/embox-api/ai-proxy`;
       const resp = await fetch(aiUrl, {
         method: 'POST',
         headers: {

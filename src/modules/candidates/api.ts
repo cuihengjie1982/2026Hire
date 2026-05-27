@@ -29,7 +29,11 @@ export const exportCandidatesCsv = async (): Promise<void> => {
     throw new Error('导出功能需要连接后端服务');
   }
   const token = getAuthToken();
-  const res = await fetch(`${API_BASE_URL}/api/candidates/export/csv`, {
+  const isLocalDev = API_BASE_URL.includes('localhost');
+  const csvUrl = isLocalDev
+    ? `${API_BASE_URL}/api/candidates/export/csv`
+    : `${API_BASE_URL}/functions/v1/embox-api/candidate-ops/export/csv`;
+  const res = await fetch(csvUrl, {
     headers: {Authorization: `Bearer ${token}`},
   });
   if (!res.ok) throw new Error('导出失败');
