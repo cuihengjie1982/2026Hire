@@ -169,6 +169,40 @@ export const exportCsv = async (req: Request, _userId: string, _userRole: string
   }
 };
 
+// GET /candidate-ops — list all candidates with position, project, and tags
+export const listCandidates = async (req: Request, _userId: string, _userRole: string): Promise<Response> => {
+  try {
+    const supabase = createSupabaseAdmin(req);
+
+    const { data, error } = await supabase
+      .from('candidates')
+      .select('*, positions(name), projects(name), candidate_tags(tag)')
+      .not('original_file_name', 'is', null)
+      .order('created_at', { ascending: false });
+
+    if (error) return jsonRes({ error: { code: 'DB_ERROR', message: error.message } }, 500);
+
+    // Flatten PostgREST nested joins: positions → position_name, projects → project_name
+    const flattened = (data ?? []).map((row: Record<string, unknown>) => {
+      const positions = (row.positions as Record<string, unknown>) ?? {};
+      const projects = (row.projects as Record<string, unknown>) ?? {};
+      const tagsArr = (row.candidate_tags as Array<{ tag: string }>) ?? [];
+      const { positions: _p, projects: _pr, candidate_tags: _ct, ...rest } = row;
+      return {
+        ...rest,
+        position_name: positions.name ?? null,
+        project_name: projects.name ?? null,
+        tags: tagsArr.map((t) => t.tag),
+      };
+    });
+
+    return jsonRes(flattened);
+  } catch (e) {
+    console.error('[candidate-ops] listCandidates:', e);
+    return jsonRes({ error: { code: 'INTERNAL_ERROR', message: 'An internal error occurred' } }, 500);
+  }
+};
+
 // GET /candidate-ops/stats — talent statistics
 export const getStats = async (req: Request, _userId: string, _userRole: string): Promise<Response> => {
   try {

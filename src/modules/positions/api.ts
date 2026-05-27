@@ -1,4 +1,3 @@
-import {supabase} from '../../shared/lib/supabase';
 import {getItemsFromPayload, getValueFromPayload, cached, invalidateCache} from '../../shared/lib/apiClient';
 import {USE_MOCK_API, API_BASE_URL, getAuthToken, getUserName} from '../../shared/lib/runtime';
 import {type CreatePositionInput, type PositionDetail, type PositionSummary, type UpdatePositionInput, type ScoringRule, type GradeRule, type BaseScoreConfig, type ProfileRule} from './types';
@@ -64,12 +63,7 @@ export const listPositions = async (): Promise<PositionSummary[]> => {
   }
 
   return cached('listPositions', async () => {
-    const {data, error} = await supabase
-      .from('positions')
-      .select('*')
-      .order('created_at', {ascending: false});
-
-    if (error) throw new Error(error.message);
+    const data = await efetch<Record<string, unknown>[]>('/positions');
     return Array.from(new Map((data || []).map(r => [r.id as string, r])).values()).map(mapPositionSummary);
   });
 };
@@ -80,12 +74,7 @@ export const listPositionsByProject = async (projectId: string): Promise<Positio
     return Array.from(new Map(positionsData.filter(p => p.projectId === projectId).map(p => [p.id, p])).values());
   }
 
-  const {data, error} = await supabase
-    .from('positions')
-    .select('*')
-    .eq('project_id', projectId);
-
-  if (error) throw new Error(error.message);
+  const data = await efetch<Record<string, unknown>[]>(`/positions?project_id=${encodeURIComponent(projectId)}`);
   return Array.from(new Map((data || []).map(r => [r.id as string, r])).values()).map(mapPositionSummary);
 };
 
@@ -100,25 +89,10 @@ export const getPositionDetail = async (_positionId: string): Promise<PositionDe
     return stored;
   }
 
-  // Get position from positions table
-  const {data: positionData, error: positionError} = await supabase
-    .from('positions')
-    .select('*')
-    .eq('id', _positionId)
-    .single();
-
-  if (positionError) {
-    console.log('[DEBUG] getPositionDetail - positionError:', positionError.message);
-    if (positionError.code === 'PGRST116') return null;
-    throw new Error(positionError.message);
-  }
-
-  // Get position details from position_details table
-  const {data: detailData, error: detailError} = await supabase
-    .from('position_details')
-    .select('*')
-    .eq('position_id', _positionId)
-    .maybeSingle();
+  // Get position + detail from Edge Function
+  const result = await efetch<{position: Record<string, unknown> | null; detail: Record<string, unknown> | null}>(`/positions/${encodeURIComponent(_positionId)}/detail`);
+  const positionData = result?.position ?? null;
+  const detailData = result?.detail ?? null;
 
   console.log('[DEBUG] getPositionDetail - positionData:', JSON.stringify(positionData).slice(0, 500));
   console.log('[DEBUG] getPositionDetail - detailData:', JSON.stringify(detailData || {}).slice(0, 500));

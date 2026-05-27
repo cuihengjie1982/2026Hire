@@ -26,7 +26,7 @@ const loadHandlers = async (): Promise<RouteHandler[]> => {
   // Interview Scoring
   const { transcribeAndScore, aggregate } = await import('./interview-scoring/index.ts');
   // Candidate Ops
-  const { importCandidates, deleteCandidate, exportCsv, getStats, updateTags } = await import('./candidate-ops/index.ts');
+  const { importCandidates, deleteCandidate, exportCsv, getStats, updateTags, listCandidates } = await import('./candidate-ops/index.ts');
   // Analytics
   const { overview, projectStats, interviewSummary, interviewScoreDistribution, interviewDimensionAnalysis, interviewExportCsv } = await import('./analytics/index.ts');
   // Settings
@@ -66,6 +66,8 @@ const loadHandlers = async (): Promise<RouteHandler[]> => {
   const { handleOutreach } = await import('./outreach/index.ts');
   // Contacts
   const { handleContacts } = await import('./contacts/index.ts');
+  // Integrations
+  const { handleIntegrations } = await import('./integrations/index.ts');
 
   return [
     // AI Proxy — any authenticated user
@@ -79,6 +81,7 @@ const loadHandlers = async (): Promise<RouteHandler[]> => {
     { pattern: '/candidate-ops/import', methods: ['POST'], auth: 'recruiter+', handler: importCandidates },
     { pattern: '/candidate-ops/export/csv', methods: ['GET'], auth: 'recruiter+', handler: exportCsv },
     { pattern: '/candidate-ops/stats', methods: ['GET'], auth: 'any', handler: getStats },
+    { pattern: '/candidate-ops', methods: ['GET'], auth: 'any', handler: listCandidates },
     { pattern: '/candidate-ops/', methods: ['POST'], auth: 'recruiter+', handler: updateTags },
     { pattern: '/candidate-ops/', methods: ['DELETE'], auth: 'recruiter+', handler: deleteCandidate },
     // Analytics — any authenticated
@@ -163,11 +166,13 @@ const loadHandlers = async (): Promise<RouteHandler[]> => {
     // Interviews — recruiter+ (templates, questions, sessions, results CRUD)
     { pattern: '/interviews/', methods: ['GET', 'POST', 'PATCH', 'DELETE'], auth: 'recruiter+', handler: handleInterviews },
     // Approvals — recruiter+
-    { pattern: '/approvals', methods: ['GET', 'POST'], auth: 'recruiter+', handler: handleApprovals },
+    { pattern: '/approvals', methods: ['GET', 'POST', 'PATCH'], auth: 'recruiter+', handler: handleApprovals },
     // Outreach — recruiter+
     { pattern: '/outreach', methods: ['GET', 'POST', 'PATCH', 'DELETE'], auth: 'recruiter+', handler: handleOutreach },
     // Contacts — recruiter+
     { pattern: '/contacts', methods: ['GET', 'POST', 'PATCH'], auth: 'recruiter+', handler: handleContacts },
+    // Integrations — any authenticated
+    { pattern: '/integrations', methods: ['GET'], auth: 'any', handler: handleIntegrations },
   ];
 };
 

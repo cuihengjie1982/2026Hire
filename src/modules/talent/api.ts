@@ -1,4 +1,3 @@
-import {supabase} from '../../shared/lib/supabase';
 import {USE_MOCK_API, API_BASE_URL, getAuthToken} from '../../shared/lib/runtime';
 
 const efetch = async <T>(path: string, method = 'GET', body?: unknown): Promise<T> => {
@@ -162,45 +161,20 @@ export const getTalentStats = async (): Promise<TalentStats> => {
     };
   }
 
-  // Get total count
-  const {count: totalCount, error: totalError} = await supabase
-    .from('candidates')
-    .select('*', {count: 'exact', head: true})
-    .not('original_file_name', 'is', null);
-
-  if (totalError) throw new Error(totalError.message);
-
-  // Get monthly new count (last 30 days)
-  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-  const {count: monthlyNew, error: monthlyError} = await supabase
-    .from('candidates')
-    .select('*', {count: 'exact', head: true})
-    .not('original_file_name', 'is', null)
-    .gte('created_at', thirtyDaysAgo);
-
-  if (monthlyError) throw new Error(monthlyError.message);
-
-  // Get grade distribution
-  const {data: gradeData, error: gradeError} = await supabase
-    .from('candidates')
-    .select('grade')
-    .not('original_file_name', 'is', null) as { data: { grade: string }[] | null; error: Error | null };
-
-  if (gradeError) throw new Error(gradeError.message);
+  // Use Edge Function for stats
+  const stats = await efetch<{totalCount: number; monthlyNew: number; gradeDistribution: Record<string, number>}>('/candidate-ops/stats');
 
   const gradeDistribution = {A: 0, B: 0, C: 0, D: 0, F: 0};
-  if (gradeData) {
-    for (const c of gradeData) {
-      const g = (c.grade as string) || '';
-      if (g in gradeDistribution) {
-        gradeDistribution[g as keyof typeof gradeDistribution]++;
-      }
+  for (const [grade, count] of Object.entries(stats.gradeDistribution ?? {})) {
+    const g = grade?.toUpperCase?.() ?? grade;
+    if (g in gradeDistribution) {
+      gradeDistribution[g as keyof typeof gradeDistribution] = count;
     }
   }
 
   return {
-    totalCount: totalCount || 0,
-    monthlyNew: monthlyNew || 0,
+    totalCount: stats.totalCount || 0,
+    monthlyNew: stats.monthlyNew || 0,
     pendingReview: 0,
     gradeDistribution,
   };
@@ -212,13 +186,7 @@ export const listCandidates = async (): Promise<CandidateCard[]> => {
     return Array.from(new Map(candidatesData.map(c => [c.id, c])).values());
   }
 
-  const {data, error} = await supabase
-    .from('candidates')
-    .select('*, position:positions(name), project:projects(name), tags:candidate_tags(tag)')
-    .not('original_file_name', 'is', null)
-    .order('created_at', {ascending: false});
-
-  if (error) throw new Error(error.message);
+  const data = await efetch<Record<string, unknown>[]>('/candidate-ops');
   return Array.from(new Map((data ?? []).map(r => [r.id as string, r])).values()).map(buildCandidateCardFromServer);
 };
 
@@ -269,18 +237,7 @@ export const deleteCandidate = async (id: string): Promise<void> => {
     return;
   }
 
-  // Use Edge Function for cascade delete
-  try {
-    await efetch(`/candidate-ops/${id}`, 'DELETE');
-  } catch (e) {
-    // Fall back to direct delete
-    const {error} = await supabase
-      .from('candidates')
-      .delete()
-      .eq('id', id);
-
-    if (error) throw new Error(error.message);
-  }
+  await efetch(`/candidate-ops/${id}`, 'DELETE');
   candidatesData = candidatesData.filter((c) => c.id !== id);
 };
 
