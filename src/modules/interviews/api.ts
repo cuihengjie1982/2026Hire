@@ -1,4 +1,3 @@
-import {fetchJson} from '../../shared/lib/apiClient';
 import {USE_MOCK_API, API_BASE_URL, getAuthToken} from '../../shared/lib/runtime';
 
 const isFormData = (v: unknown): v is FormData => typeof FormData !== 'undefined' && v instanceof FormData;
@@ -21,7 +20,6 @@ const efetch = async <T>(path: string, method = 'GET', body?: unknown): Promise<
   if (!res.ok) throw new Error(data?.error?.message || `API error ${res.status}`);
   return data as T;
 };
-import {supabase} from '../../shared/lib/supabase';
 import {
   type InterviewTemplateSummary,
   type InterviewTemplateDetail,
@@ -186,8 +184,7 @@ export const listInterviewTemplates = async (): Promise<InterviewTemplateSummary
     await new Promise(r => setTimeout(r, 120));
     return templatesData;
   }
-  const { data, error } = await supabase.from('interview_templates').select('*');
-  if (error) throw new Error(error.message);
+  const data = await efetch<Record<string, unknown>[]>('/interviews/templates');
   return Array.from(new Map((data ?? []).map(r => [r.id as string, r])).values()).map(mapTemplateSummary);
 };
 
@@ -198,18 +195,10 @@ export const getInterviewTemplateDetail = async (
     await new Promise(r => setTimeout(r, 120));
     return templateDetailsMap[templateId] || null;
   }
-  const { data: templateData, error: templateError } = await supabase
-    .from('interview_templates')
-    .select('*')
-    .eq('id', templateId)
-    .single();
-  if (templateError) return null;
+  const templateData = await efetch<Record<string, unknown>>(`/interviews/templates?id=${encodeURIComponent(templateId)}`);
+  if (!templateData?.id) return null;
 
-  const { data: questionsData, error: questionsError } = await supabase
-    .from('interview_questions')
-    .select('*')
-    .eq('template_id', templateId)
-    .order('sort_order', { ascending: true });
+  const questionsData = await efetch<Record<string, unknown>[]>(`/interviews/questions?template_id=${encodeURIComponent(templateId)}`);
 
   const template = mapTemplateSummary(templateData);
   const questions = (questionsData ?? []).map(mapQuestion);
@@ -479,13 +468,8 @@ export const getInterviewSession = async (sessionId: string): Promise<InterviewS
     await new Promise(r => setTimeout(r, 120));
     return null;
   }
-  const { data, error } = await supabase
-    .from('interview_sessions')
-    .select('*')
-    .eq('id', sessionId)
-    .single() as { data: Record<string, unknown> | null; error: Error | null };
-  if (error) return null;
-  if (!data) return null;
+  const data = await efetch<Record<string, unknown>>(`/interviews/sessions?id=${encodeURIComponent(sessionId)}`);
+  if (!data?.id) return null;
   return {
     id: data.id as string,
     candidateId: (data.candidate_id ?? data.candidateId ?? '') as string,
@@ -593,25 +577,7 @@ export const listManagementSessions = async (): Promise<InterviewManagementSessi
     await new Promise(r => setTimeout(r, 120));
     return MOCK_SESSIONS;
   }
-  const { data, error } = await supabase
-    .from('interview_sessions')
-    .select(`
-      id,
-      candidate_id,
-      candidate_name,
-      candidate_email,
-      position_name,
-      position_id,
-      template_id,
-      template_name,
-      start_time,
-      status,
-      progress_current,
-      progress_total,
-      total_score
-    `)
-    .order('created_at', { ascending: false });
-  if (error) throw new Error(error.message);
+  const data = await efetch<Record<string, unknown>[]>('/interviews/sessions');
   return Array.from(new Map((data ?? []).map(r => [r.id as string, r])).values()).map(mapManagementSession);
 };
 
@@ -620,8 +586,7 @@ export const listInterviewResults = async (): Promise<InterviewResult[]> => {
     await new Promise(r => setTimeout(r, 120));
     return Array.from(new Map(mockResultsData.map(r => [r.id, r])).values());
   }
-  const { data, error } = await supabase.from('interview_results').select('*').order('interview_date', { ascending: false });
-  if (error) throw new Error(error.message);
+  const data = await efetch<Record<string, unknown>[]>('/interviews/results');
   return Array.from(new Map((data ?? []).map(r => [r.id as string, r])).values()).map(mapInterviewResult);
 };
 
@@ -715,18 +680,15 @@ export const getPassRateTrend = async (timeRange = 'all'): Promise<PassRateTrend
     await new Promise(r => setTimeout(r, 120));
     return MOCK_PASS_RATE_TREND;
   }
-  const { data, error } = await supabase
-    .from('interview_results')
-    .select('interview_date, grade')
-    .order('interview_date', { ascending: false });
-  if (error) throw new Error(error.message);
+  const data = await efetch<Record<string, unknown>[]>('/interviews/results');
   // Group by month and calculate pass rate
   const monthlyData: Record<string, { total: number; passed: number }> = {};
   for (const row of (data ?? [])) {
-    const month = (row.interview_date ?? '').substring(0, 7);
+    const month = ((row.interview_date ?? row.interviewDate ?? '') as string).substring(0, 7);
     if (!monthlyData[month]) monthlyData[month] = { total: 0, passed: 0 };
     monthlyData[month].total++;
-    if ((row.grade ?? '').toUpperCase() === 'A' || (row.grade ?? '').toUpperCase() === 'B+') {
+    const grade = String(row.grade ?? '').toUpperCase();
+    if (grade === 'A' || grade === 'B+') {
       monthlyData[month].passed++;
     }
   }
@@ -745,19 +707,16 @@ export const getPositionAnalytics = async (timeRange = 'all'): Promise<PositionA
     await new Promise(r => setTimeout(r, 120));
     return MOCK_POSITION_ANALYTICS;
   }
-  const { data, error } = await supabase
-    .from('interview_results')
-    .select('position, total_score, grade')
-    .order('interview_date', { ascending: false });
-  if (error) throw new Error(error.message);
+  const data = await efetch<Record<string, unknown>[]>('/interviews/results');
   const positionData: Record<string, { total: number; scores: number[]; passed: number }> = {};
   for (const row of (data ?? [])) {
     const pos = (row.position ?? '') as string;
     if (!pos) continue;
     if (!positionData[pos]) positionData[pos] = { total: 0, scores: [], passed: 0 };
     positionData[pos].total++;
-    positionData[pos].scores.push(Number(row.total_score ?? 0));
-    if ((row.grade ?? '').toUpperCase() === 'A' || (row.grade ?? '').toUpperCase() === 'B+') {
+    positionData[pos].scores.push(Number(row.total_score ?? row.totalScore ?? 0));
+    const grade = String(row.grade ?? '').toUpperCase();
+    if (grade === 'A' || grade === 'B+') {
       positionData[pos].passed++;
     }
   }
@@ -862,12 +821,7 @@ export const getSessionAnswerScores = async (sessionId: string): Promise<AnswerS
     await new Promise(r => setTimeout(r, 120));
     return [];
   }
-  const { data, error } = await supabase
-    .from('interview_answer_scores')
-    .select('*')
-    .eq('session_id', sessionId)
-    .order('created_at', { ascending: true });
-  if (error) throw new Error(error.message);
+  const data = await efetch<Record<string, unknown>[]>(`/interviews/answer-scores?session_id=${encodeURIComponent(sessionId)}`);
   return (data ?? []).map(mapAnswerScore);
 };
 
