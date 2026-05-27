@@ -8,7 +8,6 @@
  * 4. 统一质量评分 + 补充提取
  */
 
-import {fetchJson} from './apiClient';
 import {
   type ParsedResumeInfo,
   type MinerUParseResult,
@@ -381,22 +380,29 @@ async function extractViaVisionPath(
 // AI 调用封装
 // ---------------------------------------------------------------------------
 
-/** AI 文本解析 — 调用后端 /api/ai/parse-resume */
+/** AI 文本解析 — 调用 Edge Function ai-proxy（带 30s 超时） */
 async function aiTextParse(
   resumeText: string,
   authToken?: string,
 ): Promise<ParsedResumeInfo | null> {
   if (!resumeText || resumeText.trim().length < 30) return null;
 
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000);
+
   try {
-    const base = USE_MOCK_API ? '' : API_BASE_URL;
-    const resp = await fetch(`${base}/api/ai/parse-resume`, {
+    const edgeUrl = USE_MOCK_API
+      ? '/api/ai/parse-resume'
+      : `${API_BASE_URL}/functions/v1/embox-api/ai-proxy`;
+
+    const resp = await fetch(edgeUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         ...(authToken ? {'Authorization': `Bearer ${authToken}`} : {}),
       },
-      body: JSON.stringify({resumeText}),
+      body: JSON.stringify({ action: 'parse-resume', resumeText }),
+      signal: controller.signal,
     });
 
     if (!resp.ok) return null;
@@ -427,34 +433,57 @@ async function aiTextParse(
       rawText: '',
     };
   } catch (e) {
-    console.warn('[Pipeline] AI text parse error:', e);
+    if (e instanceof DOMException && e.name === 'AbortError') {
+      console.warn('[Pipeline] AI text parse timed out (30s)');
+    } else {
+      console.warn('[Pipeline] AI text parse error:', e);
+    }
     return null;
+  } finally {
+    clearTimeout(timeoutId);
   }
 }
 
-/** 批量 Vision LLM 解析 — 一次发送所有图片到后端 */
+/** 批量 Vision LLM 解析 — 一次发送所有图片到 Edge Function ai-proxy */
 async function visionParseBatch(
   images: string[],
   mimeType: string,
   authToken?: string,
 ): Promise<ParsedResumeInfo | null> {
+  const edgeUrl = USE_MOCK_API
+    ? '/api/ai/vision-parse'
+    : `${API_BASE_URL}/functions/v1/embox-api/ai-proxy`;
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 180000);
+
   // 一次性发送所有页面到后端
   try {
-    const result = await fetchJson<Record<string, unknown>>('/api/ai/vision-parse', {
+    const resp = await fetch(edgeUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         ...(authToken ? {'Authorization': `Bearer ${authToken}`} : {}),
       },
-      body: JSON.stringify({images, mimeType}),
-      timeoutMs: 180000,
-    } as RequestInit & { timeoutMs?: number });
+      body: JSON.stringify({ action: 'parse-resume-vision', images, mimeType }),
+      signal: controller.signal,
+    });
+
+    if (!resp.ok) return null;
+    const result = await resp.json() as Record<string, unknown>;
 
     if (result && result.name) {
+      clearTimeout(timeoutId);
       return mapVisionResult(result);
     }
   } catch (e) {
-    console.warn('[Pipeline] Vision batch failed, falling back to per-page:', e);
+    if (e instanceof DOMException && e.name === 'AbortError') {
+      console.warn('[Pipeline] Vision batch timed out (180s)');
+    } else {
+      console.warn('[Pipeline] Vision batch failed, falling back to per-page:', e);
+    }
+  } finally {
+    clearTimeout(timeoutId);
   }
 
   // 批量失败时降级为逐页调用
@@ -476,24 +505,41 @@ async function visionParseSingle(
   mimeType: string,
   authToken?: string,
 ): Promise<ParsedResumeInfo | null> {
+  const edgeUrl = USE_MOCK_API
+    ? '/api/ai/vision-parse'
+    : `${API_BASE_URL}/functions/v1/embox-api/ai-proxy`;
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 120000);
+
   try {
-    const result = await fetchJson<Record<string, unknown>>('/api/ai/vision-parse', {
+    const resp = await fetch(edgeUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         ...(authToken ? {'Authorization': `Bearer ${authToken}`} : {}),
       },
-      body: JSON.stringify({imageBase64, mimeType}),
-      timeoutMs: 120000,
-    } as RequestInit & { timeoutMs?: number });
+      body: JSON.stringify({ action: 'parse-resume-vision', images: [imageBase64], mimeType }),
+      signal: controller.signal,
+    });
+
+    if (!resp.ok) return null;
+    const result = await resp.json() as Record<string, unknown>;
 
     if (result && result.name) {
+      clearTimeout(timeoutId);
       return mapVisionResult(result);
     }
     return null;
   } catch (e) {
-    console.warn('[Pipeline] Vision proxy failed:', e);
+    if (e instanceof DOMException && e.name === 'AbortError') {
+      console.warn('[Pipeline] Vision single page timed out (120s)');
+    } else {
+      console.warn('[Pipeline] Vision proxy failed:', e);
+    }
     return null;
+  } finally {
+    clearTimeout(timeoutId);
   }
 }
 
