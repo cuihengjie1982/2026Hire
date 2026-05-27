@@ -335,15 +335,28 @@ export async function autoTriggerForCandidate(candidateId: string, positionId?: 
     const rawText = String(pInfo?.rawText || pInfo?.raw_text || '');
     if (rawText.length < 20) return; // Not enough text to process
 
-    // Find running agents with autoRun=true for this position
-    const agents = await query(
-      `SELECT * FROM agents
-       WHERE status = 'running'
-         AND config->>'positionId' = $1
-         AND type IN ('parser', 'screener')
-         AND config->>'autoRun' = 'true'`,
-      [positionId],
-    );
+    // Find running agents with autoRun=true:
+    // - Screener agents: must match the candidate's position
+    // - Parser agents: match position OR be global (positionId IS NULL)
+    const [posMatch, globalParsers] = await Promise.all([
+      query(
+        `SELECT * FROM agents
+         WHERE status = 'running'
+           AND config->>'positionId' = $1
+           AND type IN ('parser', 'screener')
+           AND config->>'autoRun' = 'true'`,
+        [positionId],
+      ),
+      query(
+        `SELECT * FROM agents
+         WHERE status = 'running'
+           AND type = 'parser'
+           AND (config->>'positionId' IS NULL OR config->>'positionId' = '')
+           AND config->>'autoRun' = 'true'`,
+      ),
+    ]);
+
+    const agents = [...posMatch, ...globalParsers];
 
     for (const agent of agents) {
       try {
