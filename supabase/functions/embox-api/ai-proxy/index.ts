@@ -184,15 +184,22 @@ export const proxy = async (req: Request, _userId: string, _userRole: string): P
 
       let raw: string;
       try {
+        console.log('[parse-resume-vision] Calling', visionConfig.provider, visionConfig.model_name, 'with', images.length, 'images');
         raw = await callVisionLLM(visionConfig, systemPrompt, parts);
+        console.log('[parse-resume-vision] Response length:', raw.length, '| first 300 chars:', raw.slice(0, 300));
       } catch (e) {
         console.error('[parse-resume-vision] Vision LLM call failed:', e);
         return jsonRes({ name: '', gender: '', ageOrBirth: '', phone: '', email: '', location: '',
           highestEducation: '', school: '', major: '', skills: [], workExperience: [],
           honors: [], expectedSalary: '', currentlyEmployed: '', availability: '',
-          _parseFailed: true, _parseError: e instanceof Error ? e.message : String(e) });
+          _parseFailed: true, _parseError: e instanceof Error ? e.message : String(e),
+          _modelUsed: visionConfig.model_name, _provider: visionConfig.provider });
       }
-      return jsonRes({ modelUsed: visionConfig.model_name, provider: visionConfig.provider, ...parseJSONResponse(raw) });
+      const parsed = parseJSONResponse(raw);
+      if (!parsed.name && !parsed.phone && !parsed.email) {
+        console.warn('[parse-resume-vision] Parsed result has no name/phone/email. Raw response:', raw.slice(0, 500));
+      }
+      return jsonRes({ modelUsed: visionConfig.model_name, provider: visionConfig.provider, ...parsed });
     }
 
     return jsonRes({ error: `Unknown action: ${action}` }, 400);

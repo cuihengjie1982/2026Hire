@@ -300,7 +300,6 @@ async function callOpenAIVision(
       type: 'image_url',
       image_url: {
         url: `data:${mime};base64,${p.image?.data ?? ''}`,
-        detail: 'high',
       },
     };
   });
@@ -324,6 +323,8 @@ async function callOpenAIVision(
     method: 'POST',
     headers,
     body: JSON.stringify(body),
+    timeoutMs: 60_000,  // Vision requests need more time
+    retries: 1,
   });
 
   if (!response.ok) {

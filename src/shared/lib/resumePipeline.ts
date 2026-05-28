@@ -515,7 +515,12 @@ async function visionParseBatch(
     if (!resp.ok) return null;
     const result = await resp.json() as Record<string, unknown>;
 
-    if (result && result.name) {
+    // Log parse failures from Edge Function for diagnostics
+    if (result._parseFailed) {
+      console.warn('[Pipeline] Vision batch _parseFailed:', result._parseError, '| model:', result.modelUsed, '| provider:', result.provider);
+    }
+
+    if (result && (result.name || result.phone || result.email)) {
       clearTimeout(timeoutId);
       return mapVisionResult(result);
     }
@@ -569,7 +574,11 @@ async function visionParseSingle(
     if (!resp.ok) return null;
     const result = await resp.json() as Record<string, unknown>;
 
-    if (result && result.name) {
+    if (result._parseFailed) {
+      console.warn('[Pipeline] Vision single _parseFailed:', result._parseError, '| model:', result.modelUsed);
+    }
+
+    if (result && (result.name || result.phone || result.email)) {
       clearTimeout(timeoutId);
       return mapVisionResult(result);
     }
