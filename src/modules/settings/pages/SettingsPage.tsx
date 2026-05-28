@@ -177,9 +177,9 @@ export const SettingsPage = () => {
     }
   };
 
-  const handleCancelInvite = async (email: string) => {
+  const handleCancelInvite = async (email: string, role: UserRole) => {
     try {
-      await cancelInvite(email);
+      await cancelInvite(email, role);
       setInvites(prev => prev.filter(i => i.email !== email));
     } catch (e) {
       console.error('Failed to cancel invite:', e);
@@ -847,7 +847,7 @@ export const SettingsPage = () => {
                           </div>
                         </div>
                         <button
-                          onClick={() => handleCancelInvite(invite.email)}
+                          onClick={() => handleCancelInvite(invite.email, invite.role)}
                           className="text-red-500 hover:text-red-700 text-sm"
                         >
                           取消邀请

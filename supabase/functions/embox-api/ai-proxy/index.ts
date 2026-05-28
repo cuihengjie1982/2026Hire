@@ -152,7 +152,23 @@ export const proxy = async (req: Request, _userId: string, _userRole: string): P
       visionConfig.max_tokens = 4096;
       const systemPrompt = `你是一个简历信息提取助手。用户会发送简历的图片（可能有多页），请从图片中提取结构化信息，以 JSON 格式返回。
 
-必须返回以下字段（如无则留空）：name, gender, ageOrBirth, phone, email, location, highestEducation, school, major, expectedSalary, currentlyEmployed, availability, skills(数组最多8个), workExperience(数组，每个元素格式：{company, role, period, desc}), honors(数组)。
+必须返回以下字段：
+- name: 姓名
+- gender: 性别
+- ageOrBirth: 年龄或出生日期
+- phone: 手机号码（一定要仔细查找，通常标记为"手机"、"电话"、"联系方式"，格式如 138xxxx 或以 +86 开头）
+- email: 邮箱地址（一定要仔细查找，通常包含 @ 符号）
+- location: 所在地/城市
+- highestEducation: 最高学历（如：本科、硕士、博士、大专、高中）
+- school: 毕业院校
+- major: 专业
+- expectedSalary: 期望薪资
+- currentlyEmployed: 当前是否在职
+- availability: 到岗时间
+- skills: 技能列表（数组，最多8个）
+- workExperience: 工作经历（数组，每个元素：{company, role, period, desc}）
+- honors: 荣誉/证书（数组）
+- photoBbox: 简历照片在第一页的位置，格式为 {x, y, width, height}，数值为占整页宽高的比例（0-1之间）。例如右上角一寸照通常是 {x:0.72, y:0.08, width:0.22, height:0.28}。如果简历中没有照片，返回 null。
 
 只返回纯 JSON，不要有其他文字。`;
       const mimeType = body.mimeType || 'image/jpeg';

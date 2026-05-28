@@ -136,38 +136,38 @@ export const resetPassword = async (req: Request, _userId: string, _userRole: st
 // GET /settings/permissions — static permission list
 export const getPermissions = async (_req: Request, _userId: string, _userRole: string): Promise<Response> => {
   return jsonRes([
-    { key: 'projects:view', label: 'View Projects' },
-    { key: 'projects:manage', label: 'Manage Projects' },
-    { key: 'positions:view', label: 'View Positions' },
-    { key: 'positions:manage', label: 'Manage Positions' },
-    { key: 'candidates:view', label: 'View Candidates' },
-    { key: 'candidates:manage', label: 'Manage Candidates' },
-    { key: 'interviews:view', label: 'View Interviews' },
-    { key: 'interviews:manage', label: 'Manage Interviews' },
-    { key: 'approvals:view', label: 'View Approvals' },
-    { key: 'approvals:decide', label: 'Decide Approvals' },
-    { key: 'shortlist:view', label: 'View Shortlist' },
-    { key: 'shortlist:manage', label: 'Manage Shortlist' },
-    { key: 'outreach:view', label: 'View Outreach' },
-    { key: 'outreach:manage', label: 'Manage Outreach' },
-    { key: 'agents:view', label: 'View Agents' },
-    { key: 'agents:manage', label: 'Manage Agents' },
-    { key: 'settings:view', label: 'View Settings' },
-    { key: 'settings:manage', label: 'Manage Settings' },
-    { key: 'contacts:view', label: 'View Contacts' },
-    { key: 'contacts:manage', label: 'Manage Contacts' },
-    { key: 'analytics:view', label: 'View Analytics' },
-    { key: 'integrations:manage', label: 'Manage Integrations' },
+    { id: 'projects:view', name: '查看项目', description: '查看项目列表和详情', category: 'position' },
+    { id: 'projects:manage', name: '管理项目', description: '创建、编辑、删除项目', category: 'position' },
+    { id: 'positions:view', name: '查看岗位', description: '查看岗位列表和详情', category: 'position' },
+    { id: 'positions:manage', name: '管理岗位', description: '创建、编辑、删除岗位', category: 'position' },
+    { id: 'candidates:view', name: '查看候选人', description: '查看候选人列表和详情', category: 'candidate' },
+    { id: 'candidates:manage', name: '管理候选人', description: '导入、编辑、删除候选人', category: 'candidate' },
+    { id: 'interviews:view', name: '查看面试', description: '查看面试安排和结果', category: 'interview' },
+    { id: 'interviews:manage', name: '管理面试', description: '创建、编辑面试模板和安排', category: 'interview' },
+    { id: 'approvals:view', name: '查看审批', description: '查看审批申请列表', category: 'approval' },
+    { id: 'approvals:decide', name: '审批决策', description: '批准或拒绝审批申请', category: 'approval' },
+    { id: 'shortlist:view', name: '查看短名单', description: '查看短名单和招聘推进', category: 'candidate' },
+    { id: 'shortlist:manage', name: '管理短名单', description: '添加、移除短名单候选人', category: 'candidate' },
+    { id: 'outreach:view', name: '查看外联', description: '查看外联记录和活动', category: 'candidate' },
+    { id: 'outreach:manage', name: '管理外联', description: '创建、编辑外联活动', category: 'candidate' },
+    { id: 'agents:view', name: '查看代理', description: '查看AI代理列表和状态', category: 'settings' },
+    { id: 'agents:manage', name: '管理代理', description: '创建、编辑、启停AI代理', category: 'settings' },
+    { id: 'settings:view', name: '查看设置', description: '查看系统设置', category: 'settings' },
+    { id: 'settings:manage', name: '管理设置', description: '修改系统设置和权限', category: 'settings' },
+    { id: 'contacts:view', name: '查看联系人', description: '查看联系人列表', category: 'candidate' },
+    { id: 'contacts:manage', name: '管理联系人', description: '添加、编辑联系人', category: 'candidate' },
+    { id: 'analytics:view', name: '查看数据', description: '查看数据洞察和分析', category: 'data' },
+    { id: 'integrations:manage', name: '管理集成', description: '管理外部系统集成', category: 'settings' },
   ]);
 };
 
 // GET /settings/role-permissions — static role-permission mapping
 export const getRolePermissions = async (_req: Request, _userId: string, _userRole: string): Promise<Response> => {
   return jsonRes([
-    { role: 'admin', label: 'Administrator', permissions: ['projects:view', 'projects:manage', 'positions:view', 'positions:manage', 'candidates:view', 'candidates:manage', 'interviews:view', 'interviews:manage', 'approvals:view', 'approvals:decide', 'shortlist:view', 'shortlist:manage', 'outreach:view', 'outreach:manage', 'agents:view', 'agents:manage', 'settings:view', 'settings:manage', 'contacts:view', 'contacts:manage', 'analytics:view', 'integrations:manage'] },
-    { role: 'recruiter', label: 'Recruiter', permissions: ['projects:view', 'positions:view', 'candidates:view', 'candidates:manage', 'interviews:view', 'interviews:manage', 'approvals:view', 'shortlist:view', 'shortlist:manage', 'outreach:view', 'outreach:manage', 'agents:view', 'contacts:view', 'contacts:manage', 'analytics:view'] },
-    { role: 'interviewer', label: 'Interviewer', permissions: ['projects:view', 'positions:view', 'candidates:view', 'interviews:view', 'interviews:manage', 'approvals:view', 'analytics:view'] },
-    { role: 'viewer', label: 'Viewer', permissions: ['projects:view', 'positions:view', 'candidates:view', 'interviews:view', 'approvals:view', 'shortlist:view', 'outreach:view', 'agents:view', 'contacts:view', 'analytics:view'] },
+    { role: 'admin', permissions: ['projects:view', 'projects:manage', 'positions:view', 'positions:manage', 'candidates:view', 'candidates:manage', 'interviews:view', 'interviews:manage', 'approvals:view', 'approvals:decide', 'shortlist:view', 'shortlist:manage', 'outreach:view', 'outreach:manage', 'agents:view', 'agents:manage', 'settings:view', 'settings:manage', 'contacts:view', 'contacts:manage', 'analytics:view', 'integrations:manage'] },
+    { role: 'hiring_manager', permissions: ['projects:view', 'positions:view', 'candidates:view', 'interviews:view', 'interviews:manage', 'approvals:view', 'approvals:decide', 'shortlist:view', 'outreach:view', 'agents:view', 'contacts:view', 'analytics:view'] },
+    { role: 'recruiter', permissions: ['projects:view', 'positions:view', 'candidates:view', 'candidates:manage', 'interviews:view', 'interviews:manage', 'approvals:view', 'shortlist:view', 'shortlist:manage', 'outreach:view', 'outreach:manage', 'agents:view', 'contacts:view', 'contacts:manage', 'analytics:view'] },
+    { role: 'viewer', permissions: ['projects:view', 'positions:view', 'candidates:view', 'interviews:view', 'approvals:view', 'shortlist:view', 'outreach:view', 'agents:view', 'contacts:view', 'analytics:view'] },
   ]);
 };
 

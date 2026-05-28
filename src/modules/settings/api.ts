@@ -177,12 +177,12 @@ export const inviteTeamMember = async (email: string, role: UserRole): Promise<T
   return efetch<TeamMemberInvite>('/settings/invites/', 'POST', { email, role, invitedBy: currentUserFixture.name });
 };
 
-export const cancelInvite = async (email: string): Promise<void> => {
+export const cancelInvite = async (email: string, role: UserRole): Promise<void> => {
   if (USE_MOCK_API) {
     await new Promise(r => setTimeout(r, 120));
     mockInvites = mockInvites.filter(i => i.email !== email);
     saveToStorage(STORAGE_KEYS.invites, mockInvites);
     return;
   }
-  return efetch<void>(`/settings/invites/${encodeURIComponent(email)}?role=recruiter`, 'DELETE');
+  return efetch<void>(`/settings/invites/${encodeURIComponent(email)}?role=${encodeURIComponent(role)}`, 'DELETE');
 };

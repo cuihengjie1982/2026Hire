@@ -46,6 +46,14 @@ export interface PipelineResult {
   metadata: PipelineMetadata;
 }
 
+interface PhotoBbox { x: number; y: number; width: number; height: number }
+
+/** Result from vision LLM parse, including photo bounding box for cropping */
+interface VisionParseResult {
+  info: ParsedResumeInfo;
+  photoBbox: PhotoBbox | null;
+}
+
 // ---------------------------------------------------------------------------
 // 路由决策
 // ---------------------------------------------------------------------------
@@ -318,6 +326,37 @@ async function extractViaTextPath(
   return {info, contentMd, photoBase64};
 }
 
+/** Crop a photo region from a page image using bounding box coordinates (ratios 0-1) */
+async function cropPhotoFromPage(pageBase64: string, bbox: PhotoBbox): Promise<string> {
+  try {
+    const img = new Image();
+    const src = `data:image/jpeg;base64,${pageBase64}`;
+
+    await new Promise<void>((resolve, reject) => {
+      img.onload = () => resolve();
+      img.onerror = () => reject(new Error('Image load failed'));
+      img.src = src;
+    });
+
+    const w = img.naturalWidth;
+    const h = img.naturalHeight;
+    const sx = Math.round(bbox.x * w);
+    const sy = Math.round(bbox.y * h);
+    const sw = Math.round(bbox.width * w);
+    const sh = Math.round(bbox.height * h);
+
+    const canvas = document.createElement('canvas');
+    canvas.width = sw;
+    canvas.height = sh;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return '';
+    ctx.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
+    return canvas.toDataURL('image/jpeg', 0.85);
+  } catch {
+    return '';
+  }
+}
+
 /** VISION_PATH: 渲染页面 → 批量 Vision LLM */
 async function extractViaVisionPath(
   file: File,
@@ -361,20 +400,23 @@ async function extractViaVisionPath(
   // 批量 Vision LLM 调用 — 仅非 mock 模式
   if (!USE_MOCK_API) {
     try {
-      const result = await visionParseBatch(images, mimeType, config.authToken);
-      if (result) {
+      const visionResult = await visionParseBatch(images, mimeType, config.authToken);
+      if (visionResult) {
         stages.push('visionParse');
-        if (photoBase64 && !result.photoBase64) {
-          result.photoBase64 = photoBase64;
+        // Crop photo from first page using bbox if available
+        if (visionResult.photoBbox && images[0]) {
+          photoBase64 = await cropPhotoFromPage(images[0], visionResult.photoBbox);
+        } else {
+          photoBase64 = '';
         }
-        return {info: result, photoBase64};
+        return {info: visionResult.info, photoBase64};
       }
     } catch (e) {
       console.warn('[Pipeline] Vision LLM batch failed:', e);
     }
   }
 
-  return {info: emptyResult(photoBase64), photoBase64};
+  return {info: emptyResult(''), photoBase64: ''};
 }
 
 // ---------------------------------------------------------------------------
@@ -450,7 +492,7 @@ async function visionParseBatch(
   images: string[],
   mimeType: string,
   authToken?: string,
-): Promise<ParsedResumeInfo | null> {
+): Promise<VisionParseResult | null> {
   const edgeUrl = USE_MOCK_API
     ? '/api/ai/vision-parse'
     : `${API_BASE_URL}/functions/v1/embox-api/ai-proxy`;
@@ -491,7 +533,7 @@ async function visionParseBatch(
   for (let i = 0; i < images.length; i++) {
     try {
       const result = await visionParseSingle(images[i], mimeType, authToken);
-      if (result && result.name) return result;
+      if (result && result.info.name) return result;
     } catch (e) {
       console.warn(`[Pipeline] Vision page ${i + 1} failed:`, e);
     }
@@ -505,7 +547,7 @@ async function visionParseSingle(
   imageBase64: string,
   mimeType: string,
   authToken?: string,
-): Promise<ParsedResumeInfo | null> {
+): Promise<VisionParseResult | null> {
   const edgeUrl = USE_MOCK_API
     ? '/api/ai/vision-parse'
     : `${API_BASE_URL}/functions/v1/embox-api/ai-proxy`;
@@ -545,8 +587,8 @@ async function visionParseSingle(
 }
 
 /** 统一映射 Vision API 返回 → ParsedResumeInfo */
-function mapVisionResult(result: Record<string, unknown>): ParsedResumeInfo {
-  return {
+function mapVisionResult(result: Record<string, unknown>): VisionParseResult {
+  const info: ParsedResumeInfo = {
     name: String(result.name || ''),
     gender: String(result.gender || ''),
     ageOrBirth: String(result.ageOrBirth || ''),
@@ -565,9 +607,17 @@ function mapVisionResult(result: Record<string, unknown>): ParsedResumeInfo {
     expectedSalary: String(result.expectedSalary || ''),
     currentlyEmployed: String(result.currentlyEmployed || ''),
     availability: String(result.availability || ''),
-    photoBase64: String(result.photoBase64 || ''),
+    photoBase64: '',
     rawText: '',
   };
+  let photoBbox: PhotoBbox | null = null;
+  if (result.photoBbox && typeof result.photoBbox === 'object') {
+    const b = result.photoBbox as Record<string, unknown>;
+    if (typeof b.x === 'number' && typeof b.y === 'number' && typeof b.width === 'number' && typeof b.height === 'number') {
+      photoBbox = { x: b.x, y: b.y, width: b.width, height: b.height };
+    }
+  }
+  return { info, photoBbox };
 }
 
 // ---------------------------------------------------------------------------
