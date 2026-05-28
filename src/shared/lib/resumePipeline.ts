@@ -521,6 +521,14 @@ async function visionParseBatch(
       if (result && (result.name || result.phone || result.email)) {
         return mapVisionResult(result);
       }
+      // Log raw response to debug why Vision LLM returned empty fields
+      if (result._rawResponse) {
+        console.warn('[Pipeline] Vision LLM returned empty fields. Raw response:', String(result._rawResponse).slice(0, 1000));
+      } else if (result._parseFailed) {
+        // already logged above
+      } else {
+        console.warn('[Pipeline] Vision LLM returned no usable data:', JSON.stringify(result).slice(0, 500));
+      }
       return null;
     } catch (e) {
       if (e instanceof DOMException && e.name === 'AbortError') {

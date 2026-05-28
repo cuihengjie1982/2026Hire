@@ -199,7 +199,7 @@ export const proxy = async (req: Request, _userId: string, _userRole: string): P
       if (!parsed.name && !parsed.phone && !parsed.email) {
         console.warn('[parse-resume-vision] Parsed result has no name/phone/email. Raw response:', raw.slice(0, 500));
       }
-      return jsonRes({ modelUsed: visionConfig.model_name, provider: visionConfig.provider, ...parsed });
+      return jsonRes({ modelUsed: visionConfig.model_name, provider: visionConfig.provider, ...parsed, _rawResponse: raw.slice(0, 3000) });
     }
 
     return jsonRes({ error: `Unknown action: ${action}` }, 400);
