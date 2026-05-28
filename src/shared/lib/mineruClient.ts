@@ -146,17 +146,17 @@ export const renderPdfPagesAsImages = async (arrayBuffer: ArrayBuffer): Promise<
 
   const pdf = await PDFJS.getDocument({data: new Uint8Array(arrayBuffer)}).promise;
   const pageImages: string[] = [];
-  const maxPages = Math.min(pdf.numPages, 5); // limit to 5 pages to avoid token limits
+  const maxPages = Math.min(pdf.numPages, 3); // limit to 3 pages to reduce payload size
 
   for (let i = 1; i <= maxPages; i++) {
     const page = await pdf.getPage(i);
-    const scale = 2.0; // 2x resolution for better OCR quality
+    const scale = 1.5; // balanced resolution vs payload size
     const viewport = page.getViewport({scale});
     const canvas = document.createElement('canvas');
     canvas.height = viewport.height;
     canvas.width = viewport.width;
     await page.render({canvasContext: canvas.getContext('2d')!, viewport} as any).promise;
-    pageImages.push(canvas.toDataURL('image/jpeg', 0.85).split(',')[1]); // strip data URI prefix
+    pageImages.push(canvas.toDataURL('image/jpeg', 0.75).split(',')[1]); // strip data URI prefix
   }
   return pageImages;
 };

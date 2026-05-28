@@ -487,7 +487,7 @@ async function aiTextParse(
   }
 }
 
-/** 批量 Vision LLM 解析 — 一次发送所有图片到 Edge Function ai-proxy */
+/** 批量 Vision LLM 解析 — 分批发送到 Edge Function ai-proxy，超过 2 页时分片避免请求体过大 */
 async function visionParseBatch(
   images: string[],
   mimeType: string,
@@ -497,48 +497,61 @@ async function visionParseBatch(
     ? '/api/ai/vision-parse'
     : `${API_BASE_URL}/functions/v1/embox-api/ai-proxy`;
 
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 180000);
+  const tryBatch = async (chunk: string[]): Promise<VisionParseResult | null> => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 180000);
+    try {
+      const resp = await fetch(edgeUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(authToken ? {'Authorization': `Bearer ${authToken}`} : {}),
+        },
+        body: JSON.stringify({ action: 'parse-resume-vision', images: chunk, mimeType }),
+        signal: controller.signal,
+      });
 
-  // 一次性发送所有页面到后端
-  try {
-    const resp = await fetch(edgeUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(authToken ? {'Authorization': `Bearer ${authToken}`} : {}),
-      },
-      body: JSON.stringify({ action: 'parse-resume-vision', images, mimeType }),
-      signal: controller.signal,
-    });
+      if (!resp.ok) return null;
+      const result = await resp.json() as Record<string, unknown>;
 
-    if (!resp.ok) return null;
-    const result = await resp.json() as Record<string, unknown>;
+      if (result._parseFailed) {
+        console.warn('[Pipeline] Vision _parseFailed:', result._parseError, '| model:', result.modelUsed);
+      }
 
-    // Log parse failures from Edge Function for diagnostics
-    if (result._parseFailed) {
-      console.warn('[Pipeline] Vision batch _parseFailed:', result._parseError, '| model:', result.modelUsed, '| provider:', result.provider);
-    }
-
-    if (result && (result.name || result.phone || result.email)) {
+      if (result && (result.name || result.phone || result.email)) {
+        return mapVisionResult(result);
+      }
+      return null;
+    } catch (e) {
+      if (e instanceof DOMException && e.name === 'AbortError') {
+        console.warn('[Pipeline] Vision chunk timed out (180s)');
+      } else {
+        console.warn('[Pipeline] Vision chunk failed:', e);
+      }
+      return null;
+    } finally {
       clearTimeout(timeoutId);
-      return mapVisionResult(result);
     }
-  } catch (e) {
-    if (e instanceof DOMException && e.name === 'AbortError') {
-      console.warn('[Pipeline] Vision batch timed out (180s)');
-    } else {
-      console.warn('[Pipeline] Vision batch failed, falling back to per-page:', e);
-    }
-  } finally {
-    clearTimeout(timeoutId);
+  };
+
+  // Try full batch first (if ≤2 pages)
+  if (images.length <= 2) {
+    const result = await tryBatch(images);
+    if (result) return result;
   }
 
-  // 批量失败时降级为逐页调用
+  // If >2 pages or full batch failed, try chunks of 2
+  for (let i = 0; i < images.length; i += 2) {
+    const chunk = images.slice(i, i + 2);
+    const result = await tryBatch(chunk);
+    if (result) return result;
+  }
+
+  // Fallback: single page
   for (let i = 0; i < images.length; i++) {
     try {
       const result = await visionParseSingle(images[i], mimeType, authToken);
-      if (result && result.info.name) return result;
+      if (result && (result.info.name || result.info.phone || result.info.email)) return result;
     } catch (e) {
       console.warn(`[Pipeline] Vision page ${i + 1} failed:`, e);
     }
