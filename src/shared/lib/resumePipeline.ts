@@ -708,6 +708,10 @@ export async function parseResume(
       photoBase64 = visionResult.photoBase64;
       visionLlmUsed = stages.includes('visionParse');
       contentMd = buildContentMd(parsedInfo);
+      // CRITICAL: Assign cropped photo to parsedInfo so it shows on candidate cards
+      if (photoBase64) {
+        parsedInfo.photoBase64 = photoBase64;
+      }
     }
   } else {
     // === TEXT_PATH ===
@@ -725,6 +729,9 @@ export async function parseResume(
       if (visionResult.info.name || visionResult.info.phone) {
         parsedInfo = mergeResults(visionResult.info, parsedInfo);
         photoBase64 = visionResult.photoBase64 || photoBase64;
+        if (photoBase64 && !parsedInfo.photoBase64) {
+          parsedInfo.photoBase64 = photoBase64;
+        }
         finalRoute = 'vision_fallback';
       }
       visionLlmUsed = stages.includes('visionParse');

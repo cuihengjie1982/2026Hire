@@ -385,9 +385,14 @@ export const importResumes = async (
 
         // Populate rawText so AI agents can process this candidate
         parsedInfo.rawText = contentMd || '';
+        // Assign cropped photo to parsedInfo so it renders on candidate cards
+        if (photoBase64 && !parsedInfo.photoBase64) {
+          parsedInfo.photoBase64 = photoBase64;
+        }
 
         console.log(`[Import] ${file.name}: route=${metadata.route}, quality=${metadata.qualityScore}(${metadata.qualityLevel}), ` +
-          `${metadata.totalDurationMs}ms, stages=${metadata.stagesUsed.join('→')}`);
+          `${metadata.totalDurationMs}ms, stages=${metadata.stagesUsed.join('→')}` +
+          `${photoBase64 ? ', photoExtracted' : ''}`);
 
         // Calculate score if position details available
         let scoreResult: ScoreResult | null = null;
@@ -497,9 +502,14 @@ export const importResumes = async (
 
       // Populate rawText so AI agents can process this candidate
       parsedInfo.rawText = contentMd || '';
+      // Assign cropped photo to parsedInfo so it renders on candidate cards
+      if (photoBase64 && !parsedInfo.photoBase64) {
+        parsedInfo.photoBase64 = photoBase64;
+      }
 
       console.log(`[Import] ${file.name}: route=${metadata.route}, quality=${metadata.qualityScore}(${metadata.qualityLevel}), ` +
-        `${metadata.totalDurationMs}ms, stages=${metadata.stagesUsed.join('→')}`);
+        `${metadata.totalDurationMs}ms, stages=${metadata.stagesUsed.join('→')}` +
+        `${photoBase64 ? ', photoExtracted' : ''}`);
 
       const scoreResult = positionDetail ? calculateResumeScore(parsedInfo, positionDetail) : null;
       if (scoreResult) scoreResults.push(scoreResult);

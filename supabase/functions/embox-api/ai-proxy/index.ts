@@ -150,22 +150,23 @@ export const proxy = async (req: Request, _userId: string, _userRole: string): P
 
       visionConfig.temperature = 0.1;
       visionConfig.max_tokens = 4096;
-      const systemPrompt = `你是一个简历信息提取助手。用户会发送简历的图片（可能有多页），请从图片中提取结构化信息，以 JSON 格式返回。
+      const systemPrompt = `你是一个简历信息提取助手。用户会发送简历的图片（可能有多页），请仔细查看每一页的每一个文字，提取所有能找到的结构化信息，以 JSON 格式返回。
 
-必须返回以下字段：
-- name: 姓名
-- gender: 性别
-- ageOrBirth: 年龄或出生日期
-- phone: 手机号码（一定要仔细查找，通常标记为"手机"、"电话"、"联系方式"，格式如 138xxxx 或以 +86 开头）
-- email: 邮箱地址（一定要仔细查找，通常包含 @ 符号）
-- location: 所在地/城市
-- highestEducation: 最高学历（如：本科、硕士、博士、大专、高中）
-- school: 毕业院校
-- major: 专业
-- expectedSalary: 期望薪资
-- currentlyEmployed: 当前是否在职
-- availability: 到岗时间
-- skills: 技能列表（数组，最多8个）
+**重要：宁可返回空字符串也不要遗漏任何能找到的信息。请逐一检查以下字段：**
+
+- name: 姓名（通常在简历顶部最显眼位置，字号最大。中文2-4字，如"张三"、"欧阳娜娜"。一定要找到！）
+- gender: 性别（"男"或"女"，通常在基本信息区）
+- ageOrBirth: 年龄或出生日期（如"1990-05"、"28岁"）
+- phone: 手机号码（仔细找！通常在基本信息区或联系方式区，格式如 138xxxxxxx 或 +86-xxx。识别所有11位手机号）
+- email: 邮箱地址（仔细找！包含 @ 符号，如 zhangsan@example.com。可能在联系方式区或页眉页脚）
+- location: 所在地/城市（如"深圳"、"上海"、"北京"）
+- highestEducation: 最高学历（如：本科、硕士、博士、大专、高中。通常在教育经历区）
+- school: 毕业院校（学校全名，在教育经历区）
+- major: 专业（如"计算机科学与技术"，在教育经历区）
+- expectedSalary: 期望薪资（如"15K-20K"、"面议"）
+- currentlyEmployed: 当前是否在职（如"在职"、"离职"、"应届"）
+- availability: 到岗时间（如"随时"、"一个月内"）
+- skills: 技能列表（数组，最多8个。如["Java", "Python", "项目管理"]）
 - workExperience: 工作经历（数组，每个元素：{company, role, period, desc}）
 - honors: 荣誉/证书（数组）
 - photoBbox: 简历照片在第一页的位置，格式为 {x, y, width, height}，数值为占整页宽高的比例（0-1之间）。例如右上角一寸照通常是 {x:0.72, y:0.08, width:0.22, height:0.28}。如果简历中没有照片，返回 null。

@@ -332,11 +332,15 @@ async function callOpenAIVision(
   }
 
   const result = await response.json() as Record<string, any>;
+  // Same fallback chain as callLLM — different providers return different shapes
   const text = result?.choices?.[0]?.message?.content
-    ?? result?.output?.choices?.[0]?.message?.content
-    ?? result?.result?.choices?.[0]?.message?.content;
+    ?? result?.output?.choices?.[0]?.message?.content     // some GLM versions
+    ?? result?.result?.choices?.[0]?.message?.content     // alternative wrapper
+    ?? (typeof result?.output?.text === 'string' ? result.output.text : null)  // GLM chatglm format
+    ?? (typeof result?.result === 'string' ? result.result : null)  // simple string result
+    ?? (typeof result?.content === 'string' ? result.content : null); // direct content
 
-  if (text) return text;
+  if (typeof text === 'string') return text;
   console.error('[VisionLLM] Unrecognized response format:', JSON.stringify(result).slice(0, 500));
   throw new Error('Unexpected vision LLM response format');
 }
