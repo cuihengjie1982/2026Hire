@@ -370,18 +370,20 @@ export const CandidateDetailModal = ({ isOpen, onClose, candidate, positionDetai
       text('/100', circX, circY + 18 * S, `${10 * S}px sans-serif`, '#9ca3af');
       ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
 
-      // Right: grade + description
+      // Right: Fit Score title + grade badge + description (stacked layout, no overlap)
       const rightX = circX + circR + 30 * S;
-      const rightY = y + 34 * S;
-      // Grade badge
+      const rightY = y + 22 * S;
+      // Fit Score title
+      text('Fit Score 综合评分', rightX, rightY, `bold ${15 * S}px "PingFang SC","Microsoft YaHei",sans-serif`, '#111827');
+      // Grade badge (below title, with spacing)
       const gradeColor = grade === 'A' ? '#10b981' : grade === 'B+' ? '#3b82f6' : grade === 'B' ? '#0ea5e9' : '#9ca3af';
-      rr(rightX, rightY, 56 * S, 28 * S, 6 * S, gradeColor);
+      const badgeY = rightY + 22 * S;
+      rr(rightX, badgeY, 48 * S, 24 * S, 5 * S, gradeColor);
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      text(grade, rightX + 28 * S, rightY + 15 * S, `bold ${16 * S}px sans-serif`, '#ffffff');
+      text(grade, rightX + 24 * S, badgeY + 13 * S, `bold ${14 * S}px sans-serif`, '#ffffff');
       ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-
-      text('Fit Score 综合评分', rightX + 68 * S, rightY + 10 * S, `bold ${15 * S}px "PingFang SC","Microsoft YaHei",sans-serif`, '#111827');
-      text(`基于岗位「${candidate?.positionName || '未关联'}」的标准配置自动评分`, rightX, rightY + 36 * S, `${12 * S}px "PingFang SC","Microsoft YaHei",sans-serif`, '#6b7280');
+      // Description (below badge)
+      text(`基于岗位「${candidate?.positionName || '未关联'}」的标准配置自动评分`, rightX, badgeY + 38 * S, `${11 * S}px "PingFang SC","Microsoft YaHei",sans-serif`, '#6b7280');
 
       y += cardH + 20 * S;
 
