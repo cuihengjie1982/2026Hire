@@ -23,7 +23,10 @@ export interface ContentPart {
 // Resilient fetch wrapper — timeout + retry with exponential backoff
 // ---------------------------------------------------------------------------
 
-const RETRYABLE_STATUSES = new Set([429, 502, 503, 504]);
+// 429 (rate limit) is intentionally NOT retried — the browser-side pipeline
+// handles rate limiting with proper delays between attempts. Retrying 429
+// server-side only burns more rate limit tokens.
+const RETRYABLE_STATUSES = new Set([502, 503, 504]);
 
 async function fetchWithRetry(
   url: string,
@@ -290,17 +293,20 @@ async function callOpenAIVision(
   const baseUrl = config.base_url || defaultBaseUrl(config.provider || 'openai');
 
   // Build content array from parts
+  // GLM-4V expects raw base64 (no data URI prefix); GLM-5V and others use data URI
+  const isZhipu4V = (config.provider || '').toLowerCase() === 'zhipu' && (config.model_name || '').includes('glm-4v');
   const content: Array<Record<string, unknown>> = parts.map(p => {
     if (p.type === 'text') {
       return {type: 'text', text: p.text ?? ''};
     }
     // image
     const mime = p.image?.media_type ?? 'image/jpeg';
+    const url = isZhipu4V
+      ? (p.image?.data ?? '')  // raw base64 for GLM-4V
+      : `data:${mime};base64,${p.image?.data ?? ''}`;  // data URI for GLM-5V, OpenAI & others
     return {
       type: 'image_url',
-      image_url: {
-        url: `data:${mime};base64,${p.image?.data ?? ''}`,
-      },
+      image_url: { url },
     };
   });
 

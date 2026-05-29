@@ -104,21 +104,38 @@ export const textToMarkdown = (text: string): string => {
   // Section headers to skip (standalone)
   const skipSections = ['基本信息', '教育背景', '实习经历', '校园经历', '工作经历', '技能特长', '自我评价', '个人简历', 'Personal resume', 'RESUME'];
 
-  // Field pattern: label + colon/space + value
+  // Field pattern: label + colon/space + value (inline, same-line)
   const fieldPattern = /^([\u4e00-\u9fa5]{1,6})[：:、\s]+(.+)$/;
 
-  for (const line of lines) {
-    const trimmed = line.trim();
+  // Known field labels that indicate a value on the next line
+  // (pdftotext often outputs label and value on separate lines)
+  const KNOWN_LABELS = new Set([
+    '姓名', '名字', '电话', '手机', '邮箱', '邮件', '性别', '年龄', '出生',
+    '出生年月', '居住地', '所在地', '所在城市', '毕业院校', '学校',
+    '专业', '学历', '最高学历', '期望薪资', '工作地点', '意向岗位',
+  ]);
+  // Section-like labels that should NOT merge with next line
+  const SECTION_LABELS = new Set([
+    '基本信息', '教育背景', '教育经历', '实习经历', '校园经历', '工作经历',
+    '项目经历', '项目经验', '专业技能', '技能特长', '相关技能', '荣誉证书',
+    '荣誉', '获奖情况', '兴趣爱好', '个人优势', '语言能力', '培训经历',
+    '证书资质', '联系方式', '工作职责', '工作内容', '项目描述', '自我评价',
+  ]);
+  // Label-only pattern: a line that is purely a known field label (no colon/value)
+  const labelOnlyPattern = /^([\u4e00-\u9fa5]{1,6})$/;
+
+  for (let i = 0; i < lines.length; i++) {
+    const trimmed = lines[i].trim();
     if (!trimmed || trimmed.length > 200) continue;
 
-    const skip = skipSections.some(s => trimmed === s || (trimmed.includes(s) && trimmed.length < 20));
-    if (skip) continue;
+    const isSection = skipSections.some(s => trimmed === s || (trimmed.includes(s) && trimmed.length < 20));
+    if (isSection) continue;
 
-    // Skip lines that look like binary garbage remnants (short random alphanumeric + special chars)
+    // Skip lines that look like binary garbage remnants
     if (/^[a-zA-Z0-9+/=_~\-]{3,}$/.test(trimmed) && !/[@.]/.test(trimmed)) continue;
-    // Skip very short lines that are pure gibberish (2-4 chars of mixed case/numbers with no meaning)
     if (trimmed.length <= 4 && /^[a-zA-Z0-9_~+\-=]+$/.test(trimmed) && /[a-z]/.test(trimmed) && /[A-Z0-9]/.test(trimmed)) continue;
 
+    // Try inline field match first (label：value on same line)
     const fieldMatch = trimmed.match(fieldPattern);
     if (fieldMatch) {
       const [, fieldName, fieldValue] = fieldMatch;
@@ -126,9 +143,29 @@ export const textToMarkdown = (text: string): string => {
       if (cleanValue && cleanValue.length < 100) {
         markdown += `${fieldName}：${cleanValue}\n`;
       }
-    } else {
-      markdown += `${trimmed}\n`;
+      continue;
     }
+
+    // Multi-line label-value merge: if this line is a known field label (e.g., "姓名")
+    // and the NEXT line looks like a value, merge them into "label：value"
+    const labelOnlyMatch = trimmed.match(labelOnlyPattern);
+    if (labelOnlyMatch && KNOWN_LABELS.has(labelOnlyMatch[1]) && i + 1 < lines.length) {
+      const nextLine = lines[i + 1].trim();
+      // Next line should be a value candidate: not a label, not a section header, not empty, not too long
+      if (nextLine &&
+          !SECTION_LABELS.has(nextLine) &&
+          !KNOWN_LABELS.has(nextLine) &&
+          !labelOnlyPattern.test(nextLine) &&
+          nextLine.length < 100 &&
+          !/^[a-zA-Z0-9+/=_~\-]{3,}$/.test(nextLine)) {
+        markdown += `${labelOnlyMatch[1]}：${nextLine}\n`;
+        i++; // skip the next line since we consumed it
+        continue;
+      }
+    }
+
+    // Regular line — output as-is
+    markdown += `${trimmed}\n`;
   }
 
   // If we didn't extract much, use cleaned raw text

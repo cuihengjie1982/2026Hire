@@ -78,10 +78,13 @@ export async function quickTextProbe(file: File): Promise<string> {
   if (ext !== 'pdf') return '';
 
   try {
-    const PDFParse = (await import('pdf-parse')).PDFParse;
+    const { PDFParse } = await import('pdf-parse');
     const data = new Uint8Array(await file.arrayBuffer());
-    // @ts-expect-error pdf-parse v2 API
-    const result = await PDFParse.getText(data);
+    // pdf-parse v2 web version uses instance API (new PDFParse(data).getText()),
+    // not the static API (PDFParse.getText(data)) from the Node version.
+    // Using the wrong API silently returns empty text in production (Vercel).
+    const pdf = new PDFParse(data);
+    const result = await pdf.getText();
     return result.text || '';
   } catch {
     return '';
@@ -129,12 +132,14 @@ export async function routeFile(file: File): Promise<RouteDecision> {
 // ---------------------------------------------------------------------------
 
 const QUALITY_WEIGHTS: Array<{field: keyof ParsedResumeInfo; weight: number; label: string}> = [
-  {field: 'name', weight: 35, label: '姓名'},
-  {field: 'phone', weight: 30, label: '电话'},
+  {field: 'name', weight: 25, label: '姓名'},
+  {field: 'phone', weight: 20, label: '电话'},
   {field: 'email', weight: 15, label: '邮箱'},
-  {field: 'school', weight: 10, label: '学校'},
-  {field: 'highestEducation', weight: 5, label: '学历'},
+  {field: 'school', weight: 15, label: '学校'},
+  {field: 'highestEducation', weight: 10, label: '学历'},
+  {field: 'major', weight: 5, label: '专业'},
   {field: 'skills', weight: 5, label: '技能'},
+  {field: 'workExperience', weight: 5, label: '工作经历'},
 ];
 
 export function assessQuality(info: ParsedResumeInfo): {
@@ -216,26 +221,50 @@ export function complementaryExtract(
   if (!rawText) return info;
   const result = {...info};
 
-  // 补充电话
+  // Normalize rawText: collapse whitespace but preserve meaningful structure
+  const normalized = rawText.replace(/\s+/g, ' ');
+
+  // 补充电话 — labeled + bare 11-digit Chinese mobile + +86 prefix
   if (!result.phone) {
-    const phoneMatch = rawText.match(/(?:电话|手机|联系|Mobile)[：:、\s]*([+\d（）\(\)\-]{7,})/i)
-      || rawText.match(/(1[3-9]\d{9})/);
+    let phoneMatch = normalized.match(/(?:电话|手机|联系|Mobile|Tel|Phone|联系方式)[：:、\s]*([+\d（）\(\)\-]{7,18})/i);
+    if (!phoneMatch) {
+      // Bare Chinese mobile: 1[3-9]xxxxxxxxx
+      phoneMatch = normalized.match(/(?:^|\s)(1[3-9]\d{9})(?:\s|$)/);
+    }
+    if (!phoneMatch) {
+      // +86 prefix
+      phoneMatch = normalized.match(/(?:\+86[-\s]?)?(1[3-9]\d{9})/);
+    }
+    if (!phoneMatch) {
+      // Also try rawText (non-normalized) for multi-line labeled phone
+      phoneMatch = rawText.match(/(?:电话|手机|联系|Mobile)[：:、\s]*\n?\s*([+\d（）\(\)\-]{7,18})/i);
+    }
     if (phoneMatch) {
-      result.phone = phoneMatch[1].replace(/[\-（）\(\)]/g, '');
+      result.phone = phoneMatch[1].replace(/[\-（）\(\)\s]/g, '');
     }
   }
 
-  // 补充邮箱
+  // 补充邮箱 — labeled + bare email
   if (!result.email) {
-    const emailMatch = rawText.match(/([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})/);
+    let emailMatch = normalized.match(/(?:邮箱|邮件|Email|E-mail)[：:、\s]*([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})/i);
+    if (!emailMatch) {
+      // Bare email anywhere in text
+      emailMatch = normalized.match(/([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})/);
+    }
+    if (!emailMatch) {
+      // Multi-line: label on one line, email on next
+      emailMatch = rawText.match(/(?:邮箱|邮件|Email|E-mail)[：:、\s]*\n?\s*([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})/i);
+    }
     if (emailMatch) result.email = emailMatch[1];
   }
 
-  // 补充姓名（2-4 个中文字符，排除常见非名字词）
+  // 补充姓名 — labeled + bare 2-4 char Chinese name
   if (!result.name) {
     const namePatterns = [
-      /(?:姓名|Name)[：:、\-\s]+([\u4e00-\u9fa5]{2,4})/i,
+      /(?:姓名|Name|名字)[：:、\-\s]+([\u4e00-\u9fa5]{2,4})/i,
       /(?:姓\s*名)[：:、\-\s]+([\u4e00-\u9fa5]{2,4})/i,
+      // Multi-line: 姓名 on one line, name on next (common in pdftotext)
+      /姓\s*名\s*\n\s*([\u4e00-\u9fa5]{2,4})/i,
     ];
     const skipNames = new Set(['全职', '兼职', '实习', '临时', '外包', '派遣']);
     for (const pat of namePatterns) {
@@ -243,6 +272,15 @@ export function complementaryExtract(
       if (m && !skipNames.has(m[1])) {
         result.name = m[1];
         break;
+      }
+    }
+    // Fallback: first 2-4 char Chinese sequence in the first 200 chars of rawText
+    // that isn't a skip word (resumes typically have name at the top)
+    if (!result.name) {
+      const headText = rawText.slice(0, 200);
+      const bareNameMatch = headText.match(/(?:^|\n)\s*([\u4e00-\u9fa5]{2,4})\s*(?:\n|$)/);
+      if (bareNameMatch && !skipNames.has(bareNameMatch[1])) {
+        result.name = bareNameMatch[1];
       }
     }
   }
@@ -284,12 +322,12 @@ async function extractViaTextPath(
     contentMd = textToMarkdown(probeText);
     stages.push('textProbe');
   } else if (!contentMd) {
-    // 最后尝试 pdf-parse
+    // 最后尝试 pdf-parse（web 版本使用 instance API）
     try {
-      const PDFParse = (await import('pdf-parse')).PDFParse;
+      const { PDFParse } = await import('pdf-parse');
       const data = new Uint8Array(await file.arrayBuffer());
-      // @ts-expect-error pdf-parse v2 API
-      const pdfResult = await PDFParse.getText(data);
+      const pdf = new PDFParse(data);
+      const pdfResult = await pdf.getText();
       if (pdfResult.text) {
         contentMd = textToMarkdown(pdfResult.text);
         stages.push('pdfParse');
@@ -542,21 +580,20 @@ async function visionParseBatch(
     }
   };
 
-  // Try full batch first (if ≤2 pages)
-  if (images.length <= 2) {
-    const result = await tryBatch(images);
-    if (result) return result;
-  }
+  // Helper: pause between retries to avoid rate limiting (Zhipu rate limit is ~30 RPM)
+  const delay = (ms: number) => new Promise(r => setTimeout(r, ms));
 
-  // If >2 pages or full batch failed, try chunks of 2
-  for (let i = 0; i < images.length; i += 2) {
-    const chunk = images.slice(i, i + 2);
-    const result = await tryBatch(chunk);
-    if (result) return result;
-  }
+  // Try full batch first
+  const batchResult = await tryBatch(images);
+  if (batchResult) return batchResult;
 
-  // Fallback: single page
+  // Rate-limited or failed — wait before fallback attempts
+  // Zhipu rate limit is ~30 RPM, so 5s gives the limiter a full window to reset
+  await delay(5000);
+
+  // Fallback: single page with delays between each
   for (let i = 0; i < images.length; i++) {
+    if (i > 0) await delay(3000); // pause between pages (3s for rate limit reset)
     try {
       const result = await visionParseSingle(images[i], mimeType, authToken);
       if (result && (result.info.name || result.info.phone || result.info.email)) return result;
@@ -753,7 +790,7 @@ export async function parseResume(
 
     // 质量检查：如果 TEXT_PATH 结果不好，升级到 VISION_PATH（仅非 mock 模式）
     const quality = assessQuality(parsedInfo);
-    if (quality.score < 40 && !USE_MOCK_API) {
+    if (quality.score < 65 && !USE_MOCK_API) {
       console.log(`[Pipeline] TEXT_PATH quality=${quality.score} (< 40), escalating to VISION_PATH`);
       const visionResult = await extractViaVisionPath(file, config, stages);
       if (visionResult.info.name || visionResult.info.phone) {
@@ -765,7 +802,7 @@ export async function parseResume(
         finalRoute = 'vision_fallback';
       }
       visionLlmUsed = stages.includes('visionParse');
-    } else if (quality.score < 40 && USE_MOCK_API) {
+    } else if (quality.score < 65 && USE_MOCK_API) {
       console.log(`[Pipeline] TEXT_PATH quality=${quality.score} (< 40), skipping vision escalation (mock mode)`);
       stages.push('vision:skipped(mock)');
     }

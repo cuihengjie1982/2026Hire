@@ -28,7 +28,7 @@ async function resolveLLMConfig(supabase: ReturnType<typeof createSupabaseAdmin>
   // For vision actions, prefer a vision-capable model
   if (!configRow && forVision) {
     // Known vision model name substrings — order matters (most specific first)
-    const visionPatterns = ['glm-4v', 'MiniMax-01', 'MiniMax-VL', 'gpt-4o', 'gpt-4v', 'vision', 'gemini'];
+    const visionPatterns = ['glm-5v', 'glm-4v', 'MiniMax-01', 'MiniMax-VL', 'gpt-4o', 'gpt-4v', 'vision', 'gemini'];
     for (const pattern of visionPatterns) {
       configRow = await getRow(
         supabase.from('ai_model_configs')
@@ -62,6 +62,28 @@ async function resolveLLMConfig(supabase: ReturnType<typeof createSupabaseAdmin>
 
 function jsonRes(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
+}
+
+/** Fire-and-forget debug log to database */
+function debugLog(
+  supabase: ReturnType<typeof createSupabaseAdmin>,
+  action: string,
+  provider: string,
+  modelName: string,
+  rawResponse: string,
+  parsedJson: string,
+  errorMessage: string,
+) {
+  supabase.from('ai_debug_logs').insert({
+    action,
+    provider,
+    model_name: modelName,
+    raw_response: rawResponse?.slice(0, 10000) ?? null,
+    parsed_json: parsedJson?.slice(0, 5000) ?? null,
+    error_message: errorMessage?.slice(0, 2000) ?? null,
+  }).then(({ error }) => {
+    if (error) console.warn('[debugLog] Insert failed:', error.message);
+  });
 }
 
 /**
@@ -101,7 +123,9 @@ export const proxy = async (req: Request, _userId: string, _userRole: string): P
       const systemPrompt = buildSystemPrompt(body.aiPrompt || '', body.scoringRules || []);
       const userMessage = buildUserMessage(body.resumeText, body.positionName || '');
       const raw = await callLLM(config, systemPrompt, userMessage);
-      return jsonRes({ candidateId: body.candidateId ?? null, modelUsed: config.model_name, provider: config.provider, ...parseJSONResponse(raw) });
+      const parsed = parseJSONResponse(raw);
+      debugLog(supabase, 'screen-resume', config.provider, config.model_name, raw, JSON.stringify(parsed), '');
+      return jsonRes({ candidateId: body.candidateId ?? null, modelUsed: config.model_name, provider: config.provider, ...parsed });
     }
 
     if (action === 'rank-candidates') {
@@ -111,13 +135,15 @@ export const proxy = async (req: Request, _userId: string, _userRole: string): P
       const systemPrompt = buildRankingSystemPrompt(body.aiPrompt || '', body.scoringRules || []);
       const userMessage = buildRankingUserMessage(indexed, body.positionName || '');
       const raw = await callLLM(config, systemPrompt, userMessage);
-      return jsonRes({ modelUsed: config.model_name, provider: config.provider, ...parseJSONResponse(raw) });
+      const parsed2 = parseJSONResponse(raw);
+      debugLog(supabase, 'rank-candidates', config.provider, config.model_name, raw, JSON.stringify(parsed2), '');
+      return jsonRes({ modelUsed: config.model_name, provider: config.provider, ...parsed2 });
     }
 
     if (action === 'parse-resume') {
       if (!body.resumeText || body.resumeText.trim().length < 20) return jsonRes({ error: 'resumeText required (min 20 chars)' }, 400);
       config.temperature = 0.1;
-      config.max_tokens = 2048;
+      config.max_tokens = 4096;
       const systemPrompt = `你是一个简历信息提取助手。从用户提供的简历文本中提取结构化信息，以 JSON 格式返回。
 
 必须返回以下字段（如无则留空）：name, gender, ageOrBirth, phone, email, location, highestEducation, school, major, expectedSalary, currentlyEmployed, availability, photoBase64, skills(数组最多8个), workExperience(数组{company,role,period,desc}), honors(数组)。
@@ -127,15 +153,18 @@ export const proxy = async (req: Request, _userId: string, _userRole: string): P
       let raw: string;
       try {
         raw = await callLLM(config, systemPrompt, userMessage);
+        const p3 = parseJSONResponse(raw);
+        debugLog(supabase, 'parse-resume', config.provider, config.model_name, raw, JSON.stringify(p3), '');
+        return jsonRes({ modelUsed: config.model_name, provider: config.provider, ...p3 });
       } catch (e) {
         console.error('[parse-resume] LLM call failed:', e);
+        debugLog(supabase, 'parse-resume', config.provider, config.model_name, '', '', e instanceof Error ? e.message : String(e));
         // Return a 200 with empty result so the frontend's aiParseResume fallback kicks in
         return jsonRes({ name: '', gender: '', ageOrBirth: '', phone: '', email: '', location: '',
           highestEducation: '', school: '', major: '', skills: [], workExperience: [],
           honors: [], expectedSalary: '', currentlyEmployed: '', availability: '', photoBase64: '',
           _parseFailed: true, _parseError: e instanceof Error ? e.message : String(e) });
       }
-      return jsonRes({ modelUsed: config.model_name, provider: config.provider, ...parseJSONResponse(raw) });
     }
 
     if (action === 'parse-resume-vision') {
@@ -149,7 +178,7 @@ export const proxy = async (req: Request, _userId: string, _userRole: string): P
       if (visionConfig.provider === 'mineru') return jsonRes({ error: 'MinerU is not a vision LLM provider' }, 400);
 
       visionConfig.temperature = 0.1;
-      visionConfig.max_tokens = 4096;
+      visionConfig.max_tokens = 8192;
       const systemPrompt = `你是一个简历信息提取助手。用户会发送简历的图片（可能有多页），请仔细查看每一页的每一个文字，提取所有能找到的结构化信息，以 JSON 格式返回。
 
 **重要：宁可返回空字符串也不要遗漏任何能找到的信息。请逐一检查以下字段：**
@@ -189,6 +218,7 @@ export const proxy = async (req: Request, _userId: string, _userRole: string): P
         console.log('[parse-resume-vision] Response length:', raw.length, '| first 300 chars:', raw.slice(0, 300));
       } catch (e) {
         console.error('[parse-resume-vision] Vision LLM call failed:', e);
+        debugLog(supabase, 'parse-resume-vision', visionConfig.provider, visionConfig.model_name, '', '', e instanceof Error ? e.message : String(e));
         return jsonRes({ name: '', gender: '', ageOrBirth: '', phone: '', email: '', location: '',
           highestEducation: '', school: '', major: '', skills: [], workExperience: [],
           honors: [], expectedSalary: '', currentlyEmployed: '', availability: '',
@@ -196,6 +226,7 @@ export const proxy = async (req: Request, _userId: string, _userRole: string): P
           _modelUsed: visionConfig.model_name, _provider: visionConfig.provider });
       }
       const parsed = parseJSONResponse(raw);
+      debugLog(supabase, 'parse-resume-vision', visionConfig.provider, visionConfig.model_name, raw, JSON.stringify(parsed), '');
       if (!parsed.name && !parsed.phone && !parsed.email) {
         console.warn('[parse-resume-vision] Parsed result has no name/phone/email. Raw response:', raw.slice(0, 500));
       }
