@@ -76,189 +76,333 @@ export const CandidateDetailModal = ({ isOpen, onClose, candidate, positionDetai
   // Use stored scoreResult or computed one
   const scoreResult = candidate?.scoreResult || computedScore;
 
-  // Download evaluation report as PDF — uses jsPDF directly for reliability
+  // Shared canvas renderer for both PNG and PDF downloads
+  const generateReportCanvas = (): HTMLCanvasElement | null => {
+    if (!scoreResult) return null;
+
+    const S = 2; // pixel scale for retina
+    const W = 780 * S;
+    const M = 48 * S;       // main margin
+    const CW = W - M * 2;   // content width
+    const R = 12 * S;       // card radius
+
+    const canvas = document.createElement('canvas');
+    canvas.width = W;
+    const ctx = canvas.getContext('2d')!;
+    let y = 0;
+
+    // ── helpers ──
+    const ensure = (need: number) => {
+      if (y + need > canvas.height) {
+        const snap = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        canvas.height = y + need + 200 * S;
+        ctx.fillStyle = '#f3f4f6';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.putImageData(snap, 0, 0);
+      }
+    };
+    const rr = (x: number, ry: number, w: number, h: number, r: number, fill: string) => {
+      ctx.fillStyle = fill; ctx.beginPath(); ctx.roundRect(x, ry, w, h, r); ctx.fill();
+    };
+    const rrStroke = (x: number, ry: number, w: number, h: number, r: number, stroke: string, lw: number) => {
+      ctx.strokeStyle = stroke; ctx.lineWidth = lw; ctx.beginPath(); ctx.roundRect(x, ry, w, h, r); ctx.stroke();
+    };
+    const text = (txt: string, x: number, ty: number, font: string, color: string) => {
+      ctx.fillStyle = color; ctx.font = font; ctx.fillText(txt, x, ty);
+    };
+
+    // ── init canvas ──
+    canvas.height = 2000 * S;
+    ctx.fillStyle = '#f3f4f6';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // ════════════════════════════════════════════════════
+    // HEADER BANNER
+    // ════════════════════════════════════════════════════
+    const bannerH = 130 * S;
+    const grad = ctx.createLinearGradient(0, 0, W, 0);
+    grad.addColorStop(0, '#1a4bc4');
+    grad.addColorStop(1, '#3b6de8');
+    rr(0, 0, W, bannerH, 0, '#1a4bc4');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, bannerH);
+
+    y = 44 * S;
+    text('候选人匹配评估报告', M, y, `bold ${28 * S}px "PingFang SC","Microsoft YaHei",sans-serif`, '#ffffff');
+    y += 36 * S;
+    text(`${candidate?.name || '候选人'}`, M, y, `bold ${22 * S}px "PingFang SC","Microsoft YaHei",sans-serif`, '#ffffff');
+    y += 28 * S;
+    text(`${candidate?.positionName || '未关联岗位'}  ·  ${new Date().toLocaleDateString('zh-CN')}`, M, y, `${13 * S}px "PingFang SC","Microsoft YaHei",sans-serif`, 'rgba(255,255,255,0.75)');
+
+    y = bannerH + 24 * S;
+
+    // ════════════════════════════════════════════════════
+    // SCORE CARD
+    // ════════════════════════════════════════════════════
+    const cardPad = 28 * S;
+    const cardH = 120 * S;
+    ensure(cardH + 20 * S);
+    rr(M, y, CW, cardH, R, '#ffffff');
+    rrStroke(M, y, CW, cardH, R, '#e5e7eb', 1 * S);
+
+    // Left: big score circle
+    const circR = 42 * S;
+    const circX = M + cardPad + circR;
+    const circY = y + cardH / 2;
+    ctx.beginPath(); ctx.arc(circX, circY, circR, 0, Math.PI * 2);
+    ctx.fillStyle = '#f0f4ff'; ctx.fill();
+    const scoreColor = totalScore >= 80 ? '#10b981' : totalScore >= 60 ? '#3b82f6' : totalScore >= 40 ? '#0ea5e9' : '#9ca3af';
+    ctx.beginPath(); ctx.arc(circX, circY, circR, 0, Math.PI * 2);
+    ctx.strokeStyle = scoreColor; ctx.lineWidth = 5 * S; ctx.stroke();
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    text(`${totalScore}`, circX, circY - 6 * S, `bold ${32 * S}px sans-serif`, '#111827');
+    text('/100', circX, circY + 18 * S, `${10 * S}px sans-serif`, '#9ca3af');
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+
+    // Right: Fit Score title + grade badge + description (stacked layout, no overlap)
+    const rightX = circX + circR + 30 * S;
+    const rightY = y + 22 * S;
+    text('Fit Score 综合评分', rightX, rightY, `bold ${15 * S}px "PingFang SC","Microsoft YaHei",sans-serif`, '#111827');
+    const gradeColor = grade === 'A' ? '#10b981' : grade === 'B+' ? '#3b82f6' : grade === 'B' ? '#0ea5e9' : '#9ca3af';
+    const badgeY = rightY + 22 * S;
+    rr(rightX, badgeY, 48 * S, 24 * S, 5 * S, gradeColor);
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    text(grade, rightX + 24 * S, badgeY + 13 * S, `bold ${14 * S}px sans-serif`, '#ffffff');
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+    text(`基于岗位「${candidate?.positionName || '未关联'}」的标准配置自动评分`, rightX, badgeY + 38 * S, `${11 * S}px "PingFang SC","Microsoft YaHei",sans-serif`, '#6b7280');
+
+    y += cardH + 20 * S;
+
+    // ════════════════════════════════════════════════════
+    // SECTION: 维度得分详情
+    // ════════════════════════════════════════════════════
+    if (scoreResult.dimensionScores.length > 0) {
+      text('维度得分详情', M, y + 14 * S, `bold ${16 * S}px "PingFang SC","Microsoft YaHei",sans-serif`, '#111827');
+      y += 32 * S;
+
+      scoreResult.dimensionScores.forEach((ds) => {
+        const pct = ds.maxScore > 0 ? Math.round((ds.score / ds.maxScore) * 100) : 0;
+        const rowH = 56 * S;
+        ensure(rowH + 10 * S);
+        rr(M, y, CW, rowH, 8 * S, '#ffffff');
+        rrStroke(M, y, CW, rowH, 8 * S, '#e5e7eb', 1 * S);
+
+        const innerX = M + 20 * S;
+        const innerY = y + 18 * S;
+        text(ds.dimension, innerX, innerY, `bold ${13 * S}px "PingFang SC","Microsoft YaHei",sans-serif`, '#111827');
+        const scoreTxt = `${ds.score}/${ds.maxScore}`;
+        ctx.font = `bold ${13 * S}px sans-serif`;
+        const scoreW = ctx.measureText(scoreTxt).width;
+        text(scoreTxt, M + CW - 20 * S - scoreW, innerY, `bold ${13 * S}px sans-serif`, '#1a4bc4');
+        const weightTxt = `权重 ${ds.weight}%`;
+        ctx.font = `${11 * S}px sans-serif`;
+        const weightW = ctx.measureText(weightTxt).width;
+        text(weightTxt, M + CW - 20 * S - scoreW - 12 * S - weightW, innerY, `${11 * S}px sans-serif`, '#9ca3af');
+
+        const barY = innerY + 14 * S;
+        const barW = CW - 40 * S;
+        const barH = 10 * S;
+        rr(innerX, barY, barW, barH, 5 * S, '#e5e7eb');
+        const fillW = barW * (pct / 100);
+        const fillColor = pct >= 80 ? '#10b981' : pct >= 60 ? '#3b82f6' : pct >= 40 ? '#0ea5e9' : '#9ca3af';
+        if (fillW > 0) rr(innerX, barY, fillW, barH, 5 * S, fillColor);
+
+        y += rowH + 10 * S;
+      });
+    }
+
+    // ════════════════════════════════════════════════════
+    // SECTION: 画像匹配
+    // ════════════════════════════════════════════════════
+    if (scoreResult.debugInfo?.profileDimension) {
+      const pd = scoreResult.debugInfo.profileDimension;
+      const allKw = [...pd.matched.map(k => ({w: k, m: true})), ...pd.unmatched.map(k => ({w: k, m: false}))];
+      if (allKw.length > 0) {
+        text('画像匹配', M, y + 14 * S, `bold ${16 * S}px "PingFang SC","Microsoft YaHei",sans-serif`, '#111827');
+        const badgeW2 = 48 * S;
+        rr(M + 100 * S, y + 2 * S, badgeW2, 18 * S, 4 * S, '#dbeafe');
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        text(`${pd.score} 分`, M + 100 * S + badgeW2 / 2, y + 11 * S, `bold ${11 * S}px sans-serif`, '#1a4bc4');
+        ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+        y += 30 * S;
+
+        const tagPadX = 12 * S;
+        const tagGap = 8 * S;
+        const tagLineH = 28 * S;
+        let tx = M + 16 * S;
+        allKw.forEach(({w: kw, m}) => {
+          ctx.font = `${11 * S}px "PingFang SC","Microsoft YaHei",sans-serif`;
+          const tw = ctx.measureText((m ? '✓ ' : '✗ ') + kw).width + tagPadX * 2;
+          if (tx + tw > M + CW - 16 * S) { tx = M + 16 * S; y += tagLineH + tagGap; ensure(tagLineH + tagGap); }
+          ensure(tagLineH);
+          rr(tx, y, tw, tagLineH, 6 * S, m ? '#ecfdf5' : '#f3f4f6');
+          rrStroke(tx, y, tw, tagLineH, 6 * S, m ? '#a7f3d0' : '#e5e7eb', 1 * S);
+          ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+          text((m ? '✓ ' : '✗ ') + kw, tx + tw / 2, y + tagLineH / 2, `${11 * S}px "PingFang SC","Microsoft YaHei",sans-serif`, m ? '#047857' : '#9ca3af');
+          ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+          tx += tw + tagGap;
+        });
+        y += tagLineH + 24 * S;
+      }
+    }
+
+    // ════════════════════════════════════════════════════
+    // SECTION: 各维度关键词
+    // ════════════════════════════════════════════════════
+    if (scoreResult.debugInfo?.dimensionDetails && scoreResult.debugInfo.dimensionDetails.length > 0) {
+      text('各维度关键词详情', M, y + 14 * S, `bold ${16 * S}px "PingFang SC","Microsoft YaHei",sans-serif`, '#111827');
+      y += 32 * S;
+
+      scoreResult.debugInfo.dimensionDetails.forEach((dd) => {
+        const matchedKw = dd.keywords.filter(k => dd.matched.includes(k));
+        const unmatchedKw = dd.keywords.filter(k => !dd.matched.includes(k));
+        const allDDKw = [...matchedKw.map(k => ({w: k, m: true})), ...unmatchedKw.map(k => ({w: k, m: false}))];
+
+        const innerPad = 18 * S;
+        const tagPadX2 = 10 * S;
+        const tagLineH2 = 24 * S;
+        const tagGap2 = 6 * S;
+        let tagRows = 1; let tmpX = 0;
+        ctx.font = `${10 * S}px "PingFang SC","Microsoft YaHei",sans-serif`;
+        allDDKw.forEach(({w: kw}) => {
+          const tw2 = ctx.measureText((matchedKw.includes(kw) ? '✓ ' : '✗ ') + kw).width + tagPadX2 * 2;
+          if (tmpX + tw2 > CW - innerPad * 2 - 32 * S) { tagRows++; tmpX = 0; }
+          tmpX += tw2 + tagGap2;
+        });
+        const cardH2 = innerPad + 20 * S + tagRows * (tagLineH2 + tagGap2) + innerPad;
+        ensure(cardH2 + 10 * S);
+
+        rr(M, y, CW, cardH2, R, '#ffffff');
+        rrStroke(M, y, CW, cardH2, R, '#e5e7eb', 1 * S);
+
+        const hY = y + innerPad + 13 * S;
+        text(dd.dimension, M + innerPad, hY, `bold ${13 * S}px "PingFang SC","Microsoft YaHei",sans-serif`, '#111827');
+        const scoreStr = `${dd.score} 分`;
+        ctx.font = `bold ${12 * S}px sans-serif`;
+        const scW = ctx.measureText(scoreStr).width;
+        text(scoreStr, M + CW - innerPad - scW, hY, `bold ${12 * S}px sans-serif`, '#1a4bc4');
+
+        let tY = hY + 18 * S;
+        let tX = M + innerPad;
+        allDDKw.forEach(({w: kw, m: ok}) => {
+          ctx.font = `${10 * S}px "PingFang SC","Microsoft YaHei",sans-serif`;
+          const label = (ok ? '✓ ' : '✗ ') + kw;
+          const tw3 = ctx.measureText(label).width + tagPadX2 * 2;
+          if (tX + tw3 > M + CW - innerPad) { tX = M + innerPad; tY += tagLineH2 + tagGap2; }
+          rr(tX, tY, tw3, tagLineH2, 5 * S, ok ? '#ecfdf5' : '#f9fafb');
+          ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+          text(label, tX + tw3 / 2, tY + tagLineH2 / 2, `${10 * S}px "PingFang SC","Microsoft YaHei",sans-serif`, ok ? '#047857' : '#9ca3af');
+          ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+          tX += tw3 + tagGap2;
+        });
+
+        y += cardH2 + 10 * S;
+      });
+    }
+
+    // ════════════════════════════════════════════════════
+    // SECTION: 候选人信息
+    // ════════════════════════════════════════════════════
+    {
+      text('候选人基本信息', M, y + 14 * S, `bold ${16 * S}px "PingFang SC","Microsoft YaHei",sans-serif`, '#111827');
+      y += 32 * S;
+
+      const infoItems = [
+        {label: '姓名', value: parsedInfo?.name || candidate?.name || '未知'},
+        {label: '电话', value: parsedInfo?.phone || '未知'},
+        {label: '邮箱', value: parsedInfo?.email || '未知'},
+        {label: '所在地', value: parsedInfo?.location || candidate?.location || '未知'},
+        {label: '学历', value: [parsedInfo?.school, parsedInfo?.highestEducation, parsedInfo?.major].filter(Boolean).join(' · ') || '未知'},
+        {label: '在职状态', value: parsedInfo?.currentlyEmployed || '未知'},
+      ];
+
+      const infoCardH = infoItems.length * 24 * S + 24 * S;
+      ensure(infoCardH);
+      rr(M, y, CW, infoCardH, R, '#ffffff');
+      rrStroke(M, y, CW, infoCardH, R, '#e5e7eb', 1 * S);
+
+      const labelW = 80 * S;
+      infoItems.forEach((item, idx) => {
+        const iy = y + 20 * S + idx * 24 * S;
+        rr(M + 16 * S, iy - 10 * S, labelW, 18 * S, 4 * S, '#f0f4ff');
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        text(item.label, M + 16 * S + labelW / 2, iy - 1 * S, `${11 * S}px "PingFang SC","Microsoft YaHei",sans-serif`, '#1a4bc4');
+        ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+        text(item.value, M + 16 * S + labelW + 12 * S, iy, `${12 * S}px "PingFang SC","Microsoft YaHei",sans-serif`, '#111827');
+      });
+
+      y += infoCardH + 20 * S;
+    }
+
+    // ════════════════════════════════════════════════════
+    // FOOTER
+    // ════════════════════════════════════════════════════
+    y += 8 * S;
+    ensure(40 * S);
+    ctx.strokeStyle = '#d1d5db'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(M, y); ctx.lineTo(W - M, y); ctx.stroke();
+    y += 16 * S;
+    text(`报告生成时间: ${new Date().toLocaleString('zh-CN')}`, M, y, `${10 * S}px "PingFang SC","Microsoft YaHei",sans-serif`, '#9ca3af');
+    const sysName = 'EM-BOX 招聘管理系统';
+    ctx.font = `${10 * S}px "PingFang SC","Microsoft YaHei",sans-serif`;
+    const sysW = ctx.measureText(sysName).width;
+    text(sysName, W - M - sysW, y, `${10 * S}px "PingFang SC","Microsoft YaHei",sans-serif`, '#9ca3af');
+    y += 20 * S;
+
+    // ── trim canvas to exact content height ──
+    const trimmed = document.createElement('canvas');
+    trimmed.width = W;
+    trimmed.height = y + 24 * S;
+    trimmed.getContext('2d')!.drawImage(canvas, 0, 0);
+    return trimmed;
+  };
+
+  // Download evaluation report as PDF — renders via canvas (中文支持) then embeds in PDF
   const downloadEvaluationPDF = async () => {
     if (!scoreResult) {
       alert('暂无评分数据，无法生成报告');
       return;
     }
     try {
-      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      const canvas = generateReportCanvas();
+      if (!canvas) return;
+
+      // Convert canvas to JPEG (lighter than PNG for embedding)
+      const imgData = canvas.toDataURL('image/jpeg', 0.92);
+      const imgW = canvas.width;
+      const imgH = canvas.height;
+
+      // Create PDF — A4 portrait
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'px', format: 'a4' });
       const pageW = pdf.internal.pageSize.getWidth();
-      const margin = 15;
-      const contentW = pageW - margin * 2;
-      let y = margin;
+      const pageH = pdf.internal.pageSize.getHeight();
+      const pdfMargin = 20; // px margin
+      const usableW = pageW - pdfMargin * 2;
+      const usableH = pageH - pdfMargin * 2;
 
-      // Helper: check page overflow and add new page
-      const checkPage = (needed: number) => {
-        if (y + needed > pdf.internal.pageSize.getHeight() - margin) {
-          pdf.addPage();
-          y = margin;
-        }
-      };
+      // Scale image to fit page width
+      const scale = usableW / imgW;
+      const scaledH = imgH * scale;
 
-      // Title
-      pdf.setFontSize(18);
-      pdf.setTextColor(26, 75, 196);
-      pdf.text(`${candidate?.name || '候选人'} — 匹配评估报告`, margin, y);
-      y += 10;
+      // Split across pages if needed — slice via temp canvas
+      let srcY = 0;
+      let pageNum = 0;
+      while (srcY < imgH) {
+        if (pageNum > 0) pdf.addPage();
+        const sliceH = Math.min(usableH / scale, imgH - srcY);
+        const destH = sliceH * scale;
 
-      // Position & date
-      pdf.setFontSize(10);
-      pdf.setTextColor(107, 114, 128);
-      pdf.text(`岗位: ${candidate?.positionName || '未关联'}    |    日期: ${new Date().toLocaleDateString('zh-CN')}`, margin, y);
-      y += 8;
+        // Extract slice to temp canvas
+        const sliceCanvas = document.createElement('canvas');
+        sliceCanvas.width = imgW;
+        sliceCanvas.height = sliceH;
+        sliceCanvas.getContext('2d')!.drawImage(canvas, 0, srcY, imgW, sliceH, 0, 0, imgW, sliceH);
+        const sliceData = sliceCanvas.toDataURL('image/jpeg', 0.92);
 
-      // Divider
-      pdf.setDrawColor(229, 231, 235);
-      pdf.line(margin, y, pageW - margin, y);
-      y += 6;
-
-      // Score overview
-      pdf.setFontSize(14);
-      pdf.setTextColor(17, 24, 39);
-      pdf.text('Fit Score 综合评分', margin, y);
-      y += 7;
-
-      pdf.setFontSize(28);
-      pdf.setTextColor(26, 75, 196);
-      pdf.text(`${totalScore}`, margin, y);
-      pdf.setFontSize(12);
-      pdf.setTextColor(107, 114, 128);
-      pdf.text(`/100  等级: ${grade}`, margin + 22, y);
-      y += 10;
-
-      // Dimension scores
-      if (scoreResult.dimensionScores.length > 0) {
-        checkPage(10);
-        pdf.setFontSize(12);
-        pdf.setTextColor(17, 24, 39);
-        pdf.text('维度得分详情', margin, y);
-        y += 6;
-
-        scoreResult.dimensionScores.forEach((ds) => {
-          checkPage(14);
-          const pct = ds.maxScore > 0 ? Math.round((ds.score / ds.maxScore) * 100) : 0;
-          // Dimension name + score
-          pdf.setFontSize(10);
-          pdf.setTextColor(55, 65, 81);
-          pdf.text(`${ds.dimension}: ${ds.score}/${ds.maxScore} (权重 ${ds.weight}%)`, margin, y);
-          y += 4;
-          // Progress bar background
-          const barW = contentW;
-          const barH = 3;
-          pdf.setFillColor(229, 231, 235);
-          pdf.roundedRect(margin, y, barW, barH, 1.5, 1.5, 'F');
-          // Progress bar fill
-          const fillW = barW * (pct / 100);
-          if (pct >= 80) pdf.setFillColor(16, 185, 129);
-          else if (pct >= 60) pdf.setFillColor(59, 130, 246);
-          else if (pct >= 40) pdf.setFillColor(14, 165, 233);
-          else pdf.setFillColor(156, 163, 175);
-          pdf.roundedRect(margin, y, fillW, barH, 1.5, 1.5, 'F');
-          y += 7;
-        });
+        pdf.addImage(sliceData, 'JPEG', pdfMargin, pdfMargin, usableW, destH);
+        srcY += sliceH;
+        pageNum++;
       }
-
-      // Profile matching
-      if (scoreResult.debugInfo?.profileDimension) {
-        const pd = scoreResult.debugInfo.profileDimension;
-        const pdMatched = pd.matched || [];
-        const pdUnmatched = pd.unmatched || [];
-        checkPage(12);
-        pdf.setFontSize(12);
-        pdf.setTextColor(17, 24, 39);
-        pdf.text(`画像匹配 (${pd.score} 分)`, margin, y);
-        y += 6;
-
-        // Matched keywords
-        if (pdMatched.length > 0) {
-          pdf.setFontSize(9);
-          pdf.setTextColor(4, 120, 87);
-          const matchedText = '已匹配: ' + pdMatched.join('、');
-          const lines = pdf.splitTextToSize(matchedText, contentW);
-          checkPage(lines.length * 4 + 2);
-          pdf.text(lines, margin, y);
-          y += lines.length * 4 + 2;
-        }
-        // Unmatched keywords
-        if (pdUnmatched.length > 0) {
-          pdf.setFontSize(9);
-          pdf.setTextColor(107, 114, 128);
-          const unmatchedText = '未匹配: ' + pdUnmatched.join('、');
-          const lines = pdf.splitTextToSize(unmatchedText, contentW);
-          checkPage(lines.length * 4 + 2);
-          pdf.text(lines, margin, y);
-          y += lines.length * 4 + 2;
-        }
-      }
-
-      // Per-dimension keyword details
-      if (scoreResult.debugInfo?.dimensionDetails && scoreResult.debugInfo.dimensionDetails.length > 0) {
-        checkPage(10);
-        pdf.setFontSize(12);
-        pdf.setTextColor(17, 24, 39);
-        pdf.text('各维度关键词详情', margin, y);
-        y += 6;
-
-        scoreResult.debugInfo.dimensionDetails.forEach((dd) => {
-          checkPage(14);
-          pdf.setFontSize(10);
-          pdf.setTextColor(55, 65, 81);
-          pdf.text(`${dd.dimension} (${dd.score} 分)`, margin, y);
-          y += 5;
-
-          const ddKeywords = dd.keywords || [];
-            const ddMatched = dd.matched || [];
-            if (ddKeywords.length > 0) {
-            const matchedKw = ddKeywords.filter(k => ddMatched.includes(k));
-            const unmatchedKw = ddKeywords.filter(k => !ddMatched.includes(k));
-            pdf.setFontSize(9);
-            if (matchedKw.length > 0) {
-              pdf.setTextColor(4, 120, 87);
-              const text = '✓ ' + matchedKw.join('  ✓ ');
-              const lines = pdf.splitTextToSize(text, contentW);
-              checkPage(lines.length * 4);
-              pdf.text(lines, margin, y);
-              y += lines.length * 4;
-            }
-            if (unmatchedKw.length > 0) {
-              pdf.setTextColor(156, 163, 175);
-              const text = '✗ ' + unmatchedKw.join('  ✗ ');
-              const lines = pdf.splitTextToSize(text, contentW);
-              checkPage(lines.length * 4);
-              pdf.text(lines, margin, y);
-              y += lines.length * 4;
-            }
-          }
-          y += 3;
-        });
-      }
-
-      // Candidate basic info
-      checkPage(30);
-      y += 4;
-      pdf.setDrawColor(229, 231, 235);
-      pdf.line(margin, y, pageW - margin, y);
-      y += 6;
-      pdf.setFontSize(12);
-      pdf.setTextColor(17, 24, 39);
-      pdf.text('候选人基本信息', margin, y);
-      y += 6;
-      pdf.setFontSize(10);
-      pdf.setTextColor(55, 65, 81);
-      const infoLines = [
-        `姓名: ${parsedInfo?.name || candidate?.name || '未知'}`,
-        `电话: ${parsedInfo?.phone || '未知'}`,
-        `邮箱: ${parsedInfo?.email || '未知'}`,
-        `所在地: ${parsedInfo?.location || candidate?.location || '未知'}`,
-        `学历: ${[parsedInfo?.school, parsedInfo?.highestEducation, parsedInfo?.major].filter(Boolean).join(' · ') || '未知'}`,
-      ];
-      infoLines.forEach(line => {
-        checkPage(5);
-        pdf.text(line, margin, y);
-        y += 5;
-      });
 
       pdf.save(`${candidate?.name || '候选人'}_评估报告.pdf`);
     } catch (e) {
@@ -267,326 +411,19 @@ export const CandidateDetailModal = ({ isOpen, onClose, candidate, positionDetai
     }
   };
 
-  // Download evaluation report as PNG — render hidden content then capture
+  // Download evaluation report as PNG — uses shared canvas renderer
   const downloadEvaluationPNG = async () => {
     if (!scoreResult) {
       alert('暂无评分数据，无法生成报告');
       return;
     }
     try {
-      const S = 2; // pixel scale for retina
-      const W = 780 * S;
-      const M = 48 * S;       // main margin
-      const CW = W - M * 2;   // content width
-      const R = 12 * S;       // card radius
-
-      const canvas = document.createElement('canvas');
-      canvas.width = W;
-      const ctx = canvas.getContext('2d')!;
-      let y = 0;
-
-      // ── helpers ──
-      const ensure = (need: number) => {
-        if (y + need > canvas.height) {
-          const snap = ctx.getImageData(0, 0, canvas.width, canvas.height);
-          canvas.height = y + need + 200 * S;
-          ctx.fillStyle = '#f3f4f6';
-          ctx.fillRect(0, 0, canvas.width, canvas.height);
-          ctx.putImageData(snap, 0, 0);
-        }
-      };
-      const rr = (x: number, ry: number, w: number, h: number, r: number, fill: string) => {
-        ctx.fillStyle = fill; ctx.beginPath(); ctx.roundRect(x, ry, w, h, r); ctx.fill();
-      };
-      const rrStroke = (x: number, ry: number, w: number, h: number, r: number, stroke: string, lw: number) => {
-        ctx.strokeStyle = stroke; ctx.lineWidth = lw; ctx.beginPath(); ctx.roundRect(x, ry, w, h, r); ctx.stroke();
-      };
-      const text = (txt: string, x: number, ty: number, font: string, color: string) => {
-        ctx.fillStyle = color; ctx.font = font; ctx.fillText(txt, x, ty);
-      };
-      const wrapText = (txt: string, x: number, ty: number, maxW: number, font: string, color: string, lineH: number) => {
-        ctx.fillStyle = color; ctx.font = font;
-        const chars = [...txt]; let line = ''; let cy = ty;
-        for (const ch of chars) {
-          const test = line + ch;
-          if (ctx.measureText(test).width > maxW && line) {
-            ensure(lineH); ctx.fillText(line, x, cy); line = ch; cy += lineH;
-          } else { line = test; }
-        }
-        if (line) { ensure(lineH); ctx.fillText(line, x, cy); cy += lineH; }
-        return cy;
-      };
-
-      // ── init canvas ──
-      canvas.height = 2000 * S;
-      ctx.fillStyle = '#f3f4f6';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      // ════════════════════════════════════════════════════
-      // HEADER BANNER
-      // ════════════════════════════════════════════════════
-      const bannerH = 130 * S;
-      // Blue gradient banner
-      const grad = ctx.createLinearGradient(0, 0, W, 0);
-      grad.addColorStop(0, '#1a4bc4');
-      grad.addColorStop(1, '#3b6de8');
-      rr(0, 0, W, bannerH, 0, '#1a4bc4');
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, W, bannerH);
-
-      y = 44 * S;
-      text('候选人匹配评估报告', M, y, `bold ${28 * S}px "PingFang SC","Microsoft YaHei",sans-serif`, '#ffffff');
-      y += 36 * S;
-      text(`${candidate?.name || '候选人'}`, M, y, `bold ${22 * S}px "PingFang SC","Microsoft YaHei",sans-serif`, '#ffffff');
-      y += 28 * S;
-      text(`${candidate?.positionName || '未关联岗位'}  ·  ${new Date().toLocaleDateString('zh-CN')}`, M, y, `${13 * S}px "PingFang SC","Microsoft YaHei",sans-serif`, 'rgba(255,255,255,0.75)');
-
-      y = bannerH + 24 * S;
-
-      // ════════════════════════════════════════════════════
-      // SCORE CARD
-      // ════════════════════════════════════════════════════
-      const cardPad = 28 * S;
-      const cardH = 120 * S;
-      ensure(cardH + 20 * S);
-      // White card background
-      rr(M, y, CW, cardH, R, '#ffffff');
-      rrStroke(M, y, CW, cardH, R, '#e5e7eb', 1 * S);
-
-      // Left: big score circle
-      const circR = 42 * S;
-      const circX = M + cardPad + circR;
-      const circY = y + cardH / 2;
-      // Circle bg
-      ctx.beginPath(); ctx.arc(circX, circY, circR, 0, Math.PI * 2);
-      ctx.fillStyle = '#f0f4ff'; ctx.fill();
-      // Circle border
-      const scoreColor = totalScore >= 80 ? '#10b981' : totalScore >= 60 ? '#3b82f6' : totalScore >= 40 ? '#0ea5e9' : '#9ca3af';
-      ctx.beginPath(); ctx.arc(circX, circY, circR, 0, Math.PI * 2);
-      ctx.strokeStyle = scoreColor; ctx.lineWidth = 5 * S; ctx.stroke();
-      // Score text
-      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      text(`${totalScore}`, circX, circY - 6 * S, `bold ${32 * S}px sans-serif`, '#111827');
-      text('/100', circX, circY + 18 * S, `${10 * S}px sans-serif`, '#9ca3af');
-      ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-
-      // Right: Fit Score title + grade badge + description (stacked layout, no overlap)
-      const rightX = circX + circR + 30 * S;
-      const rightY = y + 22 * S;
-      // Fit Score title
-      text('Fit Score 综合评分', rightX, rightY, `bold ${15 * S}px "PingFang SC","Microsoft YaHei",sans-serif`, '#111827');
-      // Grade badge (below title, with spacing)
-      const gradeColor = grade === 'A' ? '#10b981' : grade === 'B+' ? '#3b82f6' : grade === 'B' ? '#0ea5e9' : '#9ca3af';
-      const badgeY = rightY + 22 * S;
-      rr(rightX, badgeY, 48 * S, 24 * S, 5 * S, gradeColor);
-      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      text(grade, rightX + 24 * S, badgeY + 13 * S, `bold ${14 * S}px sans-serif`, '#ffffff');
-      ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-      // Description (below badge)
-      text(`基于岗位「${candidate?.positionName || '未关联'}」的标准配置自动评分`, rightX, badgeY + 38 * S, `${11 * S}px "PingFang SC","Microsoft YaHei",sans-serif`, '#6b7280');
-
-      y += cardH + 20 * S;
-
-      // ════════════════════════════════════════════════════
-      // SECTION: 维度得分详情
-      // ════════════════════════════════════════════════════
-      if (scoreResult.dimensionScores.length > 0) {
-        // Section header
-        text('维度得分详情', M, y + 14 * S, `bold ${16 * S}px "PingFang SC","Microsoft YaHei",sans-serif`, '#111827');
-        y += 32 * S;
-
-        scoreResult.dimensionScores.forEach((ds) => {
-          const pct = ds.maxScore > 0 ? Math.round((ds.score / ds.maxScore) * 100) : 0;
-          const rowH = 56 * S;
-          ensure(rowH + 10 * S);
-          // Card bg
-          rr(M, y, CW, rowH, 8 * S, '#ffffff');
-          rrStroke(M, y, CW, rowH, 8 * S, '#e5e7eb', 1 * S);
-
-          const innerX = M + 20 * S;
-          const innerY = y + 18 * S;
-          // Dimension name
-          text(ds.dimension, innerX, innerY, `bold ${13 * S}px "PingFang SC","Microsoft YaHei",sans-serif`, '#111827');
-          // Score text right-aligned
-          const scoreTxt = `${ds.score}/${ds.maxScore}`;
-          ctx.font = `bold ${13 * S}px sans-serif`;
-          const scoreW = ctx.measureText(scoreTxt).width;
-          text(scoreTxt, M + CW - 20 * S - scoreW, innerY, `bold ${13 * S}px sans-serif`, '#1a4bc4');
-          // Weight
-          const weightTxt = `权重 ${ds.weight}%`;
-          ctx.font = `${11 * S}px sans-serif`;
-          const weightW = ctx.measureText(weightTxt).width;
-          text(weightTxt, M + CW - 20 * S - scoreW - 12 * S - weightW, innerY, `${11 * S}px sans-serif`, '#9ca3af');
-
-          // Progress bar
-          const barY = innerY + 14 * S;
-          const barW = CW - 40 * S;
-          const barH = 10 * S;
-          rr(innerX, barY, barW, barH, 5 * S, '#e5e7eb');
-          const fillW = barW * (pct / 100);
-          const fillColor = pct >= 80 ? '#10b981' : pct >= 60 ? '#3b82f6' : pct >= 40 ? '#0ea5e9' : '#9ca3af';
-          if (fillW > 0) rr(innerX, barY, fillW, barH, 5 * S, fillColor);
-
-          y += rowH + 10 * S;
-        });
-      }
-
-      // ════════════════════════════════════════════════════
-      // SECTION: 画像匹配
-      // ════════════════════════════════════════════════════
-      if (scoreResult.debugInfo?.profileDimension) {
-        const pd = scoreResult.debugInfo.profileDimension;
-        const allKw = [...pd.matched.map(k => ({w: k, m: true})), ...pd.unmatched.map(k => ({w: k, m: false}))];
-        if (allKw.length > 0) {
-          text('画像匹配', M, y + 14 * S, `bold ${16 * S}px "PingFang SC","Microsoft YaHei",sans-serif`, '#111827');
-          // Score badge
-          const badgeW = 48 * S;
-          rr(M + 100 * S, y + 2 * S, badgeW, 18 * S, 4 * S, '#dbeafe');
-          ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-          text(`${pd.score} 分`, M + 100 * S + badgeW / 2, y + 11 * S, `bold ${11 * S}px sans-serif`, '#1a4bc4');
-          ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-          y += 30 * S;
-
-          // Keyword tags
-          const tagPadX = 12 * S;
-          const tagPadY = 6 * S;
-          const tagGap = 8 * S;
-          const tagLineH = 28 * S;
-          let tx = M + 16 * S;
-          allKw.forEach(({w: kw, m}) => {
-            ctx.font = `${11 * S}px "PingFang SC","Microsoft YaHei",sans-serif`;
-            const tw = ctx.measureText((m ? '✓ ' : '✗ ') + kw).width + tagPadX * 2;
-            if (tx + tw > M + CW - 16 * S) { tx = M + 16 * S; y += tagLineH + tagGap; ensure(tagLineH + tagGap); }
-            ensure(tagLineH);
-            rr(tx, y, tw, tagLineH, 6 * S, m ? '#ecfdf5' : '#f3f4f6');
-            rrStroke(tx, y, tw, tagLineH, 6 * S, m ? '#a7f3d0' : '#e5e7eb', 1 * S);
-            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-            text((m ? '✓ ' : '✗ ') + kw, tx + tw / 2, y + tagLineH / 2, `${11 * S}px "PingFang SC","Microsoft YaHei",sans-serif`, m ? '#047857' : '#9ca3af');
-            ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-            tx += tw + tagGap;
-          });
-          y += tagLineH + 24 * S;
-        }
-      }
-
-      // ════════════════════════════════════════════════════
-      // SECTION: 各维度关键词
-      // ════════════════════════════════════════════════════
-      if (scoreResult.debugInfo?.dimensionDetails && scoreResult.debugInfo.dimensionDetails.length > 0) {
-        text('各维度关键词详情', M, y + 14 * S, `bold ${16 * S}px "PingFang SC","Microsoft YaHei",sans-serif`, '#111827');
-        y += 32 * S;
-
-        scoreResult.debugInfo.dimensionDetails.forEach((dd) => {
-          const matchedKw = dd.keywords.filter(k => dd.matched.includes(k));
-          const unmatchedKw = dd.keywords.filter(k => !dd.matched.includes(k));
-          const allDDKw = [...matchedKw.map(k => ({w: k, m: true})), ...unmatchedKw.map(k => ({w: k, m: false}))];
-
-          // Dimension card
-          const innerPad = 18 * S;
-          const tagPadX2 = 10 * S;
-          const tagLineH2 = 24 * S;
-          const tagGap2 = 6 * S;
-          // Calculate card height: header + tags rows
-          let tagRows = 1; let tmpX = 0;
-          ctx.font = `${10 * S}px "PingFang SC","Microsoft YaHei",sans-serif`;
-          allDDKw.forEach(({w: kw}) => {
-            const tw2 = ctx.measureText((matchedKw.includes(kw) ? '✓ ' : '✗ ') + kw).width + tagPadX2 * 2;
-            if (tmpX + tw2 > CW - innerPad * 2 - 32 * S) { tagRows++; tmpX = 0; }
-            tmpX += tw2 + tagGap2;
-          });
-          const cardH2 = innerPad + 20 * S + tagRows * (tagLineH2 + tagGap2) + innerPad;
-          ensure(cardH2 + 10 * S);
-
-          rr(M, y, CW, cardH2, R, '#ffffff');
-          rrStroke(M, y, CW, cardH2, R, '#e5e7eb', 1 * S);
-
-          // Header line
-          const hY = y + innerPad + 13 * S;
-          text(dd.dimension, M + innerPad, hY, `bold ${13 * S}px "PingFang SC","Microsoft YaHei",sans-serif`, '#111827');
-          const scoreStr = `${dd.score} 分`;
-          ctx.font = `bold ${12 * S}px sans-serif`;
-          const scW = ctx.measureText(scoreStr).width;
-          text(scoreStr, M + CW - innerPad - scW, hY, `bold ${12 * S}px sans-serif`, '#1a4bc4');
-
-          // Tags
-          let tY = hY + 18 * S;
-          let tX = M + innerPad;
-          allDDKw.forEach(({w: kw, m: ok}) => {
-            ctx.font = `${10 * S}px "PingFang SC","Microsoft YaHei",sans-serif`;
-            const label = (ok ? '✓ ' : '✗ ') + kw;
-            const tw3 = ctx.measureText(label).width + tagPadX2 * 2;
-            if (tX + tw3 > M + CW - innerPad) { tX = M + innerPad; tY += tagLineH2 + tagGap2; }
-            rr(tX, tY, tw3, tagLineH2, 5 * S, ok ? '#ecfdf5' : '#f9fafb');
-            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-            text(label, tX + tw3 / 2, tY + tagLineH2 / 2, `${10 * S}px "PingFang SC","Microsoft YaHei",sans-serif`, ok ? '#047857' : '#9ca3af');
-            ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-            tX += tw3 + tagGap2;
-          });
-
-          y += cardH2 + 10 * S;
-        });
-      }
-
-      // ════════════════════════════════════════════════════
-      // SECTION: 候选人信息
-      // ════════════════════════════════════════════════════
-      {
-        text('候选人基本信息', M, y + 14 * S, `bold ${16 * S}px "PingFang SC","Microsoft YaHei",sans-serif`, '#111827');
-        y += 32 * S;
-
-        const infoItems = [
-          {label: '姓名', value: parsedInfo?.name || candidate?.name || '未知'},
-          {label: '电话', value: parsedInfo?.phone || '未知'},
-          {label: '邮箱', value: parsedInfo?.email || '未知'},
-          {label: '所在地', value: parsedInfo?.location || candidate?.location || '未知'},
-          {label: '学历', value: [parsedInfo?.school, parsedInfo?.highestEducation, parsedInfo?.major].filter(Boolean).join(' · ') || '未知'},
-          {label: '在职状态', value: parsedInfo?.currentlyEmployed || '未知'},
-        ];
-
-        const infoCardH = infoItems.length * 24 * S + 24 * S;
-        ensure(infoCardH);
-        rr(M, y, CW, infoCardH, R, '#ffffff');
-        rrStroke(M, y, CW, infoCardH, R, '#e5e7eb', 1 * S);
-
-        const labelW = 80 * S;
-        infoItems.forEach((item, idx) => {
-          const iy = y + 20 * S + idx * 24 * S;
-          // Label
-          rr(M + 16 * S, iy - 10 * S, labelW, 18 * S, 4 * S, '#f0f4ff');
-          ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-          text(item.label, M + 16 * S + labelW / 2, iy - 1 * S, `${11 * S}px "PingFang SC","Microsoft YaHei",sans-serif`, '#1a4bc4');
-          ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-          // Value
-          text(item.value, M + 16 * S + labelW + 12 * S, iy, `${12 * S}px "PingFang SC","Microsoft YaHei",sans-serif`, '#111827');
-        });
-
-        y += infoCardH + 20 * S;
-      }
-
-      // ════════════════════════════════════════════════════
-      // FOOTER
-      // ════════════════════════════════════════════════════
-      y += 8 * S;
-      ensure(40 * S);
-      ctx.strokeStyle = '#d1d5db'; ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(M, y); ctx.lineTo(W - M, y); ctx.stroke();
-      y += 16 * S;
-      text(`报告生成时间: ${new Date().toLocaleString('zh-CN')}`, M, y, `${10 * S}px "PingFang SC","Microsoft YaHei",sans-serif`, '#9ca3af');
-      const sysName = 'EM-BOX 招聘管理系统';
-      ctx.font = `${10 * S}px "PingFang SC","Microsoft YaHei",sans-serif`;
-      const sysW = ctx.measureText(sysName).width;
-      text(sysName, W - M - sysW, y, `${10 * S}px "PingFang SC","Microsoft YaHei",sans-serif`, '#9ca3af');
-      y += 20 * S;
-
-      // ── trim & download ──
-      const trimmed = document.createElement('canvas');
-      trimmed.width = W;
-      trimmed.height = y + 24 * S;
-      trimmed.getContext('2d')!.drawImage(canvas, 0, 0);
+      const canvas = generateReportCanvas();
+      if (!canvas) return;
 
       const link = document.createElement('a');
       link.download = `${candidate?.name || '候选人'}_评估报告.png`;
-      link.href = trimmed.toDataURL('image/png');
+      link.href = canvas.toDataURL('image/png');
       link.click();
     } catch (e) {
       console.error('Failed to generate PNG:', e);
