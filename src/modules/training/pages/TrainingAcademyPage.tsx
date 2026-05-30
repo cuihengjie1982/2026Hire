@@ -3,7 +3,7 @@ import {motion} from 'motion/react';
 import {
   BookOpen, Users, TrendingUp, BarChart3, Plus, Clock, Star,
   CheckCircle, XCircle, PlayCircle, ChevronRight, AlertTriangle,
-  Target, Award, ArrowUpRight, Download,
+  Target, Award, ArrowUpRight, Download, Loader2,
 } from 'lucide-react';
 import {
   listCourses, listEnrollments, createCourse, updateEnrollment, submitAssessment,
@@ -593,7 +593,7 @@ const CreateCourseModal = ({onClose, onSubmit}: {
     materials?: {title: string; type: string; url?: string}[];
     assessmentConfig?: {type: string; passingScore: number};
     competencyDimension?: string;
-  }) => void;
+  }) => Promise<void>;
 }) => {
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState('沟通表达');
@@ -606,6 +606,7 @@ const CreateCourseModal = ({onClose, onSubmit}: {
   const [assessType, setAssessType] = useState('quiz');
   const [competencyDim, setCompetencyDim] = useState('');
   const [showContentEditor, setShowContentEditor] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const addSection = () => setSections(s => [...s, {sectionTitle: '', contentType: 'text', text: '', contentUrl: ''}]);
   const updateSection = (i: number, field: string, val: string) => {
@@ -619,25 +620,30 @@ const CreateCourseModal = ({onClose, onSubmit}: {
   };
   const removeMaterial = (i: number) => setMaterials(m => m.filter((_, idx) => idx !== i));
 
-  const handleSubmit = () => {
-    if (!title.trim()) return;
-    onSubmit({
-      title, category, difficulty, description: desc,
-      durationMinutes: duration,
-      content: sections.filter(s => s.sectionTitle.trim()).map(s => ({
-        sectionTitle: s.sectionTitle,
-        contentType: s.contentType as 'text' | 'video' | 'link',
-        text: s.text,
-        contentUrl: s.contentUrl,
-      })),
-      materials: materials.filter(m => m.title.trim()).map(m => ({
-        title: m.title,
-        type: m.type as 'pdf' | 'video' | 'article' | 'exercise',
-        url: m.url,
-      })),
-      assessmentConfig: {type: assessType, passingScore},
-      competencyDimension: competencyDim || undefined,
-    });
+  const handleSubmit = async () => {
+    if (!title.trim() || isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      await onSubmit({
+        title, category, difficulty, description: desc,
+        durationMinutes: duration,
+        content: sections.filter(s => s.sectionTitle.trim()).map(s => ({
+          sectionTitle: s.sectionTitle,
+          contentType: s.contentType as 'text' | 'video' | 'link',
+          text: s.text,
+          contentUrl: s.contentUrl,
+        })),
+        materials: materials.filter(m => m.title.trim()).map(m => ({
+          title: m.title,
+          type: m.type as 'pdf' | 'video' | 'article' | 'exercise',
+          url: m.url,
+        })),
+        assessmentConfig: {type: assessType, passingScore},
+        competencyDimension: competencyDim || undefined,
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -781,9 +787,10 @@ const CreateCourseModal = ({onClose, onSubmit}: {
         <div className="flex justify-end gap-3 mt-6">
           <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">取消</button>
           <button onClick={handleSubmit}
-            className="px-4 py-2 text-sm bg-[#1a4bc4] text-white rounded-lg hover:bg-[#153da0] disabled:opacity-50"
-            disabled={!title.trim()}>
-            创建课程
+            className="px-4 py-2 text-sm bg-[#1a4bc4] text-white rounded-lg hover:bg-[#153da0] disabled:opacity-50 flex items-center gap-2"
+            disabled={!title.trim() || isSubmitting}>
+            {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
+            {isSubmitting ? '创建中...' : '创建课程'}
           </button>
         </div>
       </motion.div>
