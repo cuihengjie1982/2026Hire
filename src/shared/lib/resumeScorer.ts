@@ -226,8 +226,9 @@ export const calculateResumeScore = (
     }
   }
 
-  const profileScore = profileRules.length > 0
-    ? Math.round(profileWeight * (profileMatched.length / profileRules.length))
+  // ANY match: at least 1 profile keyword matched → full marks; 0 → 0
+  const profileScore = profileRules.length > 0 && profileMatched.length > 0
+    ? profileWeight
     : 0;
 
   console.log(`[Scorer] 画像匹配: ${profileMatched.length}/${profileRules.length} → ${profileScore}/${profileWeight}分`);
