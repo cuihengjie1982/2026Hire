@@ -13,3 +13,4 @@ coverage/
 .mcp.json
 .trai-main_local.md
 supabase/.temp/
+.env*.local

@@ -47,7 +47,7 @@ const loadHandlers = async (): Promise<RouteHandler[]> => {
   // SMS Gateway
   const { sendSmsHandler, listTemplates, createTemplate } = await import('./sms-gateway/index.ts');
   // Training Academy
-  const { handleCourses, handleEnrollments, handleAnalytics, getTrainingStats, exportEnrollmentsCsv, portalHandler } = await import('./training/index.ts');
+  const { handleCourses, handleEnrollments, handleAnalytics, getTrainingStats, exportEnrollmentsCsv, portalHandler, handlePaths } = await import('./training/index.ts');
   // Stats (sidebar counts + unified search)
   const { sidebarStats, searchStats, dashboardStats } = await import('./stats/index.ts');
   // Shortlist (pipeline)
@@ -147,6 +147,8 @@ const loadHandlers = async (): Promise<RouteHandler[]> => {
     { pattern: '/training/stats', methods: ['GET'], auth: 'any', handler: getTrainingStats },
     // Training Academy — CSV Export
     { pattern: '/training/export', methods: ['GET'], auth: 'recruiter+', handler: exportEnrollmentsCsv },
+    // Training Academy — Learning Paths (CRUD + courses + enrollments)
+    { pattern: '/training/paths', methods: ['GET', 'POST', 'PATCH', 'DELETE'], auth: 'recruiter+', handler: handlePaths },
     // Training Academy — Public Candidate Portal (no auth)
     { pattern: '/training/portal', methods: ['GET'], auth: 'none', handler: portalHandler },
     // Stats — dashboard/sidebar/search (any authenticated)

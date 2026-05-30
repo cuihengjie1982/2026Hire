@@ -747,6 +747,332 @@ export const handleEnrollments = async (req: Request): Promise<Response> => {
 };
 
 // =============================================================================
+// Learning Path handlers
+// =============================================================================
+
+const listPaths = async (req: Request): Promise<Response> => {
+  try {
+    const supabase = createSupabaseAdmin(req);
+    const category = getQuery(req, 'category');
+    const positionId = getQuery(req, 'positionId');
+    const level = getQuery(req, 'level');
+    const active = getQuery(req, 'active');
+
+    let query = supabase.from('training_paths').select('*');
+    if (category) query = query.eq('category', category);
+    if (positionId) query = query.eq('position_id', positionId);
+    if (level) query = query.eq('level', level);
+    if (active === '0') query = query.eq('is_active', false);
+    else query = query.eq('is_active', true);
+
+    query = query.order('created_at', { ascending: false });
+
+    // For each path, fetch its courses
+    const { data: paths, error } = await query;
+    if (error) throw error;
+
+    const result = [];
+    for (const p of (paths ?? [])) {
+      // Get courses associated with this path
+      const { data: pathCourses } = await supabase
+        .from('training_path_courses')
+        .select('*, training_courses(*)')
+        .eq('path_id', p.id)
+        .order('sort_order');
+
+      // Fetch enrollment stats
+      const { count: enrolledCount } = await supabase
+        .from('training_path_enrollments')
+        .select('*', { count: 'exact', head: true })
+        .eq('path_id', p.id);
+
+      result.push({
+        ...p,
+        courses: (pathCourses ?? []).map((pc: Record<string, unknown>) => ({
+          id: pc.id,
+          pathId: pc.path_id,
+          courseId: pc.course_id,
+          sortOrder: pc.sort_order,
+          isRequired: pc.is_required,
+          course: pc.training_courses,
+        })),
+        enrolledCount: enrolledCount ?? 0,
+      });
+    }
+
+    return jsonRes({ items: result, total: result.length });
+  } catch (e) {
+    console.error('[training paths list]', e);
+    return jsonRes({ error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch paths' } }, 500);
+  }
+};
+
+const getPath = async (req: Request, pathId: string): Promise<Response> => {
+  try {
+    const supabase = createSupabaseAdmin(req);
+
+    const { data: path, error } = await supabase
+      .from('training_paths')
+      .select('*')
+      .eq('id', pathId)
+      .single();
+
+    if (error || !path) {
+      return jsonRes({ error: { code: 'NOT_FOUND', message: `Path (${pathId}) not found` } }, 404);
+    }
+
+    const { data: pathCourses } = await supabase
+      .from('training_path_courses')
+      .select('*, training_courses(*)')
+      .eq('path_id', pathId)
+      .order('sort_order');
+
+    return jsonRes({
+      ...path,
+      courses: (pathCourses ?? []).map((pc: Record<string, unknown>) => ({
+        id: pc.id,
+        pathId: pc.path_id,
+        courseId: pc.course_id,
+        sortOrder: pc.sort_order,
+        isRequired: pc.is_required,
+        course: pc.training_courses,
+      })),
+    });
+  } catch (e) {
+    console.error('[training paths get]', e);
+    return jsonRes({ error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch path' } }, 500);
+  }
+};
+
+const createPath = async (req: Request): Promise<Response> => {
+  try {
+    const supabase = createSupabaseAdmin(req);
+    const body = await req.json();
+
+    if (!body.title) {
+      return jsonRes({ error: { code: 'VALIDATION_ERROR', message: 'title is required' } }, 400);
+    }
+
+    const { data: path, error } = await supabase.from('training_paths').insert({
+      title: body.title,
+      description: body.description ?? null,
+      category: body.category ?? '通用',
+      level: body.level ?? '初级',
+      is_certified: body.isCertified ?? false,
+      position_id: body.positionId ?? null,
+      cover_image_url: body.coverImageUrl ?? null,
+    }).select().single();
+
+    if (error) throw error;
+
+    // Attach courses if provided
+    const courseIds = body.courseIds as string[] | undefined;
+    if (courseIds && courseIds.length > 0) {
+      const rows = courseIds.map((cid, i) => ({
+        path_id: path.id,
+        course_id: cid,
+        sort_order: i,
+        is_required: true,
+      }));
+      await supabase.from('training_path_courses').insert(rows);
+    }
+
+    return jsonRes(path, 201);
+  } catch (e) {
+    console.error('[training paths create]', e);
+    return jsonRes({ error: { code: 'INTERNAL_ERROR', message: 'Failed to create path' } }, 500);
+  }
+};
+
+const updatePath = async (req: Request, pathId: string): Promise<Response> => {
+  try {
+    const supabase = createSupabaseAdmin(req);
+    const body = await req.json();
+
+    const updates: Record<string, unknown> = {};
+    const fieldMap: Record<string, string> = {
+      title: 'title', description: 'description', category: 'category',
+      level: 'level', isCertified: 'is_certified',
+      positionId: 'position_id', coverImageUrl: 'cover_image_url',
+      isActive: 'is_active',
+    };
+
+    for (const [bodyKey, col] of Object.entries(fieldMap)) {
+      if (body[bodyKey] !== undefined) {
+        updates[col] = body[bodyKey];
+      }
+    }
+
+    if (Object.keys(updates).length === 0 && !body.courseIds) {
+      return jsonRes({ error: { code: 'VALIDATION_ERROR', message: 'No fields to update' } }, 400);
+    }
+
+    if (Object.keys(updates).length > 0) {
+      updates['updated_at'] = new Date().toISOString();
+      const { error } = await supabase.from('training_paths')
+        .update(updates).eq('id', pathId);
+      if (error) throw error;
+    }
+
+    // Re-sync course associations
+    if (body.courseIds !== undefined) {
+      const courseIds = body.courseIds as string[];
+      // Remove existing
+      await supabase.from('training_path_courses').delete().eq('path_id', pathId);
+      // Insert new
+      if (courseIds.length > 0) {
+        const rows = courseIds.map((cid, i) => ({
+          path_id: pathId,
+          course_id: cid,
+          sort_order: i,
+          is_required: true,
+        }));
+        await supabase.from('training_path_courses').insert(rows);
+      }
+    }
+
+    return getPath(req, pathId);
+  } catch (e) {
+    console.error('[training paths update]', e);
+    return jsonRes({ error: { code: 'INTERNAL_ERROR', message: 'Failed to update path' } }, 500);
+  }
+};
+
+const deletePath = async (req: Request, pathId: string): Promise<Response> => {
+  try {
+    const supabase = createSupabaseAdmin(req);
+    const { error } = await supabase.from('training_paths').delete().eq('id', pathId);
+    if (error) throw error;
+    return jsonRes({ deleted: true });
+  } catch (e) {
+    console.error('[training paths delete]', e);
+    return jsonRes({ error: { code: 'INTERNAL_ERROR', message: 'Failed to delete path' } }, 500);
+  }
+};
+
+const addCourseToPath = async (req: Request, pathId: string): Promise<Response> => {
+  try {
+    const supabase = createSupabaseAdmin(req);
+    const body = await req.json();
+    if (!body.courseId) {
+      return jsonRes({ error: { code: 'VALIDATION_ERROR', message: 'courseId is required' } }, 400);
+    }
+    const { data, error } = await supabase.from('training_path_courses').insert({
+      path_id: pathId,
+      course_id: body.courseId,
+      sort_order: body.sortOrder ?? 0,
+      is_required: body.isRequired ?? true,
+    }).select().single();
+    if (error) throw error;
+    return jsonRes(data, 201);
+  } catch (e) {
+    console.error('[training paths addCourse]', e);
+    return jsonRes({ error: { code: 'INTERNAL_ERROR', message: 'Failed to add course to path' } }, 500);
+  }
+};
+
+const removeCourseFromPath = async (req: Request, pathId: string, courseId: string): Promise<Response> => {
+  try {
+    const supabase = createSupabaseAdmin(req);
+    const { error } = await supabase.from('training_path_courses')
+      .delete().eq('path_id', pathId).eq('course_id', courseId);
+    if (error) throw error;
+    return jsonRes({ deleted: true });
+  } catch (e) {
+    console.error('[training paths removeCourse]', e);
+    return jsonRes({ error: { code: 'INTERNAL_ERROR', message: 'Failed to remove course from path' } }, 500);
+  }
+};
+
+const getPathEnrollments = async (req: Request, pathId: string): Promise<Response> => {
+  try {
+    const supabase = createSupabaseAdmin(req);
+    const { data, error } = await supabase
+      .from('training_path_enrollments')
+      .select('*, candidates(id, name)')
+      .eq('path_id', pathId)
+      .order('enrolled_at', { ascending: false });
+
+    if (error) throw error;
+    return jsonRes({ items: data ?? [], total: (data ?? []).length });
+  } catch (e) {
+    console.error('[training paths enrollments]', e);
+    return jsonRes({ error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch path enrollments' } }, 500);
+  }
+};
+
+const enrollCandidateInPath = async (req: Request, pathId: string): Promise<Response> => {
+  try {
+    const supabase = createSupabaseAdmin(req);
+    const body = await req.json();
+    if (!body.candidateId) {
+      return jsonRes({ error: { code: 'VALIDATION_ERROR', message: 'candidateId is required' } }, 400);
+    }
+    const { data, error } = await supabase.from('training_path_enrollments').insert({
+      path_id: pathId,
+      candidate_id: body.candidateId,
+    }).select().single();
+    if (error) {
+      if (error.code === '23505') {
+        return jsonRes({ error: { code: 'DUPLICATE', message: 'Candidate already enrolled in this path' } }, 409);
+      }
+      throw error;
+    }
+    return jsonRes(data, 201);
+  } catch (e) {
+    console.error('[training paths enroll]', e);
+    return jsonRes({ error: { code: 'INTERNAL_ERROR', message: 'Failed to enroll candidate' } }, 500);
+  }
+};
+
+export const handlePaths = async (req: Request): Promise<Response> => {
+  const url = new URL(req.url);
+  const path = url.pathname.replace(/^\/embox-api/, '') || '/';
+  // Extract pathId and sub-resource from path: /training/paths/:id
+  const afterPaths = path.replace(/^\/training\/paths\/?/, '');
+  const segments = afterPaths.split('/').filter(Boolean);
+  const pathId = segments[0];
+  const subResource = segments[1]; // 'courses', 'enrollments', or a courseId
+  const subId = segments[2]; // courseId for /:pathId/courses/:courseId, or candidateId for /:pathId/enrollments
+
+  const method = req.method;
+
+  // No pathId — list or create
+  if (!pathId) {
+    if (method === 'GET') return listPaths(req);
+    if (method === 'POST') return createPath(req);
+    return jsonRes({ error: { code: 'METHOD_NOT_ALLOWED', message: 'Method not allowed' } }, 405);
+  }
+
+  // Path-level operations
+  if (!subResource) {
+    if (method === 'GET') return getPath(req, pathId);
+    if (method === 'PATCH') return updatePath(req, pathId);
+    if (method === 'DELETE') return deletePath(req, pathId);
+    return jsonRes({ error: { code: 'METHOD_NOT_ALLOWED', message: 'Method not allowed' } }, 405);
+  }
+
+  // /:pathId/courses and /:pathId/courses/:courseId
+  if (subResource === 'courses') {
+    if (subId) {
+      if (method === 'DELETE') return removeCourseFromPath(req, pathId, subId);
+      return jsonRes({ error: { code: 'METHOD_NOT_ALLOWED', message: 'Method not allowed' } }, 405);
+    }
+    if (method === 'POST') return addCourseToPath(req, pathId);
+    return jsonRes({ error: { code: 'METHOD_NOT_ALLOWED', message: 'Method not allowed' } }, 405);
+  }
+
+  // /:pathId/enrollments
+  if (subResource === 'enrollments') {
+    if (method === 'GET') return getPathEnrollments(req, pathId);
+    if (method === 'POST') return enrollCandidateInPath(req, pathId);
+    return jsonRes({ error: { code: 'METHOD_NOT_ALLOWED', message: 'Method not allowed' } }, 405);
+  }
+
+  return jsonRes({ error: { code: 'NOT_FOUND', message: 'Path sub-resource not found' } }, 404);
+};
+
+// =============================================================================
 // Analytics handlers
 // =============================================================================
 

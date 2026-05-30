@@ -3,21 +3,24 @@ import {motion} from 'motion/react';
 import {
   BookOpen, Users, TrendingUp, BarChart3, Plus, Clock, Star,
   CheckCircle, XCircle, PlayCircle, ChevronRight, AlertTriangle,
-  Target, Award, ArrowUpRight, Download, Loader2,
+  Target, Award, ArrowUpRight, Download, Loader2, Layers, Edit3, Trash2, MapPin,
 } from 'lucide-react';
 import {
   listCourses, listEnrollments, createCourse, updateEnrollment, submitAssessment,
   getTrainingStats, getWeaknessAnalysis, getTrainingEffectiveness, exportEnrollmentsCSV,
   recommendCourses, createEnrollment,
+  listPaths, createPath, updatePath, deletePath,
   type TrainingCourse, type TrainingEnrollment, type TrainingStats,
   type WeaknessAnalysis, type TrainingEffectiveness,
   type CourseRecommendation,
 } from '../api';
+import type {LearningPath} from '../types';
 
-type TabId = 'courses' | 'enrollments' | 'analysis' | 'effectiveness';
+type TabId = 'courses' | 'enrollments' | 'analysis' | 'effectiveness' | 'paths';
 
 const TABS: {id: TabId; label: string; icon: React.ElementType}[] = [
   {id: 'courses', label: '课程管理', icon: BookOpen},
+  {id: 'paths', label: '学习路径', icon: Layers},
   {id: 'enrollments', label: '培训记录', icon: Users},
   {id: 'analysis', label: '薄弱分析', icon: Target},
   {id: 'effectiveness', label: '效果统计', icon: TrendingUp},
@@ -51,8 +54,11 @@ export const TrainingAcademyPage = () => {
   const [enrollmentList, setEnrollmentList] = useState<TrainingEnrollment[]>([]);
   const [weaknessData, setWeaknessData] = useState<WeaknessAnalysis | null>(null);
   const [effectiveness, setEffectiveness] = useState<TrainingEffectiveness | null>(null);
+  const [paths, setPaths] = useState<LearningPath[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateCourse, setShowCreateCourse] = useState(false);
+  const [showCreatePath, setShowCreatePath] = useState(false);
+  const [editingPath, setEditingPath] = useState<LearningPath | null>(null);
 
   useEffect(() => {
     loadData();
@@ -61,18 +67,20 @@ export const TrainingAcademyPage = () => {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [s, c, e, w, eff] = await Promise.all([
+      const [s, c, e, w, eff, p] = await Promise.all([
         getTrainingStats(),
         listCourses(),
         listEnrollments(),
         getWeaknessAnalysis(),
         getTrainingEffectiveness(),
+        listPaths(),
       ]);
       setStats(s);
       setCourses(c.items);
       setEnrollmentList(e.items);
       setWeaknessData(w);
       setEffectiveness(eff);
+      setPaths(p.items);
     } catch (err) {
       console.error('Failed to load training data:', err);
     } finally {
@@ -111,6 +119,44 @@ export const TrainingAcademyPage = () => {
       setStats(s);
     } catch (err) {
       console.error('Failed to submit assessment:', err);
+    }
+  };
+
+  const handleCreatePath = async (input: {
+    title: string; description: string; category: string; level: string;
+    isCertified: boolean; courseIds: string[];
+  }) => {
+    try {
+      await createPath(input);
+      const p = await listPaths();
+      setPaths(p.items);
+      setShowCreatePath(false);
+    } catch (err) {
+      console.error('Failed to create path:', err);
+    }
+  };
+
+  const handleUpdatePath = async (id: string, updates: {
+    title?: string; description?: string; category?: string; level?: string;
+    isCertified?: boolean; isActive?: boolean; courseIds?: string[];
+  }) => {
+    try {
+      await updatePath(id, updates);
+      const p = await listPaths();
+      setPaths(p.items);
+      setEditingPath(null);
+    } catch (err) {
+      console.error('Failed to update path:', err);
+    }
+  };
+
+  const handleDeletePath = async (id: string) => {
+    if (!confirm('确定要删除这条学习路径吗？此操作不可撤销。')) return;
+    try {
+      await deletePath(id);
+      setPaths(prev => prev.filter(p => p.id !== id));
+    } catch (err) {
+      console.error('Failed to delete path:', err);
     }
   };
 
@@ -193,6 +239,15 @@ export const TrainingAcademyPage = () => {
         {activeTab === 'effectiveness' && effectiveness && (
           <EffectivenessTab data={effectiveness} />
         )}
+        {activeTab === 'paths' && (
+          <PathsTab
+            paths={paths}
+            courses={courses}
+            onAdd={() => setShowCreatePath(true)}
+            onEdit={(path) => setEditingPath(path)}
+            onDelete={handleDeletePath}
+          />
+        )}
       </motion.div>
 
       {/* Create Course Modal */}
@@ -200,6 +255,25 @@ export const TrainingAcademyPage = () => {
         <CreateCourseModal
           onClose={() => setShowCreateCourse(false)}
           onSubmit={handleCreateCourse}
+        />
+      )}
+
+      {/* Create Path Modal */}
+      {showCreatePath && (
+        <PathFormModal
+          courses={courses}
+          onClose={() => setShowCreatePath(false)}
+          onSubmit={handleCreatePath}
+        />
+      )}
+
+      {/* Edit Path Modal */}
+      {editingPath && (
+        <PathFormModal
+          courses={courses}
+          initial={editingPath}
+          onClose={() => setEditingPath(null)}
+          onSubmit={(input) => handleUpdatePath(editingPath.id, input)}
         />
       )}
     </div>
@@ -791,6 +865,302 @@ const CreateCourseModal = ({onClose, onSubmit}: {
             disabled={!title.trim() || isSubmitting}>
             {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
             {isSubmitting ? '创建中...' : '创建课程'}
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+};
+
+const PathsTab = ({paths, courses, onAdd, onEdit, onDelete}: {
+  paths: LearningPath[];
+  courses: TrainingCourse[];
+  onAdd: () => void;
+  onEdit: (path: LearningPath) => void;
+  onDelete: (id: string) => void;
+}) => {
+  const [filter, setFilter] = useState('');
+  const categories = [...new Set(paths.map(p => p.category))];
+  const filtered = filter ? paths.filter(p => p.category === filter) : paths;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="flex gap-2">
+          <button onClick={() => setFilter('')} className={`px-3 py-1.5 rounded-lg text-sm ${!filter ? 'bg-[#1a4bc4] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+            全部
+          </button>
+          {categories.map(cat => (
+            <button key={cat} onClick={() => setFilter(cat)} className={`px-3 py-1.5 rounded-lg text-sm ${filter === cat ? 'bg-[#1a4bc4] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+              {cat}
+            </button>
+          ))}
+        </div>
+        <button onClick={onAdd} className="flex items-center gap-2 px-4 py-2 bg-[#1a4bc4] text-white rounded-lg text-sm hover:bg-[#153da0] transition-colors">
+          <Plus className="w-4 h-4" /> 新建学习路径
+        </button>
+      </div>
+
+      {filtered.length === 0 ? (
+        <div className="text-center py-16 text-gray-400 bg-white rounded-xl border border-gray-200">
+          <MapPin className="w-12 h-12 mx-auto mb-4 opacity-40" />
+          <p className="text-sm font-medium mb-1">还没有学习路径</p>
+          <p className="text-xs text-gray-400 mb-4">创建结构化的多课程培训路径，引导学员循序渐进完成学习</p>
+          <button onClick={onAdd} className="px-4 py-2 bg-[#1a4bc4] text-white rounded-lg text-sm hover:bg-[#153da0]">
+            创建第一条路径
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filtered.map(path => {
+            const requiredCount = path.courses.filter(c => c.isRequired).length;
+            const optionalCount = path.courses.filter(c => !c.isRequired).length;
+            return (
+              <div key={path.id} className="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md transition-shadow group">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <h3 className="font-semibold text-gray-900 text-sm truncate">{path.title}</h3>
+                      {path.isCertified && (
+                        <span className="shrink-0 px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded text-[10px] font-medium">认证</span>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-500 line-clamp-2">{path.description || '暂无描述'}</p>
+                  </div>
+                  <div className="flex items-center gap-1 ml-2 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                    <button onClick={() => onEdit(path)} className="p-1.5 text-gray-400 hover:text-[#1a4bc4] hover:bg-blue-50 rounded-lg transition-colors" title="编辑">
+                      <Edit3 className="w-3.5 h-3.5" />
+                    </button>
+                    <button onClick={() => onDelete(path.id)} className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="删除">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 mb-3">
+                  <span className={`px-2 py-0.5 rounded text-xs font-medium ${CATEGORY_COLORS[path.category] ?? 'bg-gray-100 text-gray-600'}`}>
+                    {path.category}
+                  </span>
+                  <span className={`px-2 py-0.5 rounded text-xs font-medium ${(DIFFICULTY_LABELS[path.level]?.color ?? 'bg-gray-100 text-gray-600')}`}>
+                    {DIFFICULTY_LABELS[path.level]?.label ?? path.level}
+                  </span>
+                </div>
+
+                {path.courses.length > 0 && (
+                  <div className="mb-3 space-y-1.5">
+                    {path.courses.slice(0, 3).map((pc, i) => (
+                      <div key={pc.id} className="flex items-center gap-2 text-xs">
+                        <span className="w-5 h-5 rounded bg-gray-100 text-gray-500 flex items-center justify-center text-[10px] font-medium shrink-0">
+                          {i + 1}
+                        </span>
+                        <span className="text-gray-700 truncate">{pc.course.title}</span>
+                        {!pc.isRequired && <span className="text-[10px] text-gray-400 shrink-0">选修</span>}
+                      </div>
+                    ))}
+                    {path.courses.length > 3 && (
+                      <div className="text-xs text-gray-400 pl-7">+{path.courses.length - 3} 门课程</div>
+                    )}
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between text-xs text-gray-400 pt-3 border-t border-gray-100">
+                  <span className="flex items-center gap-1">
+                    <BookOpen className="w-3 h-3" />
+                    {requiredCount > 0 && <span>{requiredCount} 必修</span>}
+                    {requiredCount > 0 && optionalCount > 0 && <span>·</span>}
+                    {optionalCount > 0 && <span>{optionalCount} 选修</span>}
+                    {path.courses.length === 0 && '暂无课程'}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <Users className="w-3 h-3" />
+                    {path.enrolledCount} 人已报名
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const PathFormModal = ({courses, initial, onClose, onSubmit}: {
+  courses: TrainingCourse[];
+  initial?: LearningPath;
+  onClose: () => void;
+  onSubmit: (input: {
+    title: string; description: string; category: string; level: string;
+    isCertified: boolean; courseIds: string[];
+  }) => Promise<void>;
+}) => {
+  const isEdit = !!initial;
+  const [title, setTitle] = useState(initial?.title ?? '');
+  const [category, setCategory] = useState(initial?.category ?? '综合');
+  const [level, setLevel] = useState(initial?.level ?? '初级');
+  const [desc, setDesc] = useState(initial?.description ?? '');
+  const [isCertified, setIsCertified] = useState(initial?.isCertified ?? false);
+  const [selectedCourseIds, setSelectedCourseIds] = useState<string[]>(
+    initial?.courses?.map(c => c.courseId) ?? [],
+  );
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const toggleCourse = (courseId: string) => {
+    setSelectedCourseIds(prev =>
+      prev.includes(courseId) ? prev.filter(id => id !== courseId) : [...prev, courseId],
+    );
+  };
+
+  const moveCourse = (index: number, direction: -1 | 1) => {
+    const newIds = [...selectedCourseIds];
+    const target = index + direction;
+    if (target < 0 || target >= newIds.length) return;
+    [newIds[index], newIds[target]] = [newIds[target], newIds[index]];
+    setSelectedCourseIds(newIds);
+  };
+
+  const handleSubmit = async () => {
+    if (!title.trim() || isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      await onSubmit({
+        title,
+        description: desc,
+        category,
+        level,
+        isCertified,
+        courseIds: selectedCourseIds,
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const selectedCourses = selectedCourseIds
+    .map(id => courses.find(c => c.id === id))
+    .filter(Boolean) as TrainingCourse[];
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={onClose}>
+      <motion.div initial={{opacity: 0, scale: 0.95}} animate={{opacity: 1, scale: 1}}
+        className="bg-white rounded-2xl p-6 w-full max-w-2xl shadow-xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">
+          {isEdit ? '编辑学习路径' : '新建学习路径'}
+        </h3>
+
+        <div className="space-y-4">
+          {/* Basic Info */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">路径名称 *</label>
+              <input value={title} onChange={e => setTitle(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
+                placeholder="例如：前端开发工程师入职培训" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">分类</label>
+              <select value={category} onChange={e => setCategory(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]">
+                <option value="沟通表达">沟通表达</option>
+                <option value="专业能力">专业能力</option>
+                <option value="应变能力">应变能力</option>
+                <option value="综合素质">综合素质</option>
+                <option value="综合">综合</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">难度等级</label>
+              <select value={level} onChange={e => setLevel(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]">
+                <option value="初级">初级</option>
+                <option value="中级">中级</option>
+                <option value="高级">高级</option>
+              </select>
+            </div>
+            <div className="flex items-end pb-2">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={isCertified} onChange={e => setIsCertified(e.target.checked)}
+                  className="w-4 h-4 rounded border-gray-300 text-[#1a4bc4] focus:ring-[#1a4bc4]" />
+                <span className="text-sm text-gray-700">认证路径 (完成后颁发证书)</span>
+              </label>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">路径描述</label>
+            <textarea value={desc} onChange={e => setDesc(e.target.value)} rows={2}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
+              placeholder="描述该学习路径的目标和适用人群" />
+          </div>
+
+          {/* Course Selection */}
+          <div className="border-t pt-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              包含课程 ({selectedCourseIds.length})
+            </label>
+
+            {/* Selected courses (ordered) */}
+            {selectedCourses.length > 0 && (
+              <div className="space-y-2 mb-4">
+                {selectedCourses.map((course, idx) => (
+                  <div key={course.id} className="flex items-center gap-3 bg-blue-50 p-3 rounded-lg border border-blue-100">
+                    <div className="flex items-center gap-1">
+                      <button onClick={() => moveCourse(idx, -1)} disabled={idx === 0}
+                        className="text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed">
+                        <ChevronRight className="w-4 h-4 rotate-180" />
+                      </button>
+                      <button onClick={() => moveCourse(idx, 1)} disabled={idx === selectedCourses.length - 1}
+                        className="text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed">
+                        <ChevronRight className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <span className="w-5 h-5 rounded-full bg-[#1a4bc4] text-white text-[10px] flex items-center justify-center font-medium shrink-0">
+                      {idx + 1}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium text-gray-900 truncate">{course.title}</div>
+                      <div className="text-xs text-gray-500">{course.category} · {course.durationMinutes}分钟</div>
+                    </div>
+                    <button onClick={() => toggleCourse(course.id)}
+                      className="text-red-400 hover:text-red-600 text-xs shrink-0">移除</button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Available courses */}
+            <div className="max-h-48 overflow-y-auto border border-gray-200 rounded-lg">
+              {courses.filter(c => !selectedCourseIds.includes(c.id)).length === 0 ? (
+                <div className="text-center py-6 text-gray-400 text-sm">
+                  {courses.length === 0 ? '暂无可选课程，请先创建课程' : '所有课程已添加'}
+                </div>
+              ) : (
+                courses.filter(c => !selectedCourseIds.includes(c.id)).map(course => (
+                  <button key={course.id}
+                    onClick={() => toggleCourse(course.id)}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 text-left border-b border-gray-100 last:border-0 transition-colors">
+                    <Plus className="w-4 h-4 text-[#1a4bc4] shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm text-gray-900 truncate">{course.title}</div>
+                      <div className="text-xs text-gray-400">{course.category} · {DIFFICULTY_LABELS[course.difficulty]?.label} · {course.durationMinutes}分钟</div>
+                    </div>
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-3 mt-6">
+          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">取消</button>
+          <button onClick={handleSubmit}
+            className="px-4 py-2 text-sm bg-[#1a4bc4] text-white rounded-lg hover:bg-[#153da0] disabled:opacity-50 flex items-center gap-2"
+            disabled={!title.trim() || isSubmitting}>
+            {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
+            {isSubmitting ? '保存中...' : (isEdit ? '保存修改' : '创建路径')}
           </button>
         </div>
       </motion.div>

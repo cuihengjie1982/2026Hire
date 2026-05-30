@@ -417,3 +417,119 @@ export const getTrainingStats = async (): Promise<TrainingStats> => {
 
   return efetch<TrainingStats>('/training/stats');
 };
+
+// ─── Learning Paths ─────────────────────────────────────────────────────
+
+const mapPathCourse = (raw: Record<string, unknown>): import('../training/types').PathCourse => ({
+  id: String(raw.id ?? ''),
+  pathId: String(raw.pathId ?? raw.path_id ?? ''),
+  courseId: String(raw.courseId ?? raw.course_id ?? ''),
+  sortOrder: Number(raw.sortOrder ?? raw.sort_order ?? 0),
+  isRequired: Boolean(raw.isRequired ?? raw.is_required ?? true),
+  course: mapCourse((raw.course ?? raw.training_courses ?? {}) as Record<string, unknown>),
+});
+
+const mapPath = (raw: Record<string, unknown>): import('../training/types').LearningPath => ({
+  id: String(raw.id ?? ''),
+  title: String(raw.title ?? ''),
+  description: String(raw.description ?? ''),
+  category: String(raw.category ?? '通用'),
+  level: (String(raw.level ?? '初级')) as '初级' | '中级' | '高级',
+  isCertified: Boolean(raw.isCertified ?? raw.is_certified ?? false),
+  positionId: (raw.positionId ?? raw.position_id ?? undefined) as string | undefined,
+  coverImageUrl: (raw.coverImageUrl ?? raw.cover_image_url ?? undefined) as string | undefined,
+  isActive: Boolean(raw.isActive ?? raw.is_active ?? true),
+  courses: ((raw.courses ?? []) as Record<string, unknown>[]).map(mapPathCourse),
+  enrolledCount: Number(raw.enrolledCount ?? 0),
+  createdAt: String(raw.createdAt ?? raw.created_at ?? ''),
+  updatedAt: String(raw.updatedAt ?? raw.updated_at ?? ''),
+});
+
+export const listPaths = async (filters?: {
+  category?: string; positionId?: string; level?: string;
+}): Promise<{ items: import('../training/types').LearningPath[]; total: number }> => {
+  const params = new URLSearchParams();
+  if (filters?.category) params.set('category', filters.category);
+  if (filters?.positionId) params.set('positionId', filters.positionId);
+  if (filters?.level) params.set('level', filters.level);
+  const qs = params.toString();
+
+  if (USE_MOCK_API) {
+    await mockDelay();
+    return { items: [], total: 0 };
+  }
+
+  const payload = await efetch<Record<string, unknown>>(`/training/paths${qs ? `?${qs}` : ''}`);
+  return {
+    items: (payload.items as Record<string, unknown>[] | undefined ?? []).map(mapPath),
+    total: (payload.total as number) ?? 0,
+  };
+};
+
+export const createPath = async (input: {
+  title: string;
+  description?: string;
+  category?: string;
+  level?: string;
+  isCertified?: boolean;
+  positionId?: string;
+  coverImageUrl?: string;
+  courseIds?: string[];
+}): Promise<import('../training/types').LearningPath> => {
+  if (USE_MOCK_API) {
+    await mockDelay();
+    return {
+      id: Date.now().toString(),
+      title: input.title,
+      description: input.description ?? '',
+      category: input.category ?? '通用',
+      level: (input.level ?? '初级') as '初级' | '中级' | '高级',
+      isCertified: input.isCertified ?? false,
+      positionId: input.positionId,
+      courses: [],
+      enrolledCount: 0,
+      isActive: true,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+  }
+
+  const raw = await efetch<Record<string, unknown>>('/training/paths', 'POST', input as unknown as Record<string, unknown>);
+  return mapPath(raw);
+};
+
+export const updatePath = async (id: string, updates: {
+  title?: string; description?: string; category?: string; level?: string;
+  isCertified?: boolean; isActive?: boolean; coverImageUrl?: string;
+  courseIds?: string[];
+}): Promise<import('../training/types').LearningPath> => {
+  if (USE_MOCK_API) {
+    await mockDelay();
+    return { /* simplified mock */ } as import('../training/types').LearningPath;
+  }
+
+  const raw = await efetch<Record<string, unknown>>(`/training/paths/${id}`, 'PATCH', updates as unknown as Record<string, unknown>);
+  return mapPath(raw);
+};
+
+export const deletePath = async (id: string): Promise<void> => {
+  if (USE_MOCK_API) { await mockDelay(); return; }
+  await efetch(`/training/paths/${id}`, 'DELETE');
+};
+
+export const getPathEnrollments = async (pathId: string): Promise<{ items: import('../training/types').PathEnrollment[]; total: number }> => {
+  if (USE_MOCK_API) { await mockDelay(); return { items: [], total: 0 }; }
+  const payload = await efetch<Record<string, unknown>>(`/training/paths/${pathId}/enrollments`);
+  return {
+    items: (payload.items as Record<string, unknown>[] ?? []).map((r: Record<string, unknown>) => ({
+      id: String(r.id ?? ''),
+      pathId: String(r.path_id ?? ''),
+      candidateId: String(r.candidate_id ?? ''),
+      status: String(r.status ?? 'enrolled') as 'enrolled' | 'in_progress' | 'completed' | 'failed',
+      enrolledAt: String(r.enrolled_at ?? ''),
+      completedAt: (r.completed_at ?? undefined) as string | undefined,
+      progressPct: Number(r.progress_pct ?? 0),
+    })),
+    total: (payload.total as number) ?? 0,
+  };
+};

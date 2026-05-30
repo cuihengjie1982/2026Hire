@@ -2,7 +2,7 @@ import {motion} from 'motion/react';
 import {Eye, EyeOff, Megaphone, TrendingUp, UserPlus, X, CheckCircle2} from 'lucide-react';
 import React, {useState} from 'react';
 import {supabase} from '../../../shared/lib/supabase';
-import {setUserName, AUTH_SESSION_STORAGE_KEY, USE_MOCK_API} from '../../../shared/lib/runtime';
+import {setUserName, setAuthToken, AUTH_SESSION_STORAGE_KEY, USE_MOCK_API} from '../../../shared/lib/runtime';
 
 export const LoginPage = ({onLogin}: {onLogin: () => void}) => {
   const [showPassword, setShowPassword] = useState(false);
@@ -40,6 +40,12 @@ export const LoginPage = ({onLogin}: {onLogin: () => void}) => {
       }
 
       if (authData.user) {
+        // Sync JWT to localStorage immediately (before onAuthStateChange fires)
+        const { data: sessionData } = await supabase.auth.getSession();
+        if (sessionData.session?.access_token) {
+          setAuthToken(sessionData.session.access_token);
+        }
+
         // Fetch profile to get user name
         const { data: profile } = await supabase
           .from('profiles')

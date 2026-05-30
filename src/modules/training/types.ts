@@ -100,3 +100,40 @@ export interface CourseRecommendation {
   dimensions: string[];
   recommendations: TrainingCourse[];
 }
+
+// ─── Learning Paths ─────────────────────────────────────────────────────
+
+export interface LearningPath {
+  id: string;
+  title: string;
+  description: string;
+  category: string;
+  level: '初级' | '中级' | '高级';
+  isCertified: boolean;
+  positionId?: string;
+  coverImageUrl?: string;
+  isActive: boolean;
+  courses: PathCourse[];
+  enrolledCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PathCourse {
+  id: string;
+  pathId: string;
+  courseId: string;
+  sortOrder: number;
+  isRequired: boolean;
+  course: TrainingCourse;
+}
+
+export interface PathEnrollment {
+  id: string;
+  pathId: string;
+  candidateId: string;
+  status: 'enrolled' | 'in_progress' | 'completed' | 'failed';
+  enrolledAt: string;
+  completedAt?: string;
+  progressPct: number;
+}
