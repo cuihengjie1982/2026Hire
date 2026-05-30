@@ -245,9 +245,9 @@ export const DashboardPage = () => {
   }, []);
 
   const quickActions: QuickAction[] = [
-    {label: '导入简历', icon: Upload, color: 'bg-blue-600 hover:bg-blue-700', path: '/talent'},
-    {label: '发起面试', icon: Video, color: 'bg-purple-600 hover:bg-purple-700', path: '/interviews/templates'},
-    {label: '查看入围', icon: FileText, color: 'bg-emerald-600 hover:bg-emerald-700', path: '/shortlist'},
+    {label: '导入简历', icon: Upload, color: 'bg-blue-600 hover:bg-blue-700', path: '/candidates'},
+    {label: '发起面试', icon: Video, color: 'bg-purple-600 hover:bg-purple-700', path: '/interviews?tab=templates'},
+    {label: '查看入围', icon: FileText, color: 'bg-emerald-600 hover:bg-emerald-700', path: '/pipeline'},
     {label: '审批中心', icon: CheckCircle2, color: 'bg-orange-600 hover:bg-orange-700', path: '/approvals'},
   ];
 
@@ -272,7 +272,7 @@ export const DashboardPage = () => {
         subtitle: `${taskCounts.pendingReviewResumes} 份简历待解析`,
         status: 'pending',
         icon: Upload,
-        path: '/talent',
+        path: '/candidates',
       });
     }
 
@@ -283,7 +283,7 @@ export const DashboardPage = () => {
         subtitle: `${taskCounts.pendingOutreach} 位候选人未回复`,
         status: 'pending',
         icon: UserPlus,
-        path: '/outreach',
+        path: '/pipeline',
       });
     }
 
@@ -294,7 +294,7 @@ export const DashboardPage = () => {
         subtitle: `${taskCounts.runningAgents} 个代理正在运行中`,
         status: 'done',
         icon: Bot,
-        path: '/agents',
+        path: '/admin',
       });
     }
 
@@ -594,10 +594,10 @@ export const DashboardPage = () => {
             <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">常用功能</h2>
             <div className="grid grid-cols-2 gap-2">
               {[
-                {label: '候选人搜索', icon: Search, path: '/search'},
+                {label: '候选人搜索', icon: Search, path: '/candidates'},
                 {label: '项目管理', icon: Folder, path: '/projects'},
-                {label: 'AI 代理', icon: Bot, path: '/agents'},
-                {label: '数据洞察', icon: BarChart3, path: '/insights'},
+                {label: 'AI 代理', icon: Bot, path: '/admin'},
+                {label: '数据洞察', icon: BarChart3, path: '/admin'},
               ].map((item) => {
                 const Icon = item.icon;
                 return (
