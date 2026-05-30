@@ -356,36 +356,46 @@ export const importResumes = async (
       }
     }
 
-    for (const file of files) {
+    // Helper: read file as base64 (used in parallel parsing)
+    const readFileAsBase64 = async (f: File): Promise<string> => {
       try {
-        // Read original file as base64 for PDF download
-        let originalFileBase64 = '';
-        try {
-          const arrayBuffer = await file.arrayBuffer();
-          const bytes = new Uint8Array(arrayBuffer);
-          let binary = '';
-          const chunkSize = 8192;
-          for (let i = 0; i < bytes.length; i += chunkSize) {
-            const chunk = bytes.subarray(i, Math.min(i + chunkSize, bytes.length));
-            binary += String.fromCharCode(...chunk);
-          }
-          originalFileBase64 = btoa(binary);
-        } catch (e) {
-          console.warn('Failed to read file as base64:', e);
+        const arrayBuffer = await f.arrayBuffer();
+        const bytes = new Uint8Array(arrayBuffer);
+        let binary = '';
+        const chunkSize = 8192;
+        for (let i = 0; i < bytes.length; i += chunkSize) {
+          const chunk = bytes.subarray(i, Math.min(i + chunkSize, bytes.length));
+          binary += String.fromCharCode(...chunk);
         }
+        return btoa(binary);
+      } catch {
+        return '';
+      }
+    };
 
-        // Smart routing pipeline: auto-selects TEXT_PATH or VISION_PATH
-        const pipelineResult = await parseResume(file, {
-          mineruToken: MINERU_API_TOKEN,
-          authToken: getAuthToken(),
-        });
+    // Parse all files in parallel (the main bottleneck was sequential for...of)
+    const parseResults = await Promise.allSettled(files.map(async (file) => {
+      const originalFileBase64 = await readFileAsBase64(file);
+      const pipelineResult = await parseResume(file, {
+        mineruToken: MINERU_API_TOKEN,
+        authToken: getAuthToken(),
+      });
+      return { file, originalFileBase64, pipelineResult };
+    }));
 
+    // Process results sequentially (dedup & storage require ordering)
+    for (const result of parseResults) {
+      if (result.status === 'rejected') {
+        console.error(`Failed to parse:`, result.reason);
+        continue;
+      }
+      const { file, originalFileBase64, pipelineResult } = result.value;
+
+      try {
         const {parsedInfo, contentMd, photoBase64, metadata} = pipelineResult;
         const candidateName = parsedInfo.name || file.name.replace(/\.(pdf|docx?|doc|png|jpe?g)$/i, '');
 
-        // Populate rawText so AI agents can process this candidate
         parsedInfo.rawText = contentMd || '';
-        // Assign cropped photo to parsedInfo so it renders on candidate cards
         if (photoBase64 && !parsedInfo.photoBase64) {
           parsedInfo.photoBase64 = photoBase64;
         }
@@ -394,7 +404,6 @@ export const importResumes = async (
           `${metadata.totalDurationMs}ms, stages=${metadata.stagesUsed.join('→')}` +
           `${photoBase64 ? ', photoExtracted' : ''}`);
 
-        // Calculate score if position details available
         let scoreResult: ScoreResult | null = null;
         if (positionDetail) {
           scoreResult = calculateResumeScore(parsedInfo, positionDetail);
@@ -427,7 +436,6 @@ export const importResumes = async (
           originalFileName: file.name,
         };
 
-        // Check for duplicate and overwrite
         const dupIdx = findDuplicateIndex(candidateName, parsedInfo.email, parsedInfo.phone);
         if (dupIdx >= 0) {
           candidate.id = candidatesData[dupIdx].id;
@@ -437,7 +445,7 @@ export const importResumes = async (
           newCandidates.push(candidate);
         }
       } catch (e) {
-        console.error(`Failed to parse ${file.name}:`, e);
+        console.error(`Failed to process ${file.name}:`, e);
         const candidateName = file.name.replace(/\.(pdf|docx?|doc|png|jpe?g)$/i, '');
         const candidate: CandidateCard = {
           id: `imported-${Date.now()}-${newCandidates.length}`,
@@ -489,20 +497,47 @@ export const importResumes = async (
     }
   }
 
-  for (const file of files) {
+  // Helper: read file as base64
+  const readFileAsBase64 = async (f: File): Promise<string> => {
     try {
-      // Smart routing pipeline: auto-selects TEXT_PATH or VISION_PATH
-      const pipelineResult = await parseResume(file, {
-        mineruToken: MINERU_API_TOKEN,
-        authToken: getAuthToken(),
-      });
+      const arrayBuffer = await f.arrayBuffer();
+      const bytes = new Uint8Array(arrayBuffer);
+      let binary = '';
+      const chunkSize = 8192;
+      for (let i = 0; i < bytes.length; i += chunkSize) {
+        const chunk = bytes.subarray(i, Math.min(i + chunkSize, bytes.length));
+        binary += String.fromCharCode(...chunk);
+      }
+      return btoa(binary);
+    } catch {
+      return '';
+    }
+  };
 
+  // Parse all files in parallel (the main bottleneck was sequential for...of)
+  const parseResults = await Promise.allSettled(files.map(async (file) => {
+    const originalFileBase64 = await readFileAsBase64(file);
+    const pipelineResult = await parseResume(file, {
+      mineruToken: MINERU_API_TOKEN,
+      authToken: getAuthToken(),
+    });
+    return { file, originalFileBase64, pipelineResult };
+  }));
+
+  // Import results sequentially (Edge Function calls write to DB, keep sequential)
+  for (const result of parseResults) {
+    if (result.status === 'rejected') {
+      console.error(`Failed to parse:`, result.reason);
+      failed += 1;
+      continue;
+    }
+    const { file, originalFileBase64, pipelineResult } = result.value;
+
+    try {
       const {parsedInfo, contentMd, photoBase64, metadata} = pipelineResult;
       const candidateName = parsedInfo.name || file.name.replace(/\.(pdf|docx?|doc|png|jpe?g)$/i, '');
 
-      // Populate rawText so AI agents can process this candidate
       parsedInfo.rawText = contentMd || '';
-      // Assign cropped photo to parsedInfo so it renders on candidate cards
       if (photoBase64 && !parsedInfo.photoBase64) {
         parsedInfo.photoBase64 = photoBase64;
       }
@@ -517,23 +552,6 @@ export const importResumes = async (
       const grade = scoreResult?.grade || '';
       const scoreTotal = scoreResult?.totalScore ?? 0;
 
-      // Read original file as base64 for PDF download
-      let originalFileBase64 = '';
-      let originalFileName = file.name;
-      try {
-        const arrayBuffer = await file.arrayBuffer();
-        const bytes = new Uint8Array(arrayBuffer);
-        let binary = '';
-        const chunkSize = 8192;
-        for (let i = 0; i < bytes.length; i += chunkSize) {
-          const chunk = bytes.subarray(i, Math.min(i + chunkSize, bytes.length));
-          binary += String.fromCharCode(...chunk);
-        }
-        originalFileBase64 = btoa(binary);
-      } catch (e) {
-        console.warn('Failed to read file as base64:', e);
-      }
-
       // Call edge function for import
       const importResult = await efetch<{imported: number; results: Array<Record<string, unknown>>}>('/candidate-ops/import', 'POST', [{
         name: candidateName,
@@ -547,7 +565,7 @@ export const importResumes = async (
         grade,
         score_total: scoreTotal,
         original_file_base64: originalFileBase64 || null,
-        original_file_name: originalFileName,
+        original_file_name: file.name,
       }]);
 
       const firstResult = importResult.results?.[0] as Record<string, unknown> | undefined;
