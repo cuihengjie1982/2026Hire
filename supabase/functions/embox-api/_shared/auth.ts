@@ -43,9 +43,14 @@ export async function authenticate(
   const { data: { user: authUser }, error: authError } = await supabase.auth.getUser(token);
 
   if (authError || !authUser) {
+    // Distinguish expired token (so frontend can auto-refresh) vs truly invalid
+    const isExpired = authError?.message?.toLowerCase().includes('expired')
+      || authError?.name === 'AuthSessionMissingError';
+    const code = isExpired ? 'TOKEN_EXPIRED' : 'UNAUTHORIZED';
+    const message = isExpired ? 'Token expired — auto-refresh' : 'Invalid or expired token';
     return {
       error: new Response(
-        JSON.stringify({ error: { code: 'UNAUTHORIZED', message: 'Invalid or expired token' } }),
+        JSON.stringify({ error: { code, message } }),
         { status: 401, headers: { 'Content-Type': 'application/json' } },
       ),
     };

@@ -28,6 +28,7 @@ export const ResumeImportModal = ({
   const [selectedPositionId, setSelectedPositionId] = useState<string>('');
   const [loadingProjects, setLoadingProjects] = useState(true);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [importResult, setImportResult] = useState<{imported: number; failed: number; duplicates: number} | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Get selected project and position names
@@ -41,6 +42,7 @@ export const ResumeImportModal = ({
     setSelectedProjectId('');
     setSelectedPositionId('');
     setSelectedFiles([]);
+    setImportResult(null);
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -116,18 +118,16 @@ export const ResumeImportModal = ({
       clearTimeout(parsingTimeoutRef.current);
     }
     try {
-      await importResumes(selectedFiles, selectedProjectId, selectedPositionId);
-      parsingTimeoutRef.current = setTimeout(() => {
-        setStep(3);
-        parsingTimeoutRef.current = null;
-      }, 3000);
+      const result = await importResumes(selectedFiles, selectedProjectId, selectedPositionId);
+      setImportResult(result);
     } catch (e) {
       console.error('Failed to import resumes:', e);
-      parsingTimeoutRef.current = setTimeout(() => {
-        setStep(3);
-        parsingTimeoutRef.current = null;
-      }, 3000);
+      setImportResult({imported: 0, failed: selectedFiles.length, duplicates: 0});
     }
+    parsingTimeoutRef.current = setTimeout(() => {
+      setStep(3);
+      parsingTimeoutRef.current = null;
+    }, 1500);
   };
 
   const handleClose = () => {
@@ -322,24 +322,41 @@ export const ResumeImportModal = ({
             <div className="py-24 flex flex-col items-center justify-center">
               <Loader2 className="w-12 h-12 text-[#1a4bc4] animate-spin mb-6" />
               <div className="text-xl font-bold text-gray-900 mb-2">正在通过 AI 提取并分析简历信息...</div>
-              <div className="text-gray-500">已处理 {selectedFiles.length}/8 份，预计剩余 3 分钟</div>
+              <div className="text-gray-500">正在处理 {selectedFiles.length} 份简历...</div>
               <div className="w-full max-w-md bg-gray-100 h-2.5 rounded-full mt-8">
                 <motion.div className="bg-[#1a4bc4] h-2.5 rounded-full" initial={{width: '0%'}} animate={{width: '37%'}} transition={{duration: 1}} />
               </div>
             </div>
           ) : (
-            <div className="py-24 flex flex-col items-center justify-center">
-              <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mb-6">
-                <CheckCircle2 className="w-8 h-8 text-emerald-600" />
+            <div className="py-16 flex flex-col items-center justify-center">
+              {importResult && importResult.failed > 0 ? (
+                <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mb-6">
+                  <AlertTriangle className="w-8 h-8 text-amber-600" />
+                </div>
+              ) : (
+                <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mb-6">
+                  <CheckCircle2 className="w-8 h-8 text-emerald-600" />
+                </div>
+              )}
+              <div className="text-xl font-bold text-gray-900 mb-2">
+                {importResult && importResult.failed > 0 ? '部分完成' : '解析完成'}
               </div>
-              <div className="text-xl font-bold text-gray-900 mb-2">解析完成</div>
-              <div className="text-gray-500 mb-10">成功解析 {selectedFiles.length} 份简历并已归入项目仓库</div>
+              <div className="text-gray-500 mb-2 text-center">
+                {importResult
+                  ? `成功导入 ${importResult.imported} 份${importResult.duplicates > 0 ? `，覆盖 ${importResult.duplicates} 份重复` : ''}${importResult.failed > 0 ? `，${importResult.failed} 份失败` : ''}`
+                  : `成功解析 ${selectedFiles.length} 份简历并已归入项目仓库`}
+              </div>
+              {importResult && importResult.failed > 0 && (
+                <div className="text-sm text-amber-600 mb-6 bg-amber-50 px-4 py-2 rounded-lg">
+                  失败可能是简历为扫描件/图片格式，可尝试转换为文本 PDF 后重新导入
+                </div>
+              )}
               <button
                 onClick={() => {
                   handleClose();
                   onComplete?.();
                 }}
-                className="bg-[#1a4bc4] hover:bg-[#0c2b7a] text-white px-8 py-3 rounded-lg font-medium transition-colors"
+                className="mt-4 bg-[#1a4bc4] hover:bg-[#0c2b7a] text-white px-8 py-3 rounded-lg font-medium transition-colors"
               >
                 查看项目简历
               </button>
