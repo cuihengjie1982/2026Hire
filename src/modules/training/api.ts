@@ -9,6 +9,10 @@ import {
   type WeaknessAnalysis,
   type TrainingEffectiveness,
   type CourseRecommendation,
+  type PathEnrollment,
+  type BatchEnrollInput,
+  type BatchEnrollResult,
+  type MaterialUploadResult,
 } from './types';
 
 // Re-export types for consumers
@@ -20,6 +24,10 @@ export type {
   WeaknessAnalysis,
   TrainingEffectiveness,
   CourseRecommendation,
+  PathEnrollment,
+  BatchEnrollInput,
+  BatchEnrollResult,
+  MaterialUploadResult,
 };
 
 // Helper to call embox-api Edge Function (production) or fall through to fetchJson (dev)
@@ -517,19 +525,80 @@ export const deletePath = async (id: string): Promise<void> => {
   await efetch(`/training/paths/${id}`, 'DELETE');
 };
 
-export const getPathEnrollments = async (pathId: string): Promise<{ items: import('../training/types').PathEnrollment[]; total: number }> => {
+const mapPathEnrollment = (raw: Record<string, unknown>): PathEnrollment => ({
+  id: String(raw.id ?? ''),
+  pathId: String(raw.path_id ?? raw.pathId ?? ''),
+  candidateId: String(raw.candidate_id ?? raw.candidateId ?? ''),
+  candidateName: (raw.candidate_name ?? raw.candidateName ?? undefined) as string | undefined,
+  status: String(raw.status ?? 'enrolled') as PathEnrollment['status'],
+  enrolledAt: String(raw.enrolled_at ?? raw.enrolledAt ?? ''),
+  completedAt: (raw.completed_at ?? raw.completedAt ?? undefined) as string | undefined,
+  progressPct: Number(raw.progress_pct ?? raw.progressPct ?? 0),
+});
+
+export const getPathEnrollments = async (pathId: string): Promise<{ items: PathEnrollment[]; total: number }> => {
   if (USE_MOCK_API) { await mockDelay(); return { items: [], total: 0 }; }
   const payload = await efetch<Record<string, unknown>>(`/training/paths/${pathId}/enrollments`);
   return {
-    items: (payload.items as Record<string, unknown>[] ?? []).map((r: Record<string, unknown>) => ({
-      id: String(r.id ?? ''),
-      pathId: String(r.path_id ?? ''),
-      candidateId: String(r.candidate_id ?? ''),
-      status: String(r.status ?? 'enrolled') as 'enrolled' | 'in_progress' | 'completed' | 'failed',
-      enrolledAt: String(r.enrolled_at ?? ''),
-      completedAt: (r.completed_at ?? undefined) as string | undefined,
-      progressPct: Number(r.progress_pct ?? 0),
-    })),
+    items: (payload.items as Record<string, unknown>[] ?? []).map(mapPathEnrollment),
     total: (payload.total as number) ?? 0,
   };
+};
+
+export const enrollCandidateInPath = async (pathId: string, candidateId: string): Promise<PathEnrollment> => {
+  if (USE_MOCK_API) {
+    await mockDelay();
+    return {
+      id: Date.now().toString(),
+      pathId,
+      candidateId,
+      status: 'enrolled',
+      enrolledAt: new Date().toISOString(),
+      progressPct: 0,
+    };
+  }
+  const raw = await efetch<Record<string, unknown>>(`/training/paths/${pathId}/enrollments`, 'POST', { candidateId });
+  return mapPathEnrollment(raw);
+};
+
+export const updatePathEnrollment = async (
+  pathId: string,
+  enrollmentId: string,
+  updates: { status?: string; progressPct?: number },
+): Promise<PathEnrollment> => {
+  if (USE_MOCK_API) { await mockDelay(); return { id: enrollmentId, pathId, candidateId: '', status: 'enrolled' as const, enrolledAt: '', progressPct: 0, ...updates } as PathEnrollment; }
+  const raw = await efetch<Record<string, unknown>>(`/training/paths/${pathId}/enrollments/${enrollmentId}`, 'PATCH', updates as unknown as Record<string, unknown>);
+  return mapPathEnrollment(raw);
+};
+
+export const deletePathEnrollment = async (pathId: string, enrollmentId: string): Promise<void> => {
+  if (USE_MOCK_API) { await mockDelay(); return; }
+  await efetch(`/training/paths/${pathId}/enrollments/${enrollmentId}`, 'DELETE');
+};
+
+export const uploadMaterial = async (file: File): Promise<MaterialUploadResult> => {
+  if (USE_MOCK_API) {
+    await mockDelay();
+    return { url: URL.createObjectURL(file), filename: file.name };
+  }
+  const formData = new FormData();
+  formData.append('file', file);
+  const base = USE_MOCK_API ? '' : API_BASE_URL;
+  const token = getAuthToken();
+  const res = await fetch(`${base}/functions/v1/embox-api/training/materials/upload`, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: formData,
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data?.error?.message || `Upload failed ${res.status}`);
+  return data as MaterialUploadResult;
+};
+
+export const batchEnroll = async (input: BatchEnrollInput): Promise<BatchEnrollResult> => {
+  if (USE_MOCK_API) {
+    await mockDelay();
+    return { enrolled: [], skipped: [], total: input.candidateIds.length };
+  }
+  return efetch<BatchEnrollResult>('/training/enrollments/batch', 'POST', input as unknown as Record<string, unknown>);
 };

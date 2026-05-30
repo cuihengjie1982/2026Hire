@@ -4,15 +4,20 @@ import {
   BookOpen, Users, TrendingUp, BarChart3, Plus, Clock, Star,
   CheckCircle, XCircle, PlayCircle, ChevronRight, AlertTriangle,
   Target, Award, ArrowUpRight, Download, Loader2, Layers, Edit3, Trash2, MapPin,
+  Upload, Search, X,
 } from 'lucide-react';
+import {getAuthToken, API_BASE_URL} from '../../../shared/lib/runtime';
 import {
   listCourses, listEnrollments, createCourse, updateEnrollment, submitAssessment,
   getTrainingStats, getWeaknessAnalysis, getTrainingEffectiveness, exportEnrollmentsCSV,
   recommendCourses, createEnrollment,
   listPaths, createPath, updatePath, deletePath,
+  getPathEnrollments, enrollCandidateInPath, updatePathEnrollment, deletePathEnrollment,
+  uploadMaterial, batchEnroll,
   type TrainingCourse, type TrainingEnrollment, type TrainingStats,
   type WeaknessAnalysis, type TrainingEffectiveness,
   type CourseRecommendation,
+  type PathEnrollment, type BatchEnrollResult, type MaterialUploadResult,
 } from '../api';
 import type {LearningPath} from '../types';
 
@@ -59,6 +64,8 @@ export const TrainingAcademyPage = () => {
   const [showCreateCourse, setShowCreateCourse] = useState(false);
   const [showCreatePath, setShowCreatePath] = useState(false);
   const [editingPath, setEditingPath] = useState<LearningPath | null>(null);
+  const [enrollmentPathId, setEnrollmentPathId] = useState<string | null>(null);
+  const [showBatchEnroll, setShowBatchEnroll] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -224,6 +231,7 @@ export const TrainingAcademyPage = () => {
           <CoursesTab
             courses={courses}
             onAdd={() => setShowCreateCourse(true)}
+            onBatchEnroll={() => setShowBatchEnroll(true)}
           />
         )}
         {activeTab === 'enrollments' && (
@@ -246,6 +254,8 @@ export const TrainingAcademyPage = () => {
             onAdd={() => setShowCreatePath(true)}
             onEdit={(path) => setEditingPath(path)}
             onDelete={handleDeletePath}
+            onEnrollmentClick={(pathId) => setEnrollmentPathId(pathId)}
+            onBatchEnroll={() => setShowBatchEnroll(true)}
           />
         )}
       </motion.div>
@@ -274,6 +284,24 @@ export const TrainingAcademyPage = () => {
           initial={editingPath}
           onClose={() => setEditingPath(null)}
           onSubmit={(input) => handleUpdatePath(editingPath.id, input)}
+        />
+      )}
+
+      {/* Path Enrollment Modal */}
+      {enrollmentPathId && (
+        <PathEnrollmentModal
+          pathId={enrollmentPathId}
+          onClose={() => { setEnrollmentPathId(null); loadData(); }}
+        />
+      )}
+
+      {/* Batch Enroll Modal */}
+      {showBatchEnroll && (
+        <BatchEnrollModal
+          courses={courses}
+          paths={paths}
+          onClose={() => setShowBatchEnroll(false)}
+          onDone={() => { setShowBatchEnroll(false); loadData(); }}
         />
       )}
     </div>
@@ -307,7 +335,7 @@ const StatsCard = ({icon: Icon, label, value, color}: {
   );
 };
 
-const CoursesTab = ({courses, onAdd}: {courses: TrainingCourse[]; onAdd: () => void}) => {
+const CoursesTab = ({courses, onAdd, onBatchEnroll}: {courses: TrainingCourse[]; onAdd: () => void; onBatchEnroll: () => void}) => {
   const [filter, setFilter] = useState('');
   const filtered = filter ? courses.filter(c => c.category === filter) : courses;
   const categories = [...new Set(courses.map(c => c.category))];
@@ -325,9 +353,16 @@ const CoursesTab = ({courses, onAdd}: {courses: TrainingCourse[]; onAdd: () => v
             </button>
           ))}
         </div>
-        <button onClick={onAdd} className="flex items-center gap-2 px-4 py-2 bg-[#1a4bc4] text-white rounded-lg text-sm hover:bg-[#153da0] transition-colors">
-          <Plus className="w-4 h-4" /> 新建课程
-        </button>
+        <div className="flex items-center gap-2">
+          {courses.length > 0 && (
+            <button onClick={onBatchEnroll} className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm hover:bg-gray-50 transition-colors">
+              <Users className="w-4 h-4" /> 批量报名
+            </button>
+          )}
+          <button onClick={onAdd} className="flex items-center gap-2 px-4 py-2 bg-[#1a4bc4] text-white rounded-lg text-sm hover:bg-[#153da0] transition-colors">
+            <Plus className="w-4 h-4" /> 新建课程
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -794,11 +829,41 @@ const CreateCourseModal = ({onClose, onSubmit}: {
                           <option value="link">链接</option>
                         </select>
                         {sec.contentType === 'text' ? (
-                          <textarea value={sec.text} onChange={e => updateSection(i, 'text', e.target.value)}
-                            className="flex-1 px-2 py-1 border rounded text-sm" rows={2} placeholder="文字内容" />
+                          <div className="flex-1 flex gap-2">
+                            <textarea value={sec.text} onChange={e => updateSection(i, 'text', e.target.value)}
+                              className="flex-1 px-2 py-1 border rounded text-sm" rows={2} placeholder="文字内容" />
+                            <label className="shrink-0 px-2 py-1 bg-gray-100 hover:bg-gray-200 text-gray-500 rounded text-xs cursor-pointer transition-colors flex items-center gap-1 self-start mt-0.5">
+                              <Upload className="w-3 h-3" /> 上传文档
+                              <input type="file" className="hidden" accept=".txt,.md,.doc,.docx,.pdf,.ppt,.pptx,.xls,.xlsx"
+                                onChange={async (e) => {
+                                  const file = e.target.files?.[0];
+                                  if (!file) return;
+                                  try {
+                                    const result = await uploadMaterial(file);
+                                    updateSection(i, 'contentUrl', result.url);
+                                    if (!sec.text.trim()) updateSection(i, 'text', `[附件: ${file.name}]`);
+                                  } catch (err) { console.error('Upload failed:', err); }
+                                }} />
+                            </label>
+                          </div>
                         ) : (
-                          <input value={sec.contentUrl} onChange={e => updateSection(i, 'contentUrl', e.target.value)}
-                            className="flex-1 px-2 py-1 border rounded text-sm" placeholder="URL" />
+                          <div className="flex-1 flex gap-2">
+                            <input value={sec.contentUrl} onChange={e => updateSection(i, 'contentUrl', e.target.value)}
+                              className="flex-1 px-2 py-1 border rounded text-sm" placeholder="URL" />
+                            <label className="shrink-0 px-2 py-1 bg-gray-100 hover:bg-gray-200 text-gray-500 rounded text-xs cursor-pointer transition-colors flex items-center gap-1">
+                              <Upload className="w-3 h-3" /> 本地上传
+                              <input type="file" className="hidden"
+                                accept={sec.contentType === 'video' ? '.mp4,.mov,.webm,.avi,.mkv' : '.pdf,.doc,.docx,.ppt,.pptx,.txt,.md,.jpg,.jpeg,.png,.gif,.mp4,.mov,.webm,.zip,.rar'}
+                                onChange={async (e) => {
+                                  const file = e.target.files?.[0];
+                                  if (!file) return;
+                                  try {
+                                    const result = await uploadMaterial(file);
+                                    updateSection(i, 'contentUrl', result.url);
+                                  } catch (err) { console.error('Upload failed:', err); }
+                                }} />
+                            </label>
+                          </div>
                         )}
                       </div>
                     </div>
@@ -830,6 +895,21 @@ const CreateCourseModal = ({onClose, onSubmit}: {
                 </select>
                 <input value={mat.url} onChange={e => updateMaterial(i, 'url', e.target.value)}
                   className="w-40 px-2 py-1 border rounded text-sm" placeholder="URL (可选)" />
+                <label className="px-2 py-1 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded text-xs cursor-pointer transition-colors flex items-center gap-1">
+                  <Upload className="w-3 h-3" /> 上传
+                  <input type="file" className="hidden" accept=".pdf,.doc,.docx,.ppt,.pptx,.mp4,.mov,.jpg,.jpeg,.png,.gif"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      try {
+                        const result = await uploadMaterial(file);
+                        updateMaterial(i, 'url', result.url);
+                        if (!mat.title.trim()) updateMaterial(i, 'title', file.name);
+                      } catch (err) {
+                        console.error('Upload failed:', err);
+                      }
+                    }} />
+                </label>
                 <button onClick={() => removeMaterial(i)} className="text-red-400 hover:text-red-600 text-xs">删除</button>
               </div>
             ))}
@@ -872,12 +952,14 @@ const CreateCourseModal = ({onClose, onSubmit}: {
   );
 };
 
-const PathsTab = ({paths, courses, onAdd, onEdit, onDelete}: {
+const PathsTab = ({paths, courses, onAdd, onEdit, onDelete, onEnrollmentClick, onBatchEnroll}: {
   paths: LearningPath[];
   courses: TrainingCourse[];
   onAdd: () => void;
   onEdit: (path: LearningPath) => void;
   onDelete: (id: string) => void;
+  onEnrollmentClick: (pathId: string) => void;
+  onBatchEnroll: () => void;
 }) => {
   const [filter, setFilter] = useState('');
   const categories = [...new Set(paths.map(p => p.category))];
@@ -896,9 +978,16 @@ const PathsTab = ({paths, courses, onAdd, onEdit, onDelete}: {
             </button>
           ))}
         </div>
-        <button onClick={onAdd} className="flex items-center gap-2 px-4 py-2 bg-[#1a4bc4] text-white rounded-lg text-sm hover:bg-[#153da0] transition-colors">
-          <Plus className="w-4 h-4" /> 新建学习路径
-        </button>
+        <div className="flex items-center gap-2">
+          {paths.length > 0 && (
+            <button onClick={onBatchEnroll} className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm hover:bg-gray-50 transition-colors">
+              <Users className="w-4 h-4" /> 批量报名
+            </button>
+          )}
+          <button onClick={onAdd} className="flex items-center gap-2 px-4 py-2 bg-[#1a4bc4] text-white rounded-lg text-sm hover:bg-[#153da0] transition-colors">
+            <Plus className="w-4 h-4" /> 新建学习路径
+          </button>
+        </div>
       </div>
 
       {filtered.length === 0 ? (
@@ -971,10 +1060,13 @@ const PathsTab = ({paths, courses, onAdd, onEdit, onDelete}: {
                     {optionalCount > 0 && <span>{optionalCount} 选修</span>}
                     {path.courses.length === 0 && '暂无课程'}
                   </span>
-                  <span className="flex items-center gap-1">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onEnrollmentClick(path.id); }}
+                    className="flex items-center gap-1 text-[#1a4bc4] hover:text-[#153da0] hover:underline transition-colors"
+                  >
                     <Users className="w-3 h-3" />
                     {path.enrolledCount} 人已报名
-                  </span>
+                  </button>
                 </div>
               </div>
             );
@@ -1163,6 +1255,379 @@ const PathFormModal = ({courses, initial, onClose, onSubmit}: {
             {isSubmitting ? '保存中...' : (isEdit ? '保存修改' : '创建路径')}
           </button>
         </div>
+      </motion.div>
+    </div>
+  );
+};
+
+// ─── Path Enrollment Modal ─────────────────────────────────────────────────
+
+const PathEnrollmentModal = ({pathId, onClose}: {pathId: string; onClose: () => void}) => {
+  const [enrollments, setEnrollments] = useState<PathEnrollment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searching, setSearching] = useState(false);
+  const [searchResults, setSearchResults] = useState<{id: string; name: string}[]>([]);
+  const [enrolling, setEnrolling] = useState<string | null>(null);
+
+  useEffect(() => { loadEnrollments(); }, [pathId]);
+
+  const loadEnrollments = async () => {
+    setLoading(true);
+    try {
+      const result = await getPathEnrollments(pathId);
+      setEnrollments(result.items);
+    } catch (err) { console.error('Failed to load enrollments:', err); }
+    finally { setLoading(false); }
+  };
+
+  const handleSearch = async () => {
+    if (!searchQuery.trim()) return;
+    setSearching(true);
+    try {
+      const token = getAuthToken?.() ?? '';
+      const base = (typeof API_BASE_URL !== 'undefined' ? API_BASE_URL : '') as string;
+      const url = `${base}/functions/v1/embox-api/candidate-ops?search=${encodeURIComponent(searchQuery)}&pageSize=20`;
+      const res = await fetch(url, {headers: {'Content-Type': 'application/json', ...(token ? {Authorization: `Bearer ${token}`} : {})}});
+      const data = await res.json();
+      const items = (data.items ?? data.data ?? []) as Record<string, unknown>[];
+      setSearchResults(items.map((c: Record<string, unknown>) => ({id: String(c.id ?? ''), name: String(c.name ?? '')})));
+    } catch (err) { console.error('Search failed:', err); }
+    finally { setSearching(false); }
+  };
+
+  const handleEnroll = async (candidateId: string) => {
+    setEnrolling(candidateId);
+    try {
+      await enrollCandidateInPath(pathId, candidateId);
+      await loadEnrollments();
+      setSearchResults(prev => prev.filter(c => c.id !== candidateId));
+    } catch (err) { console.error('Enroll failed:', err); }
+    finally { setEnrolling(null); }
+  };
+
+  const handleUpdate = async (enrollmentId: string, field: 'status' | 'progressPct', value: string | number) => {
+    try {
+      const updates = field === 'status' ? {status: value as string} : {progressPct: value as number};
+      await updatePathEnrollment(pathId, enrollmentId, updates);
+      await loadEnrollments();
+    } catch (err) { console.error('Update failed:', err); }
+  };
+
+  const handleDelete = async (enrollmentId: string) => {
+    if (!confirm('确定要取消该学员的报名吗？')) return;
+    try {
+      await deletePathEnrollment(pathId, enrollmentId);
+      setEnrollments(prev => prev.filter(e => e.id !== enrollmentId));
+    } catch (err) { console.error('Delete failed:', err); }
+  };
+
+  const completedCount = enrollments.filter(e => e.status === 'completed').length;
+  const inProgressCount = enrollments.filter(e => e.status === 'in_progress' || e.status === 'enrolled').length;
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={onClose}>
+      <motion.div initial={{opacity: 0, scale: 0.95}} animate={{opacity: 1, scale: 1}}
+        className="bg-white rounded-2xl p-6 w-full max-w-3xl shadow-xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-gray-900">路径报名管理</h3>
+          <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Progress Summary */}
+        <div className="grid grid-cols-3 gap-3 mb-5">
+          <div className="bg-blue-50 rounded-lg p-3 text-center">
+            <div className="text-xl font-bold text-blue-700">{enrollments.length}</div>
+            <div className="text-xs text-blue-500">总报名人数</div>
+          </div>
+          <div className="bg-emerald-50 rounded-lg p-3 text-center">
+            <div className="text-xl font-bold text-emerald-700">{completedCount}</div>
+            <div className="text-xs text-emerald-500">已完成</div>
+          </div>
+          <div className="bg-amber-50 rounded-lg p-3 text-center">
+            <div className="text-xl font-bold text-amber-700">{inProgressCount}</div>
+            <div className="text-xs text-amber-500">进行中</div>
+          </div>
+        </div>
+
+        {/* Candidate Search + Enroll */}
+        <div className="mb-5 p-4 bg-gray-50 rounded-xl">
+          <label className="block text-sm font-medium text-gray-700 mb-2">添加候选人</label>
+          <div className="flex gap-2">
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleSearch()}
+                className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
+                placeholder="搜索候选人姓名..." />
+            </div>
+            <button onClick={handleSearch} disabled={searching || !searchQuery.trim()}
+              className="px-4 py-2 bg-[#1a4bc4] text-white rounded-lg text-sm hover:bg-[#153da0] disabled:opacity-50">
+              {searching ? '搜索中...' : '搜索'}
+            </button>
+          </div>
+          {searchResults.length > 0 && (
+            <div className="mt-2 border border-gray-200 rounded-lg divide-y divide-gray-100 max-h-40 overflow-y-auto bg-white">
+              {searchResults.map(c => {
+                const alreadyEnrolled = enrollments.some(e => e.candidateId === c.id);
+                return (
+                  <div key={c.id} className="flex items-center justify-between px-3 py-2">
+                    <span className="text-sm text-gray-900">{c.name}</span>
+                    {alreadyEnrolled ? (
+                      <span className="text-xs text-gray-400">已报名</span>
+                    ) : (
+                      <button onClick={() => handleEnroll(c.id)} disabled={enrolling === c.id}
+                        className="text-xs px-3 py-1 bg-[#1a4bc4] text-white rounded-lg hover:bg-[#153da0] disabled:opacity-50">
+                        {enrolling === c.id ? '报名中...' : '报名'}
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Enrollment List */}
+        {loading ? (
+          <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-gray-400" /></div>
+        ) : enrollments.length === 0 ? (
+          <div className="text-center py-8 text-gray-400">
+            <Users className="w-10 h-10 mx-auto mb-2 opacity-50" />
+            <p className="text-sm">暂无学员报名此路径</p>
+            <p className="text-xs mt-1">使用上方搜索添加候选人</p>
+          </div>
+        ) : (
+          <div className="overflow-hidden border border-gray-200 rounded-xl">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-gray-50 border-b border-gray-200">
+                  <th className="text-left px-4 py-3 text-gray-500 font-medium">姓名</th>
+                  <th className="text-center px-4 py-3 text-gray-500 font-medium">状态</th>
+                  <th className="text-center px-4 py-3 text-gray-500 font-medium">进度</th>
+                  <th className="text-center px-4 py-3 text-gray-500 font-medium">操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                {enrollments.map(enrollment => (
+                  <tr key={enrollment.id} className="border-b border-gray-100 hover:bg-gray-50">
+                    <td className="px-4 py-3 font-medium text-gray-900">
+                      {enrollment.candidateName || enrollment.candidateId}
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <select value={enrollment.status}
+                        onChange={e => handleUpdate(enrollment.id, 'status', e.target.value)}
+                        className="px-2 py-1 border border-gray-200 rounded text-xs focus:outline-none focus:ring-1 focus:ring-[#1a4bc4]">
+                        <option value="enrolled">已报名</option>
+                        <option value="in_progress">学习中</option>
+                        <option value="completed">已完成</option>
+                        <option value="failed">未通过</option>
+                      </select>
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <div className="flex items-center gap-2 justify-center">
+                        <input type="range" min="0" max="100" value={enrollment.progressPct}
+                          onChange={e => handleUpdate(enrollment.id, 'progressPct', Number(e.target.value))}
+                          className="w-16 h-1.5 accent-[#1a4bc4]" />
+                        <span className="text-xs text-gray-500 w-8">{enrollment.progressPct}%</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <button onClick={() => handleDelete(enrollment.id)}
+                        className="text-xs px-2 py-1 text-red-500 hover:bg-red-50 rounded transition-colors">
+                        取消报名
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </motion.div>
+    </div>
+  );
+};
+
+// ─── Batch Enrollment Modal ─────────────────────────────────────────────────
+
+const BatchEnrollModal = ({courses, paths, onClose, onDone}: {
+  courses: TrainingCourse[];
+  paths: LearningPath[];
+  onClose: () => void;
+  onDone: () => void;
+}) => {
+  const [targetType, setTargetType] = useState<'course' | 'path'>('course');
+  const [targetId, setTargetId] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<{id: string; name: string}[]>([]);
+  const [selectedCandidates, setSelectedCandidates] = useState<{id: string; name: string}[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [result, setResult] = useState<BatchEnrollResult | null>(null);
+
+  const targets = targetType === 'course' ? courses : paths;
+  const activeTargets = targetType === 'course'
+    ? targets.filter((c: TrainingCourse) => c.isActive)
+    : targets;
+
+  const handleSearch = async () => {
+    if (!searchQuery.trim()) return;
+    setSearching(true);
+    try {
+      const token = getAuthToken?.() ?? '';
+      const base = (typeof API_BASE_URL !== 'undefined' ? API_BASE_URL : '') as string;
+      const url = `${base}/functions/v1/embox-api/candidate-ops?search=${encodeURIComponent(searchQuery)}&pageSize=20`;
+      const res = await fetch(url, {headers: {'Content-Type': 'application/json', ...(token ? {Authorization: `Bearer ${token}`} : {})}});
+      const data = await res.json();
+      const items = (data.items ?? data.data ?? []) as Record<string, unknown>[];
+      setSearchResults(items.map((c: Record<string, unknown>) => ({id: String(c.id ?? ''), name: String(c.name ?? '')})));
+    } catch (err) { console.error('Search failed:', err); }
+    finally { setSearching(false); }
+  };
+
+  const toggleCandidate = (c: {id: string; name: string}) => {
+    setSelectedCandidates(prev =>
+      prev.some(x => x.id === c.id) ? prev.filter(x => x.id !== c.id) : [...prev, c]
+    );
+  };
+
+  const handleSubmit = async () => {
+    if (!targetId || selectedCandidates.length === 0) return;
+    setSubmitting(true);
+    try {
+      const r = await batchEnroll({
+        candidateIds: selectedCandidates.map(c => c.id),
+        ...(targetType === 'course' ? {courseId: targetId} : {pathId: targetId}),
+      });
+      setResult(r);
+    } catch (err) { console.error('Batch enroll failed:', err); }
+    finally { setSubmitting(false); }
+  };
+
+  const handleClose = () => {
+    if (result) { onDone(); } else { onClose(); }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={handleClose}>
+      <motion.div initial={{opacity: 0, scale: 0.95}} animate={{opacity: 1, scale: 1}}
+        className="bg-white rounded-2xl p-6 w-full max-w-2xl shadow-xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-gray-900">批量报名</h3>
+          <button onClick={handleClose} className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {result ? (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-emerald-50 rounded-lg p-4 text-center">
+                <div className="text-2xl font-bold text-emerald-700">{result.enrolled.length}</div>
+                <div className="text-xs text-emerald-500">成功报名</div>
+              </div>
+              <div className="bg-amber-50 rounded-lg p-4 text-center">
+                <div className="text-2xl font-bold text-amber-700">{result.skipped.length}</div>
+                <div className="text-xs text-amber-500">跳过</div>
+              </div>
+            </div>
+            {result.skipped.length > 0 && (
+              <div className="text-sm text-gray-500">
+                <p className="font-medium mb-1">跳过详情：</p>
+                {result.skipped.map(s => (
+                  <div key={s.candidateId} className="text-xs text-gray-400">· {s.candidateId}: {s.reason}</div>
+                ))}
+              </div>
+            )}
+            <button onClick={handleClose} className="w-full py-2.5 bg-[#1a4bc4] text-white rounded-lg text-sm hover:bg-[#153da0]">
+              完成
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {/* Target Selection */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">报名目标</label>
+              <div className="flex gap-2 mb-3">
+                <button onClick={() => { setTargetType('course'); setTargetId(''); }}
+                  className={`px-4 py-2 rounded-lg text-sm ${targetType === 'course' ? 'bg-[#1a4bc4] text-white' : 'bg-gray-100 text-gray-600'}`}>
+                  课程
+                </button>
+                <button onClick={() => { setTargetType('path'); setTargetId(''); }}
+                  className={`px-4 py-2 rounded-lg text-sm ${targetType === 'path' ? 'bg-[#1a4bc4] text-white' : 'bg-gray-100 text-gray-600'}`}>
+                  学习路径
+                </button>
+              </div>
+              <select value={targetId} onChange={e => setTargetId(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]">
+                <option value="">选择{targetType === 'course' ? '课程' : '学习路径'}...</option>
+                {activeTargets.map((t: TrainingCourse | LearningPath) => (
+                  <option key={t.id} value={t.id}>
+                    {t.title} {(t as LearningPath).category ? `· ${(t as LearningPath).category}` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Candidate Search */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">选择候选人</label>
+              <div className="flex gap-2 mb-3">
+                <div className="flex-1 relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && handleSearch()}
+                    className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
+                    placeholder="搜索候选人姓名..." />
+                </div>
+                <button onClick={handleSearch} disabled={searching}
+                  className="px-4 py-2 bg-[#1a4bc4] text-white rounded-lg text-sm hover:bg-[#153da0] disabled:opacity-50">
+                  {searching ? '搜索中...' : '搜索'}
+                </button>
+              </div>
+
+              {/* Selected candidates */}
+              {selectedCandidates.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mb-3">
+                  {selectedCandidates.map(c => (
+                    <span key={c.id} className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 rounded-lg text-xs">
+                      {c.name}
+                      <button onClick={() => toggleCandidate(c)} className="hover:text-blue-900"><X className="w-3 h-3" /></button>
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {/* Search results */}
+              {searchResults.length > 0 && (
+                <div className="border border-gray-200 rounded-lg divide-y divide-gray-100 max-h-48 overflow-y-auto">
+                  {searchResults.map(c => {
+                    const isSelected = selectedCandidates.some(s => s.id === c.id);
+                    return (
+                      <label key={c.id} className={`flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-gray-50 ${isSelected ? 'bg-blue-50' : ''}`}>
+                        <input type="checkbox" checked={isSelected} onChange={() => toggleCandidate(c)}
+                          className="w-4 h-4 rounded border-gray-300 text-[#1a4bc4] focus:ring-[#1a4bc4]" />
+                        <span className="text-sm text-gray-900">{c.name}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-3 pt-2">
+              <button onClick={handleClose} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">取消</button>
+              <button onClick={handleSubmit} disabled={!targetId || selectedCandidates.length === 0 || submitting}
+                className="px-4 py-2 text-sm bg-[#1a4bc4] text-white rounded-lg hover:bg-[#153da0] disabled:opacity-50 flex items-center gap-2">
+                {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
+                {submitting ? '提交中...' : `报名 ${selectedCandidates.length} 人`}
+              </button>
+            </div>
+          </div>
+        )}
       </motion.div>
     </div>
   );

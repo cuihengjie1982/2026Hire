@@ -187,6 +187,8 @@ permissionsRouter.get('/', async (_req, res, next) => {
       {key: 'contacts:manage', label: 'Manage Contacts'},
       {key: 'analytics:view', label: 'View Analytics'},
       {key: 'integrations:manage', label: 'Manage Integrations'},
+      {key: 'training:view', label: 'View Training'},
+      {key: 'training:manage', label: 'Manage Training'},
     ]);
   } catch (e) { next(e); }
 });
@@ -217,6 +219,7 @@ rolePermissionsRouter.get('/', async (_req, res, next) => {
           'contacts:view', 'contacts:manage',
           'analytics:view',
           'integrations:manage',
+          'training:view', 'training:manage',
         ],
       },
       {
@@ -233,6 +236,7 @@ rolePermissionsRouter.get('/', async (_req, res, next) => {
           'agents:view',
           'contacts:view', 'contacts:manage',
           'analytics:view',
+          'training:view', 'training:manage',
         ],
       },
       {
@@ -245,6 +249,7 @@ rolePermissionsRouter.get('/', async (_req, res, next) => {
           'interviews:view', 'interviews:manage',
           'approvals:view',
           'analytics:view',
+          'training:view',
         ],
       },
       {
@@ -261,6 +266,7 @@ rolePermissionsRouter.get('/', async (_req, res, next) => {
           'agents:view',
           'contacts:view',
           'analytics:view',
+          'training:view',
         ],
       },
     ]);

@@ -47,7 +47,7 @@ const loadHandlers = async (): Promise<RouteHandler[]> => {
   // SMS Gateway
   const { sendSmsHandler, listTemplates, createTemplate } = await import('./sms-gateway/index.ts');
   // Training Academy
-  const { handleCourses, handleEnrollments, handleAnalytics, getTrainingStats, exportEnrollmentsCsv, portalHandler, handlePaths } = await import('./training/index.ts');
+  const { handleCourses, handleEnrollments, handleAnalytics, getTrainingStats, exportEnrollmentsCsv, portalHandler, handlePaths, uploadMaterial, batchEnroll } = await import('./training/index.ts');
   // Stats (sidebar counts + unified search)
   const { sidebarStats, searchStats, dashboardStats } = await import('./stats/index.ts');
   // Shortlist (pipeline)
@@ -135,11 +135,15 @@ const loadHandlers = async (): Promise<RouteHandler[]> => {
     { pattern: '/training/courses', methods: ['POST'], auth: 'recruiter+', handler: handleCourses },
     { pattern: '/training/courses', methods: ['PATCH'], auth: 'recruiter+', handler: handleCourses },
     { pattern: '/training/courses', methods: ['DELETE'], auth: 'admin', handler: handleCourses },
+    // Training Academy — Batch Enrollment (must be before /training/enrollments)
+    { pattern: '/training/enrollments/batch', methods: ['POST'], auth: 'recruiter+', handler: batchEnroll },
     // Training Academy — Enrollments
     { pattern: '/training/enrollments', methods: ['GET'], auth: 'any', handler: handleEnrollments },
     { pattern: '/training/enrollments', methods: ['POST'], auth: 'recruiter+', handler: handleEnrollments },
     { pattern: '/training/enrollments', methods: ['PATCH'], auth: 'recruiter+', handler: handleEnrollments },
     { pattern: '/training/enrollments', methods: ['DELETE'], auth: 'recruiter+', handler: handleEnrollments },
+    // Training Academy — Materials Upload
+    { pattern: '/training/materials/upload', methods: ['POST'], auth: 'recruiter+', handler: uploadMaterial },
     // Training Academy — Analytics
     { pattern: '/training/analytics', methods: ['GET'], auth: 'any', handler: handleAnalytics },
     { pattern: '/training/analytics/', methods: ['POST'], auth: 'any', handler: handleAnalytics },

@@ -132,8 +132,26 @@ export interface PathEnrollment {
   id: string;
   pathId: string;
   candidateId: string;
+  candidateName?: string;
   status: 'enrolled' | 'in_progress' | 'completed' | 'failed';
   enrolledAt: string;
   completedAt?: string;
   progressPct: number;
+}
+
+export interface BatchEnrollInput {
+  candidateIds: string[];
+  courseId?: string;
+  pathId?: string;
+}
+
+export interface BatchEnrollResult {
+  enrolled: { candidateId: string; candidateName: string }[];
+  skipped: { candidateId: string; reason: string }[];
+  total: number;
+}
+
+export interface MaterialUploadResult {
+  url: string;
+  filename: string;
 }

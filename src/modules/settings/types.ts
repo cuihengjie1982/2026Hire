@@ -18,7 +18,7 @@ export type Permission = {
   id: string;
   name: string;
   description: string;
-  category: 'position' | 'candidate' | 'interview' | 'approval' | 'settings' | 'data';
+  category: 'position' | 'candidate' | 'interview' | 'approval' | 'settings' | 'data' | 'training';
 };
 
 export type RolePermission = {

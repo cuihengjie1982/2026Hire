@@ -1025,6 +1025,49 @@ const enrollCandidateInPath = async (req: Request, pathId: string): Promise<Resp
   }
 };
 
+const updatePathEnrollment = async (req: Request, enrollmentId: string): Promise<Response> => {
+  try {
+    const supabase = createSupabaseAdmin(req);
+    const body = await req.json();
+    const updates: Record<string, unknown> = {};
+    const fieldMap: Record<string, string> = {
+      status: 'status', progressPct: 'progress_pct',
+    };
+    for (const [bodyKey, col] of Object.entries(fieldMap)) {
+      if (body[bodyKey] !== undefined) updates[col] = body[bodyKey];
+    }
+    if (body.status === 'completed' || body.status === 'failed') {
+      updates['completed_at'] = new Date().toISOString();
+    }
+    updates['updated_at'] = new Date().toISOString();
+
+    const { data, error } = await supabase.from('training_path_enrollments')
+      .update(updates).eq('id', enrollmentId).select().single();
+    if (error || !data) {
+      return jsonRes({ error: { code: 'NOT_FOUND', message: 'Path enrollment not found' } }, 404);
+    }
+    return jsonRes(data);
+  } catch (e) {
+    console.error('[training paths updateEnrollment]', e);
+    return jsonRes({ error: { code: 'INTERNAL_ERROR', message: 'Failed to update enrollment' } }, 500);
+  }
+};
+
+const deletePathEnrollment = async (req: Request, enrollmentId: string): Promise<Response> => {
+  try {
+    const supabase = createSupabaseAdmin(req);
+    const { error, data } = await supabase.from('training_path_enrollments')
+      .delete().eq('id', enrollmentId).select('id').single();
+    if (error || !data) {
+      return jsonRes({ error: { code: 'NOT_FOUND', message: 'Path enrollment not found' } }, 404);
+    }
+    return jsonRes({ deleted: true, id: data.id });
+  } catch (e) {
+    console.error('[training paths deleteEnrollment]', e);
+    return jsonRes({ error: { code: 'INTERNAL_ERROR', message: 'Failed to delete enrollment' } }, 500);
+  }
+};
+
 export const handlePaths = async (req: Request): Promise<Response> => {
   const url = new URL(req.url);
   const path = url.pathname.replace(/^\/embox-api/, '') || '/';
@@ -1062,14 +1105,130 @@ export const handlePaths = async (req: Request): Promise<Response> => {
     return jsonRes({ error: { code: 'METHOD_NOT_ALLOWED', message: 'Method not allowed' } }, 405);
   }
 
-  // /:pathId/enrollments
+  // /:pathId/enrollments and /:pathId/enrollments/:enrollmentId
   if (subResource === 'enrollments') {
+    if (subId) {
+      if (method === 'PATCH') return updatePathEnrollment(req, subId);
+      if (method === 'DELETE') return deletePathEnrollment(req, subId);
+      return jsonRes({ error: { code: 'METHOD_NOT_ALLOWED', message: 'Method not allowed' } }, 405);
+    }
     if (method === 'GET') return getPathEnrollments(req, pathId);
     if (method === 'POST') return enrollCandidateInPath(req, pathId);
     return jsonRes({ error: { code: 'METHOD_NOT_ALLOWED', message: 'Method not allowed' } }, 405);
   }
 
   return jsonRes({ error: { code: 'NOT_FOUND', message: 'Path sub-resource not found' } }, 404);
+};
+
+// =============================================================================
+// File Upload for training materials
+// =============================================================================
+
+const uploadMaterial = async (req: Request): Promise<Response> => {
+  try {
+    const supabase = createSupabaseAdmin(req);
+    const formData = await req.formData();
+    const file = formData.get('file') as File | null;
+
+    if (!file) {
+      return jsonRes({ error: { code: 'VALIDATION_ERROR', message: 'file is required' } }, 400);
+    }
+
+    if (file.size > 500 * 1024 * 1024) {
+      return jsonRes({ error: { code: 'VALIDATION_ERROR', message: 'File too large (max 500MB)' } }, 400);
+    }
+
+    const ext = file.name.split('.').pop()?.toLowerCase() || 'bin';
+    const filename = `materials/${Date.now()}-${crypto.randomUUID().slice(0, 8)}.${ext}`;
+
+    const { data, error } = await supabase.storage
+      .from('training-materials')
+      .upload(filename, await file.arrayBuffer(), {
+        contentType: file.type,
+        upsert: false,
+      });
+
+    if (error) throw error;
+
+    const { data: urlData } = supabase.storage
+      .from('training-materials')
+      .getPublicUrl(filename);
+
+    return jsonRes({ url: urlData.publicUrl, filename: file.name }, 201);
+  } catch (e) {
+    console.error('[training upload]', e);
+    return jsonRes({ error: { code: 'INTERNAL_ERROR', message: 'Failed to upload file' } }, 500);
+  }
+};
+
+// =============================================================================
+// Batch Enrollment — enroll multiple candidates into a course or path
+// =============================================================================
+
+const batchEnroll = async (req: Request): Promise<Response> => {
+  try {
+    const supabase = createSupabaseAdmin(req);
+    const body = await req.json();
+    const { candidateIds, courseId, pathId } = body;
+
+    if (!candidateIds || !Array.isArray(candidateIds) || candidateIds.length === 0) {
+      return jsonRes({ error: { code: 'VALIDATION_ERROR', message: 'candidateIds array is required' } }, 400);
+    }
+    if (!courseId && !pathId) {
+      return jsonRes({ error: { code: 'VALIDATION_ERROR', message: 'courseId or pathId is required' } }, 400);
+    }
+
+    // Fetch candidate names
+    const { data: candidates } = await supabase
+      .from('candidates')
+      .select('id, name')
+      .in('id', candidateIds);
+
+    const candidateMap = new Map((candidates ?? []).map((c: Record<string, unknown>) => [c.id, c.name]));
+    const enrolled: { candidateId: string; candidateName: string }[] = [];
+    const skipped: { candidateId: string; reason: string }[] = [];
+
+    for (const cid of candidateIds) {
+      const name = candidateMap.get(cid) as string | undefined;
+      if (!name) {
+        skipped.push({ candidateId: cid, reason: 'Candidate not found' });
+        continue;
+      }
+
+      if (pathId) {
+        const { error } = await supabase.from('training_path_enrollments').insert({
+          path_id: pathId, candidate_id: cid,
+        });
+        if (error) {
+          if (error.code === '23505') {
+            skipped.push({ candidateId: cid, reason: 'Already enrolled' });
+          } else {
+            skipped.push({ candidateId: cid, reason: error.message });
+          }
+        } else {
+          enrolled.push({ candidateId: cid, candidateName: name });
+        }
+      } else {
+        const { error } = await supabase.from('training_enrollments').insert({
+          candidate_id: cid, candidate_name: name, course_id: courseId,
+        });
+        if (error) {
+          if (error.code === '23505') {
+            skipped.push({ candidateId: cid, reason: 'Already enrolled' });
+          } else {
+            skipped.push({ candidateId: cid, reason: error.message });
+          }
+        } else {
+          enrolled.push({ candidateId: cid, candidateName: name });
+        }
+      }
+    }
+
+    return jsonRes({ enrolled, skipped, total: candidateIds.length }, 201);
+  } catch (e) {
+    console.error('[training batchEnroll]', e);
+    return jsonRes({ error: { code: 'INTERNAL_ERROR', message: 'Failed to batch enroll' } }, 500);
+  }
 };
 
 // =============================================================================
@@ -1092,4 +1251,6 @@ export {
   getTrainingStats,
   exportEnrollmentsCsv,
   portalHandler,
+  uploadMaterial,
+  batchEnroll,
 };

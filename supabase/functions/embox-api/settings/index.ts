@@ -158,16 +158,18 @@ export const getPermissions = async (_req: Request, _userId: string, _userRole: 
     { id: 'contacts:manage', name: '管理联系人', description: '添加、编辑联系人', category: 'candidate' },
     { id: 'analytics:view', name: '查看数据', description: '查看数据洞察和分析', category: 'data' },
     { id: 'integrations:manage', name: '管理集成', description: '管理外部系统集成', category: 'settings' },
+    { id: 'training:view', name: '查看培训', description: '查看培训课程、路径和分析', category: 'training' },
+    { id: 'training:manage', name: '管理培训', description: '创建课程、路径，管理报名和评估', category: 'training' },
   ]);
 };
 
 // GET /settings/role-permissions — static role-permission mapping
 export const getRolePermissions = async (_req: Request, _userId: string, _userRole: string): Promise<Response> => {
   return jsonRes([
-    { role: 'admin', permissions: ['projects:view', 'projects:manage', 'positions:view', 'positions:manage', 'candidates:view', 'candidates:manage', 'interviews:view', 'interviews:manage', 'approvals:view', 'approvals:decide', 'shortlist:view', 'shortlist:manage', 'outreach:view', 'outreach:manage', 'agents:view', 'agents:manage', 'settings:view', 'settings:manage', 'contacts:view', 'contacts:manage', 'analytics:view', 'integrations:manage'] },
-    { role: 'hiring_manager', permissions: ['projects:view', 'positions:view', 'candidates:view', 'interviews:view', 'interviews:manage', 'approvals:view', 'approvals:decide', 'shortlist:view', 'outreach:view', 'agents:view', 'contacts:view', 'analytics:view'] },
-    { role: 'recruiter', permissions: ['projects:view', 'positions:view', 'candidates:view', 'candidates:manage', 'interviews:view', 'interviews:manage', 'approvals:view', 'shortlist:view', 'shortlist:manage', 'outreach:view', 'outreach:manage', 'agents:view', 'contacts:view', 'contacts:manage', 'analytics:view'] },
-    { role: 'viewer', permissions: ['projects:view', 'positions:view', 'candidates:view', 'interviews:view', 'approvals:view', 'shortlist:view', 'outreach:view', 'agents:view', 'contacts:view', 'analytics:view'] },
+    { role: 'admin', permissions: ['projects:view', 'projects:manage', 'positions:view', 'positions:manage', 'candidates:view', 'candidates:manage', 'interviews:view', 'interviews:manage', 'approvals:view', 'approvals:decide', 'shortlist:view', 'shortlist:manage', 'outreach:view', 'outreach:manage', 'agents:view', 'agents:manage', 'settings:view', 'settings:manage', 'contacts:view', 'contacts:manage', 'analytics:view', 'integrations:manage', 'training:view', 'training:manage'] },
+    { role: 'hiring_manager', permissions: ['projects:view', 'positions:view', 'candidates:view', 'interviews:view', 'interviews:manage', 'approvals:view', 'approvals:decide', 'shortlist:view', 'outreach:view', 'agents:view', 'contacts:view', 'analytics:view', 'training:view'] },
+    { role: 'recruiter', permissions: ['projects:view', 'positions:view', 'candidates:view', 'candidates:manage', 'interviews:view', 'interviews:manage', 'approvals:view', 'shortlist:view', 'shortlist:manage', 'outreach:view', 'outreach:manage', 'agents:view', 'contacts:view', 'contacts:manage', 'analytics:view', 'training:view', 'training:manage'] },
+    { role: 'viewer', permissions: ['projects:view', 'positions:view', 'candidates:view', 'interviews:view', 'approvals:view', 'shortlist:view', 'outreach:view', 'agents:view', 'contacts:view', 'analytics:view', 'training:view'] },
   ]);
 };
 

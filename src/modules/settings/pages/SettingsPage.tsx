@@ -550,7 +550,8 @@ export const SettingsPage = () => {
                                category === 'interview' ? '面试' :
                                category === 'approval' ? '审批' :
                                category === 'settings' ? '设置' :
-                               category === 'data' ? '数据' : category}
+                               category === 'data' ? '数据' :
+                               category === 'training' ? '培训' : category}
                             </div>
                             <div className="grid grid-cols-2 gap-2">
                               {(perms as Permission[]).map(perm => {
