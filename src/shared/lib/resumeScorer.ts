@@ -259,11 +259,13 @@ export const calculateResumeScore = (
       }
 
       if (rule.matchMode === 'all') {
+        // ALL match: must match every keyword to get full marks
         dimensionScore = dimMatched.length === rule.keywords.length
           ? rule.weight
           : rule.weight * (dimMatched.length / rule.keywords.length) * 0.5;
       } else {
-        dimensionScore = rule.weight * (dimMatched.length / rule.keywords.length);
+        // ANY match: match at least 1 keyword → full marks; 0 matched → 0
+        dimensionScore = dimMatched.length > 0 ? rule.weight : 0;
       }
     }
     // If no keywords, dimension gets 0
