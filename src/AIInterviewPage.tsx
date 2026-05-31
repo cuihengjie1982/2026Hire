@@ -938,13 +938,11 @@ export const AIInterviewPage = () => {
                           >
                             <option value="core">核心话题</option>
                             <option value="follow_up_pool">追问池</option>
-                            <option value="icebreaker">破冰</option>
-                            <option value="closing">结束语</option>
                             <option value="candidate_qa">候选人问答</option>
                           </select>
                         ) : (
                           <span className="text-gray-900">{
-                            {core: '核心话题', follow_up_pool: '追问池', icebreaker: '破冰', closing: '结束语', candidate_qa: '候选人问答'}[(q as Record<string, unknown>).questionType as string] ?? '核心话题'
+                            {core: '核心话题', follow_up_pool: '追问池', candidate_qa: '候选人问答'}[(q as Record<string, unknown>).questionType as string] ?? '核心话题'
                           }</span>
                         )}
                       </div>
@@ -1075,8 +1073,8 @@ export const AIInterviewPage = () => {
                         </div>
                       </div>
                     )}
-                    {/* Scoring Guide */}
-                    {(isEditing || (q.scoringGuide?.rubric?.length ?? 0) > 0) && (
+                    {/* Scoring Guide — only for audio sequential mode */}
+                    {selectedTemplate.interviewMode === 'audio_sequential' && (isEditing || (q.scoringGuide?.rubric?.length ?? 0) > 0) && (
                       <div className="flex items-start">
                         <span className="text-gray-500 w-24">评分指引:</span>
                         <div className="flex-1 space-y-1">
@@ -1244,7 +1242,8 @@ export const AIInterviewPage = () => {
                 </div>
               </div>
 
-              {/* Base Score + Requirements */}
+              {/* Base Score + Requirements — only for audio sequential mode */}
+              {selectedTemplate.interviewMode === 'audio_sequential' && (
               <div className="border border-gray-200 rounded-lg overflow-hidden">
                 <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
                   <span className="font-bold text-gray-900 text-sm">基础分与必备项</span>
@@ -1312,6 +1311,7 @@ export const AIInterviewPage = () => {
                   </div>
                 </div>
               </div>
+              )}
 
               {/* Grade Rules */}
               <div className="border border-gray-200 rounded-lg overflow-hidden">
@@ -1432,10 +1432,9 @@ export const AIInterviewPage = () => {
                   <p className="font-medium mb-1">对话式面试说明</p>
                   <ul className="list-disc list-inside space-y-1 text-blue-700">
                     <li>AI 面试官会根据话题引导自动提问和追问，无需为每个问题设置固定内容</li>
-                    <li>核心话题（core）决定面试覆盖哪些考察点</li>
+                    <li>核心话题（core）决定面试覆盖哪些考察点，AI 面试官据此引导对话</li>
                     <li>追问池（follow_up_pool）提供预设追问，AI 根据候选人回答自动匹配</li>
-                    <li>破冰消息（icebreaker）是面试开始时的第一条消息</li>
-                    <li>结束语（closing）在面试结束时使用</li>
+                    <li>破冰和结束语在「对话式面试配置」中统一管理，无需单独创建话题</li>
                   </ul>
                 </div>
               </div>
