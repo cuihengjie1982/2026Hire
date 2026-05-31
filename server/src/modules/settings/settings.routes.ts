@@ -21,8 +21,8 @@ usersRouter.post('/', async (req, res, next) => {
       res.status(400).json({error: {code: 'VALIDATION_ERROR', message: 'name, email, and password are required'}});
       return;
     }
-    if (password.length < 6) {
-      res.status(400).json({error: {code: 'VALIDATION_ERROR', message: 'Password must be at least 6 characters'}});
+    if (password.length < 8) {
+      res.status(400).json({error: {code: 'VALIDATION_ERROR', message: 'Password must be at least 8 characters'}});
       return;
     }
     const existing = await queryOne('SELECT id FROM users WHERE email = $1', [email]);

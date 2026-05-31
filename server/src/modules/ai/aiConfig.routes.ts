@@ -2,8 +2,48 @@ import {Router} from 'express';
 import {query, queryOne, transaction} from '../../config/database.js';
 import {writeActiveConfigToEnv} from './envWriter.js';
 import {callLLM} from './llmClient.js';
+import {requireRole} from '../../middleware/requireRole.js';
 
 const router = Router();
+
+// All AI config routes are admin-only (manage API keys, model switching)
+router.use(requireRole('admin'));
+
+// Prevent SSRF: only allow HTTPS URLs to known AI providers
+const ALLOWED_BASE_URL_PATTERNS = [
+  /^https:\/\/api\.openai\.com/,
+  /^https:\/\/api\.anthropic\.com/,
+  /^https:\/\/generativelanguage\.googleapis\.com/,
+  /^https:\/\/api\.deepseek\.com/,
+  /^https:\/\/open\.bigmodel\.cn/,
+  /^https:\/\/api\.minimax\.io/,
+  /^https:\/\/api\.moonshot\.cn/,
+  /^https:\/\/dashscope\.aliyuncs\.com/,
+  /^https:\/\/[a-zA-Z0-9.-]+\.supabase\.co/,
+  /^https:\/\/localhost/,
+  /^https:\/\/127\.0\.0\.1/,
+];
+
+function validateBaseUrl(url: string): void {
+  if (!url) return;
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== 'https:') {
+      throw new Error('base_url must use HTTPS');
+    }
+    // Block internal/private IP ranges
+    const hostname = parsed.hostname;
+    if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '0.0.0.0' ||
+        hostname.startsWith('192.168.') || hostname.startsWith('10.') ||
+        hostname.startsWith('172.16.') || hostname.startsWith('169.254.') ||
+        hostname === '[::1]' || hostname.startsWith('fe80:')) {
+      throw new Error('base_url must not point to internal/private addresses');
+    }
+  } catch (e) {
+    if (e instanceof Error && e.message.startsWith('base_url')) throw e;
+    // If URL parsing fails but it's not our error, re-throw
+  }
+}
 
 function maskApiKey(key: string): string {
   if (!key || key.length <= 8) return '****';
@@ -66,6 +106,14 @@ router.post('/', async (req, res, next) => {
       return;
     }
 
+    // Validate base_url to prevent SSRF
+    if (base_url) {
+      try { validateBaseUrl(base_url); } catch (e) {
+        res.status(400).json({error: {code: 'VALIDATION_ERROR', message: (e as Error).message}});
+        return;
+      }
+    }
+
     const row = await queryOne(
       `INSERT INTO ai_model_configs (name, provider, model_name, api_key, base_url, temperature, max_tokens, is_default)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
@@ -93,6 +141,14 @@ router.patch('/:id', async (req, res, next) => {
     if (!existing) {
       res.status(404).json({error: {code: 'NOT_FOUND', message: 'AI model config not found'}});
       return;
+    }
+
+    // Validate base_url to prevent SSRF
+    if (req.body.base_url) {
+      try { validateBaseUrl(req.body.base_url); } catch (e) {
+        res.status(400).json({error: {code: 'VALIDATION_ERROR', message: (e as Error).message}});
+        return;
+      }
     }
 
     const {name, provider, model_name, api_key, base_url, temperature, max_tokens, is_default, is_active} = req.body;

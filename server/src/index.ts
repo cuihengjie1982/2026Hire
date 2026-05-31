@@ -1,3 +1,4 @@
+import nodeCrypto from 'crypto';
 import express from 'express';
 import cors from 'cors';
 import {env} from './config/env.js';
@@ -79,12 +80,34 @@ app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/v1/auth', authLimiter, authRoutes);
 app.use(pdfProxy);
 
-// Webhook (no auth)
+// Webhook — shared secret verification (no JWT auth)
+const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET || env.JWT_SECRET.slice(0, 16);
+
+function verifyWebhookSignature(req: import('express').Request): boolean {
+  const headerSig = req.headers['x-webhook-signature'] as string | undefined;
+  const queryToken = typeof req.query.token === 'string' ? req.query.token : undefined;
+  const sig = headerSig ?? queryToken;
+  if (!sig || !WEBHOOK_SECRET) return false;
+  // Constant-time comparison
+  const bufA = Buffer.from(sig);
+  const bufB = Buffer.from(WEBHOOK_SECRET);
+  if (bufA.length !== bufB.length) return false;
+  return nodeCrypto.timingSafeEqual(bufA, bufB);
+}
+
 app.post('/api/webhooks/mis/onboarding-complete', (req, res) => {
+  if (!verifyWebhookSignature(req)) {
+    res.status(401).json({error: {code: 'UNAUTHORIZED', message: 'Invalid webhook signature'}});
+    return;
+  }
   console.log('MIS webhook received:', req.body);
   res.json({received: true});
 });
 app.post('/api/v1/webhooks/mis/onboarding-complete', (req, res) => {
+  if (!verifyWebhookSignature(req)) {
+    res.status(401).json({error: {code: 'UNAUTHORIZED', message: 'Invalid webhook signature'}});
+    return;
+  }
   console.log('MIS webhook received:', req.body);
   res.json({received: true});
 });

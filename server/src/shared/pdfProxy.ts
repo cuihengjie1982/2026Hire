@@ -1,5 +1,5 @@
 import {Router, type Request, type Response} from 'express';
-import {exec} from 'child_process';
+import {execFile} from 'child_process';
 import path from 'path';
 import fs from 'fs';
 import FormData from 'form-data';
@@ -15,7 +15,7 @@ const MINERU_TIMEOUT_MS = 60_000; // 60s timeout for MinerU API
 
 function extractTextWithTextutil(filePath: string): Promise<string> {
   return new Promise((resolve, reject) => {
-    exec(`pdftotext -enc UTF-8 "${filePath}" -`, {maxBuffer: 50 * 1024 * 1024, timeout: SHELL_TIMEOUT_MS}, (error, stdout) => {
+    execFile('pdftotext', ['-enc', 'UTF-8', filePath, '-'], {maxBuffer: 50 * 1024 * 1024, timeout: SHELL_TIMEOUT_MS}, (error, stdout) => {
       if (error) { reject(error); return; }
       resolve(stdout);
     });
@@ -29,7 +29,7 @@ async function extractTextWithOCR(filePath: string): Promise<string> {
 
   // Step 1: Convert PDF pages to PNG images
   await new Promise<void>((resolve, reject) => {
-    exec(`pdftoppm -png -r 300 ${JSON.stringify(filePath)} ${JSON.stringify(imgPrefix)}`, {maxBuffer: 50 * 1024 * 1024, timeout: SHELL_TIMEOUT_MS}, (err) => {
+    execFile('pdftoppm', ['-png', '-r', '300', filePath, imgPrefix], {maxBuffer: 50 * 1024 * 1024, timeout: SHELL_TIMEOUT_MS}, (err) => {
       if (err) reject(err); else resolve();
     });
   });
@@ -47,7 +47,7 @@ async function extractTextWithOCR(filePath: string): Promise<string> {
   for (const img of images) {
     const imgPath = path.join(tmpDir, img);
     const text = await new Promise<string>((resolve, reject) => {
-      exec(`tesseract ${JSON.stringify(imgPath)} stdout -l chi_sim+eng`, {maxBuffer: 50 * 1024 * 1024, timeout: SHELL_TIMEOUT_MS}, (err, stdout) => {
+      execFile('tesseract', [imgPath, 'stdout', '-l', 'chi_sim+eng'], {maxBuffer: 50 * 1024 * 1024, timeout: SHELL_TIMEOUT_MS}, (err, stdout) => {
         if (err) reject(err); else resolve(stdout);
       });
     });
@@ -69,11 +69,9 @@ async function extractTextWithVisionLLM(filePath: string, fileName: string): Pro
   // Step 1: Convert PDF pages to PNG images (max 5 pages, 150 DPI for LLM)
   try {
     await new Promise<void>((resolve, reject) => {
-      exec(
-        `pdftoppm -png -r 150 -f 1 -l 5 ${JSON.stringify(filePath)} ${JSON.stringify(imgPrefix)}`,
-        {maxBuffer: 50 * 1024 * 1024, timeout: SHELL_TIMEOUT_MS},
-        (err) => { if (err) reject(err); else resolve(); },
-      );
+      execFile('pdftoppm', ['-png', '-r', '150', '-f', '1', '-l', '5', filePath, imgPrefix], {maxBuffer: 50 * 1024 * 1024, timeout: SHELL_TIMEOUT_MS}, (err) => {
+        if (err) reject(err); else resolve();
+      });
     });
   } catch {
     console.log('[VisionLLM] pdftoppm image generation failed');
