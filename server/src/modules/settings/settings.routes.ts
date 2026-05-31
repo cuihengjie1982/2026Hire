@@ -1,6 +1,7 @@
 import {Router} from 'express';
 import bcrypt from 'bcryptjs';
 import {query, queryOne} from '../../config/database.js';
+import {requireRole} from '../../middleware/requireRole.js';
 
 // ---------------------------------------------------------------------------
 // User routes (mounted at /api/users)
@@ -58,8 +59,8 @@ usersRouter.get('/me', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-// GET /api/users — list users
-usersRouter.get('/', async (req, res, next) => {
+// GET /api/users — list users (admin only)
+usersRouter.get('/', requireRole('admin'), async (req, res, next) => {
   try {
     const rows = await query(
       `SELECT id, name, email, role, phone, department, avatar, status, last_login_at, created_at, updated_at
@@ -69,8 +70,8 @@ usersRouter.get('/', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-// PATCH /api/users/:id — update user
-usersRouter.patch('/:id', async (req, res, next) => {
+// PATCH /api/users/:id — update user (admin only)
+usersRouter.patch('/:id', requireRole('admin'), async (req, res, next) => {
   try {
     const {id} = req.params;
     const allowed = ['name', 'email', 'role', 'phone', 'department', 'avatar', 'status'];
@@ -105,8 +106,8 @@ usersRouter.patch('/:id', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-// DELETE /api/users/:id — delete user
-usersRouter.delete('/:id', async (req, res, next) => {
+// DELETE /api/users/:id — delete user (admin only)
+usersRouter.delete('/:id', requireRole('admin'), async (req, res, next) => {
   try {
     const {id} = req.params;
     const row = await queryOne(

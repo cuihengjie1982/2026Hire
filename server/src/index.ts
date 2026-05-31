@@ -33,6 +33,9 @@ import publicConversationRoutes from './modules/interviews/publicConversation.ro
 
 const app = express();
 
+// Trust first proxy for correct client IP behind reverse proxies (Vercel, Supabase)
+app.set('trust proxy', 1);
+
 // Global middleware
 const allowedOrigins = env.CORS_ORIGIN.split(',').map(o => o.trim()).filter(Boolean);
 app.use(cors({

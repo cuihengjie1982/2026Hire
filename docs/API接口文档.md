@@ -5,9 +5,18 @@
 ## 1. 通用说明
 
 ### Base URL
+
+**生产环境 (Supabase Edge Functions):**
 ```
-https://api.embox-ai.com/v2
+https://eqdfyhqeqkbjvivscjau.supabase.co/functions/v1/embox-api
 ```
+
+**开发环境 (Express):**
+```
+http://localhost:4000
+```
+
+前端通过 `apiClient.buildApiUrl()` 自动选择正确的 Base URL：开发环境走 Vite proxy → Express，生产环境直连 Edge Function。
 
 ### 认证方式
 所有端点（除 `/auth/login`、`/health` 和 webhooks 外）都需要在请求头中包含 JWT 令牌：

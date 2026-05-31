@@ -11,6 +11,11 @@ vi.mock('../../config/database.js', () => ({
   transaction: vi.fn(),
 }));
 
+// Mock requireRole — tests verify route logic, not auth
+vi.mock('../../middleware/requireRole.js', () => ({
+  requireRole: (..._roles: string[]) => (req: any, _res: any, next: any) => next(),
+}));
+
 import {query, queryOne} from '../../config/database.js';
 const mockedQuery = vi.mocked(query);
 const mockedQueryOne = vi.mocked(queryOne);

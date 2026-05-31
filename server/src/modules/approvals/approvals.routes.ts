@@ -1,6 +1,7 @@
 import {Router} from 'express';
 import {query, queryOne} from '../../config/database.js';
 import {validateUuidParams} from '../../middleware/validateParams.js';
+import {requireRole} from '../../middleware/requireRole.js';
 
 const router = Router();
 
@@ -24,8 +25,8 @@ router.get('/', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-// POST / — create approval request
-router.post('/', async (req, res, next) => {
+// POST / — create approval request (recruiter+)
+router.post('/', requireRole('admin', 'recruiter', 'hiring_manager'), async (req, res, next) => {
   try {
     const {
       type, candidateId, candidateName, candidateEmail,
@@ -55,8 +56,8 @@ router.post('/', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-// POST /:id/decide — approve or reject
-router.post('/:id/decide', validateUuidParams('id'), async (req, res, next) => {
+// POST /:id/decide — approve or reject (hiring_manager+)
+router.post('/:id/decide', requireRole('admin', 'hiring_manager'), validateUuidParams('id'), async (req, res, next) => {
   try {
     const {id} = req.params;
     const {status, comment, approverName} = req.body;
@@ -99,8 +100,8 @@ router.get('/history', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-// POST /:id/hire — mark approved candidate as hired
-router.post('/:id/hire', validateUuidParams('id'), async (req, res, next) => {
+// POST /:id/hire — mark approved candidate as hired (hiring_manager+)
+router.post('/:id/hire', requireRole('admin', 'hiring_manager'), validateUuidParams('id'), async (req, res, next) => {
   try {
     const {id} = req.params;
 
