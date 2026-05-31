@@ -61,7 +61,20 @@ export const proxy = async (req: Request, _userId: string, _userRole: string): P
       const systemPrompt = buildSystemPrompt(body.aiPrompt || '', body.scoringRules || []);
       const userMessage = buildUserMessage(body.resumeText, body.positionName || '');
       const raw = await callLLM(config, systemPrompt, userMessage);
-      return jsonRes({ candidateId: body.candidateId ?? null, modelUsed: config.model_name, provider: config.provider, ...parseJSONResponse(raw) });
+      const parsed = parseJSONResponse(raw);
+      return jsonRes({
+        candidateId: body.candidateId ?? null,
+        modelUsed: config.model_name,
+        provider: config.provider,
+        totalScore: Number(parsed.totalScore) || 0,
+        dimensionScores: Array.isArray(parsed.dimensionScores) ? parsed.dimensionScores : [],
+        strengths: Array.isArray(parsed.strengths) ? parsed.strengths : [],
+        weaknesses: Array.isArray(parsed.weaknesses) ? parsed.weaknesses : [],
+        matchedQualifications: Array.isArray(parsed.matchedQualifications) ? parsed.matchedQualifications : [],
+        missingQualifications: Array.isArray(parsed.missingQualifications) ? parsed.missingQualifications : [],
+        overallAssessment: String(parsed.overallAssessment ?? ''),
+        recommendation: String(parsed.recommendation ?? ''),
+      });
     }
 
     if (action === 'rank-candidates') {
@@ -71,7 +84,13 @@ export const proxy = async (req: Request, _userId: string, _userRole: string): P
       const systemPrompt = buildRankingSystemPrompt(body.aiPrompt || '', body.scoringRules || []);
       const userMessage = buildRankingUserMessage(indexed, body.positionName || '');
       const raw = await callLLM(config, systemPrompt, userMessage);
-      return jsonRes({ modelUsed: config.model_name, provider: config.provider, ...parseJSONResponse(raw) });
+      const parsed2 = parseJSONResponse(raw);
+      return jsonRes({
+        modelUsed: config.model_name,
+        provider: config.provider,
+        ranking: Array.isArray(parsed2.ranking) ? parsed2.ranking : [],
+        analysisSummary: String(parsed2.analysisSummary ?? ''),
+      });
     }
 
     if (action === 'parse-resume') {
@@ -81,7 +100,27 @@ export const proxy = async (req: Request, _userId: string, _userRole: string): P
       const systemPrompt = `你是一个简历信息提取助手。从用户提供的简历文本中提取结构化信息，以 JSON 格式返回。\n\n必须返回以下字段（如无则留空）：name, gender, ageOrBirth, phone, email, location, highestEducation, school, major, educationTime, expectedSalary, currentlyEmployed, availability, photoBase64, skills(数组最多8个), workExperience(数组{company,role,period,desc}), honors(数组)。\n\n只返回纯 JSON。`;
       const userMessage = `请从以下简历文本中提取结构化信息：\n\n${body.resumeText}`;
       const raw = await callLLM(config, systemPrompt, userMessage);
-      return jsonRes({ modelUsed: config.model_name, provider: config.provider, ...parseJSONResponse(raw) });
+      const p3 = parseJSONResponse(raw);
+      return jsonRes({
+        modelUsed: config.model_name,
+        provider: config.provider,
+        name: String(p3.name ?? ''),
+        gender: String(p3.gender ?? ''),
+        ageOrBirth: String(p3.ageOrBirth ?? ''),
+        phone: String(p3.phone ?? ''),
+        email: String(p3.email ?? ''),
+        location: String(p3.location ?? ''),
+        highestEducation: String(p3.highestEducation ?? ''),
+        school: String(p3.school ?? ''),
+        major: String(p3.major ?? ''),
+        expectedSalary: String(p3.expectedSalary ?? ''),
+        currentlyEmployed: String(p3.currentlyEmployed ?? ''),
+        availability: String(p3.availability ?? ''),
+        photoBase64: String(p3.photoBase64 ?? ''),
+        skills: Array.isArray(p3.skills) ? p3.skills : [],
+        workExperience: Array.isArray(p3.workExperience) ? p3.workExperience : [],
+        honors: Array.isArray(p3.honors) ? p3.honors : [],
+      });
     }
 
     return jsonRes({ error: `Unknown action: ${action}` }, 400);

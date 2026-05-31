@@ -63,6 +63,21 @@ const mapTemplateSummary = (raw: Record<string, unknown>): InterviewTemplateSumm
   gradeRules: parseJsonField<GradeRule[]>(raw.grade_rules ?? raw.gradeRules, []),
 });
 
+/**
+ * Normalize followUps from the database. The DB stores either:
+ * - Array of strings: `["追问1", "追问2"]`
+ * - Array of objects: `[{prompt: "...", condition: "..."}]`
+ * Always return an array of strings (the prompt text).
+ */
+const normalizeFollowUps = (raw: unknown): string[] => {
+  if (!Array.isArray(raw)) return [];
+  return raw.map(item => {
+    if (typeof item === 'string') return item;
+    if (item && typeof item === 'object' && 'prompt' in item) return String((item as Record<string, unknown>).prompt ?? '');
+    return String(item);
+  });
+};
+
 const mapQuestion = (raw: Record<string, unknown>): InterviewQuestion => ({
   id: raw.id as string,
   order: (raw.sort_order ?? raw.order ?? 0) as number,
@@ -70,7 +85,7 @@ const mapQuestion = (raw: Record<string, unknown>): InterviewQuestion => ({
   prompt: raw.prompt as string,
   timeLimitSeconds: (raw.time_limit_seconds ?? raw.timeLimitSeconds ?? 120) as number,
   group: (raw.group_name ?? raw.group ?? '') as string,
-  followUps: parseJsonField<string[]>(raw.follow_ups ?? raw.followUps, []),
+  followUps: normalizeFollowUps(parseJsonField<unknown>(raw.follow_ups ?? raw.followUps, [])),
   scoringGuide: parseJsonField<InterviewQuestion['scoringGuide']>(raw.scoring_guide ?? raw.scoringGuide, {standard: '', rubric: []}),
   linkedDimensions: parseJsonField<string[]>(raw.linked_dimensions ?? raw.linkedDimensions, []),
 });

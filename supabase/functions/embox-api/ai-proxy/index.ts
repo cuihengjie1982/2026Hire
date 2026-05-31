@@ -125,7 +125,20 @@ export const proxy = async (req: Request, _userId: string, _userRole: string): P
       const raw = await callLLM(config, systemPrompt, userMessage);
       const parsed = parseJSONResponse(raw);
       debugLog(supabase, 'screen-resume', config.provider, config.model_name, raw, JSON.stringify(parsed), '');
-      return jsonRes({ candidateId: body.candidateId ?? null, modelUsed: config.model_name, provider: config.provider, ...parsed });
+      // Whitelist expected keys only — never spread untrusted LLM output directly
+      return jsonRes({
+        candidateId: body.candidateId ?? null,
+        modelUsed: config.model_name,
+        provider: config.provider,
+        totalScore: Number(parsed.totalScore) || 0,
+        dimensionScores: Array.isArray(parsed.dimensionScores) ? parsed.dimensionScores : [],
+        strengths: Array.isArray(parsed.strengths) ? parsed.strengths : [],
+        weaknesses: Array.isArray(parsed.weaknesses) ? parsed.weaknesses : [],
+        matchedQualifications: Array.isArray(parsed.matchedQualifications) ? parsed.matchedQualifications : [],
+        missingQualifications: Array.isArray(parsed.missingQualifications) ? parsed.missingQualifications : [],
+        overallAssessment: String(parsed.overallAssessment ?? ''),
+        recommendation: String(parsed.recommendation ?? ''),
+      });
     }
 
     if (action === 'rank-candidates') {
@@ -137,7 +150,12 @@ export const proxy = async (req: Request, _userId: string, _userRole: string): P
       const raw = await callLLM(config, systemPrompt, userMessage);
       const parsed2 = parseJSONResponse(raw);
       debugLog(supabase, 'rank-candidates', config.provider, config.model_name, raw, JSON.stringify(parsed2), '');
-      return jsonRes({ modelUsed: config.model_name, provider: config.provider, ...parsed2 });
+      return jsonRes({
+        modelUsed: config.model_name,
+        provider: config.provider,
+        ranking: Array.isArray(parsed2.ranking) ? parsed2.ranking : [],
+        analysisSummary: String(parsed2.analysisSummary ?? ''),
+      });
     }
 
     if (action === 'parse-resume') {
@@ -155,7 +173,26 @@ export const proxy = async (req: Request, _userId: string, _userRole: string): P
         raw = await callLLM(config, systemPrompt, userMessage);
         const p3 = parseJSONResponse(raw);
         debugLog(supabase, 'parse-resume', config.provider, config.model_name, raw, JSON.stringify(p3), '');
-        return jsonRes({ modelUsed: config.model_name, provider: config.provider, ...p3 });
+        return jsonRes({
+          modelUsed: config.model_name,
+          provider: config.provider,
+          name: String(p3.name ?? ''),
+          gender: String(p3.gender ?? ''),
+          ageOrBirth: String(p3.ageOrBirth ?? ''),
+          phone: String(p3.phone ?? ''),
+          email: String(p3.email ?? ''),
+          location: String(p3.location ?? ''),
+          highestEducation: String(p3.highestEducation ?? ''),
+          school: String(p3.school ?? ''),
+          major: String(p3.major ?? ''),
+          expectedSalary: String(p3.expectedSalary ?? ''),
+          currentlyEmployed: String(p3.currentlyEmployed ?? ''),
+          availability: String(p3.availability ?? ''),
+          photoBase64: String(p3.photoBase64 ?? ''),
+          skills: Array.isArray(p3.skills) ? p3.skills : [],
+          workExperience: Array.isArray(p3.workExperience) ? p3.workExperience : [],
+          honors: Array.isArray(p3.honors) ? p3.honors : [],
+        });
       } catch (e) {
         console.error('[parse-resume] LLM call failed:', e);
         debugLog(supabase, 'parse-resume', config.provider, config.model_name, '', '', e instanceof Error ? e.message : String(e));
@@ -230,7 +267,28 @@ export const proxy = async (req: Request, _userId: string, _userRole: string): P
       if (!parsed.name && !parsed.phone && !parsed.email) {
         console.warn('[parse-resume-vision] Parsed result has no name/phone/email. Raw response:', raw.slice(0, 500));
       }
-      return jsonRes({ modelUsed: visionConfig.model_name, provider: visionConfig.provider, ...parsed, _rawResponse: raw.slice(0, 3000) });
+      return jsonRes({
+        modelUsed: visionConfig.model_name,
+        provider: visionConfig.provider,
+        name: String(parsed.name ?? ''),
+        gender: String(parsed.gender ?? ''),
+        ageOrBirth: String(parsed.ageOrBirth ?? ''),
+        phone: String(parsed.phone ?? ''),
+        email: String(parsed.email ?? ''),
+        location: String(parsed.location ?? ''),
+        highestEducation: String(parsed.highestEducation ?? ''),
+        school: String(parsed.school ?? ''),
+        major: String(parsed.major ?? ''),
+        expectedSalary: String(parsed.expectedSalary ?? ''),
+        currentlyEmployed: String(parsed.currentlyEmployed ?? ''),
+        availability: String(parsed.availability ?? ''),
+        photoBase64: String(parsed.photoBase64 ?? ''),
+        photoBbox: parsed.photoBbox || null,
+        skills: Array.isArray(parsed.skills) ? parsed.skills : [],
+        workExperience: Array.isArray(parsed.workExperience) ? parsed.workExperience : [],
+        honors: Array.isArray(parsed.honors) ? parsed.honors : [],
+        _rawResponse: raw.slice(0, 3000),
+      });
     }
 
     return jsonRes({ error: `Unknown action: ${action}` }, 400);

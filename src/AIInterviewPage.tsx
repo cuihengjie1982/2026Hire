@@ -907,7 +907,7 @@ export const AIInterviewPage = () => {
                                 <>
                                   <input
                                     type="text"
-                                    value={fu ?? ""}
+                                    value={typeof fu === 'string' ? fu : (fu as Record<string, unknown>)?.prompt as string ?? ''}
                                     onChange={(e) => handleFollowUpChange(qIdx, fuIdx, e.target.value)}
                                     className="flex-1 border border-gray-200 rounded px-2 py-1 text-sm"
                                     placeholder={`追问${fuIdx + 1}`}
@@ -917,7 +917,7 @@ export const AIInterviewPage = () => {
                                   </button>
                                 </>
                               ) : (
-                                <span className="text-gray-700">{fu}</span>
+                                <span className="text-gray-700">{typeof fu === 'string' ? fu : (fu as Record<string, unknown>)?.prompt as string ?? ''}</span>
                               )}
                             </div>
                           ))}
