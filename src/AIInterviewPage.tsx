@@ -11,7 +11,7 @@ import {
   saveInterviewQuestions,
   deleteInterviewQuestion,
 } from './modules/interviews/api';
-import { type InterviewTemplateSummary, type InterviewTemplateDetail, type InterviewQuestion, type ScoringConfig, type GradeRule, type ScoringDimension } from './modules/interviews/types';
+import { type InterviewTemplateSummary, type InterviewTemplateDetail, type InterviewQuestion, type ScoringConfig, type GradeRule, type ScoringDimension, type ConversationalConfig, type InterviewMode } from './modules/interviews/types';
 import { ConfirmDialog } from './shared/components/ConfirmDialog';
 import { listPositions } from './modules/positions/api';
 import { type PositionSummary } from './modules/positions/types';
@@ -48,6 +48,8 @@ export const AIInterviewPage = () => {
     group: string; followUps: string[];
     scoringGuide: {standard: string; rubric: {label: string; score: string}[]};
     linkedDimensions: string[];
+    questionType?: string;
+    triggerCondition?: Record<string, unknown>;
   }[]>([]);
 
   // Scoring config state
@@ -69,6 +71,18 @@ export const AIInterviewPage = () => {
     duration: '15-20分钟',
     passingScore: '75分',
     status: 'draft' as 'draft' | 'active' | 'inactive',
+    interviewMode: 'audio_sequential' as InterviewMode,
+  });
+
+  // Conversational config state (only relevant for text_chat_conversational / video_conversational)
+  const [editConversationalConfig, setEditConversationalConfig] = useState<ConversationalConfig>({
+    maxDurationMinutes: 30,
+    icebreakerMessage: '',
+    closingMessage: '',
+    allowCandidateQuestions: false,
+    candidateQuestionPrompt: '你对这个职位或我们公司有什么问题想问吗？',
+    maxFollowUpsPerTopic: 2,
+    transcriptLanguage: 'zh-CN',
   });
 
   // Load templates on mount
@@ -115,9 +129,16 @@ export const AIInterviewPage = () => {
           followUps: q.followUps ?? [],
           scoringGuide: q.scoringGuide ?? {standard: '', rubric: []},
           linkedDimensions: q.linkedDimensions ?? [],
+          questionType: q.questionType ?? 'core',
+          triggerCondition: q.triggerCondition ?? {},
         })));
         setEditScoringConfig(detail.template.scoringConfig ?? {dimensions: [], baseScore: 50, baseRequirements: []});
         setEditGradeRules(detail.template.gradeRules ?? []);
+        setEditConversationalConfig(detail.template.conversationalConfig ?? {
+          maxDurationMinutes: 30, icebreakerMessage: '', closingMessage: '',
+          allowCandidateQuestions: false, candidateQuestionPrompt: '你对这个职位或我们公司有什么问题想问吗？',
+          maxFollowUpsPerTopic: 2, transcriptLanguage: 'zh-CN',
+        });
       }
     } catch (e) {
       console.error('Failed to load template detail:', e);
@@ -190,6 +211,7 @@ export const AIInterviewPage = () => {
     setEditQuestions(prev => [...prev, {
       title: '新题目', prompt: '请输入题目内容', timeLimitSeconds: 120,
       group: '', followUps: [], scoringGuide: {standard: '', rubric: []}, linkedDimensions: [],
+      questionType: 'core', triggerCondition: {},
     }]);
   };
 
@@ -514,7 +536,8 @@ export const AIInterviewPage = () => {
   // Template dialog handlers
   const handleOpenCreateTemplate = () => {
     setEditingTemplate(null);
-    setTemplateFormData({ name: '', positionId: '', duration: '15-20分钟', passingScore: '75分', status: 'draft' });
+    setTemplateFormData({ name: '', positionId: '', duration: '15-20分钟', passingScore: '75分', status: 'draft', interviewMode: 'audio_sequential' });
+    setEditConversationalConfig({ maxDurationMinutes: 30, icebreakerMessage: '', closingMessage: '', allowCandidateQuestions: false, candidateQuestionPrompt: '你对这个职位或我们公司有什么问题想问吗？', maxFollowUpsPerTopic: 2, transcriptLanguage: 'zh-CN' });
     setShowTemplateDialog(true);
   };
 
@@ -526,7 +549,9 @@ export const AIInterviewPage = () => {
       duration: `${tpl.durationMinutes}分钟`,
       passingScore: '75分',
       status: tpl.status,
+      interviewMode: tpl.interviewMode || 'audio_sequential',
     });
+    setEditConversationalConfig(tpl.conversationalConfig ?? { maxDurationMinutes: 30, icebreakerMessage: '', closingMessage: '', allowCandidateQuestions: false, candidateQuestionPrompt: '你对这个职位或我们公司有什么问题想问吗？', maxFollowUpsPerTopic: 2, transcriptLanguage: 'zh-CN' });
     setShowTemplateDialog(true);
   };
 
@@ -539,11 +564,15 @@ export const AIInterviewPage = () => {
           name: templateFormData.name,
           positionId: templateFormData.positionId,
           status: templateFormData.status,
+          interviewMode: templateFormData.interviewMode,
+          conversationalConfig: templateFormData.interviewMode !== 'audio_sequential' ? editConversationalConfig : undefined,
         });
       } else {
         const newTpl = await createInterviewTemplate({
           name: templateFormData.name,
           positionId: templateFormData.positionId,
+          interviewMode: templateFormData.interviewMode,
+          conversationalConfig: templateFormData.interviewMode !== 'audio_sequential' ? editConversationalConfig : undefined,
         });
         setActiveTemplateId(newTpl.id);
         setIsEditing(true); // Auto-enter edit mode for new template
@@ -576,10 +605,14 @@ export const AIInterviewPage = () => {
     setSaving(true);
     try {
       await saveInterviewQuestions(activeTemplateId, editQuestions);
-      await updateInterviewTemplate(activeTemplateId, {
+      const templateUpdate: Partial<Pick<InterviewTemplateSummary, 'scoringConfig' | 'gradeRules' | 'conversationalConfig'>> = {
         scoringConfig: editScoringConfig,
         gradeRules: editGradeRules,
-      });
+      };
+      if (selectedTemplate?.interviewMode !== 'audio_sequential') {
+        templateUpdate.conversationalConfig = editConversationalConfig;
+      }
+      await updateInterviewTemplate(activeTemplateId, templateUpdate);
       setIsEditing(false);
       await loadTemplateDetail(activeTemplateId);
       await loadTemplates();
@@ -774,9 +807,12 @@ export const AIInterviewPage = () => {
                           group: q.group ?? '', followUps: q.followUps ?? [],
                           scoringGuide: q.scoringGuide ?? {standard: '', rubric: []},
                           linkedDimensions: q.linkedDimensions ?? [],
+                          questionType: q.questionType ?? 'core',
+                          triggerCondition: q.triggerCondition ?? {},
                         })));
                         setEditScoringConfig(templateDetail.template.scoringConfig ?? {dimensions: [], baseScore: 50, baseRequirements: []});
                         setEditGradeRules(templateDetail.template.gradeRules ?? []);
+                        setEditConversationalConfig(templateDetail.template.conversationalConfig ?? { maxDurationMinutes: 30, icebreakerMessage: '', closingMessage: '', allowCandidateQuestions: false, candidateQuestionPrompt: '你对这个职位或我们公司有什么问题想问吗？', maxFollowUpsPerTopic: 2, transcriptLanguage: 'zh-CN' });
                       }
                     }}
                     className="flex items-center px-4 py-2 border border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/30 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium transition-colors"
@@ -789,21 +825,100 @@ export const AIInterviewPage = () => {
           </div>
           <div className="text-sm text-gray-500 dark:text-gray-400 mb-8 pb-4 border-b border-gray-100 dark:border-gray-700">
             面试配置 / {selectedTemplate.name}
-            <span className="ml-3 text-gray-400 dark:text-gray-500">| 题目数: {editQuestions.length} | 时长: {selectedTemplate.durationMinutes}分钟</span>
+            <span className="ml-3 text-gray-400 dark:text-gray-500">| {selectedTemplate.interviewMode !== 'audio_sequential' ? '话题数' : '题目数'}: {editQuestions.length} | 时长: {selectedTemplate.durationMinutes}分钟 | 模式: {selectedTemplate.interviewMode === 'text_chat_conversational' ? '文本对话式' : selectedTemplate.interviewMode === 'video_conversational' ? '视频数字人' : '音频逐题'}</span>
           </div>
+
+          {/* Conversational Config Section — only for conversational modes */}
+          {selectedTemplate.interviewMode !== 'audio_sequential' && (
+            <div className="mb-8">
+              <div className="flex items-center text-[#22d3ee] font-bold text-[15px] mb-4">
+                <div className="w-5 h-5 bg-[#22d3ee] rounded text-white flex items-center justify-center mr-2 text-xs">1</div>
+                对话式面试配置
+              </div>
+              <div className="space-y-4 pr-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm text-gray-700 mb-1">面试时长上限（分钟）</label>
+                    {isEditing ? (
+                      <input type="number" value={editConversationalConfig.maxDurationMinutes ?? 30}
+                        onChange={(e) => setEditConversationalConfig(prev => ({...prev, maxDurationMinutes: parseInt(e.target.value) || 30}))}
+                        className="w-full border border-gray-200 rounded px-3 py-2 text-sm" min={5} max={120} />
+                    ) : (
+                      <span className="text-gray-900">{editConversationalConfig.maxDurationMinutes ?? 30} 分钟</span>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-700 mb-1">每个话题最多追问次数</label>
+                    {isEditing ? (
+                      <input type="number" value={editConversationalConfig.maxFollowUpsPerTopic ?? 2}
+                        onChange={(e) => setEditConversationalConfig(prev => ({...prev, maxFollowUpsPerTopic: parseInt(e.target.value) || 2}))}
+                        className="w-full border border-gray-200 rounded px-3 py-2 text-sm" min={0} max={10} />
+                    ) : (
+                      <span className="text-gray-900">{editConversationalConfig.maxFollowUpsPerTopic ?? 2} 次</span>
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-700 mb-1">破冰消息（AI 面试官的开场白）</label>
+                  {isEditing ? (
+                    <textarea value={editConversationalConfig.icebreakerMessage ?? ''}
+                      onChange={(e) => setEditConversationalConfig(prev => ({...prev, icebreakerMessage: e.target.value}))}
+                      className="w-full border border-gray-200 rounded px-3 py-2 text-sm resize-none" rows={2}
+                      placeholder="你好！欢迎参加今天的面试。我是 AI 面试官小e，很高兴认识你。请先简单介绍一下你自己。" />
+                  ) : (
+                    <span className="text-gray-900">{editConversationalConfig.icebreakerMessage || '（使用默认破冰消息）'}</span>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-700 mb-1">结束消息</label>
+                  {isEditing ? (
+                    <textarea value={editConversationalConfig.closingMessage ?? ''}
+                      onChange={(e) => setEditConversationalConfig(prev => ({...prev, closingMessage: e.target.value}))}
+                      className="w-full border border-gray-200 rounded px-3 py-2 text-sm resize-none" rows={2}
+                      placeholder="感谢你参加今天的面试！我们会尽快反馈结果。" />
+                  ) : (
+                    <span className="text-gray-900">{editConversationalConfig.closingMessage || '（使用默认结束语）'}</span>
+                  )}
+                </div>
+                <div className="flex items-center gap-6">
+                  <label className="flex items-center space-x-2 text-sm text-gray-700">
+                    <input type="checkbox" checked={editConversationalConfig.allowCandidateQuestions ?? false}
+                      onChange={(e) => setEditConversationalConfig(prev => ({...prev, allowCandidateQuestions: e.target.checked}))}
+                      disabled={!isEditing} className="rounded text-[#22d3ee]" />
+                    <span>允许候选人反向提问</span>
+                  </label>
+                  {editConversationalConfig.allowCandidateQuestions && (
+                    <div className="flex-1">
+                      <label className="block text-xs text-gray-500 mb-1">候选人提问引导语</label>
+                      {isEditing ? (
+                        <input type="text" value={editConversationalConfig.candidateQuestionPrompt ?? ''}
+                          onChange={(e) => setEditConversationalConfig(prev => ({...prev, candidateQuestionPrompt: e.target.value}))}
+                          className="w-full border border-gray-200 rounded px-3 py-2 text-sm"
+                          placeholder="你对这个职位或我们公司有什么问题想问吗？" />
+                      ) : (
+                        <span className="text-gray-900 text-sm">{editConversationalConfig.candidateQuestionPrompt || '（使用默认）'}</span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Questions Section */}
           <div className="mb-8">
             <div className="flex items-center text-[#22d3ee] font-bold text-[15px] mb-4">
-              <div className="w-5 h-5 bg-[#22d3ee] rounded text-white flex items-center justify-center mr-2 text-xs">1</div>
-              面试题库配置
+              <div className="w-5 h-5 bg-[#22d3ee] rounded text-white flex items-center justify-center mr-2 text-xs">{selectedTemplate.interviewMode !== 'audio_sequential' ? '2' : '1'}</div>
+              {selectedTemplate.interviewMode !== 'audio_sequential' ? '对话话题配置' : '面试题库配置'}
             </div>
 
             <div className="space-y-4 pr-4">
               {editQuestions.map((q, qIdx) => (
                 <div key={qIdx} className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
                   <div className="bg-gray-50 dark:bg-gray-800 px-4 py-2 flex justify-between items-center border-b border-gray-200 dark:border-gray-700">
-                    <span className="font-bold text-gray-900 dark:text-white text-sm">题目 {qIdx + 1}: {q.title}</span>
+                    <span className="font-bold text-gray-900 dark:text-white text-sm">
+                      {selectedTemplate.interviewMode !== 'audio_sequential' ? '话题' : '题目'} {qIdx + 1}: {q.title}
+                    </span>
                     {isEditing && (
                       <button onClick={() => handleRemoveQuestion(qIdx)} className="p-1 hover:bg-red-100 rounded">
                         <Trash2 className="w-4 h-4 text-red-500" />
@@ -811,8 +926,31 @@ export const AIInterviewPage = () => {
                     )}
                   </div>
                   <div className="p-4 bg-white space-y-2 text-sm">
+                    {/* Question type selector — only in conversational mode */}
+                    {selectedTemplate.interviewMode !== 'audio_sequential' && (
+                      <div className="flex items-center">
+                        <span className="text-gray-500 w-24">话题类型:</span>
+                        {isEditing ? (
+                          <select
+                            value={(q as Record<string, unknown>).questionType as string ?? 'core'}
+                            onChange={(e) => handleQuestionChange(qIdx, 'questionType', e.target.value)}
+                            className="border border-gray-200 rounded px-2 py-1 text-sm"
+                          >
+                            <option value="core">核心话题</option>
+                            <option value="follow_up_pool">追问池</option>
+                            <option value="icebreaker">破冰</option>
+                            <option value="closing">结束语</option>
+                            <option value="candidate_qa">候选人问答</option>
+                          </select>
+                        ) : (
+                          <span className="text-gray-900">{
+                            {core: '核心话题', follow_up_pool: '追问池', icebreaker: '破冰', closing: '结束语', candidate_qa: '候选人问答'}[(q as Record<string, unknown>).questionType as string] ?? '核心话题'
+                          }</span>
+                        )}
+                      </div>
+                    )}
                     <div className="flex items-center">
-                      <span className="text-gray-500 w-24">题目名称:</span>
+                      <span className="text-gray-500 w-24">{selectedTemplate.interviewMode !== 'audio_sequential' ? '话题名称:' : '题目名称:'}</span>
                       {isEditing ? (
                         <input
                           type="text"
@@ -825,18 +963,25 @@ export const AIInterviewPage = () => {
                       )}
                     </div>
                     <div className="flex items-start">
-                      <span className="text-gray-500 w-24">题目内容:</span>
+                      <span className="text-gray-500 w-24">{selectedTemplate.interviewMode !== 'audio_sequential' ? '话题引导:' : '题目内容:'}</span>
                       {isEditing ? (
-                        <textarea
-                          value={q.prompt ?? ""}
-                          onChange={(e) => handleQuestionChange(qIdx, 'prompt', e.target.value)}
-                          className="flex-1 border border-gray-200 rounded px-2 py-1 text-sm resize-none"
-                          rows={2}
-                        />
+                        <div className="flex-1">
+                          <textarea
+                            value={q.prompt ?? ""}
+                            onChange={(e) => handleQuestionChange(qIdx, 'prompt', e.target.value)}
+                            className="w-full border border-gray-200 rounded px-2 py-1 text-sm resize-none"
+                            rows={2}
+                          />
+                          {selectedTemplate.interviewMode !== 'audio_sequential' && (
+                            <p className="text-xs text-gray-400 mt-1">这是给 AI 面试官看的话题引导，不是给候选人看的逐字稿。AI 会根据这段话理解要考察什么，然后自然地提问。</p>
+                          )}
+                        </div>
                       ) : (
                         <span className="text-gray-900">{q.prompt}</span>
                       )}
                     </div>
+                    {/* Time limit — only for audio sequential mode */}
+                    {selectedTemplate.interviewMode === 'audio_sequential' && (
                     <div className="flex items-center">
                       <span className="text-gray-500 w-24">答题时限:</span>
                       {isEditing ? (
@@ -855,6 +1000,7 @@ export const AIInterviewPage = () => {
                         <span className="text-gray-900 font-medium">{formatTimeDisplay(q.timeLimitSeconds)}</span>
                       )}
                     </div>
+                    )}
                     {/* Group */}
                     <div className="flex items-center">
                       <span className="text-gray-500 w-24">题目分组:</span>
@@ -997,8 +1143,9 @@ export const AIInterviewPage = () => {
                       className="flex-1 border border-dashed border-[#22d3ee] text-[#22d3ee] rounded-lg py-3 text-sm font-medium flex items-center justify-center hover:bg-[#cffafe] transition-colors"
                     >
                       <Plus className="w-4 h-4 mr-1.5" />
-                      添加题目
+                      {selectedTemplate.interviewMode !== 'audio_sequential' ? '添加话题' : '添加题目'}
                     </button>
+                    {selectedTemplate.interviewMode === 'audio_sequential' && (
                     <button
                       onClick={() => mdFileInputRef.current?.click()}
                       className="flex-1 border border-dashed border-[#1a4bc4] text-[#1a4bc4] rounded-lg py-3 text-sm font-medium flex items-center justify-center hover:bg-blue-50 transition-colors"
@@ -1006,6 +1153,7 @@ export const AIInterviewPage = () => {
                       <Upload className="w-4 h-4 mr-1.5" />
                       导入MD文件
                     </button>
+                    )}
                   </div>
                 </>
               )}
@@ -1022,7 +1170,7 @@ export const AIInterviewPage = () => {
           {/* Scoring Config Section */}
           <div className="mb-8">
             <div className="flex items-center text-[#22d3ee] font-bold text-[15px] mb-4">
-              <div className="w-5 h-5 bg-[#22d3ee] rounded text-white flex items-center justify-center mr-2 text-xs">2</div>
+              <div className="w-5 h-5 bg-[#22d3ee] rounded text-white flex items-center justify-center mr-2 text-xs">{selectedTemplate.interviewMode !== 'audio_sequential' ? '3' : '2'}</div>
               面试评分配置
             </div>
             <div className="space-y-6 pr-4">
@@ -1261,9 +1409,37 @@ export const AIInterviewPage = () => {
           {/* Interview Flow Settings */}
           <div className="mb-8">
             <div className="flex items-center text-[#22d3ee] font-bold text-[15px] mb-4">
-              <div className="w-5 h-5 bg-[#22d3ee] rounded text-white flex items-center justify-center mr-2 text-xs">3</div>
-              面试流程配置
+              <div className="w-5 h-5 bg-[#22d3ee] rounded text-white flex items-center justify-center mr-2 text-xs">{selectedTemplate.interviewMode !== 'audio_sequential' ? '4' : '3'}</div>
+              {selectedTemplate.interviewMode !== 'audio_sequential' ? '附加设置' : '面试流程配置'}
             </div>
+            {selectedTemplate.interviewMode !== 'audio_sequential' ? (
+              <div className="px-2 space-y-4">
+                <div>
+                  <label className="block text-sm text-gray-700 mb-1">转写语言</label>
+                  {isEditing ? (
+                    <select value={editConversationalConfig.transcriptLanguage ?? 'zh-CN'}
+                      onChange={(e) => setEditConversationalConfig(prev => ({...prev, transcriptLanguage: e.target.value}))}
+                      className="border border-gray-200 rounded px-3 py-2 text-sm">
+                      <option value="zh-CN">中文</option>
+                      <option value="en">English</option>
+                      <option value="ja">日本語</option>
+                    </select>
+                  ) : (
+                    <span className="text-gray-900">{{'zh-CN': '中文', 'en': 'English', 'ja': '日本語'}[editConversationalConfig.transcriptLanguage ?? 'zh-CN']}</span>
+                  )}
+                </div>
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-800">
+                  <p className="font-medium mb-1">对话式面试说明</p>
+                  <ul className="list-disc list-inside space-y-1 text-blue-700">
+                    <li>AI 面试官会根据话题引导自动提问和追问，无需为每个问题设置固定内容</li>
+                    <li>核心话题（core）决定面试覆盖哪些考察点</li>
+                    <li>追问池（follow_up_pool）提供预设追问，AI 根据候选人回答自动匹配</li>
+                    <li>破冰消息（icebreaker）是面试开始时的第一条消息</li>
+                    <li>结束语（closing）在面试结束时使用</li>
+                  </ul>
+                </div>
+              </div>
+            ) : (
             <div className="grid grid-cols-2 gap-8 px-2">
               <div className="space-y-4">
                 <div>
@@ -1308,6 +1484,7 @@ export const AIInterviewPage = () => {
                 </div>
               </div>
             </div>
+            )}
           </div>
         </div>
       </div>
@@ -1454,11 +1631,23 @@ export const AIInterviewPage = () => {
                 </select>
               </div>
               <div>
+                <label className="block text-[13px] font-medium text-gray-700 mb-1">面试模式</label>
+                <select
+                  value={templateFormData.interviewMode}
+                  onChange={(e) => setTemplateFormData({...templateFormData, interviewMode: e.target.value as InterviewMode})}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#22d3ee] bg-white"
+                >
+                  <option value="audio_sequential">音频逐题面试（传统模式）</option>
+                  <option value="text_chat_conversational">文本对话式面试（AI 自适应追问）</option>
+                  <option value="video_conversational">视频数字人面试（开发中）</option>
+                </select>
+              </div>
+              <div>
                 <label className="block text-[13px] font-medium text-gray-700 mb-1">模板状态</label>
                 <select
                   value={templateFormData.status}
                   onChange={(e) => setTemplateFormData({...templateFormData, status: e.target.value as 'draft' | 'active' | 'inactive'})}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#22d3ee] bg-white"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-[13px] text-sm focus:outline-none focus:ring-2 focus:ring-[#22d3ee] bg-white"
                 >
                   <option value="draft">草稿</option>
                   <option value="active">启用</option>

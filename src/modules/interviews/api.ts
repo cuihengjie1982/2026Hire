@@ -41,6 +41,8 @@ import {
   type ConversationMessage,
   type ConversationScore,
   type CandidateQuestion,
+  type InterviewMode,
+  type ConversationalConfig,
 } from './types';
 
 // ---------------------------------------------------------------------------
@@ -235,6 +237,8 @@ export type CreateInterviewTemplateInput = {
   status?: InterviewTemplateStatus;
   scoringConfig?: ScoringConfig;
   gradeRules?: GradeRule[];
+  interviewMode?: InterviewMode;
+  conversationalConfig?: ConversationalConfig;
 };
 
 export const createInterviewTemplate = async (
@@ -253,7 +257,8 @@ export const createInterviewTemplate = async (
       questionCount: 0,
       scoringConfig: input.scoringConfig ?? {dimensions: [], baseScore: 0, baseRequirements: []},
       gradeRules: input.gradeRules ?? [],
-      interviewMode: 'audio_sequential',
+      interviewMode: input.interviewMode || 'audio_sequential',
+      conversationalConfig: input.conversationalConfig,
     };
     templatesData.push(newTemplate);
     templateDetailsMap[id] = {
@@ -271,13 +276,15 @@ export const createInterviewTemplate = async (
     status: input.status,
     scoringConfig: input.scoringConfig,
     gradeRules: input.gradeRules,
+    interviewMode: input.interviewMode,
+    conversationalConfig: input.conversationalConfig,
   });
   return mapTemplateSummary(data);
 };
 
 export const updateInterviewTemplate = async (
   templateId: string,
-  input: Partial<Pick<InterviewTemplateSummary, 'name' | 'positionId' | 'status' | 'durationMinutes' | 'scoringConfig' | 'gradeRules'>>,
+  input: Partial<Pick<InterviewTemplateSummary, 'name' | 'positionId' | 'status' | 'durationMinutes' | 'scoringConfig' | 'gradeRules' | 'interviewMode' | 'conversationalConfig'>>,
 ): Promise<InterviewTemplateSummary | null> => {
   if (USE_MOCK_API) {
     await new Promise(r => setTimeout(r, 120));
@@ -303,6 +310,8 @@ export const updateInterviewTemplate = async (
     durationMinutes: input.durationMinutes,
     scoringConfig: input.scoringConfig,
     gradeRules: input.gradeRules,
+    interviewMode: input.interviewMode,
+    conversationalConfig: input.conversationalConfig,
   });
   return mapTemplateSummary(data);
 };
@@ -340,6 +349,8 @@ export const saveInterviewQuestions = async (
       followUps: q.followUps ?? [],
       scoringGuide: q.scoringGuide ?? {standard: '', rubric: []},
       linkedDimensions: q.linkedDimensions ?? [],
+      questionType: (q as Record<string, unknown>).questionType as InterviewQuestion['questionType'] ?? 'core',
+      triggerCondition: (q as Record<string, unknown>).triggerCondition as Record<string, unknown> ?? {},
     }));
 
     detail.questions = savedQuestions;
@@ -366,6 +377,8 @@ export const saveInterviewQuestions = async (
       followUps: q.followUps ?? [],
       scoringGuide: q.scoringGuide ?? {standard: '', rubric: []},
       linkedDimensions: q.linkedDimensions ?? [],
+      questionType: (q as Record<string, unknown>).questionType ?? 'core',
+      triggerCondition: (q as Record<string, unknown>).triggerCondition ?? {},
     })),
   });
   return (data ?? []).map((row: Record<string, unknown>) => mapQuestion(row));
