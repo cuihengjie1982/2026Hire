@@ -7,7 +7,7 @@ import {
 
 export const interviewTemplatesFixture: InterviewTemplateSummary[] = [];
 export const interviewTemplateDetailFixture: InterviewTemplateDetail = {
-  template: {id: '', positionId: '', name: '', version: 0, durationMinutes: 0, questionCount: 0, status: 'draft', scoringConfig: {dimensions: [], baseScore: 50, baseRequirements: []}, gradeRules: []},
+  template: {id: '', positionId: '', name: '', version: 0, durationMinutes: 0, questionCount: 0, status: 'draft' as const, scoringConfig: {dimensions: [], baseScore: 50, baseRequirements: []}, gradeRules: [], interviewMode: 'audio_sequential' as const},
   questions: [],
 };
 export const interviewSessionFixture: InterviewSession = {

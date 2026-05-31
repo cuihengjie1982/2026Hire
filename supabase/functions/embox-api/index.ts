@@ -67,8 +67,13 @@ const loadHandlers = async (): Promise<RouteHandler[]> => {
   const { handleOutreach } = await import('./outreach/index.ts');
   // Contacts
   const { handleContacts } = await import('./contacts/index.ts');
-  // Integrations
+  // Integration/Integrations
   const { handleIntegrations } = await import('./integrations/index.ts');
+  // Conversational Interview
+  const {
+    createConvSession, sendMessage, streamMessages,
+    completeConversation, scoreConversation, answerCandidateQuestion,
+  } = await import('./conversational-interview/index.ts');
 
   return [
     // AI Proxy — any authenticated user
@@ -178,6 +183,13 @@ const loadHandlers = async (): Promise<RouteHandler[]> => {
     { pattern: '/outreach', methods: ['GET', 'POST', 'PATCH', 'DELETE'], auth: 'recruiter+', handler: handleOutreach },
     // Contacts — recruiter+
     { pattern: '/contacts', methods: ['GET', 'POST', 'PATCH'], auth: 'recruiter+', handler: handleContacts },
+    // Conversational Interview — recruiter+
+    { pattern: '/conversational-interview/sessions', methods: ['POST'], auth: 'recruiter+', handler: createConvSession },
+    { pattern: '/conversational-interview/messages/stream', methods: ['GET'], auth: 'recruiter+', handler: streamMessages },
+    { pattern: '/conversational-interview/messages', methods: ['POST'], auth: 'recruiter+', handler: sendMessage },
+    { pattern: '/conversational-interview/complete', methods: ['POST'], auth: 'recruiter+', handler: completeConversation },
+    { pattern: '/conversational-interview/score', methods: ['POST'], auth: 'recruiter+', handler: scoreConversation },
+    { pattern: '/conversational-interview/candidate-question', methods: ['POST'], auth: 'recruiter+', handler: answerCandidateQuestion },
     // Integrations — any authenticated
     { pattern: '/integrations', methods: ['GET'], auth: 'any', handler: handleIntegrations },
   ];

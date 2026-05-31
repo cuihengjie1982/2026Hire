@@ -32,6 +32,118 @@ export type InterviewQuestion = {
     rubric: {label: string; score: string}[];
   };
   linkedDimensions: string[];
+  questionType?: 'core' | 'follow_up_pool' | 'icebreaker' | 'closing' | 'candidate_qa';
+  triggerCondition?: Record<string, unknown>;
+};
+
+export type InterviewMode = 'audio_sequential' | 'text_chat_conversational' | 'video_conversational';
+
+// ============================================================================
+// Conversational Interview Types (Phase 1: Text Chat MVP)
+// ============================================================================
+
+export type ConversationStatus =
+  | 'waiting'
+  | 'active'
+  | 'paused'
+  | 'completed'
+  | 'abandoned';
+
+export type ConversationSubState =
+  | 'idle'
+  | 'candidate_typing'
+  | 'ai_thinking'
+  | 'candidate_asking';
+
+export type MessageType =
+  | 'text'
+  | 'question'
+  | 'follow_up'
+  | 'clarification'
+  | 'icebreaker'
+  | 'closing'
+  | 'candidate_question'
+  | 'system_event';
+
+export type MessageRole = 'interviewer' | 'candidate' | 'system';
+
+export type ConversationMessage = {
+  id: string;
+  convSessionId: string;
+  role: MessageRole;
+  content: string;
+  messageType: MessageType;
+  questionId: string | null;
+  metadataJson?: Record<string, unknown>;
+  audioFileUrl?: string | null;
+  createdAt: string;
+};
+
+export type ConversationTopic = {
+  questionId: string;
+  title: string;
+  completedAt?: string;
+  summary?: string;
+};
+
+export type ConversationSession = {
+  convSessionId: string;
+  status: ConversationStatus;
+  currentTopic: string | null;
+  topicsCovered: ConversationTopic[];
+  messages: ConversationMessage[];
+  config: ConversationalConfig;
+  isResumed: boolean;
+};
+
+export type ConversationalConfig = {
+  maxDurationMinutes: number;
+  icebreakerMessage: string;
+  closingMessage: string;
+  allowCandidateQuestions: boolean;
+  candidateQuestionPrompt: string;
+  maxFollowUpsPerTopic: number;
+  transcriptLanguage: string;
+  avatarConfig?: {
+    provider: 'tavus' | 'heygen' | 'self-built' | null;
+    avatarId: string | null;
+    voice: string;
+  };
+};
+
+export type ConversationState = {
+  currentTopic: string | null;
+  topicsCovered: number;
+  shouldClose: boolean;
+};
+
+export type ConversationScore = {
+  scoreId: string;
+  resultId: string;
+  overallScore: number;
+  grade: string;
+  gradeLabel: string;
+  dimensionScores: Array<{
+    dimension: string;
+    score: number;
+    maxScore: number;
+    reasoning: string;
+    evidence: string[];
+  }>;
+  strengths: Array<{title: string; description: string; evidence: string[]}>;
+  weaknesses: Array<{title: string; description: string; evidence: string[]}>;
+  summary: string;
+  status: string;
+};
+
+export type CandidateQuestion = {
+  id: string;
+  convSessionId: string;
+  candidateQuestion: string;
+  aiResponse: string | null;
+  responseTimestamp: string | null;
+  isAnswered: boolean;
+  createdAt: string;
 };
 
 export type InterviewTemplateSummary = {
@@ -44,6 +156,8 @@ export type InterviewTemplateSummary = {
   questionCount: number;
   scoringConfig: ScoringConfig;
   gradeRules: GradeRule[];
+  interviewMode: InterviewMode;
+  conversationalConfig?: ConversationalConfig;
 };
 
 export type InterviewTemplateDetail = {

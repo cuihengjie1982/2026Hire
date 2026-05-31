@@ -28,6 +28,7 @@ import scoringRoutes from './modules/interviews/scoring.routes.js';
 import statsRoutes from './modules/stats/stats.routes.js';
 import employeesRoutes from './modules/employees/employees.routes.js';
 import trainingRoutes from './modules/training/training.routes.js';
+import conversationalRoutes from './modules/interviews/conversational.routes.js';
 
 const app = express();
 
@@ -236,6 +237,10 @@ app.use('/api/v1/employees', employeesRoutes);
 // Training Academy (courses, enrollments, assessments, analytics)
 app.use('/api/training', trainingRoutes);
 app.use('/api/v1/training', trainingRoutes);
+
+// Conversational Interview
+app.use('/api', conversationalRoutes);
+app.use('/api/v1', conversationalRoutes);
 
 // Error handler (must be last)
 app.use(errorHandler);

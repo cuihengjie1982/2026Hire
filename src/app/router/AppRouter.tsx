@@ -51,6 +51,9 @@ const CandidateTrainingPortal = lazy(() =>
     default: module.CandidateTrainingPortal,
   })),
 );
+const ConversationInterviewPage = lazy(() =>
+  import('../../modules/interviews/pages/ConversationInterviewPage').then(m => ({default: m.default})),
+);
 
 const RouteLoadingFallback = () => (
   <motion.div
@@ -91,6 +94,7 @@ export const AppRouter = ({onLogout}: {onLogout: () => void}) => (
           <Route path="/training" element={withPageGuard(<TrainingAcademyPage />, '培训学堂')} />
           <Route path="/admin" element={withPageGuard(<SystemAdminPage />, '系统管理')} />
         </Route>
+        <Route path="/interviews/conversational" element={withPageGuard(<ConversationInterviewPage />, '会话式面试')} />
         <Route path="*" element={<NotFoundPage />} />
         <Route path="/training/portal" element={withPageGuard(<CandidateTrainingPortal />, '培训门户')} />
       </Routes>

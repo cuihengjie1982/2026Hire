@@ -1,7 +1,7 @@
 import {motion} from 'motion/react';
 import {lazy, Suspense, useState} from 'react';
 import {useSearchParams} from 'react-router-dom';
-import {Loader2, FileText, PlayCircle, BarChart2, ClipboardList} from 'lucide-react';
+import {Loader2, FileText, PlayCircle, BarChart2, ClipboardList, MessageCircle} from 'lucide-react';
 
 const InterviewTemplatesPage = lazy(() =>
   import('../../interviews/pages/InterviewTemplatesPage').then(m => ({default: m.InterviewTemplatesPage})),
@@ -18,12 +18,16 @@ const InterviewAnalyticsPage = lazy(() =>
 const InterviewPreviewPage = lazy(() =>
   import('../../interviews/pages/InterviewPreviewPage').then(m => ({default: m.InterviewPreviewPage})),
 );
+const ConversationInterviewManagementPage = lazy(() =>
+  import('../../interviews/pages/ConversationInterviewManagementPage').then(m => ({default: m.default})),
+);
 
-type TabId = 'templates' | 'management' | 'results' | 'analytics' | 'preview';
+type TabId = 'templates' | 'management' | 'results' | 'analytics' | 'preview' | 'conversational';
 
 const TABS: {id: TabId; label: string; icon: typeof FileText}[] = [
   {id: 'templates', label: '面试模板', icon: FileText},
   {id: 'management', label: '会话管理', icon: ClipboardList},
+  {id: 'conversational', label: '会话式面试', icon: MessageCircle},
   {id: 'results', label: '面试结果', icon: BarChart2},
   {id: 'analytics', label: '数据分析', icon: BarChart2},
   {id: 'preview', label: '面试体验', icon: PlayCircle},
@@ -59,6 +63,8 @@ export const InterviewCenterPage = () => {
         return <InterviewAnalyticsPage isEmbedded onTabChange={handleTabChange} />;
       case 'preview':
         return <InterviewPreviewPage />;
+      case 'conversational':
+        return <ConversationInterviewManagementPage />;
     }
   };
 

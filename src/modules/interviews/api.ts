@@ -37,6 +37,10 @@ import {
   type GradeRule,
   type AnswerScoreResult,
   type DimensionAnalysis,
+  type ConversationSession,
+  type ConversationMessage,
+  type ConversationScore,
+  type CandidateQuestion,
 } from './types';
 
 // ---------------------------------------------------------------------------
@@ -61,6 +65,8 @@ const mapTemplateSummary = (raw: Record<string, unknown>): InterviewTemplateSumm
   questionCount: (raw.question_count ?? raw.questionCount ?? 0) as number,
   scoringConfig: parseJsonField<ScoringConfig>(raw.scoring_config ?? raw.scoringConfig, {dimensions: [], baseScore: 0, baseRequirements: []}),
   gradeRules: parseJsonField<GradeRule[]>(raw.grade_rules ?? raw.gradeRules, []),
+  interviewMode: (raw.interview_mode ?? raw.interviewMode ?? 'audio_sequential') as InterviewTemplateSummary['interviewMode'],
+  conversationalConfig: parseJsonField<InterviewTemplateSummary['conversationalConfig']>(raw.conversational_config ?? raw.conversationalConfig, undefined),
 });
 
 /**
@@ -88,6 +94,8 @@ const mapQuestion = (raw: Record<string, unknown>): InterviewQuestion => ({
   followUps: normalizeFollowUps(parseJsonField<unknown>(raw.follow_ups ?? raw.followUps, [])),
   scoringGuide: parseJsonField<InterviewQuestion['scoringGuide']>(raw.scoring_guide ?? raw.scoringGuide, {standard: '', rubric: []}),
   linkedDimensions: parseJsonField<string[]>(raw.linked_dimensions ?? raw.linkedDimensions, []),
+  questionType: (raw.question_type ?? raw.questionType ?? 'core') as InterviewQuestion['questionType'],
+  triggerCondition: parseJsonField<Record<string, unknown>>(raw.trigger_condition ?? raw.triggerCondition, {}),
 });
 
 const mapGrade = (grade: string): InterviewResult['grade'] => {
@@ -245,6 +253,7 @@ export const createInterviewTemplate = async (
       questionCount: 0,
       scoringConfig: input.scoringConfig ?? {dimensions: [], baseScore: 0, baseRequirements: []},
       gradeRules: input.gradeRules ?? [],
+      interviewMode: 'audio_sequential',
     };
     templatesData.push(newTemplate);
     templateDetailsMap[id] = {
@@ -882,4 +891,179 @@ export const exportInterviewResultsCsv = async (): Promise<void> => {
   a.download = 'interview_results.csv';
   a.click();
   URL.revokeObjectURL(url);
+};
+
+// ============================================================================
+// Conversational Interview API
+// ============================================================================
+
+/** Create or resume a conversational interview session */
+export const createConvSession = async (
+  sessionId: string,
+  action: 'start' | 'resume' = 'start',
+): Promise<ConversationSession> => {
+  if (USE_MOCK_API) {
+    const mockMessages: ConversationMessage[] = [
+      {
+        id: 'mock-1', convSessionId: 'mock-conv-1', role: 'interviewer',
+        content: '你好！欢迎参加今天的面试。我是 AI 面试官小e，很高兴认识你。请先简单介绍一下你自己。',
+        messageType: 'icebreaker', questionId: null, createdAt: new Date().toISOString(),
+      },
+    ];
+    return {
+      convSessionId: 'mock-conv-1', status: 'active', currentTopic: '自我介绍',
+      topicsCovered: [], messages: mockMessages, isResumed: false,
+      config: {
+        maxDurationMinutes: 30, icebreakerMessage: '', closingMessage: '',
+        allowCandidateQuestions: true, candidateQuestionPrompt: '你有什么问题想问吗？',
+        maxFollowUpsPerTopic: 2, transcriptLanguage: 'zh-CN',
+      },
+    };
+  }
+  return efetch<ConversationSession>('/conversational-interview/sessions', 'POST', { sessionId, action });
+};
+
+/** Send a message in a conversational interview and get AI reply */
+export const sendConversationMessage = async (
+  convSessionId: string,
+  content: string,
+): Promise<{
+  message: ConversationMessage;
+  conversationState: { currentTopic: string | null; topicsCovered: number; shouldClose: boolean };
+}> => {
+  if (USE_MOCK_API) {
+    return {
+      message: {
+        id: 'mock-ai-msg', convSessionId, role: 'interviewer',
+        content: '感谢你的介绍！这是一个模拟的 AI 回复。在实际面试中，AI 会根据你的回答进行追问或过渡到下一个话题。',
+        messageType: 'text', questionId: null, createdAt: new Date().toISOString(),
+      },
+      conversationState: { currentTopic: '工作经验', topicsCovered: 1, shouldClose: false },
+    };
+  }
+  return efetch('/conversational-interview/messages', 'POST', { convSessionId, content });
+};
+
+/**
+ * Stream AI response via SSE (Server-Sent Events).
+ * Returns a cleanup function to abort the stream.
+ */
+export const streamConversationMessage = (
+  convSessionId: string,
+  content: string,
+  onToken: (token: string) => void,
+  onDone: (data: { messageId: string | null; conversationState: { currentTopic: string | null; shouldClose: boolean } }) => void,
+  onError: (error: string) => void,
+): () => void => {
+  const base = USE_MOCK_API ? '' : API_BASE_URL;
+  const params = new URLSearchParams({ convSessionId, content });
+  const url = `${base}/functions/v1/embox-api/conversational-interview/messages/stream?${params}`;
+
+  const controller = new AbortController();
+
+  fetch(url, {
+    headers: { Authorization: `Bearer ${getAuthToken() ?? ''}` },
+    signal: controller.signal,
+  }).then(async (res) => {
+    if (!res.ok) {
+      onError(`HTTP ${res.status}`);
+      return;
+    }
+    const reader = res.body?.getReader();
+    if (!reader) { onError('No response body'); return; }
+
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+
+      for (const line of lines) {
+        if (line.startsWith('event: token')) {
+          const dataLine = lines[lines.indexOf(line) + 1];
+          if (dataLine?.startsWith('data: ')) {
+            try {
+              const parsed = JSON.parse(dataLine.slice(6));
+              if (parsed.text) onToken(parsed.text);
+            } catch { /* skip malformed events */ }
+          }
+        } else if (line.startsWith('event: done')) {
+          const dataLine = lines[lines.indexOf(line) + 1];
+          if (dataLine?.startsWith('data: ')) {
+            try {
+              onDone(JSON.parse(dataLine.slice(6)));
+            } catch { onDone({ messageId: null, conversationState: { currentTopic: null, shouldClose: false } }); }
+          }
+        } else if (line.startsWith('event: error')) {
+          const dataLine = lines[lines.indexOf(line) + 1];
+          if (dataLine?.startsWith('data: ')) {
+            try {
+              const parsed = JSON.parse(dataLine.slice(6));
+              onError(parsed.message || 'Stream error');
+            } catch { onError('Stream error'); }
+          }
+        }
+      }
+    }
+  }).catch((e: Error) => {
+    if (e.name !== 'AbortError') onError(e.message);
+  });
+
+  return () => controller.abort();
+};
+
+/** Complete a conversational interview session */
+export const completeConversation = async (
+  convSessionId: string,
+): Promise<{ status: string; messageCount: number; durationMinutes: number }> => {
+  if (USE_MOCK_API) {
+    return { status: 'completed', messageCount: 12, durationMinutes: 15 };
+  }
+  return efetch('/conversational-interview/complete', 'POST', { convSessionId });
+};
+
+/** Score a completed conversational interview */
+export const scoreConversation = async (
+  convSessionId: string,
+): Promise<ConversationScore> => {
+  if (USE_MOCK_API) {
+    return {
+      scoreId: 'mock-score-1', resultId: 'mock-result-1', overallScore: 78,
+      grade: 'qualified', gradeLabel: '合格',
+      dimensionScores: [
+        { dimension: '专业能力', score: 22, maxScore: 30, reasoning: '基础知识扎实', evidence: ['面试记录#3'] },
+        { dimension: '沟通表达', score: 20, maxScore: 25, reasoning: '表达清晰', evidence: ['面试记录#1'] },
+        { dimension: '逻辑思维', score: 16, maxScore: 20, reasoning: '逻辑较好', evidence: ['面试记录#5'] },
+        { dimension: '综合素质', score: 20, maxScore: 25, reasoning: '整体不错', evidence: ['面试记录#7'] },
+      ],
+      strengths: [{ title: '沟通能力强', description: '表达清晰有条理', evidence: ['#1'] }],
+      weaknesses: [{ title: '专业深度不足', description: '对某些专业领域理解较浅', evidence: ['#3'] }],
+      summary: '候选人整体表现良好，建议进入下一轮面试。',
+      status: 'completed',
+    };
+  }
+  return efetch<ConversationScore>('/conversational-interview/score', 'POST', { convSessionId });
+};
+
+/** Candidate asks a question about the company/role */
+export const askCandidateQuestion = async (
+  convSessionId: string,
+  question: string,
+): Promise<{ questionId: string; message: ConversationMessage }> => {
+  if (USE_MOCK_API) {
+    return {
+      questionId: 'mock-q-1',
+      message: {
+        id: 'mock-ai-qa', convSessionId, role: 'interviewer',
+        content: '这是一个很好的问题！关于这个岗位，我们提供有竞争力的薪资和良好的发展空间。具体细节建议与 HR 进一步沟通。',
+        messageType: 'candidate_question', questionId: null, createdAt: new Date().toISOString(),
+      },
+    };
+  }
+  return efetch('/conversational-interview/candidate-question', 'POST', { convSessionId, question });
 };
