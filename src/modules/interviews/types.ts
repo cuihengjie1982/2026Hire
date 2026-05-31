@@ -93,6 +93,8 @@ export type ConversationSession = {
   topicsCovered: ConversationTopic[];
   messages: ConversationMessage[];
   config: ConversationalConfig;
+  candidateName?: string;
+  interviewName?: string;
   isResumed: boolean;
 };
 

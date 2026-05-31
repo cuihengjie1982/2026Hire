@@ -1,39 +1,46 @@
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 
-// Build a chainable + thenable mock for supabase query builder
-function qb(result: {data: unknown; error?: Error | null}) {
-  const builder: Record<string, (...args: unknown[]) => unknown> = {};
-  for (const m of ['select', 'insert', 'update', 'delete', 'eq', 'order', 'limit', 'single', 'not', 'gte']) {
-    builder[m] = vi.fn(() => builder);
-  }
-  builder.then = (resolve: (v: unknown) => unknown) =>
-    Promise.resolve({data: result.data, error: result.error ?? null}).then(resolve);
-  return builder;
-}
-
-const mockFrom = vi.fn();
-
-vi.mock('../../shared/lib/supabase', () => ({
-  supabase: {from: (...args: unknown[]) => mockFrom(...args)},
-}));
+// Mock fetch for efetch() used by contacts API
+const originalFetch = globalThis.fetch;
 
 vi.mock('../../shared/lib/runtime', () => ({
   USE_MOCK_API: false,
+  API_BASE_URL: 'https://test.supabase.co',
+  getAuthToken: vi.fn(() => null),
 }));
 
+beforeEach(() => {
+  vi.restoreAllMocks();
+  globalThis.fetch = vi.fn().mockResolvedValue(
+    new Response(JSON.stringify({data: []}), {status: 200}),
+  );
+});
+
+afterEach(() => {
+  globalThis.fetch = originalFetch;
+});
+
 describe('contacts api', () => {
-  beforeEach(() => {
-    mockFrom.mockReset();
+  it('uses efetch backend when mock mode is disabled', async () => {
+    const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>;
+    fetchMock.mockResolvedValueOnce(
+      new Response(JSON.stringify([{id: 'c-1', candidate_id: 'cand-1'}]), {status: 200}),
+    );
+
+    const {listContacts} = await import('./api');
+    const result = await listContacts();
+
+    expect(fetchMock).toHaveBeenCalled();
+    expect(result).toHaveLength(1);
   });
 
-  it('uses supabase backend when mock mode is disabled', async () => {
-    const {listContacts, createContact, updateContactStatus} = await import('./api');
+  it('createContact sends POST with correct body', async () => {
+    const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>;
+    fetchMock.mockResolvedValueOnce(
+      new Response(JSON.stringify({id: 'c-2', candidate_id: 'candidate-1', candidate_name: '张三'}), {status: 200}),
+    );
 
-    mockFrom.mockReturnValue(qb({data: [{id: 'c-1'}]}));
-    await listContacts();
-    expect(mockFrom).toHaveBeenCalledWith('contacts');
-
-    mockFrom.mockReturnValue(qb({data: {id: 'c-2'}}));
+    const {createContact} = await import('./api');
     await createContact({
       candidateId: 'candidate-1',
       candidateName: '张三',
@@ -45,10 +52,23 @@ describe('contacts api', () => {
       channel: 'email',
       reason: '匹配度高',
     });
-    expect(mockFrom).toHaveBeenCalledWith('contacts');
 
-    mockFrom.mockReturnValue(qb({data: {id: 'c-2', status: 'contacted'}}));
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const url = fetchMock.mock.calls[0]![0] as string;
+    expect(url).toContain('/contacts');
+  });
+
+  it('updateContactStatus sends PATCH with id and status', async () => {
+    const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>;
+    fetchMock.mockResolvedValueOnce(
+      new Response(JSON.stringify({id: 'c-2', status: 'contacted'}), {status: 200}),
+    );
+
+    const {updateContactStatus} = await import('./api');
     await updateContactStatus('c-2', 'contacted');
-    expect(mockFrom).toHaveBeenCalledWith('contacts');
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const url = fetchMock.mock.calls[0]![0] as string;
+    expect(url).toContain('/contacts');
   });
 });

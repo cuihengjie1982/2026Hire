@@ -388,6 +388,15 @@ router.post('/aggregate/:sessionId', validateUuidParams('sessionId'), async (req
       // Update session status to scored
       await client.query(`UPDATE interview_sessions SET status = 'scored', submitted_at = now() WHERE id = $1`, [sessionId]);
 
+      // Auto-populate post_interview_score for training enrollments (closes training→re-interview loop)
+      if (candidateId) {
+        await client.query(
+          `UPDATE training_enrollments SET post_interview_score = $1, updated_at = now()
+           WHERE candidate_id = $2 AND status = 'completed' AND post_interview_score IS NULL`,
+          [totalScore, candidateId],
+        );
+      }
+
       // Auto-create approval request
       await client.query(
         `INSERT INTO approval_requests

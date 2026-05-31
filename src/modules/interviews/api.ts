@@ -520,7 +520,8 @@ export const getInterviewSession = async (sessionId: string): Promise<InterviewS
 export const createInterviewSession = async (
   candidateId: string,
   templateId: string,
-): Promise<InterviewSession> => {
+  options?: { sendSms?: boolean; smsTemplateId?: string },
+): Promise<InterviewSession & { accessToken?: string; smsResult?: { sent: boolean; error?: string } }> => {
   if (USE_MOCK_API) {
     await new Promise(r => setTimeout(r, 120));
     return {
@@ -528,11 +529,14 @@ export const createInterviewSession = async (
       candidateId,
       templateId,
       status: 'created',
+      accessToken: `mock-token-${Date.now()}`,
     };
   }
   const data = await efetch<Record<string, unknown>>('/interviews/sessions', 'POST', {
     candidateId,
     templateId,
+    sendSms: options?.sendSms ?? false,
+    smsTemplateId: options?.smsTemplateId ?? null,
   });
   return {
     id: data.id as string,
@@ -541,6 +545,8 @@ export const createInterviewSession = async (
     status: (data.status ?? 'created') as InterviewSessionStatus,
     startedAt: (data.started_at ?? data.startedAt) as string | undefined,
     submittedAt: (data.submitted_at ?? data.submittedAt) as string | undefined,
+    accessToken: (data.accessToken ?? data.access_token) as string | undefined,
+    smsResult: data.smsResult as { sent: boolean; error?: string } | undefined,
   };
 };
 
@@ -926,6 +932,8 @@ export const createConvSession = async (
     return {
       convSessionId: 'mock-conv-1', status: 'active', currentTopic: '自我介绍',
       topicsCovered: [], messages: mockMessages, isResumed: false,
+      candidateName: '张三',
+      interviewName: '前端开发工程师面试',
       config: {
         maxDurationMinutes: 30, icebreakerMessage: '', closingMessage: '',
         allowCandidateQuestions: true, candidateQuestionPrompt: '你有什么问题想问吗？',
@@ -1079,4 +1087,190 @@ export const askCandidateQuestion = async (
     };
   }
   return efetch('/conversational-interview/candidate-question', 'POST', { convSessionId, question });
+};
+
+// ============================================================================
+// Public Conversational Interview API (candidate-facing, no JWT)
+// Uses accessToken from the interview invitation link instead of Bearer auth.
+// ============================================================================
+
+const publicFetch = async <T>(path: string, method = 'GET', body?: unknown): Promise<T> => {
+  const base = USE_MOCK_API ? '' : API_BASE_URL;
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  const res = await fetch(`${base}/functions/v1/embox-api${path}`, {
+    method,
+    headers,
+    ...(body ? { body: JSON.stringify(body) } : {}),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data?.error?.message || `API error ${res.status}`);
+  return data as T;
+};
+
+/** Fetch public interview info by access token */
+export const fetchPublicInterview = async (accessToken: string): Promise<{
+  sessionId: string; status: string; interviewMode: string;
+  candidate: { id: string | null; name: string; email: string };
+  template: { id: string | null; name: string };
+  config: {
+    maxDurationMinutes: number; allowCandidateQuestions: boolean;
+    candidateQuestionPrompt: string;
+  };
+}> => {
+  return publicFetch(`/public/interview?token=${encodeURIComponent(accessToken)}`);
+};
+
+/** Create/resume a conversational session via access token */
+export const createPublicConvSession = async (
+  accessToken: string, action: 'start' | 'resume' = 'start',
+): Promise<ConversationSession> => {
+  if (USE_MOCK_API) {
+    const mockMessages: ConversationMessage[] = [
+      {
+        id: 'mock-1', convSessionId: 'mock-conv-1', role: 'interviewer',
+        content: '你好！欢迎参加今天的面试。我是 AI 面试官小e，很高兴认识你。请先简单介绍一下你自己。',
+        messageType: 'icebreaker', questionId: null, createdAt: new Date().toISOString(),
+      },
+    ];
+    return {
+      convSessionId: 'mock-conv-1', status: 'active', currentTopic: '自我介绍',
+      topicsCovered: [], messages: mockMessages, isResumed: false,
+      candidateName: '张三',
+      interviewName: '前端开发工程师面试',
+      config: {
+        maxDurationMinutes: 30, icebreakerMessage: '', closingMessage: '',
+        allowCandidateQuestions: true, candidateQuestionPrompt: '你有什么问题想问吗？',
+        maxFollowUpsPerTopic: 2, transcriptLanguage: 'zh-CN',
+      },
+    };
+  }
+  return publicFetch<ConversationSession>('/public/conversation/sessions', 'POST', { accessToken, action });
+};
+
+/** Send a message via public conversational endpoint */
+export const sendPublicConversationMessage = async (
+  convSessionId: string, content: string,
+): Promise<{
+  message: ConversationMessage;
+  conversationState: { currentTopic: string | null; topicsCovered: number; shouldClose: boolean };
+}> => {
+  if (USE_MOCK_API) {
+    return {
+      message: {
+        id: 'mock-ai-msg', convSessionId, role: 'interviewer',
+        content: '感谢你的介绍！这是一个模拟的 AI 回复。',
+        messageType: 'text', questionId: null, createdAt: new Date().toISOString(),
+      },
+      conversationState: { currentTopic: '工作经验', topicsCovered: 1, shouldClose: false },
+    };
+  }
+  return publicFetch('/public/conversation/messages', 'POST', { convSessionId, content });
+};
+
+/** Stream AI response via SSE for public candidate flow */
+export const streamPublicConversationMessage = (
+  convSessionId: string, content: string,
+  onToken: (token: string) => void,
+  onDone: (data: { messageId: string | null; conversationState: { currentTopic: string | null; shouldClose: boolean } }) => void,
+  onError: (error: string) => void,
+): () => void => {
+  const base = USE_MOCK_API ? '' : API_BASE_URL;
+  const params = new URLSearchParams({ convSessionId, content });
+  const url = `${base}/functions/v1/embox-api/public/conversation/messages/stream?${params}`;
+
+  const controller = new AbortController();
+
+  fetch(url, { signal: controller.signal }).then(async (res) => {
+    if (!res.ok) { onError(`HTTP ${res.status}`); return; }
+    const reader = res.body?.getReader();
+    if (!reader) { onError('No response body'); return; }
+
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+
+      for (const line of lines) {
+        if (line.startsWith('event: token')) {
+          const dataLine = lines[lines.indexOf(line) + 1];
+          if (dataLine?.startsWith('data: ')) {
+            try {
+              const parsed = JSON.parse(dataLine.slice(6));
+              if (parsed.text) onToken(parsed.text);
+            } catch { /* skip */ }
+          }
+        } else if (line.startsWith('event: done')) {
+          const dataLine = lines[lines.indexOf(line) + 1];
+          if (dataLine?.startsWith('data: ')) {
+            try { onDone(JSON.parse(dataLine.slice(6))); }
+            catch { onDone({ messageId: null, conversationState: { currentTopic: null, shouldClose: false } }); }
+          }
+        } else if (line.startsWith('event: error')) {
+          const dataLine = lines[lines.indexOf(line) + 1];
+          if (dataLine?.startsWith('data: ')) {
+            try {
+              const parsed = JSON.parse(dataLine.slice(6));
+              onError(parsed.message || 'Stream error');
+            } catch { onError('Stream error'); }
+          }
+        }
+      }
+    }
+  }).catch((e: Error) => {
+    if (e.name !== 'AbortError') onError(e.message);
+  });
+
+  return () => controller.abort();
+};
+
+/** Complete conversation via public endpoint */
+export const completePublicConversation = async (
+  convSessionId: string,
+): Promise<{ status: string; messageCount: number; durationMinutes: number }> => {
+  if (USE_MOCK_API) return { status: 'completed', messageCount: 12, durationMinutes: 15 };
+  return publicFetch('/public/conversation/complete', 'POST', { convSessionId });
+};
+
+/** Score conversation via public endpoint */
+export const scorePublicConversation = async (
+  convSessionId: string,
+): Promise<ConversationScore> => {
+  if (USE_MOCK_API) {
+    return {
+      scoreId: 'mock-score-1', resultId: 'mock-result-1', overallScore: 78,
+      grade: 'qualified', gradeLabel: '合格',
+      dimensionScores: [
+        { dimension: '专业能力', score: 22, maxScore: 30, reasoning: '', evidence: [] },
+        { dimension: '沟通表达', score: 20, maxScore: 25, reasoning: '', evidence: [] },
+      ],
+      strengths: [{ title: '沟通能力强', description: '', evidence: [] }],
+      weaknesses: [{ title: '专业深度不足', description: '', evidence: [] }],
+      summary: '整体表现良好。', status: 'completed',
+    };
+  }
+  return publicFetch<ConversationScore>('/public/conversation/score', 'POST', { convSessionId });
+};
+
+/** Candidate asks a question via public endpoint */
+export const askPublicCandidateQuestion = async (
+  convSessionId: string, question: string,
+): Promise<{ questionId: string; message: ConversationMessage }> => {
+  if (USE_MOCK_API) {
+    return {
+      questionId: 'mock-q-1',
+      message: {
+        id: 'mock-ai-qa', convSessionId, role: 'interviewer',
+        content: '这是一个很好的问题！关于这个岗位，我们提供有竞争力的薪资和良好的发展空间。',
+        messageType: 'candidate_question', questionId: null, createdAt: new Date().toISOString(),
+      },
+    };
+  }
+  return publicFetch('/public/conversation/candidate-question', 'POST', { convSessionId, question });
 };

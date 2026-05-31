@@ -29,6 +29,7 @@ import statsRoutes from './modules/stats/stats.routes.js';
 import employeesRoutes from './modules/employees/employees.routes.js';
 import trainingRoutes from './modules/training/training.routes.js';
 import conversationalRoutes from './modules/interviews/conversational.routes.js';
+import publicConversationRoutes from './modules/interviews/publicConversation.routes.js';
 
 const app = express();
 
@@ -135,6 +136,66 @@ app.get('/api/v1/training/portal/:candidateId', handleTrainingPortal);
 // Health check (public)
 app.get('/api/health', (_req, res) => res.json({status: 'ok', timestamp: new Date().toISOString()}));
 app.get('/api/v1/health', (_req, res) => res.json({status: 'ok', timestamp: new Date().toISOString()}));
+
+// Public interview entry (candidates access via /functions/v1/embox-api/public/interview?token=xxx)
+// Express mirror for local dev
+const handlePublicInterview = async (req: import('express').Request, res: import('express').Response) => {
+  try {
+    const {token} = req.query;
+    if (!token) {
+      res.status(400).json({error: 'Missing access token'});
+      return;
+    }
+    const session = await queryOne(
+      `SELECT s.id, s.status, s.access_token, s.candidate_id, s.template_id,
+              c.name as candidate_name, c.email as candidate_email,
+              t.name as template_name, t.interview_mode, t.conversational_config
+       FROM interview_sessions s
+       JOIN candidates c ON c.id = s.candidate_id
+       JOIN interview_templates t ON t.id = s.template_id
+       WHERE s.access_token = $1`,
+      [String(token)],
+    );
+    if (!session) {
+      res.status(404).json({error: 'Invalid or expired interview link'});
+      return;
+    }
+    const s = session as Record<string, unknown>;
+    const status = String(s.status ?? '');
+    if (status === 'closed' || status === 'scored') {
+      res.status(410).json({error: 'This interview has already been completed'});
+      return;
+    }
+    let convConfig: Record<string, unknown> = {};
+    const rawConfig = s.conversational_config;
+    if (typeof rawConfig === 'string') {
+      try { convConfig = JSON.parse(rawConfig); } catch { /* keep default */ }
+    } else if (typeof rawConfig === 'object' && rawConfig !== null) {
+      convConfig = rawConfig as Record<string, unknown>;
+    }
+    res.json({
+      sessionId: s.id,
+      status,
+      interviewMode: s.interview_mode ?? 'audio_sequential',
+      candidate: {id: s.candidate_id ?? null, name: s.candidate_name ?? '', email: s.candidate_email ?? ''},
+      template: {id: s.template_id ?? null, name: s.template_name ?? ''},
+      config: {
+        maxDurationMinutes: Number(convConfig.maxDurationMinutes ?? 30),
+        allowCandidateQuestions: Boolean(convConfig.allowCandidateQuestions ?? false),
+        candidateQuestionPrompt: String(convConfig.candidateQuestionPrompt ?? ''),
+      },
+    });
+  } catch (e) {
+    console.error('[public-interview]', e);
+    res.status(500).json({error: 'Internal error'});
+  }
+};
+app.get('/api/public/interview', handlePublicInterview);
+app.get('/api/v1/public/interview', handlePublicInterview);
+
+// Public conversation interview (candidate-facing, no JWT auth, validated via access_token)
+app.use('/api/public/conversation', publicConversationRoutes);
+app.use('/api/v1/public/conversation', publicConversationRoutes);
 
 // ── Authenticated routes ──────────────────────────────────────────────────
 

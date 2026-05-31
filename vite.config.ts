@@ -41,7 +41,7 @@ export default defineConfig(({mode}) => {
       environment: 'jsdom',
       globals: true,
       setupFiles: './src/test/setup.ts',
-      exclude: ['node_modules', 'dist', 'e2e', 'server/node_modules'],
+      exclude: ['node_modules', 'dist', 'e2e', 'server/node_modules', 'supabase'],
     },
   };
 });

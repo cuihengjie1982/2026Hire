@@ -9,7 +9,7 @@ function jsonRes(body: unknown, status = 200) {
 export const shortlistInterviewInvite = async (req: Request, _userId: string, _userRole: string): Promise<Response> => {
   try {
     const supabase = createSupabaseAdmin(req);
-    const { shortlistEntryId, type, subject, content, candidateEmail } = await req.json() as Record<string, unknown>;
+    const { shortlistEntryId, type, subject, content, candidateEmail, templateId } = await req.json() as Record<string, unknown>;
     if (!shortlistEntryId) return jsonRes({ error: { code: 'VALIDATION_ERROR', message: 'shortlistEntryId is required' } }, 400);
 
     const { data: entry } = await supabase.from('shortlist_entries').select('*').eq('id', String(shortlistEntryId)).single();
@@ -34,7 +34,57 @@ export const shortlistInterviewInvite = async (req: Request, _userId: string, _u
       .eq('id', String(shortlistEntryId))
       .select('*').single();
 
-    return jsonRes(updated);
+    // Auto-create interview session when candidate and position are available
+    let sessionCreated: Record<string, unknown> | null = null;
+    const candidateId = e.candidate_id ? String(e.candidate_id) : null;
+    const positionId = e.position_id ? String(e.position_id) : null;
+
+    if (candidateId && positionId) {
+      // Use specified template or auto-select the most recent active template for this position
+      let resolvedTemplateId = templateId ? String(templateId) : null;
+      if (!resolvedTemplateId) {
+        const { data: tpl } = await supabase.from('interview_templates')
+          .select('id')
+          .eq('position_id', positionId)
+          .eq('status', 'active')
+          .eq('interview_mode', 'text_chat_conversational')
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+        resolvedTemplateId = tpl ? String((tpl as Record<string, unknown>).id) : null;
+      }
+      // Fall back to any active template for this position
+      if (!resolvedTemplateId) {
+        const { data: tpl } = await supabase.from('interview_templates')
+          .select('id')
+          .eq('position_id', positionId)
+          .eq('status', 'active')
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+        resolvedTemplateId = tpl ? String((tpl as Record<string, unknown>).id) : null;
+      }
+
+      if (resolvedTemplateId) {
+        const accessToken = crypto.randomUUID();
+        const { data: session } = await supabase.from('interview_sessions').insert({
+          candidate_id: candidateId,
+          template_id: resolvedTemplateId,
+          status: 'created',
+          access_token: accessToken,
+        }).select('*').single();
+
+        if (session) {
+          sessionCreated = {
+            sessionId: (session as Record<string, unknown>).id,
+            accessToken,
+            interviewUrl: `/interview/${accessToken}`,
+          };
+        }
+      }
+    }
+
+    return jsonRes({ ...updated, interviewSession: sessionCreated });
   } catch (e) {
     console.error('[cross-table-ops]', e);
     return jsonRes({ error: { code: 'INTERNAL_ERROR', message: 'An internal error occurred' } }, 500);
@@ -136,6 +186,30 @@ export const hireCandidate = async (req: Request, _userId: string, _userRole: st
       await supabase.from('shortlist_entries')
         .update({ next_step: '已录用' })
         .eq('candidate_id', candidateId);
+    }
+
+    // Create employee profile if not already exists (closes Approval→Hire loop)
+    if (candidateId) {
+      const { data: existingEmp } = await supabase.from('employee_profiles')
+        .select('id').eq('candidate_id', candidateId).maybeSingle();
+      if (!existingEmp) {
+        // Fetch full candidate details
+        const { data: candidate } = await supabase.from('candidates')
+          .select('*').eq('id', candidateId).single();
+        const c = candidate as Record<string, unknown> | null;
+        await supabase.from('employee_profiles').insert({
+          candidate_id: candidateId,
+          name: String(c?.name ?? a.candidate_name ?? ''),
+          email: c?.email ?? a.candidate_email ?? null,
+          phone: c?.phone ?? null,
+          status: 'onboarding',
+          hire_date: new Date().toISOString().slice(0, 10),
+          position_id: a.position_id ?? null,
+          project_id: a.project_id ?? null,
+          interview_score: a.interview_score != null ? Number(a.interview_score) : null,
+          interview_grade: a.interview_grade ?? null,
+        });
+      }
     }
 
     return jsonRes(approval);

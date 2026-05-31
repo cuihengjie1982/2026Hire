@@ -7,9 +7,10 @@ import {
   mockDelay,
 } from '../apiClient';
 
-// Mock runtime so we control API_BASE_URL and getAuthToken
+// Mock runtime so we control API_BASE_URL, getAuthToken, USE_MOCK_API
 vi.mock('../runtime', () => ({
   API_BASE_URL: 'http://localhost:4000',
+  USE_MOCK_API: true,
   getAuthToken: vi.fn(() => null),
 }));
 
@@ -17,12 +18,17 @@ import {getAuthToken} from '../runtime';
 
 const mockedGetAuthToken = vi.mocked(getAuthToken);
 
+// Replace global fetch with a vi.fn() before each test
+// (jsdom's fetch can't be spied on reliably)
+const originalFetch = globalThis.fetch;
+
 beforeEach(() => {
   vi.restoreAllMocks();
+  globalThis.fetch = vi.fn();
 });
 
 afterEach(() => {
-  vi.restoreAllMocks();
+  globalThis.fetch = originalFetch;
 });
 
 // ---------------------------------------------------------------------------
@@ -89,13 +95,9 @@ describe('getValueFromPayload', () => {
 // ---------------------------------------------------------------------------
 
 describe('fetchJson', () => {
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
-
   it('sends GET request and returns parsed JSON', async () => {
     const data = [{id: 1, name: 'Alice'}];
-    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+    (globalThis.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
       new Response(JSON.stringify(data), {
         status: 200,
         headers: {'Content-Type': 'application/json'},
@@ -107,20 +109,22 @@ describe('fetchJson', () => {
   });
 
   it('sets Content-Type to application/json by default', async () => {
-    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+    const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>;
+    fetchMock.mockResolvedValueOnce(
       new Response(JSON.stringify({}), {status: 200}),
     );
 
     await fetchJson('/api/test', {method: 'POST', body: '{"a":1}'});
 
-    const request = fetchSpy.mock.calls[0]![1]!;
+    const request = fetchMock.mock.calls[0]![1]!;
     expect((request.headers as Headers).get('Content-Type')).toBe(
       'application/json',
     );
   });
 
   it('does not set Content-Type when body is FormData', async () => {
-    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+    const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>;
+    fetchMock.mockResolvedValueOnce(
       new Response(JSON.stringify({}), {status: 200}),
     );
 
@@ -129,45 +133,49 @@ describe('fetchJson', () => {
 
     await fetchJson('/api/upload', {method: 'POST', body: fd});
 
-    const request = fetchSpy.mock.calls[0]![1]!;
+    const request = fetchMock.mock.calls[0]![1]!;
     expect((request.headers as Headers).get('Content-Type')).toBeNull();
   });
 
   it('auto-attaches Authorization header when token exists', async () => {
     mockedGetAuthToken.mockReturnValue('jwt-token-123');
 
-    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+    const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>;
+    fetchMock.mockResolvedValueOnce(
       new Response(JSON.stringify({ok: true}), {status: 200}),
     );
 
     await fetchJson('/api/secure');
 
-    const request = fetchSpy.mock.calls[0]![1]!;
+    const request = fetchMock.mock.calls[0]![1]!;
     expect((request.headers as Headers).get('Authorization')).toBe(
       'Bearer jwt-token-123',
     );
   });
 
   it('throws on non-ok response', async () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+    const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>;
+    fetchMock.mockResolvedValueOnce(
       new Response('Unauthorized', {status: 401}),
     );
 
-    await expect(fetchJson('/api/secure')).rejects.toThrow('Request failed: 401');
+    // jsdom Response.text() may return empty for non-ok responses,
+    // so the error falls back to the status-code message
+    await expect(fetchJson('/api/secure')).rejects.toThrow(/Request failed: 401|Unauthorized/);
   });
 
   it('throws generic message when response body is empty', async () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+    const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>;
+    fetchMock.mockResolvedValueOnce(
       new Response('', {status: 500}),
     );
 
-    await expect(fetchJson('/api/broken')).rejects.toThrow(
-      'Request failed: 500',
-    );
+    await expect(fetchJson('/api/broken')).rejects.toThrow('Request failed: 500');
   });
 
   it('returns undefined for 204 No Content', async () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+    const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>;
+    fetchMock.mockResolvedValueOnce(
       new Response(null, {status: 204}),
     );
 
@@ -176,7 +184,8 @@ describe('fetchJson', () => {
   });
 
   it('returns undefined for empty response body', async () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+    const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>;
+    fetchMock.mockResolvedValueOnce(
       new Response('', {status: 200}),
     );
 

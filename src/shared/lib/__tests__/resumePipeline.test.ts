@@ -98,7 +98,7 @@ describe('assessQuality', () => {
     expect(missing.length).toBeGreaterThan(0);
   });
 
-  it('scores name=35 + phone=30 = 65 (medium)', () => {
+  it('scores name=25 + phone=20 = 45 (medium)', () => {
     const info = fullInfo({
       gender: '', ageOrBirth: '', email: '', location: '',
       education: '', highestEducation: '', school: '', major: '',
@@ -106,11 +106,11 @@ describe('assessQuality', () => {
       expectedSalary: '', currentlyEmployed: '', availability: '',
     });
     const {score, level} = assessQuality(info);
-    expect(score).toBe(65); // name(35) + phone(30)
+    expect(score).toBe(45); // name(25) + phone(20)
     expect(level).toBe('medium');
   });
 
-  it('scores name=35 + phone=30 + email=15 = 80 (high)', () => {
+  it('scores name=25 + phone=20 + email=15 = 60 (medium)', () => {
     const info = fullInfo({
       gender: '', ageOrBirth: '', location: '',
       education: '', highestEducation: '', school: '', major: '',
@@ -118,8 +118,8 @@ describe('assessQuality', () => {
       expectedSalary: '', currentlyEmployed: '', availability: '',
     });
     const {score, level} = assessQuality(info);
-    expect(score).toBe(80);
-    expect(level).toBe('high');
+    expect(score).toBe(60);
+    expect(level).toBe('medium');
   });
 
   it('correctly identifies missing fields', () => {
@@ -131,7 +131,7 @@ describe('assessQuality', () => {
     expect(missing).not.toContain('姓名');
   });
 
-  it('scores 40 as medium boundary', () => {
+  it('scores 25 for name only (low boundary)', () => {
     const info = fullInfo({
       phone: '', email: '', location: '',
       education: '', highestEducation: '', school: '', major: '',
@@ -139,9 +139,9 @@ describe('assessQuality', () => {
       expectedSalary: '', currentlyEmployed: '', availability: '',
       gender: '', ageOrBirth: '',
     });
-    // Only name=35
+    // Only name=25
     const {score, level} = assessQuality(info);
-    expect(score).toBe(35);
+    expect(score).toBe(25);
     expect(level).toBe('low');
   });
 });

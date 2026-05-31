@@ -33,6 +33,13 @@ router.post('/conversational-interview/sessions', async (req, res) => {
           `SELECT * FROM conversational_interview_messages WHERE conv_session_id = $1 ORDER BY created_at ASC LIMIT 100`,
           [existing.id],
         );
+        // Fetch candidate name for resume case
+        const resumeSession = await queryOne('SELECT candidate_id FROM interview_sessions WHERE id = $1', [sessionId]);
+        let resumeCandidateName = '';
+        if (resumeSession?.candidate_id) {
+          const c = await queryOne('SELECT name FROM candidates WHERE id = $1', [resumeSession.candidate_id]);
+          resumeCandidateName = String(c?.name ?? '');
+        }
         return res.json({
           convSessionId: existing.id,
           status: existing.status,
@@ -43,17 +50,27 @@ router.post('/conversational-interview/sessions', async (req, res) => {
             messageType: m.message_type, questionId: m.question_id,
             createdAt: m.created_at,
           })),
+          candidateName: resumeCandidateName,
+          interviewName: '',
           isResumed: true,
         });
       }
     }
 
     // Verify interview session
-    const session = await queryOne('SELECT id, template_id FROM interview_sessions WHERE id = $1', [sessionId]);
+    const session = await queryOne('SELECT id, template_id, candidate_id FROM interview_sessions WHERE id = $1', [sessionId]);
     if (!session) return res.status(404).json({ error: 'Session not found' });
+
+    // Fetch candidate name
+    let candidateName = '';
+    if (session.candidate_id) {
+      const candidate = await queryOne('SELECT name FROM candidates WHERE id = $1', [session.candidate_id]);
+      candidateName = String(candidate?.name ?? '');
+    }
 
     // Get template config
     const template = await queryOne('SELECT name, conversational_config FROM interview_templates WHERE id = $1', [session.template_id]);
+    const interviewName = String(template?.name ?? '');
     const convConfig = (template?.conversational_config && typeof template.conversational_config === 'object')
       ? template.conversational_config as Record<string, unknown> : {};
 
@@ -101,6 +118,8 @@ router.post('/conversational-interview/sessions', async (req, res) => {
         maxDurationMinutes: Number(convConfig.maxDurationMinutes ?? 30),
         maxFollowUpsPerTopic: Number(convConfig.maxFollowUpsPerTopic ?? 2),
       },
+      candidateName,
+      interviewName,
       isResumed: false,
     });
   } catch (e) {

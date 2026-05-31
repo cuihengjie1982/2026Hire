@@ -132,6 +132,32 @@ router.post('/:id/hire', validateUuidParams('id'), async (req, res, next) => {
       );
     }
 
+    // Create employee profile if not already exists (closes Approval→Hire loop)
+    const existingEmp = await queryOne(
+      `SELECT id FROM employee_profiles WHERE candidate_id = $1`,
+      [candidateId],
+    );
+    if (!existingEmp) {
+      const candidate = await queryOne(
+        `SELECT * FROM candidates WHERE id = $1`,
+        [candidateId],
+      );
+      await query(
+        `INSERT INTO employee_profiles (candidate_id, name, email, phone, status, hire_date, position_id, project_id, interview_score, interview_grade)
+         VALUES ($1, $2, $3, $4, 'onboarding', CURRENT_DATE, $5, $6, $7, $8)`,
+        [
+          candidateId,
+          (candidate as Record<string, unknown> | null)?.name ?? row.candidate_name ?? '',
+          (candidate as Record<string, unknown> | null)?.email ?? row.candidate_email ?? null,
+          (candidate as Record<string, unknown> | null)?.phone ?? null,
+          row.position_id ?? null,
+          row.project_id ?? null,
+          row.interview_score != null ? Number(row.interview_score) : null,
+          row.interview_grade ?? null,
+        ],
+      );
+    }
+
     res.json(row);
   } catch (e) { next(e); }
 });

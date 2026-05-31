@@ -340,9 +340,13 @@ invitesRouter.get('/', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-// POST /api/invites — create invite
-invitesRouter.post('/', async (req, res, next) => {
+	// POST /api/invites — create invite (admin only)
+	invitesRouter.post('/', async (req, res, next) => {
   try {
+    if (!req.user || req.user.role !== 'admin') {
+      res.status(403).json({error: {code: 'FORBIDDEN', message: 'Admin only'}});
+      return;
+    }
     const {email, role, invitedBy} = req.body;
     if (!email || !role) {
       res.status(400).json({error: {code: 'VALIDATION_ERROR', message: 'email and role are required'}});
@@ -362,6 +366,10 @@ invitesRouter.post('/', async (req, res, next) => {
 // DELETE /api/invites/:email — delete invite
 invitesRouter.delete('/:email', async (req, res, next) => {
   try {
+    if (!req.user || req.user.role !== 'admin') {
+      res.status(403).json({error: {code: 'FORBIDDEN', message: 'Admin only'}});
+      return;
+    }
     const {email} = req.params;
     const {role} = req.query;
     if (!role) {

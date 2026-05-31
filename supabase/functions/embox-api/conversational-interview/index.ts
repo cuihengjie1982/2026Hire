@@ -140,10 +140,20 @@ export const createConvSession = async (req: Request, _userId: string, _userRole
 
     // Verify the interview session exists
     const { data: session } = await supabase.from('interview_sessions')
-      .select('id, template_id').eq('id', sessionId).single();
+      .select('id, template_id, candidate_id').eq('id', sessionId).single();
     if (!session) return jsonRes({ error: 'Interview session not found' }, 404);
 
-    const templateId = String((session as Record<string, unknown>).template_id ?? '');
+    const sessionRow = session as Record<string, unknown>;
+    const templateId = String(sessionRow.template_id ?? '');
+    const candidateId = String(sessionRow.candidate_id ?? '');
+
+    // Fetch candidate name
+    let candidateName = '';
+    if (candidateId) {
+      const { data: candidate } = await supabase.from('candidates')
+        .select('name').eq('id', candidateId).single();
+      candidateName = String((candidate as Record<string, unknown> | null)?.name ?? '');
+    }
 
     // Check if a conversational session already exists (resume)
     if (action === 'resume') {
@@ -156,6 +166,17 @@ export const createConvSession = async (req: Request, _userId: string, _userRole
         const { data: messages } = await supabase.from('conversational_interview_messages')
           .select('*').eq('conv_session_id', String(conv.id))
           .order('created_at', { ascending: true }).limit(100);
+
+        // Fetch candidate name for resume case too
+        let resumeCandidateName = '';
+        const { data: sessionData } = await supabase.from('interview_sessions')
+          .select('candidate_id').eq('id', sessionId).single();
+        const resumeCandidateId = String((sessionData as Record<string, unknown> | null)?.candidate_id ?? '');
+        if (resumeCandidateId) {
+          const { data: c } = await supabase.from('candidates')
+            .select('name').eq('id', resumeCandidateId).single();
+          resumeCandidateName = String((c as Record<string, unknown> | null)?.name ?? '');
+        }
 
         return jsonRes({
           convSessionId: conv.id,
@@ -173,6 +194,8 @@ export const createConvSession = async (req: Request, _userId: string, _userRole
               createdAt: msg.created_at,
             };
           }),
+          candidateName: resumeCandidateName,
+          interviewName: '',
           isResumed: true,
         });
       }
@@ -232,6 +255,8 @@ export const createConvSession = async (req: Request, _userId: string, _userRole
       .update({ status: 'in_progress', started_at: new Date().toISOString() })
       .eq('id', sessionId);
 
+    const interviewName = String(tpl?.name ?? '');
+
     return jsonRes({
       convSessionId: conv.id,
       status: 'active',
@@ -249,6 +274,8 @@ export const createConvSession = async (req: Request, _userId: string, _userRole
         maxDurationMinutes: Number(convConfig.maxDurationMinutes ?? 30),
         maxFollowUpsPerTopic: Number(convConfig.maxFollowUpsPerTopic ?? 2),
       },
+      candidateName,
+      interviewName,
       isResumed: false,
     });
   } catch (e) {

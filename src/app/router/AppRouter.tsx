@@ -54,6 +54,12 @@ const CandidateTrainingPortal = lazy(() =>
 const ConversationInterviewPage = lazy(() =>
   import('../../modules/interviews/pages/ConversationInterviewPage').then(m => ({default: m.default})),
 );
+const CandidateInterviewEntry = lazy(() =>
+  import('../../modules/interviews/pages/CandidateInterviewEntry').then(m => ({default: m.default})),
+);
+const PublicConversationInterviewPage = lazy(() =>
+  import('../../modules/interviews/pages/PublicConversationInterviewPage').then(m => ({default: m.default})),
+);
 
 const RouteLoadingFallback = () => (
   <motion.div
@@ -97,6 +103,9 @@ export const AppRouter = ({onLogout}: {onLogout: () => void}) => (
         <Route path="/interviews/conversational" element={withPageGuard(<ConversationInterviewPage />, '会话式面试')} />
         <Route path="*" element={<NotFoundPage />} />
         <Route path="/training/portal" element={withPageGuard(<CandidateTrainingPortal />, '培训门户')} />
+        {/* Public interview routes — no login required */}
+        <Route path="/interview/:token" element={withSuspense(<CandidateInterviewEntry />)} />
+        <Route path="/interview/:token/chat" element={withSuspense(<PublicConversationInterviewPage />)} />
       </Routes>
     </ProjectProvider>
   </BrowserRouter>

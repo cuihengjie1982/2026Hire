@@ -195,11 +195,12 @@ router.post('/:id/promote', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-// POST /:id/interview-invite — create outreach record + update next_step
+// POST /:id/interview-invite — create outreach record + update next_step + auto-create interview session
 router.post('/:id/interview-invite', async (req, res, next) => {
   try {
     const {id} = req.params;
-    const {type, subject, content, candidateEmail} = req.body;
+    const {type, subject, content, candidateEmail, templateId} = req.body;
+    const crypto = await import('crypto');
 
     const entry = await queryOne(
       `SELECT * FROM shortlist_entries WHERE id = $1`,
@@ -232,7 +233,50 @@ router.post('/:id/interview-invite', async (req, res, next) => {
       [id, logEntry],
     );
 
-    res.json(updated);
+    // Auto-create interview session when candidate_id and position_id are available
+    let sessionCreated: Record<string, unknown> | null = null;
+    const candidateId = entry.candidate_id ? String(entry.candidate_id) : null;
+    const positionId = entry.position_id ? String(entry.position_id) : null;
+
+    if (candidateId && positionId) {
+      let resolvedTemplateId = templateId ? String(templateId) : null;
+      if (!resolvedTemplateId) {
+        const tpl = await queryOne(
+          `SELECT id FROM interview_templates
+           WHERE position_id = $1 AND status = 'active' AND interview_mode = 'text_chat_conversational'
+           ORDER BY created_at DESC LIMIT 1`,
+          [positionId],
+        );
+        resolvedTemplateId = tpl ? String(tpl.id) : null;
+      }
+      if (!resolvedTemplateId) {
+        const tpl = await queryOne(
+          `SELECT id FROM interview_templates
+           WHERE position_id = $1 AND status = 'active'
+           ORDER BY created_at DESC LIMIT 1`,
+          [positionId],
+        );
+        resolvedTemplateId = tpl ? String(tpl.id) : null;
+      }
+
+      if (resolvedTemplateId) {
+        const accessToken = crypto.randomUUID();
+        const session = await queryOne(
+          `INSERT INTO interview_sessions (candidate_id, template_id, status, access_token)
+           VALUES ($1, $2, 'created', $3) RETURNING *`,
+          [candidateId, resolvedTemplateId, accessToken],
+        );
+        if (session) {
+          sessionCreated = {
+            sessionId: session.id,
+            accessToken,
+            interviewUrl: `/interview/${accessToken}`,
+          };
+        }
+      }
+    }
+
+    res.json({...updated, interviewSession: sessionCreated});
   } catch (e) { next(e); }
 });
 

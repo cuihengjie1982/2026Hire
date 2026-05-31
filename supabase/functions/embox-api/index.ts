@@ -74,6 +74,10 @@ const loadHandlers = async (): Promise<RouteHandler[]> => {
     createConvSession, sendMessage, streamMessages,
     completeConversation, scoreConversation, answerCandidateQuestion,
   } = await import('./conversational-interview/index.ts');
+  // Public Interview (candidate entry — no auth)
+  const { handlePublicInterview } = await import('./public-interview/index.ts');
+  // Public Conversation (candidate-facing conversational endpoints — no auth)
+  const { handlePublicConversation } = await import('./public-conversation/index.ts');
 
   return [
     // AI Proxy — any authenticated user
@@ -190,6 +194,15 @@ const loadHandlers = async (): Promise<RouteHandler[]> => {
     { pattern: '/conversational-interview/complete', methods: ['POST'], auth: 'recruiter+', handler: completeConversation },
     { pattern: '/conversational-interview/score', methods: ['POST'], auth: 'recruiter+', handler: scoreConversation },
     { pattern: '/conversational-interview/candidate-question', methods: ['POST'], auth: 'recruiter+', handler: answerCandidateQuestion },
+    // Public Interview — candidate entry via access token (no auth)
+    { pattern: '/public/interview', methods: ['GET'], auth: 'none', handler: handlePublicInterview },
+    // Public Conversation — candidate-facing conversational endpoints (no auth)
+    { pattern: '/public/conversation/sessions', methods: ['POST'], auth: 'none', handler: handlePublicConversation },
+    { pattern: '/public/conversation/messages/stream', methods: ['GET'], auth: 'none', handler: handlePublicConversation },
+    { pattern: '/public/conversation/messages', methods: ['POST'], auth: 'none', handler: handlePublicConversation },
+    { pattern: '/public/conversation/complete', methods: ['POST'], auth: 'none', handler: handlePublicConversation },
+    { pattern: '/public/conversation/score', methods: ['POST'], auth: 'none', handler: handlePublicConversation },
+    { pattern: '/public/conversation/candidate-question', methods: ['POST'], auth: 'none', handler: handlePublicConversation },
     // Integrations — any authenticated
     { pattern: '/integrations', methods: ['GET'], auth: 'any', handler: handleIntegrations },
   ];

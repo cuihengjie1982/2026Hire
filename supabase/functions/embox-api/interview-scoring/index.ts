@@ -228,6 +228,16 @@ export const aggregate = async (req: Request, _userId: string, _userRole: string
 
     await supabase.from('interview_sessions').update({ status: 'scored', submitted_at: new Date().toISOString() }).eq('id', sessionId);
 
+    // Auto-populate post_interview_score for training enrollments (closes training→re-interview loop)
+    if (candidateId) {
+      supabase.from('training_enrollments')
+        .update({ post_interview_score: totalScore, updated_at: new Date().toISOString() })
+        .eq('candidate_id', candidateId)
+        .eq('status', 'completed')
+        .is('post_interview_score', null)
+        .then(() => {}).catch(() => {});
+    }
+
     await supabase.from('approval_requests').insert({
       type: 'interview_result', candidate_id: candidateId, candidate_name: candidateName,
       candidate_email: candidateEmail, position_id: positionId, position_name: positionName,

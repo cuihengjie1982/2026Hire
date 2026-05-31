@@ -266,7 +266,7 @@ export function complementaryExtract(
       // Multi-line: 姓名 on one line, name on next (common in pdftotext)
       /姓\s*名\s*\n\s*([\u4e00-\u9fa5]{2,4})/i,
     ];
-    const skipNames = new Set(['全职', '兼职', '实习', '临时', '外包', '派遣']);
+    const skipNames = new Set(['全职', '兼职', '实习', '临时', '外包', '派遣', '期望工作', '期望薪资', '工作经验', '教育背景', '个人简历', '联系方式', '出生年月', '政治面貌', '现居住地', '自我评价', '项目经验', '在校', '应届']);
     for (const pat of namePatterns) {
       const m = rawText.match(pat);
       if (m && !skipNames.has(m[1])) {

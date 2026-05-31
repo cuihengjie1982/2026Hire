@@ -1,8 +1,7 @@
 import type {ReactNode} from 'react';
-import {render, screen} from '@testing-library/react';
+import {render, screen, waitFor} from '@testing-library/react';
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 import App from './App';
-import {AUTH_SESSION_STORAGE_KEY} from './shared/lib/runtime';
 
 vi.mock('./modules/auth/pages/LoginPage', () => ({
   LoginPage: ({onLogin}: {onLogin: () => void}) => (
@@ -28,27 +27,50 @@ vi.mock('./shared/components/NotificationProvider', () => ({
   NotificationProvider: ({children}: {children: ReactNode}) => <>{children}</>,
 }));
 
+// Mock supabase to control auth state
+const mockGetSession = vi.fn();
+const mockOnAuthStateChange = vi.fn();
+const mockSignOut = vi.fn();
+const mockRefreshSession = vi.fn();
+
+vi.mock('./shared/lib/supabase', () => ({
+  supabase: {
+    auth: {
+      getSession: (...args: unknown[]) => mockGetSession(...args),
+      onAuthStateChange: (...args: unknown[]) => mockOnAuthStateChange(...args),
+      signOut: (...args: unknown[]) => mockSignOut(...args),
+      refreshSession: (...args: unknown[]) => mockRefreshSession(...args),
+    },
+  },
+}));
+
 describe('App', () => {
   beforeEach(() => {
     localStorage.clear();
-    vi.restoreAllMocks();
+    vi.clearAllMocks();
+    // Default: not authenticated
+    mockGetSession.mockResolvedValue({data: {session: null}});
+    mockOnAuthStateChange.mockReturnValue({data: {subscription: {unsubscribe: vi.fn()}}});
+    mockRefreshSession.mockResolvedValue({data: {session: null}});
   });
 
-  it('renders login page when no persisted session exists', () => {
+  it('renders login page when no persisted session exists', async () => {
     render(<App />);
 
-    expect(screen.getByText('mock-login')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText('mock-login')).toBeInTheDocument();
+    });
     expect(screen.queryByText('mock-router')).not.toBeInTheDocument();
   });
 
-  it('restores authenticated shell from localStorage', () => {
-    localStorage.setItem(AUTH_SESSION_STORAGE_KEY, 'true');
-    // App also requires a valid auth token to restore the shell
-    localStorage.setItem('em-box.auth-token', 'mock-jwt-token');
+  it('restores authenticated shell when session exists', async () => {
+    mockGetSession.mockResolvedValue({data: {session: {access_token: 'mock-jwt-token'}}});
 
     render(<App />);
 
-    expect(screen.getByText('mock-router')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText('mock-router')).toBeInTheDocument();
+    });
     expect(screen.queryByText('mock-login')).not.toBeInTheDocument();
   });
 });

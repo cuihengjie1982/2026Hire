@@ -177,17 +177,58 @@ export const handleInterviews = async (req: Request, _userId: string, _userRole:
 
     if (path === '/sessions' && method === 'POST') {
       const body = await req.json() as Record<string, unknown>;
-      const { candidateId, templateId } = body;
+      const { candidateId, templateId, sendSms, smsTemplateId } = body;
       if (!candidateId || !templateId) return jsonRes({ error: { code: 'VALIDATION_ERROR', message: 'candidateId and templateId are required' } }, 400);
+
+      // Generate unique access token for candidate entry
+      const accessToken = crypto.randomUUID();
 
       const { data, error } = await supabase.from('interview_sessions').insert({
         candidate_id: String(candidateId),
         template_id: String(templateId),
         status: 'created',
+        access_token: accessToken,
       }).select('*').single();
 
       if (error) return jsonRes({ error: { code: 'DB_ERROR', message: error.message } }, 500);
-      return jsonRes(data, 201);
+
+      const session = data as Record<string, unknown>;
+
+      // Optionally send SMS notification
+      let smsResult: { sent: boolean; error?: string } = { sent: false };
+      if (sendSms && smsTemplateId) {
+        try {
+          // Load candidate phone
+          const { data: candidate } = await supabase.from('candidates')
+            .select('phone, name').eq('id', String(candidateId)).single();
+          const phone = (candidate as Record<string, unknown> | null)?.phone as string | undefined;
+
+          if (phone) {
+            const interviewLink = `${req.headers.get('origin') || 'https://hire.cmbpo.com'}/interview/${accessToken}`;
+            const { data: smsTemplate } = await supabase.from('sms_templates')
+              .select('*').eq('id', String(smsTemplateId)).single();
+            const tpl = smsTemplate as Record<string, unknown> | null;
+
+            // Build SMS params from template
+            const params = [
+              (candidate as Record<string, unknown>)?.name as string ?? '候选人',
+              interviewLink,
+            ];
+
+            // Call Tencent Cloud SMS via the internal function
+            const { sendSms: sendSmsFn } = await import('../_shared/smsClient.ts');
+            if (tpl?.tencent_template_id) {
+              await sendSmsFn(phone, String(tpl.tencent_template_id), params);
+              smsResult = { sent: true };
+            }
+          }
+        } catch (smsErr) {
+          console.error('[sessions] SMS failed:', smsErr);
+          smsResult = { sent: false, error: smsErr instanceof Error ? smsErr.message : 'SMS send failed' };
+        }
+      }
+
+      return jsonRes({ ...session, accessToken, smsResult }, 201);
     }
 
     if (path === '/sessions' && method === 'PATCH') {
