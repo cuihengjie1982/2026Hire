@@ -4,6 +4,7 @@ import {BrowserRouter, Route, Routes} from 'react-router-dom';
 import {DashboardLayout} from '../layouts/DashboardLayout';
 import {ProjectProvider} from '../contexts/ProjectContext';
 import {NotFoundPage} from '../../shared/pages/NotFoundPage';
+import {PageErrorBoundary} from '../../shared/components/PageErrorBoundary';
 
 const DashboardPage = lazy(() =>
   import('../../modules/dashboard/pages/DashboardPage').then((module) => ({
@@ -73,22 +74,25 @@ const withSuspense = (node: ReactNode) => (
   <Suspense fallback={<RouteLoadingFallback />}>{node}</Suspense>
 );
 
+const withPageGuard = (node: ReactNode, pageName: string) =>
+  withSuspense(<PageErrorBoundary pageName={pageName}>{node}</PageErrorBoundary>);
+
 export const AppRouter = ({onLogout}: {onLogout: () => void}) => (
   <BrowserRouter>
     <ProjectProvider>
       <Routes>
         <Route element={<DashboardLayout onLogout={onLogout} />}>
-          <Route path="/" element={withSuspense(<DashboardPage />)} />
-          <Route path="/projects" element={withSuspense(<ProjectManagePage />)} />
-          <Route path="/candidates" element={withSuspense(<CandidateCenterPage />)} />
-          <Route path="/pipeline" element={withSuspense(<PipelinePage />)} />
-          <Route path="/interviews" element={withSuspense(<InterviewCenterPage />)} />
-          <Route path="/approvals" element={withSuspense(<ApprovalsRoute />)} />
-          <Route path="/training" element={withSuspense(<TrainingAcademyPage />)} />
-          <Route path="/admin" element={withSuspense(<SystemAdminPage />)} />
+          <Route path="/" element={withPageGuard(<DashboardPage />, '工作台')} />
+          <Route path="/projects" element={withPageGuard(<ProjectManagePage />, '项目管理')} />
+          <Route path="/candidates" element={withPageGuard(<CandidateCenterPage />, '候选人中心')} />
+          <Route path="/pipeline" element={withPageGuard(<PipelinePage />, '招聘推进')} />
+          <Route path="/interviews" element={withPageGuard(<InterviewCenterPage />, 'AI 面试中心')} />
+          <Route path="/approvals" element={withPageGuard(<ApprovalsRoute />, '审批中心')} />
+          <Route path="/training" element={withPageGuard(<TrainingAcademyPage />, '培训学堂')} />
+          <Route path="/admin" element={withPageGuard(<SystemAdminPage />, '系统管理')} />
         </Route>
         <Route path="*" element={<NotFoundPage />} />
-        <Route path="/training/portal" element={withSuspense(<CandidateTrainingPortal />)} />
+        <Route path="/training/portal" element={withPageGuard(<CandidateTrainingPortal />, '培训门户')} />
       </Routes>
     </ProjectProvider>
   </BrowserRouter>

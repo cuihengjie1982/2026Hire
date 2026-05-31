@@ -3,6 +3,7 @@
 
 import { requireAuth, requireAdmin, requireRecruiterOrAbove, requireHiringManagerOrAbove } from './_shared/auth.ts';
 import { getCorsHeaders } from './_shared/cors.ts';
+import { apiRateLimit, uploadRateLimit } from './_shared/rateLimiter.ts';
 
 interface RouteHandler {
   pattern: string; // e.g. '/candidate-ops/import'
@@ -257,6 +258,15 @@ const serverHandler = async (req: Request): Promise<Response> => {
           status: errResp.status,
           headers: { ...corsH, 'Content-Type': 'application/json' },
         });
+      }
+
+      // Rate limiting (authenticated routes only)
+      const isUpload = path.startsWith('/training/materials/upload');
+      if (isUpload && !uploadRateLimit(req)) {
+        return jsonRes({ error: { code: 'RATE_LIMITED', message: '上传频率过高，请稍后重试' } }, 429, corsH);
+      }
+      if (!isUpload && !apiRateLimit(req)) {
+        return jsonRes({ error: { code: 'RATE_LIMITED', message: '请求频率过高，请稍后重试' } }, 429, corsH);
       }
 
       const response = await matched.handler(req, authResult.data.user.id, authResult.data.user.role);
