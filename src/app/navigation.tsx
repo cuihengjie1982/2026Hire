@@ -7,6 +7,7 @@ import {
   Lock,
   Settings,
   Target,
+  UserCheck,
   Users,
   Video,
   type LucideIcon,
@@ -38,6 +39,8 @@ export const navigationItems: NavigationItem[] = [
   {id: 'approvals', title: '审批中心', icon: Lock, path: '/approvals', badge: '待审批', badgeColor: 'bg-orange-500'},
   // 发展
   {id: 'training', title: '培训学堂', icon: GraduationCap, path: '/training'},
+  // 档案
+  {id: 'employees', title: '员工档案', icon: UserCheck, path: '/employees'},
   // 管理
   {id: 'admin', title: '系统管理', icon: Settings, path: '/admin'},
 ];

@@ -91,11 +91,56 @@ router.post('/', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-// PATCH /:id — update agent properties
+// PATCH /:id — update agent properties. Also supports flat-body PATCH / with {id, ...fields}
 router.patch('/:id', async (req, res, next) => {
   try {
-    const {id} = req.params;
-    const {name, description, type, config} = req.body;
+    const agentId = req.params.id || req.body.id;
+    if (!agentId) {
+      res.status(400).json({error: {code: 'VALIDATION_ERROR', message: 'Agent id is required'}});
+      return;
+    }
+    const {name, description, type, config, status} = req.body;
+
+    const existing = await queryOne(`SELECT * FROM agents WHERE id = $1`, [agentId]);
+    if (!existing) {
+      res.status(404).json({error: {code: 'NOT_FOUND', message: `Agent (${agentId}) not found`}});
+      return;
+    }
+
+    const sets: string[] = [];
+    const params: unknown[] = [];
+    let idx = 1;
+
+    if (name !== undefined) { sets.push(`name = $${idx++}`); params.push(name); }
+    if (description !== undefined) { sets.push(`description = $${idx++}`); params.push(description); }
+    if (type !== undefined) { sets.push(`type = $${idx++}`); params.push(type); }
+    if (config !== undefined) { sets.push(`config = $${idx++}`); params.push(JSON.stringify(config)); }
+    if (status !== undefined) { sets.push(`status = $${idx++}`); params.push(status); }
+
+    if (sets.length === 0) {
+      res.status(400).json({error: {code: 'VALIDATION_ERROR', message: 'No fields to update'}});
+      return;
+    }
+
+    sets.push(`updated_at = now()`);
+    params.push(agentId);
+
+    const row = await queryOne(
+      `UPDATE agents SET ${sets.join(', ')} WHERE id = $${idx} RETURNING *`,
+      params,
+    );
+    res.json(row);
+  } catch (e) { next(e); }
+});
+
+// Flat-body PATCH / — same as PATCH /:id but reads id from body
+router.patch('/', async (req, res, next) => {
+  try {
+    const {id, name, description, type, config, status} = req.body;
+    if (!id) {
+      res.status(400).json({error: {code: 'VALIDATION_ERROR', message: 'Agent id is required'}});
+      return;
+    }
 
     const existing = await queryOne(`SELECT * FROM agents WHERE id = $1`, [id]);
     if (!existing) {
@@ -111,6 +156,7 @@ router.patch('/:id', async (req, res, next) => {
     if (description !== undefined) { sets.push(`description = $${idx++}`); params.push(description); }
     if (type !== undefined) { sets.push(`type = $${idx++}`); params.push(type); }
     if (config !== undefined) { sets.push(`config = $${idx++}`); params.push(JSON.stringify(config)); }
+    if (status !== undefined) { sets.push(`status = $${idx++}`); params.push(status); }
 
     if (sets.length === 0) {
       res.status(400).json({error: {code: 'VALIDATION_ERROR', message: 'No fields to update'}});
@@ -195,10 +241,34 @@ router.post('/:id/run', async (req, res, next) => {
   }
 });
 
-// DELETE /:id — delete agent
+// DELETE /:id — delete agent. Also supports flat-body DELETE / with {id}
 router.delete('/:id', async (req, res, next) => {
   try {
-    const {id} = req.params;
+    const agentId = req.params.id || req.body.id;
+    if (!agentId) {
+      res.status(400).json({error: {code: 'VALIDATION_ERROR', message: 'Agent id is required'}});
+      return;
+    }
+    const row = await queryOne(
+      `DELETE FROM agents WHERE id = $1 RETURNING id`,
+      [agentId],
+    );
+    if (!row) {
+      res.status(404).json({error: {code: 'NOT_FOUND', message: `Agent (${agentId}) not found`}});
+      return;
+    }
+    res.json({deleted: true, id: row.id});
+  } catch (e) { next(e); }
+});
+
+// Flat-body DELETE / (no :id param)
+router.delete('/', async (req, res, next) => {
+  try {
+    const {id} = req.body;
+    if (!id) {
+      res.status(400).json({error: {code: 'VALIDATION_ERROR', message: 'Agent id is required'}});
+      return;
+    }
     const row = await queryOne(
       `DELETE FROM agents WHERE id = $1 RETURNING id`,
       [id],

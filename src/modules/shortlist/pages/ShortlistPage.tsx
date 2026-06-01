@@ -12,6 +12,8 @@ import {navigateToPage} from '../../../navigation';
 import {getUserName} from '../../../shared/lib/runtime';
 import {listCandidates} from '../../candidates/api';
 import {getPositionDetail} from '../../positions/api';
+import {listInterviewTemplates} from '../../interviews/api';
+import type {InterviewTemplateSummary} from '../../interviews/types';
 
 export const ShortlistPage = () => {
   const [entries, setEntries] = useState<ShortlistEntry[]>([]);
@@ -30,6 +32,8 @@ export const ShortlistPage = () => {
   const [inviteEntry, setInviteEntry] = useState<ShortlistEntry | null>(null);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteEmailError, setInviteEmailError] = useState('');
+  const [inviteTemplates, setInviteTemplates] = useState<InterviewTemplateSummary[]>([]);
+  const [inviteTemplateId, setInviteTemplateId] = useState('');
   // Cache candidate data to avoid repeated API calls
   const [candidatesCache, setCandidatesCache] = useState<Record<string, CandidateCard>>({});
 
@@ -277,10 +281,22 @@ export const ShortlistPage = () => {
                       查看详情
                     </button>
                     <button
-                      onClick={() => {
+                      onClick={async () => {
                         setInviteEntry(item);
                         setInviteEmail('');
                         setInviteEmailError('');
+                        setInviteTemplateId('');
+                        // Load templates for this position
+                        try {
+                          const templates = await listInterviewTemplates();
+                          const activeTemplates = templates.filter(t => t.status === 'active');
+                          // Prefer templates matching the position
+                          const positionTemplates = activeTemplates.filter(t => t.positionId === item.positionId);
+                          const otherTemplates = activeTemplates.filter(t => t.positionId !== item.positionId);
+                          setInviteTemplates([...positionTemplates, ...otherTemplates]);
+                        } catch {
+                          setInviteTemplates([]);
+                        }
                         setShowInterviewInviteDialog(true);
                       }}
                       className="px-3 py-2 bg-[#22d3ee] hover:bg-[#06b6d4] text-white rounded-lg text-[12px] font-medium transition-colors flex items-center"
@@ -431,6 +447,23 @@ export const ShortlistPage = () => {
               )}
             </div>
             <div>
+              <label className="block text-[13px] font-medium text-gray-700 dark:text-gray-300 mb-1">
+                面试模板 <span className="text-red-500">*</span>
+              </label>
+              <select
+                value={inviteTemplateId}
+                onChange={(e) => setInviteTemplateId(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#22d3ee] bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              >
+                <option value="">请选择面试模板</option>
+                {inviteTemplates.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name} ({t.questionCount}题{t.durationMinutes ? `, ${t.durationMinutes}分钟` : ''}{t.positionId === inviteEntry.positionId ? ', 匹配岗位' : ''})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
               <label className="block text-[13px] font-medium text-gray-700 dark:text-gray-300 mb-1">面试链接</label>
               <div className="px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg text-[13px] bg-[#cffafe] dark:bg-cyan-900/30 text-[#0c2b7a] dark:text-cyan-300 flex items-center">
                 <Link2 className="w-4 h-4 mr-2" />
@@ -468,6 +501,7 @@ export const ShortlistPage = () => {
                   await sendShortlistInterviewInvite(inviteEntry.id, {
                     candidateEmail: email,
                     type: 'interview_invite',
+                    templateId: inviteTemplateId || undefined,
                     subject: `AI面试邀请 - ${inviteEntry.positionName}岗位`,
                     content: `您好 ${inviteEntry.candidateName}，您已被邀请参加${inviteEntry.positionName}的AI面试，请点击以下链接完成面试：/interviews/preview?candidate=${inviteEntry.candidateId}&position=${inviteEntry.positionId}`,
                   });

@@ -41,6 +41,11 @@ const TrainingAcademyPage = lazy(() =>
     default: module.TrainingAcademyPage,
   })),
 );
+const EmployeeManagementPage = lazy(() =>
+  import('../../modules/employees/pages/EmployeeManagementPage').then((module) => ({
+    default: module.EmployeeManagementPage,
+  })),
+);
 const SystemAdminPage = lazy(() =>
   import('../../modules/admin/pages/SystemAdminPage').then((module) => ({
     default: module.SystemAdminPage,
@@ -98,6 +103,7 @@ export const AppRouter = ({onLogout}: {onLogout: () => void}) => (
           <Route path="/interviews" element={withPageGuard(<InterviewCenterPage />, 'AI 面试中心')} />
           <Route path="/approvals" element={withPageGuard(<ApprovalsRoute />, '审批中心')} />
           <Route path="/training" element={withPageGuard(<TrainingAcademyPage />, '培训学堂')} />
+          <Route path="/employees" element={withPageGuard(<EmployeeManagementPage />, '员工档案')} />
           <Route path="/admin" element={withPageGuard(<SystemAdminPage />, '系统管理')} />
         </Route>
         <Route path="/interviews/conversational" element={withPageGuard(<ConversationInterviewPage />, '会话式面试')} />

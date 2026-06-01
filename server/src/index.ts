@@ -31,6 +31,8 @@ import employeesRoutes from './modules/employees/employees.routes.js';
 import trainingRoutes from './modules/training/training.routes.js';
 import conversationalRoutes from './modules/interviews/conversational.routes.js';
 import publicConversationRoutes from './modules/interviews/publicConversation.routes.js';
+import notificationsRoutes from './modules/notifications/notifications.routes.js';
+import smsRoutes from './modules/sms/sms.routes.js';
 
 const app = express();
 
@@ -324,6 +326,14 @@ app.use('/api/v1/employees', employeesRoutes);
 // Training Academy (courses, enrollments, assessments, analytics)
 app.use('/api/training', trainingRoutes);
 app.use('/api/v1/training', trainingRoutes);
+
+// Notifications
+app.use('/api/notifications', notificationsRoutes);
+app.use('/api/v1/notifications', notificationsRoutes);
+
+// SMS Gateway
+app.use('/api/sms-gateway', smsRoutes);
+app.use('/api/v1/sms-gateway', smsRoutes);
 
 // Conversational Interview
 app.use('/api', conversationalRoutes);

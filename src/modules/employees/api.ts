@@ -9,6 +9,8 @@ import {
   type CreatePerformanceInput,
 } from './types';
 
+export type {EmployeeProfile, PerformanceRecord, CompetencyModel, EmployeeStats, CreateEmployeeInput, CreatePerformanceInput};
+
 // ─── Mappers ────────────────────────────────────────────────────────────
 
 const mapEmployee = (raw: Record<string, unknown>): EmployeeProfile => ({

@@ -103,6 +103,7 @@ export const sendShortlistInterviewInvite = async (
     type: string;
     subject: string;
     content: string;
+    templateId?: string;
   },
 ): Promise<ShortlistEntry> => {
   if (USE_MOCK_API) {

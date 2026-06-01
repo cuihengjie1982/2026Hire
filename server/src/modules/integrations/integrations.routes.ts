@@ -4,8 +4,7 @@ import {env} from '../../config/env.js';
 
 const router = Router();
 
-// GET /overview — real system integration status
-router.get('/overview', async (_req, res, next) => {
+const getOverviewHandler = async (_req: import('express').Request, res: import('express').Response, next: import('express').NextFunction) => {
   try {
     const [aiConfigResult, agentStats, agentLastActive, totalProcessed] = await Promise.all([
       queryOne(`SELECT COUNT(*)::int AS cnt FROM ai_model_configs WHERE is_active = true`),
@@ -76,7 +75,13 @@ router.get('/overview', async (_req, res, next) => {
       ],
     });
   } catch (e) { next(e); }
-});
+};
+
+// GET / — frontend calls /integrations without /overview suffix
+router.get('/', getOverviewHandler);
+
+// GET /overview — real system integration status
+router.get('/overview', getOverviewHandler);
 
 // GET /sync — return last activity time
 router.get('/sync', async (_req, res, next) => {

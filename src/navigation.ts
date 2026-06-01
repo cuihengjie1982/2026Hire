@@ -8,6 +8,7 @@ export type AppPageId =
   | 'interviews'
   | 'approvals'
   | 'training'
+  | 'employees'
   | 'admin';
 
 export type AppNavigationDetail = {
@@ -22,6 +23,7 @@ export const PAGE_ROUTE_BY_ID: Record<AppPageId, string> = {
   interviews: '/interviews',
   approvals: '/approvals',
   training: '/training',
+  employees: '/employees',
   admin: '/admin',
 };
 
@@ -63,6 +65,7 @@ export const getPageFromPathname = (pathname: string): AppPageId => {
   const routes: {page: AppPageId; route: string}[] = [
     {page: 'dashboard', route: '/'},
     {page: 'training', route: '/training'},
+    {page: 'employees', route: '/employees'},
     {page: 'interviews', route: '/interviews'},
     {page: 'candidates', route: '/candidates'},
     {page: 'pipeline', route: '/pipeline'},

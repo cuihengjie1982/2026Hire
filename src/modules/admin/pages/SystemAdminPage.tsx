@@ -1,7 +1,7 @@
 import {motion} from 'motion/react';
 import {lazy, Suspense, useState} from 'react';
 import {useSearchParams} from 'react-router-dom';
-import {Loader2, Bot, BarChart2, Settings, Plug} from 'lucide-react';
+import {Loader2, Bot, BarChart2, Settings, Plug, MessageSquare} from 'lucide-react';
 
 const AgentsPage = lazy(() =>
   import('../../agents/pages/AgentsPage').then(m => ({default: m.AgentsPage})),
@@ -15,14 +15,18 @@ const IntegrationsPage = lazy(() =>
 const SettingsPage = lazy(() =>
   import('../../settings/pages/SettingsPage').then(m => ({default: m.SettingsPage})),
 );
+const SmsTemplatePage = lazy(() =>
+  import('../../outreach/pages/SmsTemplatePage').then(m => ({default: m.SmsTemplatePage})),
+);
 
-type TabId = 'agents' | 'insights' | 'integrations' | 'settings';
+type TabId = 'agents' | 'insights' | 'integrations' | 'settings' | 'sms-templates';
 
 const TABS: {id: TabId; label: string; icon: typeof Bot}[] = [
   {id: 'agents', label: 'AI 代理', icon: Bot},
   {id: 'insights', label: '数据洞察', icon: BarChart2},
   {id: 'integrations', label: '集成管理', icon: Plug},
   {id: 'settings', label: '系统设置', icon: Settings},
+  {id: 'sms-templates', label: '短信模板', icon: MessageSquare},
 ];
 
 const TabFallback = () => (
@@ -53,6 +57,8 @@ export const SystemAdminPage = () => {
         return <IntegrationsPage />;
       case 'settings':
         return <SettingsPage />;
+      case 'sms-templates':
+        return <SmsTemplatePage />;
     }
   };
 

@@ -6,16 +6,29 @@ const router = Router();
 
 const VALID_STATUSES = new Set(['pending', 'contacted', 'responded', 'failed']);
 
-// GET / — list all communication records with pagination
+// GET / — list all communication records with pagination and optional candidate_id filter
 router.get('/', async (req, res, next) => {
   try {
-    const {page = '1', pageSize = '50'} = req.query as Record<string, string>;
+    const {page = '1', pageSize = '50', candidate_id} = req.query as Record<string, string>;
     const limit = Math.min(parseInt(pageSize, 10) || 50, 200);
     const offset = (parseInt(page, 10) - 1) * limit;
 
+    const conditions: string[] = [];
+    const params: unknown[] = [];
+
+    if (candidate_id) {
+      conditions.push(`candidate_id = $${params.length + 1}`);
+      params.push(candidate_id);
+    }
+
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
     const [rows, countResult] = await Promise.all([
-      query(`SELECT * FROM outreach_records ORDER BY created_at DESC LIMIT $1 OFFSET $2`, [limit, offset]),
-      queryOne(`SELECT COUNT(*)::int AS total FROM outreach_records`),
+      query(
+        `SELECT * FROM outreach_records ${whereClause} ORDER BY created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+        [...params, limit, offset],
+      ),
+      queryOne(`SELECT COUNT(*)::int AS total FROM outreach_records ${whereClause}`, params),
     ]);
 
     res.json({items: rows, total: countResult?.total ?? 0, page: parseInt(page, 10), pageSize: limit});
@@ -82,7 +95,54 @@ router.patch('/:id/status', validateUuidParams('id'), async (req, res, next) => 
   } catch (e) { next(e); }
 });
 
-// PATCH /:id — update record
+// PATCH / — update record (flat body: {id, status, channel, content})
+router.patch('/', async (req, res, next) => {
+  try {
+    const {id, channel, content, status} = req.body;
+    if (!id) {
+      res.status(400).json({error: {code: 'VALIDATION_ERROR', message: 'Record id is required'}});
+      return;
+    }
+
+    const sets: string[] = [];
+    const values: unknown[] = [];
+    let paramIndex = 1;
+
+    if (channel !== undefined) {
+      sets.push(`channel = $${paramIndex++}`);
+      values.push(channel);
+    }
+    if (content !== undefined) {
+      sets.push(`content = $${paramIndex++}`);
+      values.push(content);
+    }
+    if (status !== undefined) {
+      if (!VALID_STATUSES.has(status)) {
+        res.status(400).json({error: {code: 'VALIDATION_ERROR', message: `Invalid status. Must be one of: pending, contacted, responded, failed`}});
+        return;
+      }
+      sets.push(`status = $${paramIndex++}`);
+      values.push(status);
+    }
+
+    if (sets.length === 0) {
+      res.status(400).json({error: {code: 'VALIDATION_ERROR', message: 'At least one field to update is required'}});
+      return;
+    }
+
+    const sql = `UPDATE outreach_records SET ${sets.join(', ')} WHERE id = $${paramIndex} RETURNING *`;
+    values.push(id);
+
+    const row = await queryOne(sql, values);
+    if (!row) {
+      res.status(404).json({error: {code: 'NOT_FOUND', message: `Record (${id}) not found`}});
+      return;
+    }
+    res.json(row);
+  } catch (e) { next(e); }
+});
+
+// PATCH /:id — update record (path param)
 router.patch('/:id', validateUuidParams('id'), async (req, res, next) => {
   try {
     const {id} = req.params;
@@ -123,6 +183,23 @@ router.patch('/:id', validateUuidParams('id'), async (req, res, next) => {
       return;
     }
     res.json(row);
+  } catch (e) { next(e); }
+});
+
+// DELETE / — delete record (flat body: {id})
+router.delete('/', async (req, res, next) => {
+  try {
+    const {id} = req.body;
+    if (!id) {
+      res.status(400).json({error: {code: 'VALIDATION_ERROR', message: 'Record id is required'}});
+      return;
+    }
+    const row = await queryOne(`DELETE FROM outreach_records WHERE id = $1 RETURNING id`, [id]);
+    if (!row) {
+      res.status(404).json({error: {code: 'NOT_FOUND', message: `Record (${id}) not found`}});
+      return;
+    }
+    res.json({success: true, id: row.id});
   } catch (e) { next(e); }
 });
 
