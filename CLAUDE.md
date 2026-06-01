@@ -6,6 +6,24 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 EM-BOX recruitment management system (AI招聘管理系统). Full-stack React + Express + PostgreSQL app for candidate search, position configuration, resume scoring, interview management, approval workflows, training academy, and employee profiles. All UI is in Chinese.
 
+## Documentation Index
+
+This file covers project-wide architecture, conventions, and commands. For domain-specific details, see the per-module CLAUDE.md files:
+
+| Module | CLAUDE.md | Scope |
+|--------|-----------|-------|
+| Backend (Express + Edge) | `server/CLAUDE.md` | Express patterns, DB operations, error handling, Edge Function relationship |
+| 候选人中心 | `src/modules/candidates/CLAUDE.md` | Resume import, AI search, dedup, 3 route aliases |
+| AI 面试中心 | `src/modules/interviews/CLAUDE.md` | Templates, sessions, scoring pipeline, conversational interview, SSE streaming |
+| 培训学堂 | `src/modules/training/CLAUDE.md` | Courses, learning paths, enrollments, assessments, candidate portal |
+| 项目管理 | `src/modules/projects/CLAUDE.md` | Projects CRUD, position config, scoring rules, profile/grade rules |
+| 审批中心 | `src/modules/approvals/CLAUDE.md` | Approval workflow, decide/hire cross-table ops |
+| 系统管理 | `src/modules/settings/CLAUDE.md` | Users, permissions, notifications, invites, agents, integrations, analytics |
+| 员工档案 | `src/modules/employees/CLAUDE.md` | Employee profiles, performance, competency models, AI derivation |
+| 招聘推进 | `src/modules/pipeline/CLAUDE.md` | Shortlist pipeline, outreach comms, SMS gateway, contacts funnel |
+
+**Project memory** (non-code context): `.claude/memory/PROJECT_CONTEXT.md` — product definition, architecture decisions, deployment config, user preferences, known pending items.
+
 ## Commands
 
 ### Frontend (root)

@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import {getAuthToken, API_BASE_URL} from '../../../shared/lib/runtime';
 import {
-  listCourses, listEnrollments, createCourse, updateEnrollment, submitAssessment,
+  listCourses, listEnrollments, createCourse, updateCourse, deleteCourse, updateEnrollment, submitAssessment,
   getTrainingStats, getWeaknessAnalysis, getTrainingEffectiveness, exportEnrollmentsCSV,
   recommendCourses, createEnrollment,
   listPaths, createPath, updatePath, deletePath,
@@ -62,6 +62,7 @@ export const TrainingAcademyPage = () => {
   const [paths, setPaths] = useState<LearningPath[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateCourse, setShowCreateCourse] = useState(false);
+  const [editingCourse, setEditingCourse] = useState<TrainingCourse | null>(null);
   const [showCreatePath, setShowCreatePath] = useState(false);
   const [editingPath, setEditingPath] = useState<LearningPath | null>(null);
   const [enrollmentPathId, setEnrollmentPathId] = useState<string | null>(null);
@@ -114,6 +115,35 @@ export const TrainingAcademyPage = () => {
       setShowCreateCourse(false);
     } catch (err) {
       console.error('Failed to create course:', err);
+    }
+  };
+
+  const handleUpdateCourse = async (input: {
+    title: string; category: string; difficulty: string; description: string;
+    durationMinutes?: number; content?: {sectionTitle: string; contentType: string; text?: string; contentUrl?: string}[];
+    materials?: {title: string; type: string; url?: string}[];
+    assessmentConfig?: {type: string; passingScore: number};
+    competencyDimension?: string;
+  }) => {
+    if (!editingCourse) return;
+    try {
+      await updateCourse(editingCourse.id, input as Parameters<typeof updateCourse>[1]);
+      const c = await listCourses();
+      setCourses(c.items);
+      setEditingCourse(null);
+    } catch (err) {
+      console.error('Failed to update course:', err);
+    }
+  };
+
+  const handleDeleteCourse = async (id: string) => {
+    if (!confirm('确定要删除该课程吗？此操作不可撤销。')) return;
+    try {
+      await deleteCourse(id);
+      const c = await listCourses();
+      setCourses(c.items);
+    } catch (err) {
+      console.error('Failed to delete course:', err);
     }
   };
 
@@ -232,6 +262,8 @@ export const TrainingAcademyPage = () => {
             courses={courses}
             onAdd={() => setShowCreateCourse(true)}
             onBatchEnroll={() => setShowBatchEnroll(true)}
+            onEdit={(course) => setEditingCourse(course)}
+            onDelete={handleDeleteCourse}
           />
         )}
         {activeTab === 'enrollments' && (
@@ -265,6 +297,15 @@ export const TrainingAcademyPage = () => {
         <CreateCourseModal
           onClose={() => setShowCreateCourse(false)}
           onSubmit={handleCreateCourse}
+        />
+      )}
+
+      {/* Edit Course Modal */}
+      {editingCourse && (
+        <CreateCourseModal
+          initial={editingCourse}
+          onClose={() => setEditingCourse(null)}
+          onSubmit={(input) => handleUpdateCourse(input)}
         />
       )}
 
@@ -335,7 +376,10 @@ const StatsCard = ({icon: Icon, label, value, color}: {
   );
 };
 
-const CoursesTab = ({courses, onAdd, onBatchEnroll}: {courses: TrainingCourse[]; onAdd: () => void; onBatchEnroll: () => void}) => {
+const CoursesTab = ({courses, onAdd, onBatchEnroll, onEdit, onDelete}: {
+  courses: TrainingCourse[]; onAdd: () => void; onBatchEnroll: () => void;
+  onEdit: (course: TrainingCourse) => void; onDelete: (id: string) => void;
+}) => {
   const [filter, setFilter] = useState('');
   const filtered = filter ? courses.filter(c => c.category === filter) : courses;
   const categories = [...new Set(courses.map(c => c.category))];
@@ -367,12 +411,15 @@ const CoursesTab = ({courses, onAdd, onBatchEnroll}: {courses: TrainingCourse[];
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filtered.map(course => (
-          <div key={course.id} className="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md transition-shadow">
+          <div key={course.id} className="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md transition-shadow group relative">
             <div className="flex items-start justify-between mb-3">
               <div>
                 <h3 className="font-semibold text-gray-900 text-sm">{course.title}</h3>
                 <p className="text-xs text-gray-500 mt-1 line-clamp-2">{course.description}</p>
               </div>
+              {course.content.some((s: {contentType: string}) => s.contentType === 'video') && (
+                <span className="shrink-0 ml-2 px-1.5 py-0.5 bg-indigo-100 text-indigo-600 rounded text-[10px] font-medium">含视频</span>
+              )}
             </div>
             <div className="flex items-center gap-2 mb-3">
               <span className={`px-2 py-0.5 rounded text-xs font-medium ${CATEGORY_COLORS[course.category] ?? 'bg-gray-100 text-gray-600'}`}>
@@ -386,6 +433,15 @@ const CoursesTab = ({courses, onAdd, onBatchEnroll}: {courses: TrainingCourse[];
               <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{course.durationMinutes} 分钟</span>
               <span className="flex items-center gap-1"><BookOpen className="w-3 h-3" />{course.content.length} 章节</span>
               <span className="flex items-center gap-1"><Star className="w-3 h-3" />及格 {course.assessmentConfig.passingScore}分</span>
+            </div>
+            {/* Hover actions */}
+            <div className="flex items-center gap-1 mt-3 pt-3 border-t border-gray-100 opacity-0 group-hover:opacity-100 transition-opacity">
+              <button onClick={() => onEdit(course)} className="flex items-center gap-1 px-3 py-1.5 text-xs text-gray-600 hover:text-[#1a4bc4] hover:bg-blue-50 rounded-lg transition-colors">
+                <Edit3 className="w-3.5 h-3.5" /> 编辑
+              </button>
+              <button onClick={() => onDelete(course.id)} className="flex items-center gap-1 px-3 py-1.5 text-xs text-gray-600 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+                <Trash2 className="w-3.5 h-3.5" /> 删除
+              </button>
             </div>
           </div>
         ))}
@@ -694,7 +750,8 @@ const EffectivenessTab = ({data}: {data: TrainingEffectiveness}) => {
   );
 };
 
-const CreateCourseModal = ({onClose, onSubmit}: {
+const CreateCourseModal = ({initial, onClose, onSubmit}: {
+  initial?: TrainingCourse;
   onClose: () => void;
   onSubmit: (input: {
     title: string; category: string; difficulty: string; description: string;
@@ -704,16 +761,21 @@ const CreateCourseModal = ({onClose, onSubmit}: {
     competencyDimension?: string;
   }) => Promise<void>;
 }) => {
-  const [title, setTitle] = useState('');
-  const [category, setCategory] = useState('沟通表达');
-  const [difficulty, setDifficulty] = useState('初级');
-  const [desc, setDesc] = useState('');
-  const [duration, setDuration] = useState(30);
-  const [sections, setSections] = useState<{sectionTitle: string; contentType: string; text: string; contentUrl: string}[]>([]);
-  const [materials, setMaterials] = useState<{title: string; type: string; url: string}[]>([]);
-  const [passingScore, setPassingScore] = useState(60);
-  const [assessType, setAssessType] = useState('quiz');
-  const [competencyDim, setCompetencyDim] = useState('');
+  const isEdit = !!initial;
+  const [title, setTitle] = useState(initial?.title ?? '');
+  const [category, setCategory] = useState(initial?.category ?? '沟通表达');
+  const [difficulty, setDifficulty] = useState(initial?.difficulty ?? '初级');
+  const [desc, setDesc] = useState(initial?.description ?? '');
+  const [duration, setDuration] = useState(initial?.durationMinutes ?? 30);
+  const [sections, setSections] = useState<{sectionTitle: string; contentType: string; text: string; contentUrl: string}[]>(
+    initial?.content?.map(s => ({sectionTitle: s.sectionTitle, contentType: s.contentType, text: s.text ?? '', contentUrl: s.contentUrl ?? ''})) ?? []
+  );
+  const [materials, setMaterials] = useState<{title: string; type: string; url: string}[]>(
+    initial?.materials?.map(m => ({title: m.title, type: m.type, url: m.url ?? ''})) ?? []
+  );
+  const [passingScore, setPassingScore] = useState(initial?.assessmentConfig?.passingScore ?? 60);
+  const [assessType, setAssessType] = useState(initial?.assessmentConfig?.type ?? 'quiz');
+  const [competencyDim, setCompetencyDim] = useState(initial?.competencyDimension ?? '');
   const [showContentEditor, setShowContentEditor] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -759,7 +821,7 @@ const CreateCourseModal = ({onClose, onSubmit}: {
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={onClose}>
       <motion.div initial={{opacity: 0, scale: 0.95}} animate={{opacity: 1, scale: 1}}
         className="bg-white rounded-2xl p-6 w-full max-w-2xl shadow-xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">新建培训课程</h3>
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">{isEdit ? '编辑培训课程' : '新建培训课程'}</h3>
         <div className="space-y-4">
           {/* Basic Info */}
           <div className="grid grid-cols-2 gap-4">
@@ -944,7 +1006,7 @@ const CreateCourseModal = ({onClose, onSubmit}: {
             className="px-4 py-2 text-sm bg-[#1a4bc4] text-white rounded-lg hover:bg-[#153da0] disabled:opacity-50 flex items-center gap-2"
             disabled={!title.trim() || isSubmitting}>
             {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
-            {isSubmitting ? '创建中...' : '创建课程'}
+            {isSubmitting ? (isEdit ? '保存中...' : '创建中...') : (isEdit ? '保存修改' : '创建课程')}
           </button>
         </div>
       </motion.div>

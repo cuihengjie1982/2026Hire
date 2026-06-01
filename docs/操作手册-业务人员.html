@@ -1,0 +1,1149 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EM-BOX AI招聘平台 — 业务人员操作手册</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Quicksand:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --cream:#F5F0E6;--turquoise:#7ECDC0;--soft-pink:#F7C8D4;--butter:#FDE68A;
+  --mint:#A8E6CF;--lavender:#D4A5E8;--peach:#FFCBA4;--sky:#A8D8F0;--coral:#F8635F;
+  --text-dark:#2D2D2D;--text-muted:#6B6B6B;
+  --border:#2D2D2D;--border-width:3px;--radius:20px;--radius-lg:28px;
+  --shadow:6px 6px 0 var(--border);--shadow-sm:4px 4px 0 var(--border);
+  --font-display:'Fredoka One',cursive;--font-body:'Quicksand',sans-serif;
+}
+html{scroll-behavior:smooth;scroll-padding-top:80px}
+body{font-family:var(--font-body);color:var(--text-dark);background:var(--cream);line-height:1.6}
+
+/* Typography */
+h1,h2,h3,h4{font-family:var(--font-display);font-weight:400;letter-spacing:.02em}
+h1{font-size:clamp(2rem,4vw,3.5rem);line-height:1.15}
+h2{font-size:clamp(1.5rem,2.5vw,2.2rem);line-height:1.2}
+h3{font-size:clamp(1.1rem,1.6vw,1.4rem);line-height:1.3}
+h4{font-size:clamp(.95rem,1.2vw,1.1rem);line-height:1.35}
+p{font-size:clamp(.9rem,1.1vw,1rem);line-height:1.7}
+
+/* Cards */
+.card{background:#fff;border:var(--border-width) solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:24px 28px}
+.card-sm{background:#fff;border:var(--border-width) solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-sm);padding:16px 20px}
+.badge{display:inline-block;padding:6px 16px;border-radius:50px;border:var(--border-width) solid var(--border);font-family:var(--font-display);font-size:.78rem;background:var(--butter);color:var(--text-dark);white-space:nowrap}
+
+/* Layout */
+.page-wrap{display:flex;min-height:100vh}
+.sidebar{position:fixed;left:0;top:0;bottom:0;width:260px;background:#fff;border-right:var(--border-width) solid var(--border);overflow-y:auto;z-index:50;padding:20px 0;box-shadow:4px 0 0 var(--border)}
+.sidebar-header{padding:16px 20px;border-bottom:var(--border-width) solid var(--border);margin-bottom:8px}
+.sidebar-header h3{font-size:1rem;color:var(--text-dark)}
+.sidebar-header .ver{font-size:.7rem;color:var(--text-muted);font-weight:600;margin-top:2px}
+.sidebar-nav{padding:0 12px}
+.sidebar-nav a{display:block;padding:7px 12px;border-radius:12px;font-size:.82rem;font-weight:600;color:var(--text-dark);text-decoration:none;transition:all .15s;margin-bottom:2px}
+.sidebar-nav a:hover,.sidebar-nav a.active{background:var(--butter)}
+.sidebar-nav a.sub{padding-left:24px;font-size:.76rem;color:var(--text-muted)}
+.main-content{margin-left:260px;flex:1;min-width:0}
+
+/* Hero */
+.hero{position:relative;overflow:hidden;padding:60px 40px 50px;text-align:center;background:var(--cream);border-bottom:var(--border-width) solid var(--border)}
+.hero h1{max-width:800px;margin:0 auto 12px;position:relative;z-index:2}
+.hero .subtitle{font-size:1.05rem;color:var(--text-muted);font-weight:600;position:relative;z-index:2}
+.hero .meta{display:inline-flex;gap:12px;margin-top:16px;position:relative;z-index:2}
+
+/* Sections */
+.section{padding:50px 40px;border-bottom:var(--border-width) solid var(--border);position:relative;overflow:hidden}
+.section.alt{background:#fff}
+.section-header{margin-bottom:32px;position:relative;z-index:2}
+.section-header h2{display:flex;align-items:center;gap:12px}
+.section-header .num{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:50%;border:var(--border-width) solid var(--border);font-family:var(--font-display);font-size:1.2rem;flex-shrink:0}
+.section-header .desc{font-size:.9rem;color:var(--text-muted);font-weight:500;margin-top:6px;max-width:700px}
+
+/* Decorations */
+.deco{position:absolute;pointer-events:none;z-index:1}
+.deco svg{width:100%;height:100%;display:block}
+
+/* Feature grid */
+.feat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px;position:relative;z-index:2}
+.feat-card{background:#fff;border:var(--border-width) solid var(--border);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow-sm)}
+.feat-card .icon{width:40px;height:40px;border-radius:50%;border:var(--border-width) solid var(--border);display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-size:1.1rem;margin-bottom:10px}
+.feat-card h4{font-size:1rem;margin-bottom:4px}
+.feat-card p{font-size:.82rem;color:var(--text-muted);font-weight:500;line-height:1.45}
+
+/* User roles */
+.role-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;position:relative;z-index:2}
+.role-card{background:#fff;border:var(--border-width) solid var(--border);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow-sm);text-align:center}
+.role-card .avatar{width:56px;height:56px;border-radius:50%;border:var(--border-width) solid var(--border);display:flex;align-items:center;justify-content:center;margin:0 auto 10px;font-family:var(--font-display);font-size:1.4rem}
+
+/* Steps */
+.step-block{position:relative;z-index:2;margin-bottom:28px}
+.step-block .step-title{font-family:var(--font-display);font-size:1.05rem;margin-bottom:12px;display:flex;align-items:center;gap:10px}
+.step-num{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:50%;border:2px solid var(--border);font-family:var(--font-display);font-size:.85rem;flex-shrink:0}
+
+/* Tables */
+.data-table{width:100%;border-collapse:separate;border-spacing:0;background:#fff;border:var(--border-width) solid var(--border);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow-sm);position:relative;z-index:2;font-size:.88rem}
+.data-table thead{background:var(--butter)}
+.data-table th{font-family:var(--font-display);font-weight:400;padding:12px 16px;text-align:left;border-bottom:var(--border-width) solid var(--border);font-size:.85rem}
+.data-table td{padding:10px 16px;border-bottom:2px solid #eee;font-weight:500}
+.data-table tr:last-child td{border-bottom:none}
+.data-table tbody tr:hover{background:var(--cream)}
+
+/* Code blocks */
+.code-block{background:#fff;border:var(--border-width) solid var(--border);border-radius:var(--radius);padding:20px 24px;box-shadow:var(--shadow-sm);font-family:'SF Mono','Fira Code',monospace;font-size:.82rem;line-height:1.5;white-space:pre;overflow-x:auto;position:relative;z-index:2}
+
+/* Info/warning boxes */
+.info-box{background:#fff;border:var(--border-width) solid var(--border);border-radius:var(--radius);padding:18px 24px;box-shadow:var(--shadow-sm);position:relative;z-index:2}
+.info-box.tip{border-color:var(--mint);background:var(--mint);background:rgba(168,230,207,.25)}
+.info-box.warn{border-color:var(--butter);background:rgba(253,232,138,.25)}
+.info-box h4{font-size:.95rem;margin-bottom:6px}
+
+/* FAQ */
+.faq-item{background:#fff;border:var(--border-width) solid var(--border);border-radius:var(--radius);padding:18px 24px;box-shadow:var(--shadow-sm);position:relative;z-index:2;margin-bottom:12px}
+.faq-item .q{font-family:var(--font-display);font-size:.95rem;margin-bottom:6px}
+.faq-item .a{font-size:.85rem;color:var(--text-muted);font-weight:500;line-height:1.55}
+
+/* Footer */
+.footer{padding:40px;text-align:center;position:relative;overflow:hidden;background:var(--cream)}
+.footer .card{max-width:500px;margin:0 auto;position:relative;z-index:2}
+
+/* Bullet list */
+.bullet-list{list-style:none;position:relative;z-index:2}
+.bullet-list li{padding-left:28px;position:relative;margin-bottom:8px;font-weight:500;font-size:.9rem;line-height:1.5}
+.bullet-list li::before{content:"";position:absolute;left:0;top:5px;width:12px;height:12px;border:2px solid var(--border);border-radius:50%;background:var(--butter)}
+
+/* Subsection card */
+.sub-card{background:#fff;border:var(--border-width) solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow);overflow:hidden;position:relative;z-index:2;margin-bottom:24px}
+.sub-card-head{padding:16px 24px;border-bottom:var(--border-width) solid var(--border);font-family:var(--font-display);font-size:1.05rem}
+.sub-card-body{padding:22px 24px}
+
+/* Permission matrix */
+.perm-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px;position:relative;z-index:2}
+.perm-card{background:#fff;border:var(--border-width) solid var(--border);border-radius:var(--radius);padding:18px;box-shadow:var(--shadow-sm)}
+.perm-card .role-name{font-family:var(--font-display);font-size:1rem;margin-bottom:6px}
+.perm-card ul{list-style:none}
+.perm-card li{font-size:.82rem;font-weight:500;padding:3px 0;padding-left:16px;position:relative;color:var(--text-muted)}
+.perm-card li::before{content:"+";position:absolute;left:0;color:var(--mint);font-weight:700}
+.perm-card li.no::before{content:"-";color:var(--coral)}
+
+/* Back to top */
+.back-top{position:fixed;bottom:24px;right:24px;width:44px;height:44px;border-radius:50%;border:var(--border-width) solid var(--border);background:var(--butter);display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:100;box-shadow:var(--shadow-sm);font-family:var(--font-display);font-size:1rem;text-decoration:none;color:var(--text-dark);transition:transform .2s}
+.back-top:hover{transform:scale(1.1)}
+
+/* Mobile toggle */
+.menu-toggle{display:none;position:fixed;top:16px;left:16px;z-index:60;width:40px;height:40px;border-radius:50%;border:var(--border-width) solid var(--border);background:var(--butter);font-family:var(--font-display);font-size:1.1rem;cursor:pointer;box-shadow:var(--shadow-sm);align-items:center;justify-content:center}
+.sidebar-overlay{display:none}
+
+/* Scene navigation pills */
+.scene-tabs{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:24px;position:relative;z-index:2}
+.scene-tab{padding:8px 18px;border-radius:50px;border:var(--border-width) solid var(--border);font-family:var(--font-display);font-size:.82rem;background:#fff;cursor:pointer;text-decoration:none;color:var(--text-dark);transition:all .15s}
+.scene-tab:hover{background:var(--butter)}
+
+/* Responsive */
+@media(max-width:900px){
+  .sidebar{transform:translateX(-100%);transition:transform .25s;width:280px}
+  .sidebar.open{transform:translateX(0)}
+  .sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.3);z-index:49}
+  .sidebar-overlay.open{display:block}
+  .menu-toggle{display:flex}
+  .main-content{margin-left:0}
+  .section{padding:36px 20px}
+  .hero{padding:40px 20px 36px}
+  .feat-grid{grid-template-columns:1fr}
+  .role-grid{grid-template-columns:1fr 1fr}
+  .perm-grid{grid-template-columns:1fr}
+}
+@media(max-width:480px){
+  .role-grid{grid-template-columns:1fr}
+  .data-table{font-size:.75rem}
+  .data-table td,.data-table th{padding:8px 10px}
+}
+
+/* Print */
+@media print{
+  .sidebar,.menu-toggle,.back-top,.sidebar-overlay{display:none!important}
+  .main-content{margin-left:0}
+  .section{border-bottom:2px solid #000;page-break-inside:avoid}
+}
+</style>
+</head>
+<body>
+
+<button class="menu-toggle" id="menuToggle" onclick="toggleSidebar()" aria-label="菜单">☰</button>
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <h3>EM-BOX 操作手册</h3>
+    <div class="ver">v1.4 · 2026-06-01</div>
+  </div>
+  <nav class="sidebar-nav">
+    <a href="#intro">1. 系统简介</a>
+    <a href="#intro-overview" class="sub">1.1 平台概述</a>
+    <a href="#intro-features" class="sub">1.2 核心功能</a>
+    <a href="#intro-users" class="sub">1.3 目标用户</a>
+    <a href="#login">2. 登录与导航</a>
+    <a href="#login-access" class="sub">2.1 系统访问</a>
+    <a href="#login-flow" class="sub">2.2 登录流程</a>
+    <a href="#login-layout" class="sub">2.3 界面布局</a>
+    <a href="#login-buttons" class="sub">2.4 按钮说明</a>
+    <a href="#login-common" class="sub">2.5 通用操作</a>
+    <a href="#scene1">3.1 配置岗位标准</a>
+    <a href="#scene2">3.2 搜索与筛选候选人</a>
+    <a href="#scene3">3.3 入围与外联</a>
+    <a href="#scene4">3.4 AI面试管理</a>
+    <a href="#scene5">3.5 团队管理</a>
+    <a href="#scene6">3.6 员工档案管理</a>
+    <a href="#scene7">3.7 短信模板管理</a>
+    <a href="#scene8">3.8 通知中心</a>
+    <a href="#scoring">4. 评分体系</a>
+    <a href="#faq">5. 常见问题FAQ</a>
+    <a href="#glossary">6. 术语对照表</a>
+    <a href="#footer">联系支持</a>
+  </nav>
+</aside>
+
+<main class="main-content">
+
+<!-- ====== HERO ====== -->
+<section class="hero" id="top">
+  <div class="deco" style="top:-30px;left:-30px;width:200px;height:200px">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 150 150"><style>.d0{fill:#FFF}.d1{fill:#FCDF6C}.d2{fill:none;stroke:#232323;stroke-width:2.07;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:10}.d3{fill:#FFF;stroke:#232323;stroke-width:2.07;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:10}</style><path class="d3" d="m66.6 53.8-5.9-13.8c-2.2-5.9-4.6-17.9-1.7-26.2 1.7-4.9 6.7-11.4 15.4-11.4s13.4 4.6 15.7 8.6c4.8 8.1 2.5 20.3-.1 27.7l-6.8 15.1"/><path class="d3" d="m92.1 115.2c1.3 5.8 1.9 13.8-.2 19.9-1.9 5.1-6.4 12.5-16.9 12.5s-14.9-5.3-16.8-13.1c-1.7-7-.6-15.2 1.7-22l6.7-16.4"/><path class="d3" d="m96 66.4 14.7-5.8c5.9-2.4 16.2-8.3 19.8-17 2.8-6.4 2.1-14.2-4.3-19.7-2.8-2.5-6.2-4.2-10.2-5-9.3-.6-15.8 5.5-20.3 10.9-2.7 3.4-5.1 7.4-6.8 11l-5.7 12.8"/><path class="d3" d="m54 84-14.7 5.5c-5.7 2.1-12.3 6.6-15.9 10.9-1.9 2.3-4 5.7-4.9 8.9-2.1 8.5 2.8 18 11.7 21.8 4.9 1.3 9.3.9 13.6-1.2 7.6-3.6 13.8-12.1 16.9-18.5l5.9-13.6"/><path class="d3" d="m96.2 83.8 14.5 5.5c5.9 2.1 15.7 8.3 19.5 16.2 2.6 5.1 3.2 12.1-1.9 18.7-2.7 3.3-7 6.9-13.2 6.9s-14.1-5-18.3-9.7c-2.6-3.2-5.4-7.6-7.3-11.5l-6.1-14.2"/><path class="d3" d="m54 66.1-14.3-5.5c-5.7-2.1-15.9-3.4-23.1-2.1-6.2 1.2-11.9 5.9-13.4 12.1-1.7 7.6 1.7 17.2 11.9 20.2 7 2.1 16.8 1.1 23.6-1.1l15.5-5.9"/><path class="d3" d="m116.4 58.9c4.2-.9 9.2-1.5 14.1-.9 5.1.5 9.7 2.6 12.9 6.4 6.2 7 5.1 17.3-1.5 22.8-2.3 2.1-5.5 3.8-9.5 4.4-6.8 1.1-14.1.3-21.3-1.9"/><path class="d3" d="m60.7 40c-3.3-6.4-10.5-17.1-18.8-20.5-7.2-3.1-15.5-1.5-20.4 4.9-2.1 2.8-3.7 6.2-3.7 10-.2 8.5 5.8 15.4 13.7 20.7 3.2 2.1 7 4.2 10.6 5.5"/><path class="d1" d="m75.1 52.1c-10.9 0-22.6 8.9-22.6 23 0 9.3 7 22.1 22.6 22.1s22.5-8.7 22.5-21.9c0-11.1-9.3-23.2-22.5-23.2z"/><path class="d2" d="m75.1 52.1c-10.9 0-22.6 8.9-22.6 23 0 9.3 7 22.1 22.6 22.1s22.5-8.7 22.5-21.9c0-11.1-9.3-23.2-22.5-23.2z"/></svg>
+  </div>
+  <div class="deco" style="top:20px;right:-20px;width:170px;height:170px">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 150 150"><style>.d0{fill:#FFF}.d1{fill:#FCDF6C}.d2{fill:none;stroke:#232323;stroke-width:2.07;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:10}.d3{fill:#FFF;stroke:#232323;stroke-width:2.07;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:10}</style><path class="d3" d="m66.6 53.8-5.9-13.8c-2.2-5.9-4.6-17.9-1.7-26.2 1.7-4.9 6.7-11.4 15.4-11.4s13.4 4.6 15.7 8.6c4.8 8.1 2.5 20.3-.1 27.7l-6.8 15.1"/><path class="d3" d="m92.1 115.2c1.3 5.8 1.9 13.8-.2 19.9-1.9 5.1-6.4 12.5-16.9 12.5s-14.9-5.3-16.8-13.1c-1.7-7-.6-15.2 1.7-22l6.7-16.4"/><path class="d3" d="m96 66.4 14.7-5.8c5.9-2.4 16.2-8.3 19.8-17 2.8-6.4 2.1-14.2-4.3-19.7-2.8-2.5-6.2-4.2-10.2-5-9.3-.6-15.8 5.5-20.3 10.9-2.7 3.4-5.1 7.4-6.8 11l-5.7 12.8"/><path class="d3" d="m54 84-14.7 5.5c-5.7 2.1-12.3 6.6-15.9 10.9-1.9 2.3-4 5.7-4.9 8.9-2.1 8.5 2.8 18 11.7 21.8 4.9 1.3 9.3.9 13.6-1.2 7.6-3.6 13.8-12.1 16.9-18.5l5.9-13.6"/><path class="d3" d="m96.2 83.8 14.5 5.5c5.9 2.1 15.7 8.3 19.5 16.2 2.6 5.1 3.2 12.1-1.9 18.7-2.7 3.3-7 6.9-13.2 6.9s-14.1-5-18.3-9.7c-2.6-3.2-5.4-7.6-7.3-11.5l-6.1-14.2"/><path class="d3" d="m54 66.1-14.3-5.5c-5.7-2.1-15.9-3.4-23.1-2.1-6.2 1.2-11.9 5.9-13.4 12.1-1.7 7.6 1.7 17.2 11.9 20.2 7 2.1 16.8 1.1 23.6-1.1l15.5-5.9"/><path class="d3" d="m116.4 58.9c4.2-.9 9.2-1.5 14.1-.9 5.1.5 9.7 2.6 12.9 6.4 6.2 7 5.1 17.3-1.5 22.8-2.3 2.1-5.5 3.8-9.5 4.4-6.8 1.1-14.1.3-21.3-1.9"/><path class="d3" d="m60.7 40c-3.3-6.4-10.5-17.1-18.8-20.5-7.2-3.1-15.5-1.5-20.4 4.9-2.1 2.8-3.7 6.2-3.7 10-.2 8.5 5.8 15.4 13.7 20.7 3.2 2.1 7 4.2 10.6 5.5"/><path class="d1" d="m75.1 52.1c-10.9 0-22.6 8.9-22.6 23 0 9.3 7 22.1 22.6 22.1s22.5-8.7 22.5-21.9c0-11.1-9.3-23.2-22.5-23.2z"/><path class="d2" d="m75.1 52.1c-10.9 0-22.6 8.9-22.6 23 0 9.3 7 22.1 22.6 22.1s22.5-8.7 22.5-21.9c0-11.1-9.3-23.2-22.5-23.2z"/></svg>
+  </div>
+  <div class="deco" style="bottom:8px;right:-20px;width:120px;height:93.6px">
+    <svg viewBox="0 0 100 98.6" xmlns="http://www.w3.org/2000/svg"><path fill="#FBB0C7" stroke="#2D2D2D" stroke-width="2.4166" stroke-miterlimit="10" d="m57.7 7.8 8.3 19.1c.5 1.3 1.5 2.1 2.8 2.3l21.5 2.2c6.4.8 9.4 8.3 5.3 13.7l-16.2 15.2c-1 .9-1.5 2.5-1.2 4.2l4.3 21.1c.9 6.2-4.9 11.6-12 8.7l-18.1-10.2c-1.4-.8-3.3-.8-4.8 0l-17.8 10.2c-6 2.9-13.2-.6-12.7-8l4.5-21.3c.3-1.7-.1-3.5-1.3-4.5l-15.2-13.5c-4.5-4.3-3.6-13.6 4.2-15.6l21.5-2.2c1.3-.1 2.3-.9 2.9-2.3l8.7-19.1c2.7-6 11.5-7.7 15.3 0z"/></svg>
+  </div>
+
+  <h1>EM-BOX AI招聘平台</h1>
+  <p class="subtitle">业务人员操作手册 — 完整使用指南</p>
+  <div class="meta">
+    <span class="badge">v1.4</span>
+    <span class="badge" style="background:var(--mint)">2026-06-01</span>
+  </div>
+</section>
+
+<!-- ====== SECTION 1: 系统简介 ====== -->
+<section class="section alt" id="intro">
+  <div class="deco" style="top:-10px;right:-10px;width:130px;height:130px">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 150 150"><style>.d1{fill:#FCDF6C}.d2{fill:none;stroke:#232323;stroke-width:2.07;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:10}.d3{fill:#FFF;stroke:#232323;stroke-width:2.07;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:10}</style><path class="d3" d="m66.6 53.8-5.9-13.8c-2.2-5.9-4.6-17.9-1.7-26.2 1.7-4.9 6.7-11.4 15.4-11.4s13.4 4.6 15.7 8.6c4.8 8.1 2.5 20.3-.1 27.7l-6.8 15.1"/><path class="d3" d="m92.1 115.2c1.3 5.8 1.9 13.8-.2 19.9-1.9 5.1-6.4 12.5-16.9 12.5s-14.9-5.3-16.8-13.1c-1.7-7-.6-15.2 1.7-22l6.7-16.4"/><path class="d3" d="m96 66.4 14.7-5.8c5.9-2.4 16.2-8.3 19.8-17 2.8-6.4 2.1-14.2-4.3-19.7-2.8-2.5-6.2-4.2-10.2-5-9.3-.6-15.8 5.5-20.3 10.9-2.7 3.4-5.1 7.4-6.8 11l-5.7 12.8"/><path class="d3" d="m54 84-14.7 5.5c-5.7 2.1-12.3 6.6-15.9 10.9-1.9 2.3-4 5.7-4.9 8.9-2.1 8.5 2.8 18 11.7 21.8 4.9 1.3 9.3.9 13.6-1.2 7.6-3.6 13.8-12.1 16.9-18.5l5.9-13.6"/><path class="d3" d="m96.2 83.8 14.5 5.5c5.9 2.1 15.7 8.3 19.5 16.2 2.6 5.1 3.2 12.1-1.9 18.7-2.7 3.3-7 6.9-13.2 6.9s-14.1-5-18.3-9.7c-2.6-3.2-5.4-7.6-7.3-11.5l-6.1-14.2"/><path class="d3" d="m54 66.1-14.3-5.5c-5.7-2.1-15.9-3.4-23.1-2.1-6.2 1.2-11.9 5.9-13.4 12.1-1.7 7.6 1.7 17.2 11.9 20.2 7 2.1 16.8 1.1 23.6-1.1l15.5-5.9"/><path class="d3" d="m116.4 58.9c4.2-.9 9.2-1.5 14.1-.9 5.1.5 9.7 2.6 12.9 6.4 6.2 7 5.1 17.3-1.5 22.8-2.3 2.1-5.5 3.8-9.5 4.4-6.8 1.1-14.1.3-21.3-1.9"/><path class="d3" d="m60.7 40c-3.3-6.4-10.5-17.1-18.8-20.5-7.2-3.1-15.5-1.5-20.4 4.9-2.1 2.8-3.7 6.2-3.7 10-.2 8.5 5.8 15.4 13.7 20.7 3.2 2.1 7 4.2 10.6 5.5"/><path class="d1" d="m75.1 52.1c-10.9 0-22.6 8.9-22.6 23 0 9.3 7 22.1 22.6 22.1s22.5-8.7 22.5-21.9c0-11.1-9.3-23.2-22.5-23.2z"/><path class="d2" d="m75.1 52.1c-10.9 0-22.6 8.9-22.6 23 0 9.3 7 22.1 22.6 22.1s22.5-8.7 22.5-21.9c0-11.1-9.3-23.2-22.5-23.2z"/></svg>
+  </div>
+
+  <div class="section-header">
+    <h2><span class="num" style="background:var(--turquoise);color:#fff">1</span> 系统简介</h2>
+  </div>
+
+  <div class="card" style="margin-bottom:24px" id="intro-overview">
+    <h3 style="margin-bottom:10px">1.1 平台概述</h3>
+    <p>EM-BOX是一个专为<strong>动作捕捉演员、实验室操作员</strong>等岗位招聘设计的AI招聘平台。通过智能化的简历分析和候选人筛选，帮助团队高效完成招聘流程。</p>
+  </div>
+
+  <h3 style="margin-bottom:16px;position:relative;z-index:2" id="intro-features">1.2 核心功能</h3>
+  <div class="feat-grid" style="margin-bottom:28px">
+    <div class="feat-card"><div class="icon" style="background:var(--butter)">🤖</div><h4>AI简历评分</h4><p>自动分析候选人技能匹配度</p></div>
+    <div class="feat-card"><div class="icon" style="background:var(--mint)">⚙️</div><h4>岗位标准配置</h4><p>灵活的画像和评分标准设置</p></div>
+    <div class="feat-card"><div class="icon" style="background:var(--sky)">🔍</div><h4>智能候选人筛选</h4><p>基于多维度评分的自动排序</p></div>
+    <div class="feat-card"><div class="icon" style="background:var(--lavender)">🎥</div><h4>AI面试系统</h4><p>标准化面试流程 + 对话式面试</p></div>
+    <div class="feat-card"><div class="icon" style="background:var(--soft-pink)">🎓</div><h4>培训学堂</h4><p>课程管理、学习路径、培训评估</p></div>
+    <div class="feat-card"><div class="icon" style="background:var(--peach)">👤</div><h4>员工档案</h4><p>档案CRUD、绩效记录、胜任力模型</p></div>
+    <div class="feat-card"><div class="icon" style="background:var(--coral);color:#fff">✅</div><h4>审批中心</h4><p>面试结果审批流程 + 录用闭环</p></div>
+    <div class="feat-card"><div class="icon" style="background:var(--turquoise);color:#fff">👥</div><h4>团队协作</h4><p>多角色权限管理和协作</p></div>
+    <div class="feat-card"><div class="icon" style="background:var(--butter)">💬</div><h4>短信通知</h4><p>腾讯云短信模板管理与发送</p></div>
+  </div>
+
+  <h3 style="margin-bottom:16px;position:relative;z-index:2" id="intro-users">1.3 目标用户</h3>
+  <div class="role-grid">
+    <div class="role-card"><div class="avatar" style="background:var(--sky)">🔍</div><h4>招募专员</h4><p style="font-size:.85rem;color:var(--text-muted);font-weight:500">负责日常招聘流程执行</p></div>
+    <div class="role-card"><div class="avatar" style="background:var(--lavender)">⚙️</div><h4>管理员</h4><p style="font-size:.85rem;color:var(--text-muted);font-weight:500">负责系统配置和团队管理</p></div>
+  </div>
+</section>
+
+<!-- ====== SECTION 2: 登录与导航 ====== -->
+<section class="section" id="login">
+  <div class="deco" style="bottom:10px;left:10px;width:100px;height:100px">
+    <svg viewBox="0 0 100 98.6" xmlns="http://www.w3.org/2000/svg"><path fill="#A8E6CF" stroke="#2D2D2D" stroke-width="2.4166" stroke-miterlimit="10" d="m57.7 7.8 8.3 19.1c.5 1.3 1.5 2.1 2.8 2.3l21.5 2.2c6.4.8 9.4 8.3 5.3 13.7l-16.2 15.2c-1 .9-1.5 2.5-1.2 4.2l4.3 21.1c.9 6.2-4.9 11.6-12 8.7l-18.1-10.2c-1.4-.8-3.3-.8-4.8 0l-17.8 10.2c-6 2.9-13.2-.6-12.7-8l4.5-21.3c.3-1.7-.1-3.5-1.3-4.5l-15.2-13.5c-4.5-4.3-3.6-13.6 4.2-15.6l21.5-2.2c1.3-.1 2.3-.9 2.9-2.3l8.7-19.1c2.7-6 11.5-7.7 15.3 0z"/></svg>
+  </div>
+
+  <div class="section-header">
+    <h2><span class="num" style="background:var(--soft-pink)">2</span> 登录与导航</h2>
+  </div>
+
+  <div class="card" style="margin-bottom:20px" id="login-access">
+    <h3 style="margin-bottom:8px">2.1 系统访问</h3>
+    <ul class="bullet-list">
+      <li><strong>开发环境</strong>: http://localhost:5173</li>
+      <li><strong>生产环境</strong>: [生产URL]</li>
+    </ul>
+  </div>
+
+  <div class="card" style="margin-bottom:20px" id="login-flow">
+    <h3 style="margin-bottom:8px">2.2 登录流程</h3>
+    <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+      <div style="display:flex;align-items:center;gap:8px"><span class="step-num" style="background:var(--butter)">1</span><span style="font-weight:600;font-size:.9rem">输入用户名和密码</span></div>
+      <span style="font-family:var(--font-display);font-size:1.3rem">→</span>
+      <div style="display:flex;align-items:center;gap:8px"><span class="step-num" style="background:var(--sky)">2</span><span style="font-weight:600;font-size:.9rem">点击蓝色"登录"按钮</span></div>
+      <span style="font-family:var(--font-display);font-size:1.3rem">→</span>
+      <div style="display:flex;align-items:center;gap:8px"><span class="step-num" style="background:var(--mint)">3</span><span style="font-weight:600;font-size:.9rem">进入系统主页</span></div>
+    </div>
+  </div>
+
+  <div style="margin-bottom:20px" id="login-layout">
+    <h3 style="margin-bottom:12px;position:relative;z-index:2">2.3 界面布局</h3>
+    <div class="code-block">
+┌─────────────────────────────────────────────────────┐
+│ [Logo] EM-BOX AI招聘平台        🔔 👤                │
+├─────────────────────────────────────────────────────┤
+│                                                       │
+│  🏠 工作台        📁 项目管理      👥 候选人中心        │
+│  🎯 招聘推进      🎥 AI面试中心    🔒 审批中心        │
+│  🎓 培训学堂      👤 员工档案      ⚙️ 系统管理        │
+│                                                       │
+│ ┌─────────────────────────────────────────────────┐ │
+│ │  搜索栏                                    🔍  │ │
+│ │  筛选选项                  [筛选] [重置]        │ │
+│ │  操作按钮        [新建] [导出] [批量操作]       │ │
+│ └─────────────────────────────────────────────────┘ │
+│                                                       │
+│                               [用户头像] [通知] [退出] │
+└─────────────────────────────────────────────────────┘</div>
+  </div>
+
+  <div class="card-sm" style="margin-bottom:16px" id="login-buttons">
+    <h3 style="margin-bottom:8px">2.4 按钮类型说明</h3>
+    <p style="margin-bottom:6px"><span class="badge" style="background:#1a4bc4;color:#fff;border-color:#1a4bc4">蓝色按钮</span> 主要操作按钮（如：登录、新建、保存）</p>
+    <p><span class="badge" style="background:#22d3ee;border-color:#22d3ee">青色按钮</span> 次要操作或AI相关按钮（如：AI搜索、智能推荐）</p>
+  </div>
+
+  <div class="card-sm" id="login-common">
+    <h3 style="margin-bottom:8px">2.5 通用操作说明</h3>
+    <ul class="bullet-list">
+      <li><strong>搜索栏</strong>: 输入关键词进行快速搜索</li>
+      <li><strong>筛选选项</strong>: 根据条件筛选数据</li>
+      <li><strong>批量操作</strong>: 选择多个项目进行批量处理</li>
+      <li><strong>导出功能</strong>: 将数据导出为CSV或PDF格式</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ====== SCENE QUICK NAV ====== -->
+<section class="section alt" style="padding:28px 40px">
+  <div style="position:relative;z-index:2">
+    <h3 style="margin-bottom:12px;font-size:1rem">📋 业务场景快速导航</h3>
+    <div class="scene-tabs">
+      <a href="#scene1" class="scene-tab">3.1 配置岗位标准</a>
+      <a href="#scene2" class="scene-tab">3.2 搜索与筛选</a>
+      <a href="#scene3" class="scene-tab">3.3 入围与外联</a>
+      <a href="#scene4" class="scene-tab">3.4 AI面试管理</a>
+      <a href="#scene5" class="scene-tab">3.5 团队管理</a>
+      <a href="#scene6" class="scene-tab">3.6 员工档案</a>
+      <a href="#scene7" class="scene-tab">3.7 短信模板</a>
+      <a href="#scene8" class="scene-tab">3.8 通知中心</a>
+    </div>
+  </div>
+</section>
+
+<!-- ====== SCENE 1: 配置岗位标准 ====== -->
+<section class="section" id="scene1" style="background:var(--mint);background:rgba(168,230,207,.18)">
+  <div class="deco" style="top:10px;right:10px;width:90px;height:90px">
+    <svg viewBox="0 0 100 98.6" xmlns="http://www.w3.org/2000/svg"><path fill="#FDE366" stroke="#2D2D2D" stroke-width="2.4166" stroke-miterlimit="10" d="m57.7 7.8 8.3 19.1c.5 1.3 1.5 2.1 2.8 2.3l21.5 2.2c6.4.8 9.4 8.3 5.3 13.7l-16.2 15.2c-1 .9-1.5 2.5-1.2 4.2l4.3 21.1c.9 6.2-4.9 11.6-12 8.7l-18.1-10.2c-1.4-.8-3.3-.8-4.8 0l-17.8 10.2c-6 2.9-13.2-.6-12.7-8l4.5-21.3c.3-1.7-.1-3.5-1.3-4.5l-15.2-13.5c-4.5-4.3-3.6-13.6 4.2-15.6l21.5-2.2c1.3-.1 2.3-.9 2.9-2.3l8.7-19.1c2.7-6 11.5-7.7 15.3 0z"/></svg>
+  </div>
+
+  <div class="section-header">
+    <h2><span class="num" style="background:var(--turquoise);color:#fff">3.1</span> 场景一：新项目启动 — 配置岗位标准</h2>
+    <p class="desc">当需要启动新的数据采集项目时，管理员需要先配置好岗位标准。</p>
+  </div>
+
+  <div class="step-block">
+    <div class="step-title"><span class="step-num" style="background:var(--butter)">1</span> 创建新项目</div>
+    <div class="card-sm">
+      <ol style="padding-left:20px">
+        <li style="margin-bottom:4px;font-weight:500">点击左侧菜单"项目管理"</li>
+        <li style="margin-bottom:4px;font-weight:500">点击蓝色"新建项目"按钮</li>
+        <li style="margin-bottom:4px;font-weight:500">填写项目信息：项目名称（如"动作捕捉演员-2026春季"）、项目描述、负责人</li>
+        <li style="font-weight:500">点击"保存"按钮</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="step-block">
+    <div class="step-title"><span class="step-num" style="background:var(--sky)">2</span> 创建岗位</div>
+    <div class="card-sm">
+      <ol style="padding-left:20px">
+        <li style="margin-bottom:4px;font-weight:500">在项目管理页面，点击对应项目下的"创建岗位"按钮</li>
+        <li style="margin-bottom:4px;font-weight:500">填写基本信息：岗位名称、岗位描述、工作地点、薪资范围</li>
+        <li style="font-weight:500">点击"下一步"继续配置</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="step-block">
+    <div class="step-title"><span class="step-num" style="background:var(--soft-pink)">3</span> 画像配置</div>
+    <div class="card-sm">
+      <p style="margin-bottom:10px;font-size:.85rem;color:var(--text-muted)">此配置决定了AI如何识别候选人技能</p>
+      <table class="data-table">
+        <thead><tr><th>#</th><th>关键词</th><th>同义词（逗号分隔）</th><th>类别</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>电脑操作熟练</td><td>计算机操作熟练, Office熟练</td><td>基础能力</td></tr>
+          <tr><td>2</td><td>排班出勤</td><td>全勤, 准时出勤</td><td>工作态度</td></tr>
+          <tr><td>3</td><td>数据标注</td><td>数据标注员, 数据标记</td><td>专业技能</td></tr>
+        </tbody>
+      </table>
+      <ul class="bullet-list" style="margin-top:12px">
+        <li><strong>关键词</strong>: 必须包含的核心技能词</li>
+        <li><strong>同义词</strong>: 关键词的等效表达，用于匹配</li>
+        <li><strong>类别</strong>: 技能分类，便于统计</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="step-block">
+    <div class="step-title"><span class="step-num" style="background:var(--lavender)">4</span> 评分标准配置</div>
+    <div class="card-sm">
+      <p style="margin-bottom:12px;font-size:.85rem;color:var(--text-muted)">设置不同技能维度的权重和匹配规则</p>
+      <table class="data-table">
+        <thead><tr><th>维度</th><th>权重</th><th>关键字标签</th><th>匹配模式</th></tr></thead>
+        <tbody>
+          <tr><td>经验对口度</td><td><span class="badge">30%</span></td><td>数据标注, AI训练</td><td>any</td></tr>
+          <tr><td>技能熟练度</td><td><span class="badge">25%</span></td><td>熟练, 精通, 专业</td><td>any</td></tr>
+          <tr><td>团队合作能力</td><td><span class="badge">20%</span></td><td>团队协作, 沟通能力</td><td>any</td></tr>
+          <tr><td>学习能力</td><td><span class="badge">15%</span></td><td>学习能力强, 快速掌握</td><td>any</td></tr>
+          <tr><td>稳定性</td><td><span class="badge">10%</span></td><td>稳定性好, 长期发展</td><td>any</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="step-block">
+    <div class="step-title"><span class="step-num" style="background:var(--peach)">5</span> Grade Rules（分数区间）</div>
+    <div class="card-sm">
+      <table class="data-table">
+        <thead><tr><th>档位</th><th>最低分</th><th>最高分</th><th>操作建议</th></tr></thead>
+        <tbody>
+          <tr><td><span class="badge" style="background:var(--mint)">A档</span></td><td>90</td><td>100</td><td>优先录用，立即联系</td></tr>
+          <tr><td><span class="badge" style="background:var(--sky)">B+档</span></td><td>80</td><td>89</td><td>强烈推荐，面试优先</td></tr>
+          <tr><td><span class="badge" style="background:var(--butter)">B档</span></td><td>70</td><td>79</td><td>推荐面试，重点考虑</td></tr>
+          <tr><td><span class="badge" style="background:var(--peach)">C档</span></td><td>60</td><td>69</td><td>基本合格，可考虑</td></tr>
+          <tr><td><span class="badge" style="background:var(--soft-pink)">D档</span></td><td>0</td><td>59</td><td>不合格，不推荐</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="step-block">
+    <div class="step-title"><span class="step-num" style="background:var(--coral);color:#fff">6</span> 基础分配置</div>
+    <div class="card-sm">
+      <ul class="bullet-list">
+        <li><strong>基础分值</strong>: 50分</li>
+        <li><strong>触发条件</strong>: 必备项审核通过（满足至少4项，含必过项：电脑操作熟练、排班出勤）</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="info-box warn">
+    <h4>⚠️ 注意事项</h4>
+    <ul class="bullet-list">
+      <li>画像配置会直接影响AI评分准确性</li>
+      <li>评分标准的权重总和应为100%</li>
+      <li>建议在正式招聘前先进行测试配置</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ====== SCENE 2: 搜索与筛选候选人 ====== -->
+<section class="section alt" id="scene2">
+  <div class="section-header">
+    <h2><span class="num" style="background:var(--sky)">3.2</span> 场景二：日常招聘 — 搜索与筛选候选人</h2>
+    <p class="desc">日常招聘工作中，需要批量导入简历并进行智能筛选。</p>
+  </div>
+
+  <div class="step-block">
+    <div class="step-title"><span class="step-num" style="background:var(--butter)">1</span> 导入候选人简历</div>
+    <div class="card-sm">
+      <ol style="padding-left:20px">
+        <li style="margin-bottom:4px;font-weight:500">点击左侧菜单"候选人搜索"</li>
+        <li style="margin-bottom:4px;font-weight:500">点击蓝色"导入简历"按钮</li>
+        <li style="margin-bottom:4px;font-weight:500">选择文件格式：<span class="badge" style="background:var(--mint)">.md</span> <span class="badge" style="background:var(--sky)">.txt</span></li>
+        <li style="margin-bottom:4px;font-weight:500">上传简历文件</li>
+        <li style="font-weight:500">点击"开始分析"按钮</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="step-block">
+    <div class="step-title"><span class="step-num" style="background:var(--sky)">2</span> 选择目标岗位</div>
+    <div class="card-sm">
+      <ol style="padding-left:20px">
+        <li style="margin-bottom:4px;font-weight:500">在筛选区域选择对应的岗位</li>
+        <li style="margin-bottom:4px;font-weight:500">系统会自动显示该岗位的评分标准</li>
+        <li style="font-weight:500">可以按项目、状态等进一步筛选</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="step-block">
+    <div class="step-title"><span class="step-num" style="background:var(--soft-pink)">3</span> 查看AI评分结果</div>
+    <div class="sub-card">
+      <div class="sub-card-head" style="background:var(--butter)">候选人基本信息</div>
+      <div class="sub-card-body">
+        <ul class="bullet-list">
+          <li>姓名、联系方式、工作经验</li>
+          <li>AI综合得分：<span class="badge" style="background:var(--mint)">85分</span></li>
+          <li>评级：<span class="badge" style="background:var(--sky)">B+档</span></li>
+          <li>匹配关键词：数据标注、团队协作、学习能力强</li>
+          <li>缺少关键词：AI训练经验</li>
+        </ul>
+      </div>
+    </div>
+    <div class="sub-card" style="margin-top:16px">
+      <div class="sub-card-head" style="background:var(--sky)">评分维度详情</div>
+      <div class="sub-card-body">
+        <table class="data-table">
+          <thead><tr><th>维度</th><th>得分</th><th>权重</th><th>贡献分</th></tr></thead>
+          <tbody>
+            <tr><td>经验对口度</td><td>90</td><td>30%</td><td>27</td></tr>
+            <tr><td>技能熟练度</td><td>80</td><td>25%</td><td>20</td></tr>
+            <tr><td>团队合作能力</td><td>85</td><td>20%</td><td>17</td></tr>
+            <tr><td>学习能力</td><td>85</td><td>15%</td><td>13</td></tr>
+            <tr><td>稳定性</td><td>75</td><td>10%</td><td>8</td></tr>
+            <tr style="background:var(--cream)"><td><strong>合计</strong></td><td><strong>85</strong></td><td><strong>100%</strong></td><td><strong>85</strong></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="step-block">
+    <div class="step-title"><span class="step-num" style="background:var(--lavender)">4</span> 筛选和排序</div>
+    <div class="card-sm">
+      <p style="margin-bottom:8px;font-weight:600">排序方式</p>
+      <ul class="bullet-list" style="margin-bottom:12px">
+        <li>按得分降序</li><li>按经验年限</li><li>按技能匹配度</li>
+      </ul>
+      <p style="margin-bottom:8px;font-weight:600">筛选条件</p>
+      <ul class="bullet-list">
+        <li>评级范围 (A/B+/B/C/D)</li><li>得分区间 (0-100分)</li><li>工作经验年限</li><li>特定技能标签</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="step-block">
+    <div class="step-title"><span class="step-num" style="background:var(--peach)">5</span> 添加到入围名单</div>
+    <div class="card-sm">
+      <ol style="padding-left:20px">
+        <li style="margin-bottom:4px;font-weight:500">选择合适的候选人（可多选）</li>
+        <li style="margin-bottom:4px;font-weight:500">点击"添加到入围"按钮</li>
+        <li style="margin-bottom:4px;font-weight:500">填写推荐理由</li>
+        <li style="font-weight:500">确认添加</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="step-block">
+    <div class="step-title"><span class="step-num" style="background:var(--coral);color:#fff">6</span> 导出评估报告</div>
+    <div class="card-sm">
+      <ol style="padding-left:20px">
+        <li style="margin-bottom:4px;font-weight:500">选择要导出的候选人</li>
+        <li style="margin-bottom:4px;font-weight:500">点击"导出报告"按钮</li>
+        <li style="margin-bottom:4px;font-weight:500">选择导出格式：<span class="badge" style="background:var(--soft-pink)">PDF</span> 完整报告 / <span class="badge" style="background:var(--sky)">PNG</span> 缩略图</li>
+        <li style="font-weight:500">点击"确认导出"</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="info-box tip">
+    <h4>💡 操作技巧</h4>
+    <ul class="bullet-list">
+      <li>可以使用搜索框快速查找特定候选人</li>
+      <li>批量操作可以提高工作效率</li>
+      <li>建议定期更新岗位配置以提高匹配准确性</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ====== SCENE 3: 入围与外联 ====== -->
+<section class="section" id="scene3" style="background:rgba(247,200,212,.18)">
+  <div class="section-header">
+    <h2><span class="num" style="background:var(--soft-pink)">3.3</span> 场景三：候选人推进 — 入围与外联</h2>
+    <p class="desc">经过AI初步筛选后，需要对入围候选人进行进一步联系和推进。</p>
+  </div>
+
+  <div class="step-block">
+    <div class="step-title"><span class="step-num" style="background:var(--butter)">1</span> 查看入围名单</div>
+    <div class="card-sm">
+      <ol style="padding-left:20px">
+        <li style="margin-bottom:4px;font-weight:500">点击左侧菜单"入围名单"</li>
+        <li style="margin-bottom:4px;font-weight:500">查看所有入围候选人列表</li>
+        <li style="font-weight:500">可以按状态、时间、岗位等筛选</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="step-block">
+    <div class="step-title"><span class="step-num" style="background:var(--sky)">2</span> 查看候选人详情</div>
+    <div class="card-sm">
+      <ol style="padding-left:20px">
+        <li style="margin-bottom:4px;font-weight:500">点击候选人姓名查看详细信息</li>
+        <li style="font-weight:500">查看完整评估报告：基本信息、AI评分和各维度得分、匹配和缺少的关键词分析、推荐理由</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="step-block">
+    <div class="step-title"><span class="step-num" style="background:var(--mint)">3</span> 联系候选人</div>
+    <div class="card-sm">
+      <ol style="padding-left:20px">
+        <li style="margin-bottom:4px;font-weight:500">在候选人详情页面，点击"推进"按钮</li>
+        <li style="margin-bottom:4px;font-weight:500">选择联系方式：邮件联系 / 电话联系 / 微信联系</li>
+        <li style="margin-bottom:4px;font-weight:500">填写联系理由：参考AI评分结果 + 结合岗位需求 + 个性化建议</li>
+        <li style="font-weight:500">点击"发送联系"</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="step-block">
+    <div class="step-title"><span class="step-num" style="background:var(--lavender)">4</span> 发送面试邀请</div>
+    <div class="card-sm">
+      <ol style="padding-left:20px">
+        <li style="margin-bottom:4px;font-weight:500">对于合适的候选人，选择"发送面试邀请"</li>
+        <li style="font-weight:500">填写面试信息：
+          <ul class="bullet-list" style="margin-top:6px">
+            <li><strong>候选人邮箱</strong>：必填，用于发送邀请邮件</li>
+            <li><strong>面试模板</strong>：必填，从下拉列表中选择（会按岗位匹配排序，显示题数和时长）</li>
+            <li><strong>面试链接</strong>：系统自动生成，候选人可进入AI面试</li>
+          </ul>
+        </li>
+        <li style="font-weight:500">点击"发送邀请"</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="step-block">
+    <div class="step-title"><span class="step-num" style="background:var(--peach)">5</span> 跟踪联系状态</div>
+    <div class="card-sm">
+      <ol style="padding-left:20px">
+        <li style="margin-bottom:4px;font-weight:500">更新候选人状态：已联系 / 已回复 / 已安排面试 / 已拒绝</li>
+        <li style="margin-bottom:4px;font-weight:500">记录联系结果和反馈</li>
+        <li style="font-weight:500">设置后续跟进时间</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="info-box warn">
+    <h4>⚠️ 注意事项</h4>
+    <ul class="bullet-list">
+      <li>外联邮件使用mailto协议，会打开本地邮件客户端</li>
+      <li>建议结合AI评分结果和实际需求进行判断</li>
+      <li>及时更新候选人状态，避免重复联系</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ====== SCENE 4: AI面试管理 ====== -->
+<section class="section alt" id="scene4">
+  <div class="section-header">
+    <h2><span class="num" style="background:var(--lavender);color:#fff">3.4</span> 场景四：AI面试管理</h2>
+    <p class="desc">需要对入围候选人进行AI面试，标准化评估流程。</p>
+  </div>
+
+  <div class="step-block">
+    <div class="step-title"><span class="step-num" style="background:var(--butter)">1</span> 创建面试模板</div>
+    <div class="card-sm">
+      <ol style="padding-left:20px;margin-bottom:12px">
+        <li style="margin-bottom:4px;font-weight:500">点击左侧菜单"面试配置"</li>
+        <li style="margin-bottom:4px;font-weight:500">点击"+ 新建面试模板"按钮</li>
+        <li style="margin-bottom:4px;font-weight:500">选择关联岗位（下拉选择已创建的岗位）</li>
+        <li style="font-weight:500">设置面试基本信息：模板名称、面试时长（30分钟）、面试官</li>
+      </ol>
+      <p style="margin-bottom:10px;font-weight:600;font-size:.9rem">添加面试问题：</p>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px">
+        <div class="card-sm" style="box-shadow:none;border-color:var(--mint)">
+          <h4 style="font-size:.9rem;margin-bottom:4px">专业技能评估</h4>
+          <p style="font-size:.82rem;color:var(--text-muted);font-weight:500;line-height:1.5">提问：请详细介绍您在数据标注方面的经验，包括使用过的工具和方法</p>
+          <p style="font-size:.78rem;color:var(--text-muted);margin-top:4px">时限：5分钟 | 评分：技术深度、方法规范性、经验丰富度</p>
+        </div>
+        <div class="card-sm" style="box-shadow:none;border-color:var(--sky)">
+          <h4 style="font-size:.9rem;margin-bottom:4px">情景测试</h4>
+          <p style="font-size:.82rem;color:var(--text-muted);font-weight:500;line-height:1.5">提问：如果在项目中需要与其他成员密切合作，您会如何确保沟通顺畅？</p>
+          <p style="font-size:.78rem;color:var(--text-muted);margin-top:4px">时限：3分钟 | 评分：沟通能力、团队意识、问题解决</p>
+        </div>
+        <div class="card-sm" style="box-shadow:none;border-color:var(--soft-pink)">
+          <h4 style="font-size:.9rem;margin-bottom:4px">职业规划</h4>
+          <p style="font-size:.82rem;color:var(--text-muted);font-weight:500;line-height:1.5">提问：您未来3-5年的职业发展规划是什么？为什么选择这个岗位？</p>
+          <p style="font-size:.78rem;color:var(--text-muted);margin-top:4px">时限：3分钟 | 评分：目标明确度、与岗位匹配度、发展潜力</p>
+        </div>
+      </div>
+      <p style="margin-top:10px;font-weight:600;font-size:.9rem">6. 点击"保存模板"</p>
+    </div>
+  </div>
+
+  <div class="step-block">
+    <div class="step-title"><span class="step-num" style="background:var(--sky)">2</span> 管理面试模板</div>
+    <div class="card-sm">
+      <ul class="bullet-list">
+        <li>查看所有模板列表</li><li>编辑或删除现有模板</li><li>设置模板状态（启用/禁用）</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="step-block">
+    <div class="step-title"><span class="step-num" style="background:var(--soft-pink)">3</span> 开始面试</div>
+    <div class="card-sm">
+      <ol style="padding-left:20px">
+        <li style="margin-bottom:4px;font-weight:500">点击左侧菜单"面试管理"</li>
+        <li style="margin-bottom:4px;font-weight:500">选择面试模板 → 选择待面试候选人 → 点击"开始面试"</li>
+        <li style="font-weight:500">按照面试流程进行：提问问题 → 记录回答 → 评分记录</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="step-block">
+    <div class="step-title"><span class="step-num" style="background:var(--lavender)">4</span> 面试结果管理</div>
+    <div class="sub-card">
+      <div class="sub-card-head" style="background:var(--mint)">面试评分</div>
+      <div class="sub-card-body">
+        <ul class="bullet-list">
+          <li>总体评分：<span class="badge" style="background:var(--mint)">88分</span> 评级：<span class="badge" style="background:var(--sky)">B+档</span></li>
+          <li>各维度得分：专业技能 90分 | 沟通能力 85分 | 团队协作 90分 | 发展潜力 85分</li>
+        </ul>
+      </div>
+    </div>
+    <div class="sub-card" style="margin-top:16px">
+      <div class="sub-card-head" style="background:var(--sky)">AI面试总结</div>
+      <div class="sub-card-body">
+        <ul class="bullet-list">
+          <li><strong>匹配优势</strong>: 数据标注经验丰富，团队协作能力强，学习意愿高</li>
+          <li><strong>待改进</strong>: AI相关经验不足，需要进一步培训</li>
+          <li><strong>推荐建议</strong>: 强烈推荐录用，建议安排实操培训</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="step-block">
+    <div class="step-title"><span class="step-num" style="background:var(--coral);color:#fff">5</span> 审批流程</div>
+    <div class="card-sm">
+      <ol style="padding-left:20px">
+        <li style="margin-bottom:4px;font-weight:500">在"评价中心"查看所有面试结果</li>
+        <li style="margin-bottom:4px;font-weight:500">审核评估结果的准确性</li>
+        <li style="margin-bottom:4px;font-weight:500">批准或拒绝面试结果</li>
+        <li style="font-weight:500">更新候选人最终状态</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="info-box tip">
+    <h4>📋 操作规范</h4>
+    <ul class="bullet-list">
+      <li>面试问题应结合岗位需求设计</li>
+      <li>评分标准要客观明确</li>
+      <li>定期检查和优化面试模板</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ====== SCENE 5: 团队管理 ====== -->
+<section class="section" id="scene5" style="background:rgba(212,165,232,.15)">
+  <div class="section-header">
+    <h2><span class="num" style="background:var(--lavender);color:#fff">3.5</span> 场景五：团队管理</h2>
+    <p class="desc">管理员需要管理团队成员权限和系统配置。</p>
+  </div>
+
+  <div class="step-block">
+    <div class="step-title"><span class="step-num" style="background:var(--butter)">1</span> 邀请团队成员</div>
+    <div class="card-sm">
+      <ol style="padding-left:20px">
+        <li style="margin-bottom:4px;font-weight:500">点击左侧菜单"设置" → "团队管理"</li>
+        <li style="margin-bottom:4px;font-weight:500">点击"邀请成员"按钮</li>
+        <li style="margin-bottom:4px;font-weight:500">填写成员信息：邮箱地址、姓名、角色权限（从下拉选择）</li>
+        <li style="font-weight:500">点击"发送邀请"</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="step-block">
+    <div class="step-title"><span class="step-num" style="background:var(--sky)">2</span> 角色权限管理</div>
+    <div class="perm-grid">
+      <div class="perm-card"><div class="role-name" style="color:var(--coral)">管理员 (Admin)</div><ul><li>所有系统功能权限</li><li>团队成员管理</li><li>系统配置管理</li><li>数据导出权限</li></ul></div>
+      <div class="perm-card"><div class="role-name" style="color:var(--turquoise)">招募专员 (Recruiter)</div><ul><li>候选人管理</li><li>面试流程管理</li><li>数据查看和导出</li><li class="no">无法修改系统配置</li></ul></div>
+      <div class="perm-card"><div class="role-name" style="color:var(--sky)">面试官 (Interviewer)</div><ul><li>面试执行</li><li>面试结果记录</li><li>候选人查看</li><li class="no">无法修改配置和系统设置</li></ul></div>
+      <div class="perm-card"><div class="role-name" style="color:var(--text-muted)">查看者 (Viewer)</div><ul><li>仅查看权限</li><li class="no">无法进行任何操作</li><li>可查看基本数据</li></ul></div>
+    </div>
+  </div>
+
+  <div class="step-block">
+    <div class="step-title"><span class="step-num" style="background:var(--mint)">3</span> 配置AI模型</div>
+    <div class="card-sm">
+      <ol style="padding-left:20px">
+        <li style="margin-bottom:4px;font-weight:500">点击"设置" → "AI模型"</li>
+        <li style="margin-bottom:4px;font-weight:500">点击"添加AI提供商"按钮</li>
+        <li style="margin-bottom:4px;font-weight:500">配置AI服务：选择AI服务商（OpenAI、Claude等）、输入API密钥、设置模型参数</li>
+        <li style="font-weight:500">点击"保存配置"</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="step-block">
+    <div class="step-title"><span class="step-num" style="background:var(--soft-pink)">4</span> 管理通知设置</div>
+    <div class="card-sm">
+      <ol style="padding-left:20px">
+        <li style="margin-bottom:4px;font-weight:500">在"设置" → "通知管理"中配置</li>
+        <li style="margin-bottom:4px;font-weight:500">设置通知类型：新候选人通知、面试提醒、审批通知、系统更新通知</li>
+        <li style="font-weight:500">选择通知方式：邮件通知 / 系统内通知 / 短信通知（如配置）</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="step-block">
+    <div class="step-title"><span class="step-num" style="background:var(--peach)">5</span> 系统监控</div>
+    <div class="feat-grid" style="grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px">
+      <div class="feat-card"><h4>活跃用户统计</h4></div>
+      <div class="feat-card"><h4>数据使用量</h4></div>
+      <div class="feat-card"><h4>AI调用次数</h4></div>
+      <div class="feat-card"><h4>系统运行状态</h4></div>
+    </div>
+  </div>
+
+  <div class="info-box warn">
+    <h4>⚠️ 注意事项</h4>
+    <ul class="bullet-list">
+      <li>权限分配遵循最小必要原则</li>
+      <li>定期检查API密钥安全性</li>
+      <li>及时清理不活跃用户账户</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ====== SCENE 6: 员工档案管理 ====== -->
+<section class="section alt" id="scene6">
+  <div class="section-header">
+    <h2><span class="num" style="background:var(--peach)">3.6</span> 场景六：员工档案管理</h2>
+    <p class="desc">候选人录用后，需要管理员工档案、绩效记录和胜任力模型。</p>
+  </div>
+
+  <div class="step-block">
+    <div class="step-title"><span class="step-num" style="background:var(--butter)">1</span> 查看员工列表</div>
+    <div class="card-sm">
+      <ol style="padding-left:20px">
+        <li style="margin-bottom:4px;font-weight:500">点击左侧菜单「员工档案」</li>
+        <li style="margin-bottom:4px;font-weight:500">查看4张统计卡片：<span class="badge" style="background:var(--mint)">在职人数</span> <span class="badge" style="background:var(--sky)">平均绩效</span> <span class="badge" style="background:var(--butter)">留存天数</span> <span class="badge" style="background:var(--soft-pink)">培训均分</span></li>
+        <li style="font-weight:500">使用状态筛选按钮筛选（全部/入职中/试用期/正式/辞退/离职）+ 搜索框按姓名或邮箱搜索</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="step-block">
+    <div class="step-title"><span class="step-num" style="background:var(--sky)">2</span> 新建员工档案</div>
+    <div class="card-sm">
+      <ol style="padding-left:20px">
+        <li style="margin-bottom:4px;font-weight:500">点击「新建员工」按钮</li>
+        <li style="margin-bottom:4px;font-weight:500">在弹窗中填写：姓名、邮箱、电话、岗位、部门、上级、学历、专业、技能列表、证书、入职日期</li>
+        <li style="font-weight:500">点击「保存」</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="step-block">
+    <div class="step-title"><span class="step-num" style="background:var(--mint)">3</span> 管理绩效记录</div>
+    <div class="card-sm">
+      <ol style="padding-left:20px">
+        <li style="margin-bottom:4px;font-weight:500">在员工列表中点击展开详情</li>
+        <li style="margin-bottom:4px;font-weight:500">查看该员工的绩效记录列表（按周期排序）</li>
+        <li style="font-weight:500">点击「添加绩效」添加新记录：绩效周期（如 2026-Q1）、绩效分数、各维度得分（维度名/分数/备注）、优势/不足</li>
+      </ol>
+      <p style="margin-top:8px;font-size:.85rem;color:var(--text-muted)">系统自动计算平均绩效并更新到员工档案</p>
+    </div>
+  </div>
+
+  <div class="step-block">
+    <div class="step-title"><span class="step-num" style="background:var(--lavender)">4</span> 管理胜任力模型</div>
+    <div class="card-sm">
+      <ol style="padding-left:20px;margin-bottom:12px">
+        <li style="margin-bottom:4px;font-weight:500">切换到「胜任力模型」Tab</li>
+        <li style="margin-bottom:4px;font-weight:500">使用岗位筛选下拉框查看不同岗位的模型</li>
+        <li style="margin-bottom:4px;font-weight:500">查看模型卡片：模型名、版本、维度数、来源（手动/AI推导）</li>
+        <li style="font-weight:500">点击「新建模型」或「AI推导」</li>
+      </ol>
+      <table class="data-table">
+        <thead><tr><th>维度名</th><th>权重</th><th>描述</th></tr></thead>
+        <tbody>
+          <tr><td>专业技能</td><td>30</td><td>核心岗位技能</td></tr>
+          <tr><td>沟通能力</td><td>20</td><td>团队协作沟通</td></tr>
+          <tr><td>问题解决</td><td>25</td><td>分析和解决问题</td></tr>
+          <tr><td>学习能力</td><td>15</td><td>快速学习新技术</td></tr>
+          <tr><td>责任心</td><td>10</td><td>工作责任心和主动性</td></tr>
+        </tbody>
+      </table>
+      <p style="margin-top:10px;font-size:.85rem;color:var(--text-muted)">「AI推导」按钮：系统根据该岗位绩效最高的员工自动生成胜任力模型</p>
+    </div>
+  </div>
+</section>
+
+<!-- ====== SCENE 7: 短信模板管理 ====== -->
+<section class="section" id="scene7" style="background:rgba(168,216,240,.18)">
+  <div class="section-header">
+    <h2><span class="num" style="background:var(--sky)">3.7</span> 场景七：短信模板管理（管理员）</h2>
+    <p class="desc">管理员需要配置腾讯云短信模板，供招聘专员在发送短信时选择使用。</p>
+  </div>
+
+  <div class="step-block">
+    <div class="step-title"><span class="step-num" style="background:var(--butter)">1</span> 进入短信模板管理</div>
+    <div class="card-sm">
+      <ol style="padding-left:20px">
+        <li style="margin-bottom:4px;font-weight:500">点击左侧菜单「系统管理」</li>
+        <li style="font-weight:500">选择「短信模板」Tab</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="step-block">
+    <div class="step-title"><span class="step-num" style="background:var(--sky)">2</span> 创建短信模板</div>
+    <div class="card-sm">
+      <ol style="padding-left:20px">
+        <li style="margin-bottom:4px;font-weight:500">点击「新建模板」按钮</li>
+        <li style="margin-bottom:4px;font-weight:500">填写模板信息：
+          <ul class="bullet-list" style="margin-top:6px">
+            <li><strong>模板名称</strong>：如"面试邀请通知"</li>
+            <li><strong>腾讯云模板ID</strong>：在腾讯云短信控制台获取</li>
+            <li><strong>短信签名</strong>：如"EM-BOX"</li>
+            <li><strong>模板内容</strong>：使用 {0}、{1} 作为变量占位符，如"您好{0}，您已进入{1}岗位面试环节"</li>
+            <li><strong>参数列表</strong>（逗号分隔）：候选人姓名, 岗位名称</li>
+          </ul>
+        </li>
+        <li style="font-weight:500">点击「创建模板」</li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<!-- ====== SCENE 8: 通知中心 ====== -->
+<section class="section alt" id="scene8">
+  <div class="section-header">
+    <h2><span class="num" style="background:var(--soft-pink)">3.8</span> 场景八：通知中心</h2>
+    <p class="desc">实时查看系统通知，掌握面试、审批、候选人等动态。</p>
+  </div>
+
+  <div class="card">
+    <ol style="padding-left:20px">
+      <li style="margin-bottom:6px;font-weight:500">点击顶部导航栏右侧的🔔铃铛图标</li>
+      <li style="margin-bottom:6px;font-weight:500">查看未读通知（红色数字角标显示未读数）</li>
+      <li style="margin-bottom:6px;font-weight:500">通知类型包括：
+        <span class="badge" style="background:var(--lavender)">面试通知</span>
+        <span class="badge" style="background:var(--mint)">审批通知</span>
+        <span class="badge" style="background:var(--sky)">候选人通知</span>
+        <span class="badge" style="background:#e5e5e5">系统通知</span>
+        <span class="badge" style="background:var(--butter)">外联通知</span>
+      </li>
+      <li style="margin-bottom:6px;font-weight:500">点击通知标记为已读（如含链接则自动跳转）</li>
+      <li style="margin-bottom:6px;font-weight:500">点击「全部已读」批量标记</li>
+      <li style="font-weight:500">每条通知右侧✕按钮可删除</li>
+    </ol>
+  </div>
+</section>
+
+<!-- ====== SECTION 4: 评分体系说明 ====== -->
+<section class="section" id="scoring" style="background:rgba(253,232,138,.2)">
+  <div class="deco" style="top:10px;right:10px;width:80px;height:80px">
+    <svg viewBox="0 0 100 98.6" xmlns="http://www.w3.org/2000/svg"><path fill="#D4A5E8" stroke="#2D2D2D" stroke-width="2.4166" stroke-miterlimit="10" d="m57.7 7.8 8.3 19.1c.5 1.3 1.5 2.1 2.8 2.3l21.5 2.2c6.4.8 9.4 8.3 5.3 13.7l-16.2 15.2c-1 .9-1.5 2.5-1.2 4.2l4.3 21.1c.9 6.2-4.9 11.6-12 8.7l-18.1-10.2c-1.4-.8-3.3-.8-4.8 0l-17.8 10.2c-6 2.9-13.2-.6-12.7-8l4.5-21.3c.3-1.7-.1-3.5-1.3-4.5l-15.2-13.5c-4.5-4.3-3.6-13.6 4.2-15.6l21.5-2.2c1.3-.1 2.3-.9 2.9-2.3l8.7-19.1c2.7-6 11.5-7.7 15.3 0z"/></svg>
+  </div>
+
+  <div class="section-header">
+    <h2><span class="num" style="background:var(--butter)">4</span> 评分体系说明</h2>
+  </div>
+
+  <div class="card" style="margin-bottom:20px">
+    <h3 style="margin-bottom:10px">4.1 AI评分机制</h3>
+    <p style="margin-bottom:8px">EM-BOX使用多维度AI评分算法，对候选人进行全面评估：</p>
+    <p style="margin-bottom:4px"><strong>Fit Score（适配分数）</strong></p>
+    <ul class="bullet-list" style="margin-bottom:10px">
+      <li>范围：0-100分</li><li>计算方式：各维度得分按权重加权平均</li><li>用途：衡量候选人整体适配度</li>
+    </ul>
+    <p style="margin-bottom:4px"><strong>Grade（评级）</strong></p>
+    <table class="data-table">
+      <thead><tr><th>评级</th><th>分数区间</th><th>含义</th></tr></thead>
+      <tbody>
+        <tr><td><span class="badge" style="background:var(--mint)">A档</span></td><td>90-100分</td><td>优秀，强烈推荐</td></tr>
+        <tr><td><span class="badge" style="background:var(--sky)">B+档</span></td><td>80-89分</td><td>良好，强烈推荐</td></tr>
+        <tr><td><span class="badge" style="background:var(--butter)">B档</span></td><td>70-79分</td><td>合格，推荐考虑</td></tr>
+        <tr><td><span class="badge" style="background:var(--peach)">C档</span></td><td>60-69分</td><td>基本合格，可考虑</td></tr>
+        <tr><td><span class="badge" style="background:var(--soft-pink)">D档</span></td><td>0-59分</td><td>不合格，不推荐</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card" style="margin-bottom:20px">
+    <h3 style="margin-bottom:10px">4.2 评分维度</h3>
+    <table class="data-table">
+      <thead><tr><th>维度名称</th><th>权重</th><th>评估内容</th><th>评分标准</th></tr></thead>
+      <tbody>
+        <tr><td>经验对口度</td><td><span class="badge">30%</span></td><td>工作经验与岗位匹配度</td><td>行业经验、项目经验、技能匹配</td></tr>
+        <tr><td>技能熟练度</td><td><span class="badge">25%</span></td><td>专业技能掌握程度</td><td>技术深度、操作熟练度、工具使用</td></tr>
+        <tr><td>团队合作能力</td><td><span class="badge">20%</span></td><td>团队协作和沟通能力</td><td>沟通技巧、团队意识、协作经验</td></tr>
+        <tr><td>学习能力</td><td><span class="badge">15%</span></td><td>学习适应和成长能力</td><td>学习速度、知识迁移、成长潜力</td></tr>
+        <tr><td>稳定性</td><td><span class="badge">10%</span></td><td>工作稳定性和职业规划</td><td>职业规划清晰度、稳定性、忠诚度</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card" style="margin-bottom:20px">
+    <h3 style="margin-bottom:10px">4.3 关键词分析</h3>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      <div class="card-sm" style="box-shadow:none;border-color:var(--mint)">
+        <h4 style="color:var(--mint);margin-bottom:4px">✓ Matched Keywords（匹配关键词）</h4>
+        <p style="font-size:.85rem;color:var(--text-muted);font-weight:500">候选人简历中包含的岗位所需技能，直接影响评分和推荐理由，<strong style="color:var(--mint)">显示为绿色高亮</strong></p>
+      </div>
+      <div class="card-sm" style="box-shadow:none;border-color:var(--coral)">
+        <h4 style="color:var(--coral);margin-bottom:4px">✗ Missing Keywords（缺少关键词）</h4>
+        <p style="font-size:.85rem;color:var(--text-muted);font-weight:500">候选人简历中缺少的重要技能，影响评分降分因素，<strong style="color:var(--coral)">显示为红色标记</strong></p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3 style="margin-bottom:10px">4.4 评分结果应用</h3>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px">
+      <div class="card-sm" style="box-shadow:none"><h4 style="font-size:.9rem">候选人筛选</h4><ul class="bullet-list"><li>按Fit Score排序</li><li>结合Grade快速筛选</li><li>建议70分以上</li></ul></div>
+      <div class="card-sm" style="box-shadow:none"><h4 style="font-size:.9rem">面试安排</h4><ul class="bullet-list"><li>A档：优先安排</li><li>B+档：重点安排</li><li>B档：根据情况</li><li>C档以下：重新评估</li></ul></div>
+      <div class="card-sm" style="box-shadow:none"><h4 style="font-size:.9rem">录用决策</h4><ul class="bullet-list"><li>综合AI评分和面试结果</li><li>考虑团队需求和实际</li><li>制定个性化培养计划</li></ul></div>
+    </div>
+  </div>
+</section>
+
+<!-- ====== SECTION 5: FAQ ====== -->
+<section class="section alt" id="faq">
+  <div class="section-header">
+    <h2><span class="num" style="background:var(--coral);color:#fff">5</span> 常见问题 FAQ</h2>
+  </div>
+
+  <h3 style="margin-bottom:12px;position:relative;z-index:2">5.1 候选人相关问题</h3>
+  <div class="faq-item"><div class="q">Q: 候选人搜索没有结果？</div><div class="a">A: 请检查：确认已导入候选人简历文件 / 检查是否已选择对应的岗位 / 确认简历文件格式正确（.md或.txt）/ 尝试重置筛选条件并重新搜索</div></div>
+  <div class="faq-item"><div class="q">Q: AI评分结果不准确？</div><div class="a">A: 请检查：岗位画像配置是否完整 / 评分标准的权重总和是否为100% / 关键词设置是否合理 / 尝试重新分析简历文件</div></div>
+  <div class="faq-item"><div class="q">Q: 如何手动调整评分结果？</div><div class="a">A: 系统不支持直接修改AI评分，但可以：在候选人详情页面添加备注 / 通过面试结果进行综合评估 / 在评价中心进行最终审批</div></div>
+
+  <h3 style="margin:24px 0 12px;position:relative;z-index:2">5.2 面试相关问题</h3>
+  <div class="faq-item"><div class="q">Q: 面试模板无法创建？</div><div class="a">A: 请确保：已创建对应的岗位配置 / 选择正确的关联岗位 / 填写完整的模板信息 / 检查问题设置是否合理</div></div>
+  <div class="faq-item"><div class="q">Q: 面试结果如何导出？</div><div class="a">A: 进入"评价中心" → 选择要导出的面试结果 → 点击"导出报告" → 选择导出格式（PDF或Excel）→ 点击"确认导出"</div></div>
+  <div class="faq-item"><div class="q">Q: 面试评分标准如何设置？</div><div class="a">A: 建议使用1-5分制或1-10分制 / 评分标准要具体明确 / 避免主观性描述 / 可参考公司现有评价体系</div></div>
+
+  <h3 style="margin:24px 0 12px;position:relative;z-index:2">5.3 系统操作问题</h3>
+  <div class="faq-item"><div class="q">Q: 外联邮件发不出去？</div><div class="a">A: 当前系统使用mailto协议，会自动打开本地邮件客户端（如Outlook、Apple Mail），预填充邮件内容，需要用户手动点击发送。如无法发送，请检查本地邮件客户端设置。</div></div>
+  <div class="faq-item"><div class="q">Q: 如何批量操作候选人？</div><div class="a">A: 在候选人列表中使用复选框选择多个候选人 → 点击"批量操作"按钮 → 选择操作类型（添加入围、发送邮件、导出等）→ 确认操作并执行</div></div>
+  <div class="faq-item"><div class="q">Q: 数据如何导出？</div><div class="a">A: 各页面均有"导出"按钮，支持格式：CSV、PDF、PNG。CSV适合数据分析，PDF/PNG适合打印和分享。大数据量导出可能需要等待时间。</div></div>
+
+  <h3 style="margin:24px 0 12px;position:relative;z-index:2">5.4 权限相关问题</h3>
+  <div class="faq-item"><div class="q">Q: 如何申请更高权限？</div><div class="a">A: 联系系统管理员 → 说明权限需求原因 → 提供工作场景说明 → 等待管理员审批 → 权限变更后收到通知</div></div>
+  <div class="faq-item"><div class="q">Q: 为什么无法看到某些数据？</div><div class="a">A: 查看者角色只能看到基础数据 / 面试官无法查看候选人详细信息 / 招募专员无法修改系统配置 / 请确认当前角色权限设置</div></div>
+</section>
+
+<!-- ====== SECTION 6: 术语对照表 ====== -->
+<section class="section" id="glossary" style="background:rgba(168,216,240,.15)">
+  <div class="section-header">
+    <h2><span class="num" style="background:var(--sky)">6</span> 术语对照表</h2>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:20px">
+    <div>
+      <h3 style="margin-bottom:12px;position:relative;z-index:2">6.1 业务术语</h3>
+      <table class="data-table">
+        <thead><tr><th>术语</th><th>中文说明</th><th>英文</th></tr></thead>
+        <tbody>
+          <tr><td>岗位配置</td><td>Job Configuration</td><td>Position Configuration</td></tr>
+          <tr><td>画像配置</td><td>Profile Configuration</td><td>Profile Rules</td></tr>
+          <tr><td>评分标准</td><td>Scoring Criteria</td><td>Scoring Rules</td></tr>
+          <tr><td>适配分数</td><td>Fit Score</td><td>Fit Score</td></tr>
+          <tr><td>评级</td><td>Grade</td><td>Grade</td></tr>
+          <tr><td>入围名单</td><td>Shortlist</td><td>Shortlist</td></tr>
+          <tr><td>候选人</td><td>Candidate</td><td>Candidate</td></tr>
+          <tr><td>面试模板</td><td>Interview Template</td><td>Interview Template</td></tr>
+          <tr><td>外联</td><td>Outreach</td><td>Outreach</td></tr>
+          <tr><td>推进</td><td>Promotion</td><td>Promotion</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div>
+      <h3 style="margin-bottom:12px;position:relative;z-index:2">6.2 技术术语</h3>
+      <table class="data-table">
+        <thead><tr><th>术语</th><th>中文说明</th><th>英文</th></tr></thead>
+        <tbody>
+          <tr><td>AI模型</td><td>AI Model</td><td>AI Model</td></tr>
+          <tr><td>API密钥</td><td>API Key</td><td>API Key</td></tr>
+          <tr><td>权限管理</td><td>Permission Management</td><td>Role Management</td></tr>
+          <tr><td>数据导入</td><td>Data Import</td><td>Data Import</td></tr>
+          <tr><td>数据导出</td><td>Data Export</td><td>Data Export</td></tr>
+          <tr><td>批量操作</td><td>Batch Operation</td><td>Batch Operation</td></tr>
+          <tr><td>筛选器</td><td>Filter</td><td>Filter</td></tr>
+          <tr><td>搜索栏</td><td>Search Bar</td><td>Search Bar</td></tr>
+          <tr><td>通知中心</td><td>Notification Center</td><td>Notification Center</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div>
+      <h3 style="margin-bottom:12px;position:relative;z-index:2">6.3 状态术语</h3>
+      <table class="data-table">
+        <thead><tr><th>术语</th><th>中文说明</th><th>英文</th></tr></thead>
+        <tbody>
+          <tr><td>待处理</td><td>Pending</td><td>Pending</td></tr>
+          <tr><td>进行中</td><td>In Progress</td><td>In Progress</td></tr>
+          <tr><td>已完成</td><td>Completed</td><td>Completed</td></tr>
+          <tr><td>已拒绝</td><td>Rejected</td><td>Rejected</td></tr>
+          <tr><td>已通过</td><td>Approved</td><td>Approved</td></tr>
+          <tr><td>已联系</td><td>Contacted</td><td>Contacted</td></tr>
+          <tr><td>已面试</td><td>Interviewed</td><td>Interviewed</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ====== FOOTER ====== -->
+<footer class="footer" id="footer">
+  <div class="deco" style="top:-15px;left:-15px;width:140px;height:140px">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 150 150"><style>.d1{fill:#FCDF6C}.d2{fill:none;stroke:#232323;stroke-width:2.07;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:10}.d3{fill:#FFF;stroke:#232323;stroke-width:2.07;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:10}</style><path class="d3" d="m66.6 53.8-5.9-13.8c-2.2-5.9-4.6-17.9-1.7-26.2 1.7-4.9 6.7-11.4 15.4-11.4s13.4 4.6 15.7 8.6c4.8 8.1 2.5 20.3-.1 27.7l-6.8 15.1"/><path class="d3" d="m92.1 115.2c1.3 5.8 1.9 13.8-.2 19.9-1.9 5.1-6.4 12.5-16.9 12.5s-14.9-5.3-16.8-13.1c-1.7-7-.6-15.2 1.7-22l6.7-16.4"/><path class="d3" d="m96 66.4 14.7-5.8c5.9-2.4 16.2-8.3 19.8-17 2.8-6.4 2.1-14.2-4.3-19.7-2.8-2.5-6.2-4.2-10.2-5-9.3-.6-15.8 5.5-20.3 10.9-2.7 3.4-5.1 7.4-6.8 11l-5.7 12.8"/><path class="d3" d="m54 84-14.7 5.5c-5.7 2.1-12.3 6.6-15.9 10.9-1.9 2.3-4 5.7-4.9 8.9-2.1 8.5 2.8 18 11.7 21.8 4.9 1.3 9.3.9 13.6-1.2 7.6-3.6 13.8-12.1 16.9-18.5l5.9-13.6"/><path class="d3" d="m96.2 83.8 14.5 5.5c5.9 2.1 15.7 8.3 19.5 16.2 2.6 5.1 3.2 12.1-1.9 18.7-2.7 3.3-7 6.9-13.2 6.9s-14.1-5-18.3-9.7c-2.6-3.2-5.4-7.6-7.3-11.5l-6.1-14.2"/><path class="d3" d="m54 66.1-14.3-5.5c-5.7-2.1-15.9-3.4-23.1-2.1-6.2 1.2-11.9 5.9-13.4 12.1-1.7 7.6 1.7 17.2 11.9 20.2 7 2.1 16.8 1.1 23.6-1.1l15.5-5.9"/><path class="d3" d="m116.4 58.9c4.2-.9 9.2-1.5 14.1-.9 5.1.5 9.7 2.6 12.9 6.4 6.2 7 5.1 17.3-1.5 22.8-2.3 2.1-5.5 3.8-9.5 4.4-6.8 1.1-14.1.3-21.3-1.9"/><path class="d3" d="m60.7 40c-3.3-6.4-10.5-17.1-18.8-20.5-7.2-3.1-15.5-1.5-20.4 4.9-2.1 2.8-3.7 6.2-3.7 10-.2 8.5 5.8 15.4 13.7 20.7 3.2 2.1 7 4.2 10.6 5.5"/><path class="d1" d="m75.1 52.1c-10.9 0-22.6 8.9-22.6 23 0 9.3 7 22.1 22.6 22.1s22.5-8.7 22.5-21.9c0-11.1-9.3-23.2-22.5-23.2z"/><path class="d2" d="m75.1 52.1c-10.9 0-22.6 8.9-22.6 23 0 9.3 7 22.1 22.6 22.1s22.5-8.7 22.5-21.9c0-11.1-9.3-23.2-22.5-23.2z"/></svg>
+  </div>
+  <div class="deco" style="bottom:10px;right:-10px;width:110px;height:110px">
+    <svg viewBox="0 0 120 120"><circle cx="60" cy="60" r="26" fill="#FFCD57" stroke="#2D2D2D" stroke-width="2.8"/><g stroke="#2D2D2D" stroke-width="2.8" stroke-linecap="round"><line x1="60" y1="10" x2="60" y2="24"/><line x1="60" y1="96" x2="60" y2="110"/><line x1="10" y1="60" x2="24" y2="60"/><line x1="96" y1="60" x2="110" y2="60"/><line x1="24.5" y1="24.5" x2="34" y2="34"/><line x1="86" y1="86" x2="95.5" y2="95.5"/><line x1="24.5" y1="95.5" x2="34" y2="86"/><line x1="86" y1="34" x2="95.5" y2="24.5"/></g><circle cx="51" cy="55" r="3" fill="#2D2D2D"/><circle cx="69" cy="55" r="3" fill="#2D2D2D"/><path d="M 50 68 Q 60 76 70 68" fill="none" stroke="#2D2D2D" stroke-width="2.8" stroke-linecap="round"/></svg>
+  </div>
+
+  <div class="card" style="text-align:center">
+    <h3 style="margin-bottom:12px">联系支持</h3>
+    <p style="margin-bottom:8px">📧 技术支持：<strong>support@embox.com</strong></p>
+    <p style="margin-bottom:8px">📧 业务咨询：<strong>business@embox.com</strong></p>
+    <p style="font-size:.85rem;color:var(--text-muted);margin-top:16px">紧急问题：请使用系统内的在线客服功能</p>
+    <p style="font-size:.78rem;color:var(--text-muted);margin-top:12px;font-style:italic">本文档将根据系统更新持续完善，最新版本请查看系统内的帮助中心。</p>
+  </div>
+</footer>
+
+</main>
+
+<a href="#top" class="back-top" title="回到顶部">↑</a>
+
+<script>
+function toggleSidebar(){
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('sidebarOverlay').classList.toggle('open');
+}
+
+// Highlight current section in sidebar
+const sections=document.querySelectorAll('section[id],footer[id]');
+const navLinks=document.querySelectorAll('.sidebar-nav a');
+const observer=new IntersectionObserver(entries=>{
+  entries.forEach(entry=>{
+    if(entry.isIntersecting){
+      navLinks.forEach(link=>link.classList.remove('active'));
+      const active=document.querySelector(`.sidebar-nav a[href="#${entry.target.id}"]`);
+      if(active)active.classList.add('active');
+    }
+  });
+},{rootMargin:'-20% 0px -70% 0px'});
+sections.forEach(s=>observer.observe(s));
+
+// Close sidebar on nav click (mobile)
+navLinks.forEach(link=>{
+  link.addEventListener('click',()=>{
+    document.getElementById('sidebar').classList.remove('open');
+    document.getElementById('sidebarOverlay').classList.remove('open');
+  });
+});
+</script>
+</body>
+</html>
