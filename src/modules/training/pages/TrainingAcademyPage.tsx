@@ -67,6 +67,7 @@ export const TrainingAcademyPage = () => {
   const [editingPath, setEditingPath] = useState<LearningPath | null>(null);
   const [enrollmentPathId, setEnrollmentPathId] = useState<string | null>(null);
   const [showBatchEnroll, setShowBatchEnroll] = useState(false);
+  const [previewCourse, setPreviewCourse] = useState<TrainingCourse | null>(null);
 
   useEffect(() => {
     loadData();
@@ -264,6 +265,7 @@ export const TrainingAcademyPage = () => {
             onBatchEnroll={() => setShowBatchEnroll(true)}
             onEdit={(course) => setEditingCourse(course)}
             onDelete={handleDeleteCourse}
+            onPreview={(course) => setPreviewCourse(course)}
           />
         )}
         {activeTab === 'enrollments' && (
@@ -306,6 +308,14 @@ export const TrainingAcademyPage = () => {
           initial={editingCourse}
           onClose={() => setEditingCourse(null)}
           onSubmit={(input) => handleUpdateCourse(input)}
+        />
+      )}
+
+      {/* Preview Course Video Modal */}
+      {previewCourse && (
+        <PreviewCourseModal
+          course={previewCourse}
+          onClose={() => setPreviewCourse(null)}
         />
       )}
 
@@ -376,9 +386,10 @@ const StatsCard = ({icon: Icon, label, value, color}: {
   );
 };
 
-const CoursesTab = ({courses, onAdd, onBatchEnroll, onEdit, onDelete}: {
+const CoursesTab = ({courses, onAdd, onBatchEnroll, onEdit, onDelete, onPreview}: {
   courses: TrainingCourse[]; onAdd: () => void; onBatchEnroll: () => void;
   onEdit: (course: TrainingCourse) => void; onDelete: (id: string) => void;
+  onPreview: (course: TrainingCourse) => void;
 }) => {
   const [filter, setFilter] = useState('');
   const filtered = filter ? courses.filter(c => c.category === filter) : courses;
@@ -411,14 +422,20 @@ const CoursesTab = ({courses, onAdd, onBatchEnroll, onEdit, onDelete}: {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filtered.map(course => (
-          <div key={course.id} className="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md transition-shadow group relative">
+          <div
+            key={course.id}
+            className="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md transition-shadow group relative cursor-pointer"
+            onClick={() => course.content.some((s: {contentType: string}) => s.contentType === 'video') && onPreview(course)}
+          >
             <div className="flex items-start justify-between mb-3">
               <div>
                 <h3 className="font-semibold text-gray-900 text-sm">{course.title}</h3>
                 <p className="text-xs text-gray-500 mt-1 line-clamp-2">{course.description}</p>
               </div>
               {course.content.some((s: {contentType: string}) => s.contentType === 'video') && (
-                <span className="shrink-0 ml-2 px-1.5 py-0.5 bg-indigo-100 text-indigo-600 rounded text-[10px] font-medium">含视频</span>
+                <span className="shrink-0 ml-2 px-1.5 py-0.5 bg-indigo-100 text-indigo-600 rounded text-[10px] font-medium flex items-center gap-1">
+                  <PlayCircle className="w-3 h-3" /> 含视频
+                </span>
               )}
             </div>
             <div className="flex items-center gap-2 mb-3">
@@ -436,12 +453,17 @@ const CoursesTab = ({courses, onAdd, onBatchEnroll, onEdit, onDelete}: {
             </div>
             {/* Hover actions */}
             <div className="flex items-center gap-1 mt-3 pt-3 border-t border-gray-100 opacity-0 group-hover:opacity-100 transition-opacity">
-              <button onClick={() => onEdit(course)} className="flex items-center gap-1 px-3 py-1.5 text-xs text-gray-600 hover:text-[#1a4bc4] hover:bg-blue-50 rounded-lg transition-colors">
+              <button onClick={(e) => { e.stopPropagation(); onEdit(course); }} className="flex items-center gap-1 px-3 py-1.5 text-xs text-gray-600 hover:text-[#1a4bc4] hover:bg-blue-50 rounded-lg transition-colors">
                 <Edit3 className="w-3.5 h-3.5" /> 编辑
               </button>
-              <button onClick={() => onDelete(course.id)} className="flex items-center gap-1 px-3 py-1.5 text-xs text-gray-600 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+              <button onClick={(e) => { e.stopPropagation(); onDelete(course.id); }} className="flex items-center gap-1 px-3 py-1.5 text-xs text-gray-600 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
                 <Trash2 className="w-3.5 h-3.5" /> 删除
               </button>
+              {course.content.some((s: {contentType: string}) => s.contentType === 'video') && (
+                <button onClick={(e) => { e.stopPropagation(); onPreview(course); }} className="flex items-center gap-1 px-3 py-1.5 text-xs text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors ml-auto">
+                  <PlayCircle className="w-3.5 h-3.5" /> 预览视频
+                </button>
+              )}
             </div>
           </div>
         ))}
@@ -1690,6 +1712,55 @@ const BatchEnrollModal = ({courses, paths, onClose, onDone}: {
             </div>
           </div>
         )}
+      </motion.div>
+    </div>
+  );
+};
+
+// ─── Preview Course Video Modal ───────────────────────────────────────────
+
+const PreviewCourseModal = ({course, onClose}: {course: TrainingCourse; onClose: () => void}) => {
+  const videoSection = course.content.find(s => s.contentType === 'video');
+  const videoUrl = videoSection?.contentUrl ?? '';
+
+  return (
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={onClose}>
+      <motion.div
+        initial={{opacity: 0, scale: 0.95}}
+        animate={{opacity: 1, scale: 1}}
+        className="bg-white rounded-2xl w-full max-w-3xl shadow-xl overflow-hidden"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-5 py-3 border-b border-gray-200">
+          <div>
+            <h3 className="font-semibold text-gray-900 text-sm">{course.title}</h3>
+            <p className="text-xs text-gray-400">{videoSection?.sectionTitle ?? '视频预览'}</p>
+          </div>
+          <button onClick={onClose} className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        <div className="p-4">
+          {videoUrl ? (
+            <video
+              src={videoUrl}
+              controls
+              autoPlay
+              className="w-full aspect-video rounded-xl bg-black"
+            />
+          ) : (
+            <div className="aspect-video bg-gray-900 rounded-xl flex items-center justify-center text-white/60">
+              <div className="text-center">
+                <PlayCircle className="w-12 h-12 mx-auto mb-2 opacity-40" />
+                <p className="text-sm">暂无视频内容</p>
+              </div>
+            </div>
+          )}
+        </div>
+        <div className="px-5 py-3 bg-gray-50 border-t border-gray-200 flex items-center justify-between">
+          <span className="text-xs text-gray-500">课程时长：{course.durationMinutes} 分钟</span>
+          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">关闭</button>
+        </div>
       </motion.div>
     </div>
   );
