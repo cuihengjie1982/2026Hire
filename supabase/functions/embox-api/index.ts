@@ -48,7 +48,7 @@ const loadHandlers = async (): Promise<RouteHandler[]> => {
   // SMS Gateway
   const { sendSmsHandler, listTemplates, createTemplate } = await import('./sms-gateway/index.ts');
   // Training Academy
-  const { handleCourses, handleEnrollments, handleAnalytics, getTrainingStats, exportEnrollmentsCsv, portalHandler, handlePaths, uploadMaterial, batchEnroll } = await import('./training/index.ts');
+  const { handleCourses, handleEnrollments, handleAnalytics, getTrainingStats, exportEnrollmentsCsv, portalHandler, handlePaths, uploadMaterial, batchEnroll, handleNotes, handleTrainingAi } = await import('./training/index.ts');
   // Stats (sidebar counts + unified search)
   const { sidebarStats, searchStats, dashboardStats } = await import('./stats/index.ts');
   // Shortlist (pipeline)
@@ -165,6 +165,10 @@ const loadHandlers = async (): Promise<RouteHandler[]> => {
     { pattern: '/training/paths', methods: ['GET', 'POST', 'PATCH', 'DELETE'], auth: 'recruiter+', handler: handlePaths },
     // Training Academy — Public Candidate Portal (no auth)
     { pattern: '/training/portal', methods: ['GET'], auth: 'none', handler: portalHandler },
+    // Training Academy — Notes CRUD (no auth — candidate portal)
+    { pattern: '/training/notes', methods: ['GET', 'POST', 'PATCH', 'DELETE'], auth: 'any', handler: handleNotes },
+    // Training Academy — AI Summarize & Q&A (any authenticated)
+    { pattern: '/training/ai/', methods: ['POST'], auth: 'any', handler: handleTrainingAi },
     // Stats — dashboard/sidebar/search (any authenticated)
     { pattern: '/stats/dashboard', methods: ['GET'], auth: 'any', handler: dashboardStats },
     { pattern: '/stats/sidebar', methods: ['GET'], auth: 'any', handler: sidebarStats },

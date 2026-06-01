@@ -26,6 +26,8 @@ interface PortalEnrollment {
   post_interview_score: number | null;
   notes: string | null;
   assessments: PortalAssessment[];
+  content?: {sectionTitle: string; contentType: string; text?: string; contentUrl?: string}[];
+  materials?: {title: string; type: string; url?: string}[];
 }
 
 interface PortalAssessment {
@@ -333,10 +335,21 @@ export const CandidateTrainingPortal = () => {
                     </div>
                   )}
 
+                  {/* Enter learning button */}
+                  {enrollment.content && enrollment.content.some((s: {contentType: string}) => s.contentType === 'video') && (
+                    <a
+                      href={`/training/portal/player?enrollmentId=${encodeURIComponent(enrollment.id)}&cid=${encodeURIComponent(candidateId)}${token ? `&token=${encodeURIComponent(token)}` : ''}`}
+                      className="flex items-center justify-center gap-2 w-full py-3 bg-indigo-500 text-white rounded-xl text-sm font-medium hover:bg-indigo-600 transition-colors"
+                    >
+                      <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current"><polygon points="5,3 19,12 5,21"/></svg>
+                      进入学习
+                    </a>
+                  )}
+
                   {/* Dates */}
                   <div className="flex gap-4 text-xs text-gray-400">
                     <span>报名：{formatDate(enrollment.enrolled_at)}</span>
-                    {enrollment.completed_at && <span>完成：{formatDate(enrollment.completed_at)}</span>}
+                    {enrollment.completed_at ? <span>完成：{formatDate(enrollment.completed_at)}</span> : null}
                   </div>
                 </motion.div>
               )}

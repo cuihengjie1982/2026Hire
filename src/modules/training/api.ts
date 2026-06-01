@@ -602,3 +602,101 @@ export const batchEnroll = async (input: BatchEnrollInput): Promise<BatchEnrollR
   }
   return efetch<BatchEnrollResult>('/training/enrollments/batch', 'POST', input as unknown as Record<string, unknown>);
 };
+
+// ─── Training Notes ─────────────────────────────────────────────────────
+
+export interface TrainingNote {
+  id: string;
+  enrollmentId: string;
+  candidateId: string;
+  videoTimestamp: number;
+  noteTitle: string;
+  noteContent: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const listNotes = async (enrollmentId: string): Promise<{items: TrainingNote[]; total: number}> => {
+  if (USE_MOCK_API) {
+    await mockDelay();
+    return { items: [], total: 0 };
+  }
+  const payload = await efetch<Record<string, unknown>>(`/training/notes/${encodeURIComponent(enrollmentId)}`);
+  return {
+    items: (payload.items as Record<string, unknown>[] ?? []).map((r) => ({
+      id: String(r.id ?? ''),
+      enrollmentId: String(r.enrollment_id ?? ''),
+      candidateId: String(r.candidate_id ?? ''),
+      videoTimestamp: Number(r.video_timestamp ?? 0),
+      noteTitle: String(r.note_title ?? ''),
+      noteContent: r.note_content ? String(r.note_content) : null,
+      createdAt: String(r.created_at ?? ''),
+      updatedAt: String(r.updated_at ?? ''),
+    })),
+    total: (payload.total as number) ?? 0,
+  };
+};
+
+export const createNote = async (input: {
+  enrollmentId: string;
+  candidateId: string;
+  videoTimestamp: number;
+  noteTitle: string;
+  noteContent?: string;
+}): Promise<TrainingNote> => {
+  if (USE_MOCK_API) {
+    await mockDelay();
+    return { id: Date.now().toString(), ...input, noteContent: input.noteContent ?? null, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+  }
+  const raw = await efetch<Record<string, unknown>>('/training/notes', 'POST', input);
+  return {
+    id: String(raw.id ?? ''),
+    enrollmentId: String(raw.enrollment_id ?? ''),
+    candidateId: String(raw.candidate_id ?? ''),
+    videoTimestamp: Number(raw.video_timestamp ?? 0),
+    noteTitle: String(raw.note_title ?? ''),
+    noteContent: raw.note_content ? String(raw.note_content) : null,
+    createdAt: String(raw.created_at ?? ''),
+    updatedAt: String(raw.updated_at ?? ''),
+  };
+};
+
+export const updateNote = async (id: string, updates: {noteTitle?: string; noteContent?: string; videoTimestamp?: number}): Promise<TrainingNote> => {
+  if (USE_MOCK_API) { return { id, enrollmentId: '', candidateId: '', videoTimestamp: 0, noteTitle: '', noteContent: null, createdAt: '', updatedAt: new Date().toISOString() } as TrainingNote; }
+  const raw = await efetch<Record<string, unknown>>(`/training/notes/${encodeURIComponent(id)}`, 'PATCH', updates);
+  return {
+    id: String(raw.id ?? ''),
+    enrollmentId: String(raw.enrollment_id ?? ''),
+    candidateId: String(raw.candidate_id ?? ''),
+    videoTimestamp: Number(raw.video_timestamp ?? 0),
+    noteTitle: String(raw.note_title ?? ''),
+    noteContent: raw.note_content ? String(raw.note_content) : null,
+    createdAt: String(raw.created_at ?? ''),
+    updatedAt: String(raw.updated_at ?? ''),
+  };
+};
+
+export const deleteNote = async (id: string): Promise<void> => {
+  if (USE_MOCK_API) { return; }
+  await efetch(`/training/notes/${encodeURIComponent(id)}`, 'DELETE');
+};
+
+// ─── AI Summarize & Q&A ──────────────────────────────────────────────────
+
+export const summarizeContent = async (content: string, title?: string): Promise<string> => {
+  if (USE_MOCK_API) {
+    await mockDelay();
+    return `【AI摘要】\n课程主题：${title ?? '未命名课程'}\n核心知识点：\n1. 第一知识点\n2. 第二知识点\n3. 第三知识点\n学习建议：建议结合实际案例加深理解。`;
+  }
+  const raw = await efetch<Record<string, unknown>>('/training/ai/summarize', 'POST', { content, title });
+  return String(raw.summary ?? '');
+};
+
+export const askAI = async (question: string, transcript: string, videoTime: number, courseTitle?: string): Promise<string> => {
+  if (USE_MOCK_API) {
+    await mockDelay();
+    return `AI 回复：您的问题是"${question.substring(0, 20)}..."。根据视频内容，建议您重点关注相关章节的学习。`;
+  }
+  const raw = await efetch<Record<string, unknown>>('/training/ai/qa', 'POST', { question, transcript, videoTime, courseTitle });
+  return String(raw.answer ?? '');
+};

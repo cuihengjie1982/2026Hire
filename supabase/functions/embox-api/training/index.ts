@@ -1232,6 +1232,128 @@ const batchEnroll = async (req: Request): Promise<Response> => {
 };
 
 // =============================================================================
+// Training Notes CRUD — no auth required (candidate portal uses token)
+// =============================================================================
+
+const handleNotes = async (req: Request): Promise<Response> => {
+  try {
+    const supabase = createSupabaseAdmin(req);
+    const url = new URL(req.url);
+    const path = url.pathname.replace(/^\/embox-api/, '') || '/';
+    const method = req.method;
+
+    // GET /training/notes/:enrollmentId — list notes
+    if (method === 'GET' && path.match(/^\/training\/notes\/[^/]+$/)) {
+      const enrollmentId = path.split('/')[3];
+      const { data, error } = await supabase
+        .from('training_notes')
+        .select('*')
+        .eq('enrollment_id', enrollmentId)
+        .order('video_timestamp', { ascending: true })
+        .order('created_at', { ascending: true });
+      if (error) throw error;
+      return jsonRes({ items: data ?? [], total: data?.length ?? 0 });
+    }
+
+    // POST /training/notes — create note
+    if (method === 'POST' && path === '/training/notes') {
+      const body = await req.json();
+      const { enrollmentId, candidateId, videoTimestamp, noteTitle, noteContent } = body;
+      if (!enrollmentId || !candidateId || !noteTitle) {
+        return jsonRes({ error: { code: 'VALIDATION_ERROR', message: 'enrollmentId, candidateId, noteTitle required' } }, 400);
+      }
+      const { data, error } = await supabase.from('training_notes').insert({
+        enrollment_id: enrollmentId,
+        candidate_id: candidateId,
+        video_timestamp: videoTimestamp ?? 0,
+        note_title: noteTitle,
+        note_content: noteContent ?? null,
+      }).select().single();
+      if (error) throw error;
+      return jsonRes(data, 201);
+    }
+
+    // PATCH /training/notes/:id — update note
+    if (method === 'PATCH' && path.match(/^\/training\/notes\/[^/]+$/)) {
+      const noteId = path.split('/')[3];
+      const body = await req.json();
+      const { noteTitle, noteContent, videoTimestamp } = body;
+      const updates: Record<string, unknown> = {};
+      if (noteTitle !== undefined) updates.note_title = noteTitle;
+      if (noteContent !== undefined) updates.note_content = noteContent;
+      if (videoTimestamp !== undefined) updates.video_timestamp = videoTimestamp;
+      updates.updated_at = new Date().toISOString();
+      const { data, error } = await supabase
+        .from('training_notes')
+        .update(updates)
+        .eq('id', noteId)
+        .select()
+        .single();
+      if (error) throw error;
+      if (!data) return jsonRes({ error: { code: 'NOT_FOUND', message: 'Note not found' } }, 404);
+      return jsonRes(data);
+    }
+
+    // DELETE /training/notes/:id — delete note
+    if (method === 'DELETE' && path.match(/^\/training\/notes\/[^/]+$/)) {
+      const noteId = path.split('/')[3];
+      const { error } = await supabase.from('training_notes').delete().eq('id', noteId);
+      if (error) throw error;
+      return jsonRes({ deleted: true, id: noteId });
+    }
+
+    return jsonRes({ error: { code: 'NOT_FOUND', message: 'Notes endpoint not found' } }, 404);
+  } catch (e) {
+    console.error('[training notes]', e);
+    return jsonRes({ error: { code: 'INTERNAL_ERROR', message: 'Failed to process notes' } }, 500);
+  }
+};
+
+// =============================================================================
+// AI Summarize & Q&A — call LLM with course content/transcript
+// =============================================================================
+
+const handleTrainingAi = async (req: Request): Promise<Response> => {
+  try {
+    const supabase = createSupabaseAdmin(req);
+    const body = await req.json();
+    const url = new URL(req.url);
+    const path = url.pathname.replace(/^\/embox-api/, '') || '/';
+
+    // POST /training/ai/summarize
+    if (path.endsWith('/summarize')) {
+      const { content, title } = body;
+      if (!content) {
+        return jsonRes({ error: { code: 'VALIDATION_ERROR', message: 'content is required' } }, 400);
+      }
+      const { callLLM } = await import('../_shared/llmClient.ts');
+      const systemPrompt = '你是一个专业的培训课程助手。请根据提供的课程内容，生成一个简洁的中文摘要，包括：1）课程主题；2）核心知识点（3-5点）；3）学习建议。回复格式清晰，用中文。';
+      const userMessage = `课程标题：${title ?? '未命名课程'}\n\n课程内容：\n${typeof content === 'string' ? content : JSON.stringify(content)}`;
+      const result = await callLLM({}, systemPrompt, userMessage);
+      return jsonRes({ summary: result });
+    }
+
+    // POST /training/ai/qa
+    if (path.endsWith('/qa')) {
+      const { question, transcript, videoTime, courseTitle } = body;
+      if (!question) {
+        return jsonRes({ error: { code: 'VALIDATION_ERROR', message: 'question is required' } }, 400);
+      }
+      const { callLLM } = await import('../_shared/llmClient.ts');
+      const systemPrompt = '你是一个专业的视频学习助手。基于提供的视频文字稿，准确回答用户的问题。如果文字稿中没有相关信息，请说明并尝试基于常识回答。回复用中文，简洁明了。';
+      const userMessage = `课程标题：${courseTitle ?? '未知课程'}\n视频时间点：${videoTime ?? '未知'}\n\n文字稿内容：\n${transcript ?? '（无文字稿）'}\n\n用户问题：${question}`;
+      const result = await callLLM({}, systemPrompt, userMessage);
+      return jsonRes({ answer: result });
+    }
+
+    return jsonRes({ error: { code: 'NOT_FOUND', message: 'AI endpoint not found' } }, 404);
+  } catch (e) {
+    console.error('[training ai]', e);
+    return jsonRes({ error: { code: 'INTERNAL_ERROR', message: 'Failed to process AI request' } }, 500);
+  }
+};
+
+// =============================================================================
 // Analytics handlers
 // =============================================================================
 
@@ -1253,4 +1375,6 @@ export {
   portalHandler,
   uploadMaterial,
   batchEnroll,
+  handleNotes,
+  handleTrainingAi,
 };

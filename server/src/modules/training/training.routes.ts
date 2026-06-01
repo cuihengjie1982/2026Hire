@@ -889,4 +889,111 @@ router.post('/enrollments/batch', requireRole('admin', 'recruiter'), async (req,
   } catch (e) { next(e); }
 });
 
+// ═══════════════════════════════════════════════════════════════════
+// Training Notes CRUD (no auth required — candidate portal uses token)
+// ═══════════════════════════════════════════════════════════════════
+
+// GET /notes/:enrollmentId — list notes for an enrollment
+router.get('/notes/:enrollmentId', async (req, res, next) => {
+  try {
+    const rows = await query(
+      `SELECT * FROM training_notes WHERE enrollment_id = $1 ORDER BY video_timestamp ASC, created_at ASC`,
+      [req.params.enrollmentId],
+    );
+    res.json({items: rows, total: rows.length});
+  } catch (e) { next(e); }
+});
+
+// POST /notes — create a note
+router.post('/notes', async (req, res, next) => {
+  try {
+    const {enrollmentId, candidateId, videoTimestamp, noteTitle, noteContent} = req.body;
+    if (!enrollmentId || !candidateId || !noteTitle) {
+      res.status(400).json({error: {code: 'VALIDATION_ERROR', message: 'enrollmentId, candidateId, noteTitle required'}});
+      return;
+    }
+    const row = await queryOne(
+      `INSERT INTO training_notes (enrollment_id, candidate_id, video_timestamp, note_title, note_content)
+       VALUES ($1,$2,$3,$4,$5) RETURNING *`,
+      [enrollmentId, candidateId, videoTimestamp ?? 0, noteTitle, noteContent ?? null],
+    );
+    res.status(201).json(row);
+  } catch (e) { next(e); }
+});
+
+// PATCH /notes/:id — update a note
+router.patch('/notes/:id', async (req, res, next) => {
+  try {
+    const {noteTitle, noteContent, videoTimestamp} = req.body;
+    const fields: string[] = [];
+    const values: unknown[] = [];
+    let idx = 1;
+    if (noteTitle !== undefined) { fields.push(`note_title = $${idx++}`); values.push(noteTitle); }
+    if (noteContent !== undefined) { fields.push(`note_content = $${idx++}`); values.push(noteContent); }
+    if (videoTimestamp !== undefined) { fields.push(`video_timestamp = $${idx++}`); values.push(videoTimestamp); }
+    if (fields.length === 0) { res.status(400).json({error: {code: 'VALIDATION_ERROR', message: 'No fields'}}); return; }
+    fields.push('updated_at = now()');
+    values.push(req.params.id);
+    const row = await queryOne(
+      `UPDATE training_notes SET ${fields.join(', ')} WHERE id = $${idx} RETURNING *`,
+      values,
+    );
+    if (!row) { res.status(404).json({error: {code: 'NOT_FOUND', message: 'Note not found'}}); return; }
+    res.json(row);
+  } catch (e) { next(e); }
+});
+
+// DELETE /notes/:id (admin, recruiter)
+router.delete('/notes/:id', requireRole('admin', 'recruiter'), async (req, res, next) => {
+  try {
+    const row = await queryOne(`DELETE FROM training_notes WHERE id = $1 RETURNING id`, [req.params.id]);
+    if (!row) { res.status(404).json({error: {code: 'NOT_FOUND', message: 'Note not found'}}); return; }
+    res.json({deleted: true, id: row.id});
+  } catch (e) { next(e); }
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// AI Summarize (POST /training/ai/summarize)
+// ═══════════════════════════════════════════════════════════════════
+
+router.post('/ai/summarize', async (req, res, next) => {
+  try {
+    const {content, title} = req.body;
+    if (!content) {
+      res.status(400).json({error: {code: 'VALIDATION_ERROR', message: 'content is required'}});
+      return;
+    }
+
+    const {callLLM} = await import('../../modules/ai/llmClient.js');
+
+    const systemPrompt = '你是一个专业的培训课程助手。请根据提供的课程内容，生成一个简洁的中文摘要，包括：1）课程主题；2）核心知识点（3-5点）；3）学习建议。回复格式清晰，用中文。';
+    const userMessage = `课程标题：${title ?? '未命名课程'}\n\n课程内容：\n${typeof content === 'string' ? content : JSON.stringify(content)}`;
+
+    const result = await callLLM({}, systemPrompt, userMessage);
+    res.json({summary: result});
+  } catch (e) { next(e); }
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// AI Q&A (POST /training/ai/qa)
+// ═══════════════════════════════════════════════════════════════════
+
+router.post('/ai/qa', async (req, res, next) => {
+  try {
+    const {question, transcript, videoTime, courseTitle} = req.body;
+    if (!question) {
+      res.status(400).json({error: {code: 'VALIDATION_ERROR', message: 'question is required'}});
+      return;
+    }
+
+    const {callLLM} = await import('../../modules/ai/llmClient.js');
+
+    const systemPrompt = '你是一个专业的视频学习助手。基于提供的视频文字稿，准确回答用户的问题。如果文字稿中没有相关信息，请说明并尝试基于常识回答。回复用中文，简洁明了。';
+    const userMessage = `课程标题：${courseTitle ?? '未知课程'}\n视频时间点：${videoTime ?? '未知'}\n\n文字稿内容：\n${transcript ?? '（无文字稿）'}\n\n用户问题：${question}`;
+
+    const result = await callLLM({}, systemPrompt, userMessage);
+    res.json({answer: result});
+  } catch (e) { next(e); }
+});
+
 export default router;

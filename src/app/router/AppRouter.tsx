@@ -56,6 +56,11 @@ const CandidateTrainingPortal = lazy(() =>
     default: module.CandidateTrainingPortal,
   })),
 );
+const VideoLearningPlayerPage = lazy(() =>
+  import('../../modules/training/pages/VideoLearningPlayerPage').then((module) => ({
+    default: module.VideoLearningPlayerPage,
+  })),
+);
 const ConversationInterviewPage = lazy(() =>
   import('../../modules/interviews/pages/ConversationInterviewPage').then(m => ({default: m.default})),
 );
@@ -109,6 +114,7 @@ export const AppRouter = ({onLogout}: {onLogout: () => void}) => (
         <Route path="/interviews/conversational" element={withPageGuard(<ConversationInterviewPage />, '会话式面试')} />
         <Route path="*" element={<NotFoundPage />} />
         <Route path="/training/portal" element={withPageGuard(<CandidateTrainingPortal />, '培训门户')} />
+        <Route path="/training/portal/player" element={withPageGuard(<VideoLearningPlayerPage />, '视频学习')} />
         {/* Public interview routes — no login required */}
         <Route path="/interview/:token" element={withSuspense(<CandidateInterviewEntry />)} />
         <Route path="/interview/:token/chat" element={withSuspense(<PublicConversationInterviewPage />)} />
