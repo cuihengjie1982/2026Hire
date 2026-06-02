@@ -1,4 +1,4 @@
-import React, {useRef, useState, useEffect} from 'react';
+import React, {useRef, useState, useEffect, useImperativeHandle, forwardRef} from 'react';
 
 interface TopicSegment {
   id: string;
@@ -16,14 +16,22 @@ interface VideoPlayerProps {
   topicSegments?: TopicSegment[];
 }
 
-export const VideoPlayer: React.FC<VideoPlayerProps> = ({
+export interface VideoPlayerHandle {
+  getVideoElement: () => HTMLVideoElement | null;
+}
+
+export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(({
   src,
   onTimeUpdate,
   onDurationChange,
   externalSeek,
   topicSegments = [],
-}) => {
+}, ref) => {
   const videoRef = useRef<HTMLVideoElement>(null);
+
+  useImperativeHandle(ref, () => ({
+    getVideoElement: () => videoRef.current ?? null,
+  }));
   const [playing, setPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -238,6 +246,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       )}
     </div>
   );
-};
+});
+
+VideoPlayer.displayName = 'VideoPlayer';
 
 export default VideoPlayer;
