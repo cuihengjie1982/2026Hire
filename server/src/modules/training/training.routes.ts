@@ -996,4 +996,47 @@ router.post('/ai/qa', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+// ═══════════════════════════════════════════════════════════════════
+// AI Topic Extraction (POST /training/ai/topics)
+// ═══════════════════════════════════════════════════════════════════
+
+router.post('/ai/topics', async (req, res, next) => {
+  try {
+    const {content, title, duration} = req.body;
+    if (!content) {
+      res.status(400).json({error: {code: 'VALIDATION_ERROR', message: 'content is required'}});
+      return;
+    }
+
+    const {callLLM} = await import('../../modules/ai/llmClient.js');
+
+    const systemPrompt = `你是一个视频内容分析专家。根据提供的带时间戳的视频文字稿，提取3-8个主要主题/话题。
+
+要求：
+1. 每个主题必须包含：title（主题名称）、startTime（开始秒数）、endTime（结束秒数）
+2. 主题之间可以有间隔，也可以有重叠
+3. 时间范围必须基于文字稿中的时间戳
+4. 主题名称简洁，2-6个字
+5. 必须严格返回JSON格式，不要包含其他文字
+
+返回格式示例：
+{"topics":[{"title":"开场介绍","startTime":0,"endTime":150},{"title":"STAR法则","startTime":150,"endTime":480}]}`;
+
+    const userMessage = `课程标题：${title ?? '未命名课程'}\n视频总时长：${duration ? Math.floor(duration) + '秒' : '未知'}\n\n文字稿内容：\n${typeof content === 'string' ? content : JSON.stringify(content)}`;
+
+    const result = await callLLM({}, systemPrompt, userMessage);
+
+    // Parse JSON from LLM response
+    let topics;
+    try {
+      const jsonMatch = result.match(/\{[\s\S]*\}/);
+      topics = jsonMatch ? JSON.parse(jsonMatch[0]) : {topics: []};
+    } catch {
+      topics = {topics: []};
+    }
+
+    res.json(topics);
+  } catch (e) { next(e); }
+});
+
 export default router;

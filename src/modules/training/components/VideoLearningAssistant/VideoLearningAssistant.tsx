@@ -1,4 +1,4 @@
-import React, {useState, useCallback} from 'react';
+import React, {useState, useCallback, useEffect} from 'react';
 import {ArrowLeft, GraduationCap, BookOpen, Shield} from 'lucide-react';
 import {useNavigate} from 'react-router-dom';
 import {VideoPlayer} from './VideoPlayer';
@@ -7,7 +7,15 @@ import {AISummaryTab} from './tabs/AISummaryTab';
 import {TranscriptTab} from './tabs/TranscriptTab';
 import {NotesTab} from './tabs/NotesTab';
 import {AIQAChatTab} from './tabs/AIQAChatTab';
+import {TopicTagBar, type TopicSegment as TopicSegmentUI} from './TopicTagBar';
+import {TopicCardList} from './TopicCardList';
+import {generateTopics, type TopicSegment} from '../../api';
 import type {TrainingCourse} from '../../types';
+
+const TOPIC_COLORS = [
+  '#4F46E5', '#059669', '#D97706', '#DC2626',
+  '#7C3AED', '#0891B2', '#DB2777', '#65A30D',
+];
 
 interface CourseSection {
   sectionTitle: string;
@@ -45,6 +53,9 @@ export const VideoLearningAssistant: React.FC<{
   const [activeTab, setActiveTab] = useState<TabId>('summary');
   const [currentVideoTime, setCurrentVideoTime] = useState(0);
   const [seekTo, setSeekTo] = useState<number | undefined>(undefined);
+  const [videoDuration, setVideoDuration] = useState(0);
+  const [topicSegments, setTopicSegments] = useState<TopicSegmentUI[]>([]);
+  const [topicsLoading, setTopicsLoading] = useState(false);
 
   const isPreviewMode = !!course;
 
@@ -65,8 +76,34 @@ export const VideoLearningAssistant: React.FC<{
     .map(s => s.text!)
     .join('\n');
 
+  // Auto-generate topics when transcript is available
+  useEffect(() => {
+    if (!transcriptText) return;
+    let cancelled = false;
+    setTopicsLoading(true);
+    generateTopics(transcriptText, courseTitle, videoDuration || durationMinutes * 60)
+      .then(rawTopics => {
+        if (cancelled) return;
+        const mapped: TopicSegmentUI[] = rawTopics.map((t, i) => ({
+          id: `topic-${i}`,
+          title: t.title,
+          startTime: t.startTime,
+          endTime: t.endTime,
+          color: TOPIC_COLORS[i % TOPIC_COLORS.length],
+        }));
+        setTopicSegments(mapped);
+      })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setTopicsLoading(false); });
+    return () => { cancelled = true; };
+  }, [transcriptText, courseTitle, videoDuration, durationMinutes]);
+
   const handleTimeUpdate = useCallback((time: number) => {
     setCurrentVideoTime(time);
+  }, []);
+
+  const handleDurationChange = useCallback((dur: number) => {
+    setVideoDuration(dur);
   }, []);
 
   const handleSeek = useCallback((time: number) => {
@@ -117,7 +154,9 @@ export const VideoLearningAssistant: React.FC<{
               <VideoPlayer
                 src={videoUrl}
                 onTimeUpdate={handleTimeUpdate}
+                onDurationChange={handleDurationChange}
                 externalSeek={seekTo}
+                topicSegments={topicSegments}
               />
             ) : (
               <div className="aspect-video bg-gray-900 rounded-xl flex items-center justify-center">
@@ -128,13 +167,32 @@ export const VideoLearningAssistant: React.FC<{
               </div>
             )}
 
-            {/* Video section info */}
-            {videoSection && (
+            {/* AI Topic Tags */}
+            {(topicSegments.length > 0 || topicsLoading) && (
+              <TopicTagBar
+                topics={topicSegments}
+                currentVideoTime={currentVideoTime}
+                onSeek={handleSeek}
+                loading={topicsLoading}
+                onSearchTopic={(keyword) => {
+                  // Find closest topic match or seek to first mention in transcript
+                  const match = topicSegments.find(t =>
+                    t.title.includes(keyword) || keyword.includes(t.title)
+                  );
+                  if (match) handleSeek(match.startTime);
+                }}
+              />
+            )}
+
+            {/* Topic card list with mini progress bars */}
+            {topicSegments.length > 0 && (
               <div className="bg-white rounded-xl border border-gray-200 p-3">
-                <p className="text-sm font-medium text-gray-800">{videoSection.sectionTitle}</p>
-                {courseDescription && (
-                  <p className="text-xs text-gray-500 mt-1">{courseDescription}</p>
-                )}
+                <TopicCardList
+                  topics={topicSegments}
+                  currentVideoTime={currentVideoTime}
+                  duration={videoDuration}
+                  onSeek={handleSeek}
+                />
               </div>
             )}
 

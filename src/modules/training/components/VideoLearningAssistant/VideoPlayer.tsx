@@ -1,10 +1,19 @@
 import React, {useRef, useState, useEffect} from 'react';
 
+interface TopicSegment {
+  id: string;
+  title: string;
+  startTime: number;
+  endTime: number;
+  color: string;
+}
+
 interface VideoPlayerProps {
   src: string;
   onTimeUpdate?: (time: number) => void;
   onDurationChange?: (duration: number) => void;
   externalSeek?: number;
+  topicSegments?: TopicSegment[];
 }
 
 export const VideoPlayer: React.FC<VideoPlayerProps> = ({
@@ -12,6 +21,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   onTimeUpdate,
   onDurationChange,
   externalSeek,
+  topicSegments = [],
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [playing, setPlaying] = useState(false);
@@ -95,6 +105,9 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
   const progressPct = duration > 0 ? (currentTime / duration) * 100 : 0;
 
+  // Find current active topic for tooltip
+  const activeTopic = topicSegments.find(t => currentTime >= t.startTime && currentTime < t.endTime);
+
   return (
     <div
       className="relative w-full bg-black rounded-xl overflow-hidden group"
@@ -117,22 +130,63 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         {/* Progress bar */}
         <div className="px-4 pt-4 pb-2">
           <div className="relative w-full group/progress">
-            <div className="w-full h-1 bg-white/30 rounded-full overflow-hidden cursor-pointer"
+            {/* Topic-colored progress bar background */}
+            <div className="w-full h-1.5 bg-white/20 rounded-full overflow-hidden cursor-pointer relative"
               onClick={(e) => {
                 const rect = e.currentTarget.getBoundingClientRect();
                 const pct = (e.clientX - rect.left) / rect.width;
                 if (videoRef.current) videoRef.current.currentTime = pct * duration;
               }}>
-              <div className="h-full bg-red-500 rounded-full" style={{width: `${progressPct}%`}} />
+
+              {/* Topic segments as colored bands */}
+              {duration > 0 && topicSegments.map(topic => {
+                const left = (topic.startTime / duration) * 100;
+                const width = Math.max(0.5, ((topic.endTime - topic.startTime) / duration) * 100);
+                const isActive = currentTime >= topic.startTime && currentTime < topic.endTime;
+                return (
+                  <div
+                    key={topic.id}
+                    className="absolute top-0 h-full rounded-sm transition-opacity"
+                    style={{
+                      left: `${left}%`,
+                      width: `${width}%`,
+                      backgroundColor: isActive ? topic.color : `${topic.color}80`,
+                      opacity: isActive ? 1 : 0.6,
+                    }}
+                  />
+                );
+              })}
+
+              {/* Current position indicator */}
+              <div
+                className="absolute top-0 h-full bg-white/30 rounded-full"
+                style={{width: `${progressPct}%`}}
+              />
             </div>
+
+            {/* Hidden range input for precise seek */}
             <input
               type="range"
               min="0"
               max={duration || 100}
               value={currentTime}
               onChange={handleSeek}
-              className="absolute inset-0 w-full h-1 opacity-0 cursor-pointer"
+              className="absolute inset-0 w-full h-1.5 opacity-0 cursor-pointer"
             />
+
+            {/* Active topic tooltip on progress bar */}
+            {activeTopic && duration > 0 && (
+              <div
+                className="absolute -top-6 px-2 py-0.5 rounded text-[10px] text-white whitespace-nowrap pointer-events-none"
+                style={{
+                  left: `${Math.min(95, Math.max(5, (currentTime / duration) * 100))}%`,
+                  transform: 'translateX(-50%)',
+                  backgroundColor: activeTopic.color,
+                }}
+              >
+                {activeTopic.title}
+              </div>
+            )}
           </div>
           <div className="flex items-center justify-between mt-1 text-white text-xs">
             <span>{formatTime(currentTime)} / {formatTime(duration)}</span>

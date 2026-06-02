@@ -704,3 +704,25 @@ export const askAI = async (question: string, transcript: string, videoTime: num
   const raw = await efetch<Record<string, unknown>>('/training/ai/qa', 'POST', { question, transcript, videoTime, courseTitle });
   return String(raw.answer ?? '');
 };
+
+// ─── AI Topic Extraction ─────────────────────────────────────────────────
+
+export interface TopicSegment {
+  title: string;
+  startTime: number;
+  endTime: number;
+}
+
+export const generateTopics = async (content: string, title?: string, duration?: number): Promise<TopicSegment[]> => {
+  if (USE_MOCK_API) {
+    await mockDelay();
+    return [
+      {title: '开场介绍', startTime: 0, endTime: 60},
+      {title: '核心概念', startTime: 60, endTime: 180},
+      {title: '案例分析', startTime: 180, endTime: 360},
+    ];
+  }
+  const raw = await efetch<Record<string, unknown>>('/training/ai/topics', 'POST', { content, title, duration });
+  const topics = raw.topics as TopicSegment[] | undefined;
+  return Array.isArray(topics) ? topics : [];
+};
