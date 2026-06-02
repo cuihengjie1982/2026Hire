@@ -7,9 +7,16 @@ import {
   type EmployeeStats,
   type CreateEmployeeInput,
   type CreatePerformanceInput,
+  type ProfileHistoryEntry,
+  type ProfileHistoryResponse,
+  type CustomFieldDef,
+  type CustomFieldValue,
+  type CreateCustomFieldInput,
+  type EmployeeScorecard,
+  type TrainingRecommendation,
 } from './types';
 
-export type {EmployeeProfile, PerformanceRecord, CompetencyModel, EmployeeStats, CreateEmployeeInput, CreatePerformanceInput};
+export type {EmployeeProfile, PerformanceRecord, CompetencyModel, EmployeeStats, CreateEmployeeInput, CreatePerformanceInput, ProfileHistoryEntry, ProfileHistoryResponse, CustomFieldDef, CustomFieldValue, CreateCustomFieldInput, EmployeeScorecard, TrainingRecommendation};
 
 // ─── Mappers ────────────────────────────────────────────────────────────
 
@@ -423,4 +430,319 @@ export const deleteCompetencyModel = async (id: string): Promise<void> => {
     return;
   }
   await fetchJson(`/api/employees/competency-models/${id}`, {method: 'DELETE'});
+};
+
+// ─── Version History ────────────────────────────────────────────────────
+
+const mapHistoryEntry = (raw: Record<string, unknown>): ProfileHistoryEntry => ({
+  id: String(raw.id ?? ''),
+  employeeId: String(raw.employee_id ?? raw.employeeId ?? ''),
+  action: String(raw.action ?? 'update') as ProfileHistoryEntry['action'],
+  fieldName: raw.field_name ? String(raw.field_name) : null,
+  fieldLabel: raw.field_label ? String(raw.field_label) : null,
+  oldValue: raw.old_value != null ? String(raw.old_value) : null,
+  newValue: raw.new_value != null ? String(raw.new_value) : null,
+  changedBy: raw.changed_by ? String(raw.changed_by) : null,
+  changedByEmail: raw.changed_by_email ? String(raw.changed_by_email) : null,
+  changedAt: String(raw.changed_at ?? ''),
+});
+
+const HISTORY_KEY = 'em-box.mock.employee-history';
+
+const loadHistory = (): ProfileHistoryEntry[] => {
+  try {
+    return JSON.parse(localStorage.getItem(HISTORY_KEY) ?? '[]');
+  } catch { return []; }
+};
+const saveHistory = (items: ProfileHistoryEntry[]) => {
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(items));
+};
+
+export const getEmployeeHistory = async (
+  employeeId: string,
+  page = 1,
+  pageSize = 20,
+): Promise<ProfileHistoryResponse> => {
+  if (USE_MOCK_API) {
+    await mockDelay();
+    const all = loadHistory().filter(h => h.employeeId === employeeId);
+    const start = (page - 1) * pageSize;
+    return {
+      items: all.slice(start, start + pageSize),
+      total: all.length,
+      page,
+      pageSize,
+    };
+  }
+
+  const raw = await fetchJson<Record<string, unknown>>(
+    `/api/employees/${employeeId}/history?page=${page}&pageSize=${pageSize}`,
+  );
+  return {
+    items: ((raw.items ?? []) as Record<string, unknown>[]).map(mapHistoryEntry),
+    total: Number(raw.total ?? 0),
+    page: Number(raw.page ?? 1),
+    pageSize: Number(raw.pageSize ?? 20),
+  };
+};
+
+// ─── Custom Fields ────────────────────────────────────────────────────
+
+const CUSTOM_FIELDS_KEY = 'em-box.mock.custom-fields';
+
+const loadCustomFields = (): CustomFieldDef[] => {
+  try { return JSON.parse(localStorage.getItem(CUSTOM_FIELDS_KEY) ?? '[]'); } catch { return []; }
+};
+const saveCustomFields = (items: CustomFieldDef[]) => {
+  localStorage.setItem(CUSTOM_FIELDS_KEY, JSON.stringify(items));
+};
+
+const mapCustomFieldDef = (raw: Record<string, unknown>): CustomFieldDef => ({
+  id: String(raw.id ?? ''),
+  fieldKey: String(raw.field_key ?? raw.fieldKey ?? ''),
+  fieldLabel: String(raw.field_label ?? raw.fieldLabel ?? ''),
+  fieldType: String(raw.field_type ?? raw.fieldType ?? 'text') as CustomFieldDef['fieldType'],
+  options: (raw.options ?? []) as {label: string; value: string}[],
+  sortOrder: Number(raw.sort_order ?? raw.sortOrder ?? 0),
+  isActive: raw.is_active !== false && raw.isActive !== false,
+  source: String(raw.source ?? 'manual') as CustomFieldDef['source'],
+  createdAt: String(raw.created_at ?? ''),
+  updatedAt: String(raw.updated_at ?? ''),
+});
+
+export const listCustomFields = async (): Promise<CustomFieldDef[]> => {
+  if (USE_MOCK_API) {
+    await mockDelay();
+    return loadCustomFields().filter(f => f.isActive);
+  }
+  const raw = await fetchJson<Record<string, unknown>[]>('/api/employees/custom-fields');
+  return (raw ?? []).map(mapCustomFieldDef);
+};
+
+export const createCustomField = async (input: CreateCustomFieldInput): Promise<CustomFieldDef> => {
+  if (USE_MOCK_API) {
+    await mockDelay();
+    const fields = loadCustomFields();
+    const existing = fields.find(f => f.fieldKey === input.fieldKey);
+    if (existing) {
+      existing.fieldLabel = input.fieldLabel;
+      existing.fieldType = (input.fieldType ?? 'text') as CustomFieldDef['fieldType'];
+      existing.options = input.options ?? [];
+      existing.isActive = true;
+      saveCustomFields(fields);
+      return existing;
+    }
+    const newField: CustomFieldDef = {
+      id: `mock-cf-${Date.now()}`,
+      fieldKey: input.fieldKey,
+      fieldLabel: input.fieldLabel,
+      fieldType: (input.fieldType ?? 'text') as CustomFieldDef['fieldType'],
+      options: input.options ?? [],
+      sortOrder: 0,
+      isActive: true,
+      source: input.source ?? 'manual',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    fields.push(newField);
+    saveCustomFields(fields);
+    return newField;
+  }
+  const raw = await fetchJson<Record<string, unknown>>('/api/employees/custom-fields', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+  return mapCustomFieldDef(raw);
+};
+
+export const updateCustomField = async (
+  id: string,
+  updates: Partial<Pick<CustomFieldDef, 'fieldLabel' | 'fieldType' | 'options' | 'isActive' | 'sortOrder'>>,
+): Promise<CustomFieldDef> => {
+  if (USE_MOCK_API) {
+    await mockDelay();
+    const fields = loadCustomFields();
+    const idx = fields.findIndex(f => f.id === id);
+    if (idx === -1) throw new Error('Custom field not found');
+    fields[idx] = {...fields[idx], ...updates, updatedAt: new Date().toISOString()};
+    saveCustomFields(fields);
+    return fields[idx];
+  }
+  const raw = await fetchJson<Record<string, unknown>>(`/api/employees/custom-fields/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(updates),
+  });
+  return mapCustomFieldDef(raw);
+};
+
+export const deleteCustomField = async (id: string): Promise<void> => {
+  if (USE_MOCK_API) {
+    await mockDelay();
+    const fields = loadCustomFields();
+    const idx = fields.findIndex(f => f.id === id);
+    if (idx !== -1) {
+      fields[idx].isActive = false;
+      saveCustomFields(fields);
+    }
+    return;
+  }
+  await fetchJson(`/api/employees/custom-fields/${id}`, {method: 'DELETE'});
+};
+
+// Custom field values for a specific employee
+const mapCustomFieldValue = (raw: Record<string, unknown>): CustomFieldValue => ({
+  id: String(raw.id ?? ''),
+  employeeId: String(raw.employee_id ?? raw.employeeId ?? ''),
+  fieldId: String(raw.field_id ?? raw.fieldId ?? ''),
+  fieldKey: raw.field_key ? String(raw.field_key) : undefined,
+  fieldLabel: raw.field_label ? String(raw.field_label) : undefined,
+  fieldType: raw.field_type ? String(raw.field_type) : undefined,
+  valueText: raw.value_text != null ? String(raw.value_text) : null,
+  valueNum: raw.value_num != null ? Number(raw.value_num) : null,
+  valueDate: raw.value_date ? String(raw.value_date) : null,
+  valueJson: raw.value_json,
+});
+
+export const getCustomValues = async (employeeId: string): Promise<CustomFieldValue[]> => {
+  if (USE_MOCK_API) {
+    await mockDelay();
+    const key = `em-box.mock.custom-values-${employeeId}`;
+    try { return JSON.parse(localStorage.getItem(key) ?? '[]'); } catch { return []; }
+  }
+  const raw = await fetchJson<Record<string, unknown>[]>(`/api/employees/${employeeId}/custom-values`);
+  return (raw ?? []).map(mapCustomFieldValue);
+};
+
+export const updateCustomValues = async (
+  employeeId: string,
+  values: Array<{fieldId: string; value: unknown}>,
+): Promise<CustomFieldValue[]> => {
+  if (USE_MOCK_API) {
+    await mockDelay();
+    const key = `em-box.mock.custom-values-${employeeId}`;
+    const existing: CustomFieldValue[] = (() => { try { return JSON.parse(localStorage.getItem(key) ?? '[]'); } catch { return []; } })();
+    const fields = loadCustomFields();
+
+    for (const item of values) {
+      const def = fields.find(f => f.id === item.fieldId);
+      const idx = existing.findIndex(v => v.fieldId === item.fieldId);
+      const val: CustomFieldValue = {
+        id: idx >= 0 ? existing[idx].id : `mock-cv-${Date.now()}-${item.fieldId}`,
+        employeeId,
+        fieldId: item.fieldId,
+        fieldKey: def?.fieldKey,
+        fieldLabel: def?.fieldLabel,
+        fieldType: def?.fieldType,
+        valueText: def?.fieldType === 'text' || def?.fieldType === 'select' ? String(item.value ?? '') : null,
+        valueNum: def?.fieldType === 'number' ? Number(item.value) : null,
+        valueDate: def?.fieldType === 'date' ? String(item.value ?? '') : null,
+        valueJson: def?.fieldType === 'multiselect' || def?.fieldType === 'boolean' ? item.value : null,
+      };
+      if (idx >= 0) existing[idx] = val;
+      else existing.push(val);
+    }
+    localStorage.setItem(key, JSON.stringify(existing));
+    return existing;
+  }
+  const raw = await fetchJson<Record<string, unknown>[]>(`/api/employees/${employeeId}/custom-values`, {
+    method: 'PATCH',
+    body: JSON.stringify({values}),
+  });
+  return (raw ?? []).map(mapCustomFieldValue);
+};
+
+// ─── Scorecard ────────────────────────────────────────────────────
+
+const mapScorecard = (raw: Record<string, unknown>): EmployeeScorecard => ({
+  id: String(raw.id ?? ''),
+  employeeId: String(raw.employee_id ?? raw.employeeId ?? ''),
+  interviewScoreLatest: raw.interview_score_latest as number | null,
+  interviewGradeLatest: raw.interview_grade_latest as string | null,
+  interviewDateLatest: raw.interview_date_latest as string | null,
+  interviewCount: Number(raw.interview_count ?? 0),
+  trainingScoreAvg: raw.training_score_avg as number | null,
+  trainingCoursesTotal: Number(raw.training_courses_total ?? 0),
+  trainingCoursesPassed: Number(raw.training_courses_passed ?? 0),
+  trainingCompletionRate: raw.training_completion_rate as number | null,
+  performanceScoreAvg: raw.performance_score_avg as number | null,
+  performanceReviewCount: Number(raw.performance_review_count ?? 0),
+  performanceLatestRating: raw.performance_latest_rating as string | null,
+  compositeScore: raw.composite_score as number | null,
+  compositeGrade: raw.composite_grade as string | null,
+  competencyGapScore: raw.competency_gap_score as number | null,
+  lastRecomputedAt: String(raw.last_recomputed_at ?? ''),
+});
+
+export const getScorecard = async (employeeId: string): Promise<EmployeeScorecard | null> => {
+  if (USE_MOCK_API) {
+    await mockDelay();
+    return null;
+  }
+  const raw = await fetchJson<Record<string, unknown>>(`/api/employees/${employeeId}/scorecard`);
+  return raw ? mapScorecard(raw) : null;
+};
+
+export const recomputeScore = async (employeeId: string): Promise<EmployeeScorecard | null> => {
+  if (USE_MOCK_API) {
+    await mockDelay();
+    return null;
+  }
+  const raw = await fetchJson<Record<string, unknown>>(`/api/employees/${employeeId}/recompute-score`, {
+    method: 'POST',
+  });
+  return raw ? mapScorecard(raw) : null;
+};
+
+// ─── Training Recommendations ────────────────────────────────────
+
+const mapRecommendation = (raw: Record<string, unknown>): TrainingRecommendation => ({
+  id: String(raw.id ?? ''),
+  employeeId: String(raw.employee_id ?? raw.employeeId ?? ''),
+  courseId: String(raw.course_id ?? raw.courseId ?? ''),
+  courseTitle: raw.course_title ? String(raw.course_title) : raw.title ? String(raw.title) : undefined,
+  reason: String(raw.reason ?? 'manual') as TrainingRecommendation['reason'],
+  reasonDetail: raw.reason_detail ? String(raw.reason_detail) : null,
+  priority: Number(raw.priority ?? 5),
+  status: String(raw.status ?? 'pending') as TrainingRecommendation['status'],
+  enrolledAt: raw.enrolled_at ? String(raw.enrolled_at) : null,
+  completedAt: raw.completed_at ? String(raw.completed_at) : null,
+  createdAt: String(raw.created_at ?? ''),
+});
+
+export const getTrainingRecommendations = async (employeeId: string): Promise<TrainingRecommendation[]> => {
+  if (USE_MOCK_API) {
+    await mockDelay();
+    return [];
+  }
+  const raw = await fetchJson<Record<string, unknown>[]>(`/api/employees/${employeeId}/training-recommendations`);
+  return (raw ?? []).map(mapRecommendation);
+};
+
+export const generateRecommendations = async (employeeId: string): Promise<{generated: number; recommendations: TrainingRecommendation[]}> => {
+  if (USE_MOCK_API) {
+    await mockDelay();
+    return {generated: 0, recommendations: []};
+  }
+  const raw = await fetchJson<Record<string, unknown>>(`/api/employees/${employeeId}/generate-recommendations`, {
+    method: 'POST',
+  });
+  return {
+    generated: Number(raw.generated ?? 0),
+    recommendations: ((raw.recommendations ?? []) as Record<string, unknown>[]).map(mapRecommendation),
+  };
+};
+
+export const updateRecommendationStatus = async (
+  employeeId: string,
+  recId: string,
+  status: 'pending' | 'enrolled' | 'completed' | 'dismissed',
+): Promise<void> => {
+  if (USE_MOCK_API) {
+    await mockDelay();
+    return;
+  }
+  await fetchJson(`/api/employees/${employeeId}/training-recommendations/${recId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({status}),
+  });
 };

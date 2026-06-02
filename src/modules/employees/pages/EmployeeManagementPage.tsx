@@ -4,7 +4,7 @@ import {
   UserCheck, Users, TrendingUp, Clock, Award, Plus, Search, X,
   Edit3, Trash2, ChevronRight, Loader2, Brain, Target, BarChart3,
   Download, Building2, GraduationCap, Briefcase, MapPin, Phone, Mail,
-  Calendar, Star, Shield, Sparkles, Filter,
+  Calendar, Star, Shield, Sparkles, Filter, Upload,
 } from 'lucide-react';
 import {
   listEmployees, getEmployeeStats, createEmployee, updateEmployee, deleteEmployee,
@@ -14,15 +14,22 @@ import {
   type EmployeeProfile, type PerformanceRecord, type CompetencyModel,
   type EmployeeStats, type CreateEmployeeInput, type CreatePerformanceInput,
 } from '../api';
+import VersionTimeline from '../components/VersionTimeline';
+import CustomFieldManager from '../components/CustomFieldManager';
+import CustomFieldValues from '../components/CustomFieldValues';
+import ExcelImportDialog from '../components/ExcelImportDialog';
+import ScoreCardView from '../components/ScoreCardView';
+import TrainingRecommendations from '../components/TrainingRecommendations';
 import {listPositions} from '../../positions/api';
 import type {PositionSummary} from '../../positions/types';
 
 // ─── Types ────────────────────────────────────────────────────────────────
 
-type TabId = 'profiles' | 'competency' | 'stats';
+type TabId = 'profiles' | 'competency' | 'stats' | 'fields';
 
 const TABS: {id: TabId; label: string; icon: React.ElementType}[] = [
   {id: 'profiles', label: '员工档案', icon: Users},
+  {id: 'fields', label: '字段管理', icon: Filter},
   {id: 'competency', label: '胜任力模型', icon: Brain},
   {id: 'stats', label: '员工统计', icon: BarChart3},
 ];
@@ -99,6 +106,7 @@ export const EmployeeManagementPage = () => {
   const [performanceRecords, setPerformanceRecords] = useState<PerformanceRecord[]>([]);
   const [perfLoading, setPerfLoading] = useState(false);
   const [showAddPerf, setShowAddPerf] = useState(false);
+  const [showExcelImport, setShowExcelImport] = useState(false);
   const [perfForm, setPerfForm] = useState({period: '', score: '', rating: '', notes: ''});
 
   // ── Competency state ──
@@ -362,6 +370,14 @@ export const EmployeeManagementPage = () => {
                 className="flex items-center gap-1.5 px-4 py-2 bg-[#1a4bc4] text-white rounded-lg text-[13px] font-medium hover:bg-[#0c2b7a] transition-colors">
                 <Plus className="w-4 h-4" /> 添加员工
               </button>
+              <button onClick={() => setShowExcelImport(true)}
+                className="flex items-center gap-1.5 px-3 py-2 border border-gray-200 bg-white text-gray-600 rounded-lg text-[13px] font-medium hover:bg-gray-50 transition-colors">
+                <Upload className="w-4 h-4" /> 导入
+              </button>
+              <a href="/api/employees/export/excel" download
+                className="flex items-center gap-1.5 px-3 py-2 border border-gray-200 bg-white text-gray-600 rounded-lg text-[13px] font-medium hover:bg-gray-50 transition-colors">
+                <Download className="w-4 h-4" /> 导出
+              </a>
             </div>
 
             {/* Table */}
@@ -473,6 +489,15 @@ export const EmployeeManagementPage = () => {
                                 </div>
                               ) : null}
 
+                              {/* Scorecard */}
+                              <ScoreCardView employeeId={emp.id} />
+
+                              {/* Training Recommendations */}
+                              <TrainingRecommendations employeeId={emp.id} />
+
+                              {/* Custom Field Values */}
+                              <CustomFieldValues employeeId={emp.id} />
+
                               {/* Performance Records */}
                               <div className="mt-4 border-t border-gray-200 pt-4">
                                 <div className="flex items-center justify-between mb-3">
@@ -547,6 +572,12 @@ export const EmployeeManagementPage = () => {
                                   </table>
                                 )}
                               </div>
+
+                              {/* Version History */}
+                              <div className="mt-4 border-t border-gray-200 pt-4">
+                                <h4 className="text-sm font-semibold text-gray-700 mb-3">变更记录</h4>
+                                <VersionTimeline employeeId={emp.id} />
+                              </div>
                             </td>
                           </tr>
                         )}
@@ -559,7 +590,12 @@ export const EmployeeManagementPage = () => {
           </div>
         )}
 
-        {/* ═══════════════ Tab 2: Competency Models ═══════════════ */}
+        {/* ═══════════════ Tab 2: Custom Field Manager ═══════════════ */}
+        {activeTab === 'fields' && (
+          <CustomFieldManager />
+        )}
+
+        {/* ═══════════════ Tab 3: Competency Models ═══════════════ */}
         {activeTab === 'competency' && (
           <div className="space-y-5">
             <div className="flex items-center gap-3 flex-wrap">
@@ -931,6 +967,13 @@ export const EmployeeManagementPage = () => {
           </motion.div>
         </div>
       )}
+
+      {/* Excel Import Dialog */}
+      <ExcelImportDialog
+        open={showExcelImport}
+        onClose={() => setShowExcelImport(false)}
+        onComplete={() => loadEmployees()}
+      />
 
     </motion.div>
   );

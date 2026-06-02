@@ -108,3 +108,97 @@ export interface CreatePerformanceInput {
   notes?: string;
   reviewer?: string;
 }
+
+// Version history entry
+export interface ProfileHistoryEntry {
+  id: string;
+  employeeId: string;
+  action: 'create' | 'update' | 'delete' | 'status_change';
+  fieldName: string | null;
+  fieldLabel: string | null;
+  oldValue: string | null;
+  newValue: string | null;
+  changedBy: string | null;
+  changedByEmail: string | null;
+  changedAt: string;
+}
+
+export interface ProfileHistoryResponse {
+  items: ProfileHistoryEntry[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+// Custom field definition
+export interface CustomFieldDef {
+  id: string;
+  fieldKey: string;
+  fieldLabel: string;
+  fieldType: 'text' | 'number' | 'date' | 'select' | 'multiselect' | 'boolean';
+  options?: {label: string; value: string}[];
+  sortOrder: number;
+  isActive: boolean;
+  source: 'manual' | 'excel_import';
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Custom field value (per employee)
+export interface CustomFieldValue {
+  id: string;
+  employeeId: string;
+  fieldId: string;
+  fieldKey?: string;
+  fieldLabel?: string;
+  fieldType?: string;
+  valueText?: string | null;
+  valueNum?: number | null;
+  valueDate?: string | null;
+  valueJson?: unknown;
+}
+
+// Create custom field input
+export interface CreateCustomFieldInput {
+  fieldKey: string;
+  fieldLabel: string;
+  fieldType?: string;
+  options?: {label: string; value: string}[];
+  source?: 'manual' | 'excel_import';
+}
+
+// Unified scorecard
+export interface EmployeeScorecard {
+  id: string;
+  employeeId: string;
+  interviewScoreLatest: number | null;
+  interviewGradeLatest: string | null;
+  interviewDateLatest: string | null;
+  interviewCount: number;
+  trainingScoreAvg: number | null;
+  trainingCoursesTotal: number;
+  trainingCoursesPassed: number;
+  trainingCompletionRate: number | null;
+  performanceScoreAvg: number | null;
+  performanceReviewCount: number;
+  performanceLatestRating: string | null;
+  compositeScore: number | null;
+  compositeGrade: string | null;
+  competencyGapScore: number | null;
+  lastRecomputedAt: string;
+}
+
+// Training recommendation
+export interface TrainingRecommendation {
+  id: string;
+  employeeId: string;
+  courseId: string;
+  courseTitle?: string;
+  reason: 'weakness' | 'competency_gap' | 'performance' | 'manual';
+  reasonDetail: string | null;
+  priority: number;
+  status: 'pending' | 'enrolled' | 'completed' | 'dismissed';
+  enrolledAt: string | null;
+  completedAt: string | null;
+  createdAt: string;
+}
