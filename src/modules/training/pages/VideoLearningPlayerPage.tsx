@@ -3,6 +3,8 @@ import {useSearchParams} from 'react-router-dom';
 import {Loader2, AlertCircle} from 'lucide-react';
 import {USE_MOCK_API, API_BASE_URL} from '../../../shared/lib/runtime';
 import {VideoLearningAssistant} from '../components/VideoLearningAssistant/VideoLearningAssistant';
+import {listCourses} from '../api';
+import type {TrainingCourse} from '../types';
 
 interface PortalEnrollment {
   id: string;
@@ -31,12 +33,32 @@ export const VideoLearningPlayerPage = () => {
   const enrollmentId = searchParams.get('enrollmentId') ?? '';
   const candidateId = searchParams.get('cid') ?? '';
   const token = searchParams.get('token') ?? '';
+  const courseId = searchParams.get('courseId') ?? '';
 
-  const [data, setData] = useState<PortalData | null>(null);
+  const [portalData, setPortalData] = useState<PortalData | null>(null);
+  const [course, setCourse] = useState<TrainingCourse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   useEffect(() => {
+    // Admin preview mode: load course by courseId
+    if (courseId && !enrollmentId) {
+      (async () => {
+        try {
+          const result = await listCourses();
+          const found = result.items.find((c: TrainingCourse) => c.id === courseId);
+          if (!found) { setError('课程不存在'); setLoading(false); return; }
+          setCourse(found);
+        } catch (e) {
+          setError(e instanceof Error ? e.message : '加载失败');
+        } finally {
+          setLoading(false);
+        }
+      })();
+      return;
+    }
+
+    // Candidate mode: load via portal endpoint
     if (!enrollmentId || !candidateId) {
       setError('缺少必要参数 (enrollmentId, cid)');
       setLoading(false);
@@ -59,11 +81,11 @@ export const VideoLearningPlayerPage = () => {
         return r.json();
       })
       .then((result: PortalData) => {
-        setData(result);
+        setPortalData(result);
       })
       .catch(e => setError(e.message))
       .finally(() => setLoading(false));
-  }, [enrollmentId, candidateId, token]);
+  }, [enrollmentId, candidateId, token, courseId]);
 
   if (loading) {
     return (
@@ -73,12 +95,29 @@ export const VideoLearningPlayerPage = () => {
     );
   }
 
-  if (error || !data) {
+  if (error) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center space-y-3">
           <AlertCircle className="w-12 h-12 text-red-400 mx-auto" />
-          <p className="text-gray-600">{error || '加载失败'}</p>
+          <p className="text-gray-600">{error}</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Admin preview mode
+  if (course) {
+    return <VideoLearningAssistant course={course} />;
+  }
+
+  // Candidate mode
+  if (!portalData) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center space-y-3">
+          <AlertCircle className="w-12 h-12 text-red-400 mx-auto" />
+          <p className="text-gray-600">加载失败</p>
         </div>
       </div>
     );
@@ -86,7 +125,7 @@ export const VideoLearningPlayerPage = () => {
 
   return (
     <VideoLearningAssistant
-      enrollment={data.enrollment}
+      enrollment={portalData.enrollment}
       candidateId={candidateId}
       token={token}
     />

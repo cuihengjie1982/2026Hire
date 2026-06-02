@@ -1,4 +1,5 @@
 import React, {useEffect, useState} from 'react';
+import {useNavigate} from 'react-router-dom';
 import {motion} from 'motion/react';
 import {
   BookOpen, Users, TrendingUp, BarChart3, Plus, Clock, Star,
@@ -67,7 +68,7 @@ export const TrainingAcademyPage = () => {
   const [editingPath, setEditingPath] = useState<LearningPath | null>(null);
   const [enrollmentPathId, setEnrollmentPathId] = useState<string | null>(null);
   const [showBatchEnroll, setShowBatchEnroll] = useState(false);
-  const [previewCourse, setPreviewCourse] = useState<TrainingCourse | null>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     loadData();
@@ -265,7 +266,6 @@ export const TrainingAcademyPage = () => {
             onBatchEnroll={() => setShowBatchEnroll(true)}
             onEdit={(course) => setEditingCourse(course)}
             onDelete={handleDeleteCourse}
-            onPreview={(course) => setPreviewCourse(course)}
           />
         )}
         {activeTab === 'enrollments' && (
@@ -308,14 +308,6 @@ export const TrainingAcademyPage = () => {
           initial={editingCourse}
           onClose={() => setEditingCourse(null)}
           onSubmit={(input) => handleUpdateCourse(input)}
-        />
-      )}
-
-      {/* Preview Course Video Modal */}
-      {previewCourse && (
-        <PreviewCourseModal
-          course={previewCourse}
-          onClose={() => setPreviewCourse(null)}
         />
       )}
 
@@ -386,11 +378,11 @@ const StatsCard = ({icon: Icon, label, value, color}: {
   );
 };
 
-const CoursesTab = ({courses, onAdd, onBatchEnroll, onEdit, onDelete, onPreview}: {
+const CoursesTab = ({courses, onAdd, onBatchEnroll, onEdit, onDelete}: {
   courses: TrainingCourse[]; onAdd: () => void; onBatchEnroll: () => void;
   onEdit: (course: TrainingCourse) => void; onDelete: (id: string) => void;
-  onPreview: (course: TrainingCourse) => void;
 }) => {
+  const navigate = useNavigate();
   const [filter, setFilter] = useState('');
   const filtered = filter ? courses.filter(c => c.category === filter) : courses;
   const categories = [...new Set(courses.map(c => c.category))];
@@ -425,7 +417,7 @@ const CoursesTab = ({courses, onAdd, onBatchEnroll, onEdit, onDelete, onPreview}
           <div
             key={course.id}
             className="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md transition-shadow group relative cursor-pointer"
-            onClick={() => course.content.some((s: {contentType: string}) => s.contentType === 'video') && onPreview(course)}
+            onClick={() => course.content.some((s: {contentType: string}) => s.contentType === 'video') && navigate(`/training/preview?courseId=${course.id}`)}
           >
             <div className="flex items-start justify-between mb-3">
               <div>
@@ -460,8 +452,8 @@ const CoursesTab = ({courses, onAdd, onBatchEnroll, onEdit, onDelete, onPreview}
                 <Trash2 className="w-3.5 h-3.5" /> 删除
               </button>
               {course.content.some((s: {contentType: string}) => s.contentType === 'video') && (
-                <button onClick={(e) => { e.stopPropagation(); onPreview(course); }} className="flex items-center gap-1 px-3 py-1.5 text-xs text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors ml-auto">
-                  <PlayCircle className="w-3.5 h-3.5" /> 预览视频
+                <button onClick={(e) => { e.stopPropagation(); navigate(`/training/preview?courseId=${course.id}`); }} className="flex items-center gap-1 px-3 py-1.5 text-xs text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors ml-auto">
+                  <PlayCircle className="w-3.5 h-3.5" /> 进入学习
                 </button>
               )}
             </div>
@@ -1712,55 +1704,6 @@ const BatchEnrollModal = ({courses, paths, onClose, onDone}: {
             </div>
           </div>
         )}
-      </motion.div>
-    </div>
-  );
-};
-
-// ─── Preview Course Video Modal ───────────────────────────────────────────
-
-const PreviewCourseModal = ({course, onClose}: {course: TrainingCourse; onClose: () => void}) => {
-  const videoSection = course.content.find(s => s.contentType === 'video');
-  const videoUrl = videoSection?.contentUrl ?? '';
-
-  return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={onClose}>
-      <motion.div
-        initial={{opacity: 0, scale: 0.95}}
-        animate={{opacity: 1, scale: 1}}
-        className="bg-white rounded-2xl w-full max-w-3xl shadow-xl overflow-hidden"
-        onClick={e => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between px-5 py-3 border-b border-gray-200">
-          <div>
-            <h3 className="font-semibold text-gray-900 text-sm">{course.title}</h3>
-            <p className="text-xs text-gray-400">{videoSection?.sectionTitle ?? '视频预览'}</p>
-          </div>
-          <button onClick={onClose} className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-        <div className="p-4">
-          {videoUrl ? (
-            <video
-              src={videoUrl}
-              controls
-              autoPlay
-              className="w-full aspect-video rounded-xl bg-black"
-            />
-          ) : (
-            <div className="aspect-video bg-gray-900 rounded-xl flex items-center justify-center text-white/60">
-              <div className="text-center">
-                <PlayCircle className="w-12 h-12 mx-auto mb-2 opacity-40" />
-                <p className="text-sm">暂无视频内容</p>
-              </div>
-            </div>
-          )}
-        </div>
-        <div className="px-5 py-3 bg-gray-50 border-t border-gray-200 flex items-center justify-between">
-          <span className="text-xs text-gray-500">课程时长：{course.durationMinutes} 分钟</span>
-          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">关闭</button>
-        </div>
       </motion.div>
     </div>
   );

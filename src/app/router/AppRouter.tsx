@@ -115,6 +115,7 @@ export const AppRouter = ({onLogout}: {onLogout: () => void}) => (
         <Route path="*" element={<NotFoundPage />} />
         <Route path="/training/portal" element={withPageGuard(<CandidateTrainingPortal />, '培训门户')} />
         <Route path="/training/portal/player" element={withPageGuard(<VideoLearningPlayerPage />, '视频学习')} />
+        <Route path="/training/preview" element={withPageGuard(<VideoLearningPlayerPage />, '课程学习')} />
         {/* Public interview routes — no login required */}
         <Route path="/interview/:token" element={withSuspense(<CandidateInterviewEntry />)} />
         <Route path="/interview/:token/chat" element={withSuspense(<PublicConversationInterviewPage />)} />

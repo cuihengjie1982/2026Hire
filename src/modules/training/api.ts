@@ -583,9 +583,13 @@ export const uploadMaterial = async (file: File): Promise<MaterialUploadResult> 
   }
   const formData = new FormData();
   formData.append('file', file);
-  const base = USE_MOCK_API ? '' : API_BASE_URL;
   const token = getAuthToken();
-  const res = await fetch(`${base}/functions/v1/embox-api/training/materials/upload`, {
+  // In dev (localhost), use /api path → Vite proxy → Express; in prod, go through Edge Function
+  const isLocalDev = API_BASE_URL.includes('localhost');
+  const uploadUrl = isLocalDev
+    ? `${API_BASE_URL}/api/training/materials/upload`
+    : `${API_BASE_URL}/functions/v1/embox-api/training/materials/upload`;
+  const res = await fetch(uploadUrl, {
     method: 'POST',
     headers: token ? { Authorization: `Bearer ${token}` } : {},
     body: formData,

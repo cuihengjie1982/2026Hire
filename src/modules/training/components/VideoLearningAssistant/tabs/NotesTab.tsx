@@ -1,5 +1,5 @@
 import React, {useState, useEffect} from 'react';
-import {Plus, Edit3, Trash2, Clock, Loader2, X} from 'lucide-react';
+import {Plus, Edit3, Trash2, Clock, Loader2} from 'lucide-react';
 import {listNotes, createNote, updateNote, deleteNote, type TrainingNote} from '../../../api';
 
 interface NotesTabProps {
@@ -7,9 +7,41 @@ interface NotesTabProps {
   candidateId: string;
   currentVideoTime: number;
   onSeek: (time: number) => void;
+  previewMode?: boolean;
 }
 
-export const NotesTab: React.FC<NotesTabProps> = ({enrollmentId, candidateId, currentVideoTime, onSeek}) => {
+interface LocalNote {
+  id: string;
+  videoTimestamp: number;
+  noteTitle: string;
+  noteContent: string;
+  createdAt: string;
+}
+
+const getStorageKey = (courseId: string) => `training-preview-notes-${courseId}`;
+
+const loadLocalNotes = (courseId: string): LocalNote[] => {
+  try {
+    return JSON.parse(localStorage.getItem(getStorageKey(courseId)) ?? '[]');
+  } catch { return []; }
+};
+
+const saveLocalNotes = (courseId: string, notes: LocalNote[]) => {
+  localStorage.setItem(getStorageKey(courseId), JSON.stringify(notes));
+};
+
+const toTrainingNote = (n: LocalNote): TrainingNote => ({
+  id: n.id,
+  enrollmentId: '',
+  candidateId: '',
+  videoTimestamp: n.videoTimestamp,
+  noteTitle: n.noteTitle,
+  noteContent: n.noteContent,
+  createdAt: n.createdAt,
+  updatedAt: n.createdAt,
+});
+
+export const NotesTab: React.FC<NotesTabProps> = ({enrollmentId, candidateId, currentVideoTime, onSeek, previewMode}) => {
   const [notes, setNotes] = useState<TrainingNote[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -26,8 +58,13 @@ export const NotesTab: React.FC<NotesTabProps> = ({enrollmentId, candidateId, cu
   const loadNotes = async () => {
     setLoading(true);
     try {
-      const result = await listNotes(enrollmentId);
-      setNotes(result.items);
+      if (previewMode) {
+        const local = loadLocalNotes(enrollmentId);
+        setNotes(local.map(toTrainingNote));
+      } else {
+        const result = await listNotes(enrollmentId);
+        setNotes(result.items);
+      }
     } catch (e) {
       console.error('Failed to load notes:', e);
     } finally {
@@ -55,13 +92,34 @@ export const NotesTab: React.FC<NotesTabProps> = ({enrollmentId, candidateId, cu
     if (!title.trim()) return;
     setSaving(true);
     try {
-      if (editingId) {
-        await updateNote(editingId, {noteTitle: title, noteContent: content, videoTimestamp: timestamp});
+      if (previewMode) {
+        const local = loadLocalNotes(enrollmentId);
+        if (editingId) {
+          const idx = local.findIndex(n => n.id === editingId);
+          if (idx >= 0) {
+            local[idx] = {...local[idx], noteTitle: title, noteContent: content, videoTimestamp: timestamp};
+          }
+        } else {
+          local.push({
+            id: Date.now().toString(),
+            videoTimestamp: timestamp,
+            noteTitle: title,
+            noteContent: content,
+            createdAt: new Date().toISOString(),
+          });
+        }
+        saveLocalNotes(enrollmentId, local);
+        setNotes(local.map(toTrainingNote));
+        setShowForm(false);
       } else {
-        await createNote({enrollmentId, candidateId, videoTimestamp: timestamp, noteTitle: title, noteContent: content});
+        if (editingId) {
+          await updateNote(editingId, {noteTitle: title, noteContent: content, videoTimestamp: timestamp});
+        } else {
+          await createNote({enrollmentId, candidateId, videoTimestamp: timestamp, noteTitle: title, noteContent: content});
+        }
+        await loadNotes();
+        setShowForm(false);
       }
-      await loadNotes();
-      setShowForm(false);
     } catch (e) {
       console.error('Failed to save note:', e);
     } finally {
@@ -72,8 +130,14 @@ export const NotesTab: React.FC<NotesTabProps> = ({enrollmentId, candidateId, cu
   const handleDelete = async (id: string) => {
     if (!confirm('确定删除这条笔记？')) return;
     try {
-      await deleteNote(id);
-      setNotes(prev => prev.filter(n => n.id !== id));
+      if (previewMode) {
+        const local = loadLocalNotes(enrollmentId).filter(n => n.id !== id);
+        saveLocalNotes(enrollmentId, local);
+        setNotes(local.map(toTrainingNote));
+      } else {
+        await deleteNote(id);
+        setNotes(prev => prev.filter(n => n.id !== id));
+      }
     } catch (e) {
       console.error('Failed to delete note:', e);
     }
