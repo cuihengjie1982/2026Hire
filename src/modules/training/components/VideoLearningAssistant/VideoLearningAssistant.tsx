@@ -1,7 +1,7 @@
-import React, {useState, useCallback, useEffect, useRef} from 'react';
-import {ArrowLeft, GraduationCap, BookOpen, Shield, Mic} from 'lucide-react';
+import React, {useState, useCallback, useEffect} from 'react';
+import {ArrowLeft, GraduationCap, BookOpen, Shield, FileText} from 'lucide-react';
 import {useNavigate} from 'react-router-dom';
-import {VideoPlayer, type VideoPlayerHandle} from './VideoPlayer';
+import {VideoPlayer} from './VideoPlayer';
 import {LearningTabPanel} from './LearningTabPanel';
 import {AISummaryTab} from './tabs/AISummaryTab';
 import {TranscriptTab} from './tabs/TranscriptTab';
@@ -9,8 +9,7 @@ import {NotesTab} from './tabs/NotesTab';
 import {AIQAChatTab} from './tabs/AIQAChatTab';
 import {TopicTagBar, type TopicSegment as TopicSegmentUI} from './TopicTagBar';
 import {TopicCardList} from './TopicCardList';
-import {TranscriptRecorder} from './TranscriptRecorder';
-import {generateTopics, updateCourse, type TopicSegment} from '../../api';
+import {generateTopics, type TopicSegment} from '../../api';
 import type {TrainingCourse} from '../../types';
 
 const TOPIC_COLORS = [
@@ -49,8 +48,7 @@ export const VideoLearningAssistant: React.FC<{
   candidateId?: string;
   token?: string;
   course?: TrainingCourse;
-  onCourseUpdated?: (course: TrainingCourse) => void;
-}> = ({enrollment, candidateId, token, course, onCourseUpdated}) => {
+}> = ({enrollment, candidateId, token, course}) => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<TabId>('summary');
   const [currentVideoTime, setCurrentVideoTime] = useState(0);
@@ -58,21 +56,16 @@ export const VideoLearningAssistant: React.FC<{
   const [videoDuration, setVideoDuration] = useState(0);
   const [topicSegments, setTopicSegments] = useState<TopicSegmentUI[]>([]);
   const [topicsLoading, setTopicsLoading] = useState(false);
-  const [showRecorder, setShowRecorder] = useState(false);
-  const [localCourse, setLocalCourse] = useState<TrainingCourse | null>(course ?? null);
-  const playerRef = useRef<VideoPlayerHandle>(null);
 
-  // Use localCourse if available (updated after transcript save), otherwise props
-  const effectiveCourse = localCourse ?? course;
-  const isPreviewMode = !!effectiveCourse;
+  const isPreviewMode = !!course;
 
   const contentSections: CourseSection[] = isPreviewMode
-    ? (effectiveCourse!.content ?? [])
+    ? (course!.content ?? [])
     : (enrollment!.content ?? []);
 
-  const courseTitle = isPreviewMode ? effectiveCourse!.title : enrollment!.course_title;
-  const courseDescription = isPreviewMode ? effectiveCourse!.description : enrollment!.course_description;
-  const durationMinutes = isPreviewMode ? effectiveCourse!.durationMinutes : enrollment!.duration_minutes;
+  const courseTitle = isPreviewMode ? course!.title : enrollment!.course_title;
+  const courseDescription = isPreviewMode ? course!.description : enrollment!.course_description;
+  const durationMinutes = isPreviewMode ? course!.durationMinutes : enrollment!.duration_minutes;
   const subtitle = isPreviewMode ? '管理员预览' : enrollment!.candidate_name;
 
   const videoSection = contentSections.find(s => s.contentType === 'video');
@@ -117,29 +110,6 @@ export const VideoLearningAssistant: React.FC<{
     setSeekTo(time);
   }, []);
 
-  // Save transcript to course
-  const handleTranscriptGenerated = async (transcript: string) => {
-    if (!effectiveCourse) return;
-
-    // Add/update text section in course content
-    const existingTextIdx = contentSections.findIndex(s => s.contentType === 'text');
-    const newContent = [...contentSections];
-    if (existingTextIdx >= 0) {
-      newContent[existingTextIdx] = {...newContent[existingTextIdx], text: transcript};
-    } else {
-      newContent.push({sectionTitle: '文字稿', contentType: 'text', text: transcript});
-    }
-
-    try {
-      const updated = await updateCourse(effectiveCourse.id, {content: newContent} as Partial<TrainingCourse>);
-      setLocalCourse(updated);
-      onCourseUpdated?.(updated);
-      setShowRecorder(false);
-    } catch (e) {
-      console.error('Failed to save transcript:', e);
-    }
-  };
-
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Header */}
@@ -182,7 +152,6 @@ export const VideoLearningAssistant: React.FC<{
           <div className="w-[60%] flex flex-col gap-3 overflow-y-auto">
             {videoUrl ? (
               <VideoPlayer
-                ref={playerRef}
                 src={videoUrl}
                 onTimeUpdate={handleTimeUpdate}
                 onDurationChange={handleDurationChange}
@@ -226,30 +195,27 @@ export const VideoLearningAssistant: React.FC<{
               </div>
             )}
 
-            {/* Transcript Recorder */}
-            {showRecorder ? (
-              <TranscriptRecorder
-                videoRef={{current: playerRef.current?.getVideoElement() ?? null}}
-                onTranscriptGenerated={handleTranscriptGenerated}
-                onClose={() => setShowRecorder(false)}
-              />
-            ) : (
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setActiveTab('notes')}
-                  className="flex items-center gap-1.5 px-3 py-2 bg-white border border-gray-200 rounded-lg text-xs text-gray-600 hover:bg-gray-50 transition-colors"
-                >
-                  + 添加笔记（当前 {Math.floor(currentVideoTime / 60)}:{String(Math.floor(currentVideoTime % 60)).padStart(2, '0')}）
-                </button>
-                {isPreviewMode && videoUrl && (
-                  <button
-                    onClick={() => setShowRecorder(true)}
-                    className="flex items-center gap-1.5 px-3 py-2 bg-white border border-gray-200 rounded-lg text-xs text-gray-600 hover:bg-red-50 hover:border-red-200 hover:text-red-600 transition-colors"
-                  >
-                    <Mic className="w-3.5 h-3.5" />
-                    录制文字稿
-                  </button>
-                )}
+            {/* Quick actions */}
+            <div className="flex gap-2">
+              <button
+                onClick={() => setActiveTab('notes')}
+                className="flex items-center gap-1.5 px-3 py-2 bg-white border border-gray-200 rounded-lg text-xs text-gray-600 hover:bg-gray-50 transition-colors"
+              >
+                + 添加笔记（当前 {Math.floor(currentVideoTime / 60)}:{String(Math.floor(currentVideoTime % 60)).padStart(2, '0')}）
+              </button>
+            </div>
+
+            {/* No transcript hint for admin */}
+            {isPreviewMode && !transcriptText && (
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-start gap-2">
+                <FileText className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-xs font-medium text-amber-700">暂无文字稿内容</p>
+                  <p className="text-[10px] text-amber-600 mt-0.5">
+                    AI 主题标签、AI 摘要、AI 问答功能需要文字稿支持。
+                    请返回课程管理，编辑课程添加「文字」章节，输入带时间戳的文字稿或上传 .txt/.srt 文件。
+                  </p>
+                </div>
               </div>
             )}
           </div>
@@ -267,7 +233,7 @@ export const VideoLearningAssistant: React.FC<{
               }
               notesTab={
                 <NotesTab
-                  enrollmentId={isPreviewMode ? effectiveCourse!.id : enrollment!.id}
+                  enrollmentId={isPreviewMode ? course!.id : enrollment!.id}
                   candidateId={isPreviewMode ? 'admin-preview' : (candidateId ?? '')}
                   currentVideoTime={currentVideoTime}
                   onSeek={handleSeek}

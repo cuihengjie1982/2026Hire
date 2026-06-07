@@ -3,7 +3,7 @@ import jwt from 'jsonwebtoken';
 import {query, queryOne} from '../../config/database.js';
 import {env} from '../../config/env.js';
 import {UnauthorizedError, ValidationError} from '../../shared/errors.js';
-import {generateTokenPair, revokeToken, revokeAllUserTokens} from '../../middleware/auth.js';
+import {generateTokenPair, revokeToken, revokeAllUserTokens, isTokenBlacklisted} from '../../middleware/auth.js';
 import type {JwtPayload} from '../../middleware/auth.js';
 import type {LoginInput, LoginResponse, RegisterInput} from './auth.types.js';
 
@@ -48,11 +48,8 @@ export async function refreshToken(refreshTokenStr: string) {
 
   if (decoded.type !== 'refresh') throw new UnauthorizedError('Not a refresh token');
 
-  // Check if refresh token is blacklisted
-  const blacklisted = await queryOne<{id: string}>(
-    `SELECT id FROM token_blacklist WHERE jti = $1 AND expires_at > now()`,
-    [decoded.jti],
-  );
+  // Check if refresh token is blacklisted or predates a user-wide revocation.
+  const blacklisted = await isTokenBlacklisted(decoded.jti, decoded.userId, decoded.iat);
   if (blacklisted) throw new UnauthorizedError('Refresh token has been revoked');
 
   // Blacklist the used refresh token (rotation)

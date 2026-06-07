@@ -905,22 +905,50 @@ const CreateCourseModal = ({initial, onClose, onSubmit}: {
                           <option value="link">链接</option>
                         </select>
                         {sec.contentType === 'text' ? (
-                          <div className="flex-1 flex gap-2">
+                          <div className="flex-1 space-y-1.5">
                             <textarea value={sec.text} onChange={e => updateSection(i, 'text', e.target.value)}
-                              className="flex-1 px-2 py-1 border rounded text-sm" rows={2} placeholder="文字内容" />
-                            <label className="shrink-0 px-2 py-1 bg-gray-100 hover:bg-gray-200 text-gray-500 rounded text-xs cursor-pointer transition-colors flex items-center gap-1 self-start mt-0.5">
-                              <Upload className="w-3 h-3" /> 上传文档
-                              <input type="file" className="hidden" accept=".txt,.md,.doc,.docx,.pdf,.ppt,.pptx,.xls,.xlsx"
-                                onChange={async (e) => {
-                                  const file = e.target.files?.[0];
-                                  if (!file) return;
-                                  try {
-                                    const result = await uploadMaterial(file);
-                                    updateSection(i, 'contentUrl', result.url);
-                                    if (!sec.text.trim()) updateSection(i, 'text', `[附件: ${file.name}]`);
-                                  } catch (err) { console.error('Upload failed:', err); }
-                                }} />
-                            </label>
+                              className="w-full px-2 py-1 border rounded text-sm font-mono" rows={6}
+                              placeholder="输入带时间戳的文字稿内容，格式如：&#10;00:00:00 - 欢迎参加本次培训&#10;00:05:30 - 今天我们学习STAR法则&#10;00:10:15 - 第一个案例分析" />
+                            <div className="flex items-center gap-2">
+                              <label className="shrink-0 px-2 py-1 bg-gray-100 hover:bg-gray-200 text-gray-500 rounded text-xs cursor-pointer transition-colors flex items-center gap-1">
+                                <Upload className="w-3 h-3" /> 上传 .txt/.srt 文字稿
+                                <input type="file" className="hidden" accept=".txt,.srt,.vtt"
+                                  onChange={async (e) => {
+                                    const file = e.target.files?.[0];
+                                    if (!file) return;
+                                    try {
+                                      const text = await file.text();
+                                      let parsed = text;
+                                      // Parse SRT format: 1\n00:00:00,000 --> 00:00:05,000\nText
+                                      if (file.name.endsWith('.srt')) {
+                                        const blocks = text.trim().split(/\n\n+/);
+                                        parsed = blocks.map(block => {
+                                          const lines = block.split('\n');
+                                          const timeLine = lines.find(l => l.includes('-->'));
+                                          if (!timeLine) return '';
+                                          const startTime = timeLine.split('-->')[0].trim().split(',')[0];
+                                          const content = lines.slice(lines.indexOf(timeLine) + 1).join(' ').trim();
+                                          return content ? `${startTime} - ${content}` : '';
+                                        }).filter(Boolean).join('\n');
+                                      }
+                                      // Parse VTT format similarly
+                                      if (file.name.endsWith('.vtt')) {
+                                        const blocks = text.replace(/^WEBVTT.*\n*/i, '').trim().split(/\n\n+/);
+                                        parsed = blocks.map(block => {
+                                          const lines = block.split('\n');
+                                          const timeLine = lines.find(l => l.includes('-->'));
+                                          if (!timeLine) return '';
+                                          const startTime = timeLine.split('-->')[0].trim().split('.')[0];
+                                          const content = lines.slice(lines.indexOf(timeLine) + 1).join(' ').replace(/<[^>]+>/g, '').trim();
+                                          return content ? `${startTime} - ${content}` : '';
+                                        }).filter(Boolean).join('\n');
+                                      }
+                                      updateSection(i, 'text', parsed || text);
+                                    } catch (err) { console.error('Parse failed:', err); }
+                                  }} />
+                              </label>
+                              <span className="text-[10px] text-gray-400">支持 .txt（时间戳格式）、.srt、.vtt 自动解析</span>
+                            </div>
                           </div>
                         ) : (
                           <div className="flex-1 flex gap-2">

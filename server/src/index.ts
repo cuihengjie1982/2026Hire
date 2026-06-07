@@ -97,6 +97,21 @@ function verifyWebhookSignature(req: import('express').Request): boolean {
   return nodeCrypto.timingSafeEqual(bufA, bufB);
 }
 
+function createTrainingPortalToken(candidateId: string): string {
+  return nodeCrypto
+    .createHmac('sha256', env.JWT_SECRET)
+    .update(`training-portal:${candidateId}`)
+    .digest('base64url');
+}
+
+function verifyTrainingPortalToken(candidateId: string, token: string | undefined): boolean {
+  if (!token) return false;
+  const expected = createTrainingPortalToken(candidateId);
+  const actualBuf = Buffer.from(token);
+  const expectedBuf = Buffer.from(expected);
+  return actualBuf.length === expectedBuf.length && nodeCrypto.timingSafeEqual(actualBuf, expectedBuf);
+}
+
 app.post('/api/webhooks/mis/onboarding-complete', (req, res) => {
   if (!verifyWebhookSignature(req)) {
     res.status(401).json({error: {code: 'UNAUTHORIZED', message: 'Invalid webhook signature'}});
@@ -120,10 +135,7 @@ const handleTrainingPortal = async (req: import('express').Request, res: import(
     const {candidateId} = req.params;
     const {token} = req.query;
 
-    // Simple token verification (optional; UUID is already hard to guess)
-    const secret = env.JWT_SECRET.slice(0, 16);
-    const expected = Buffer.from(candidateId + secret).toString('base64').slice(0, 8);
-    if (token && token !== expected) {
+    if (!verifyTrainingPortalToken(candidateId, typeof token === 'string' ? token : undefined)) {
       res.status(403).json({error: {code: 'FORBIDDEN', message: 'Invalid access token'}});
       return;
     }

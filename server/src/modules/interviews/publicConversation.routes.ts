@@ -45,6 +45,24 @@ async function validateAccessToken(accessToken: string) {
   return { valid: true as const, session };
 }
 
+async function validateConversationAccess(accessToken: string, convSessionId: string) {
+  if (!accessToken) return { valid: false as const, status: 400, error: 'accessToken is required' };
+  const validation = await validateAccessToken(accessToken);
+  if (!validation.valid) {
+    return {
+      valid: false as const,
+      status: validation.error === 'Invalid or expired interview link' ? 404 : 410,
+      error: validation.error,
+    };
+  }
+  const conv = await queryOne('SELECT * FROM conversational_interview_sessions WHERE id = $1', [convSessionId]);
+  if (!conv) return { valid: false as const, status: 404, error: 'Conversation session not found' };
+  if (String(conv.session_id) !== String(validation.session.id)) {
+    return { valid: false as const, status: 403, error: 'Conversation session does not match access token' };
+  }
+  return { valid: true as const, session: validation.session, conv };
+}
+
 // POST /public/conversation/sessions
 router.post('/public/conversation/sessions', async (req, res) => {
   try {
@@ -159,11 +177,12 @@ router.post('/public/conversation/sessions', async (req, res) => {
 // POST /public/conversation/messages
 router.post('/public/conversation/messages', async (req, res) => {
   try {
-    const { convSessionId, content } = req.body;
+    const { accessToken, convSessionId, content } = req.body;
     if (!convSessionId || !content?.trim()) return res.status(400).json({ error: 'convSessionId and content required' });
 
-    const convData = await queryOne('SELECT * FROM conversational_interview_sessions WHERE id = $1', [String(convSessionId)]);
-    if (!convData) return res.status(404).json({ error: 'Conversation session not found' });
+    const access = await validateConversationAccess(String(accessToken ?? ''), String(convSessionId));
+    if (!access.valid) return res.status(access.status).json({ error: access.error });
+    const convData = access.conv;
     if (convData.status !== 'active') return res.status(400).json({ error: 'Conversation is not active' });
 
     // Save candidate message
@@ -194,13 +213,19 @@ router.post('/public/conversation/messages', async (req, res) => {
   }
 });
 
-// GET /public/conversation/messages/stream — SSE streaming endpoint
-router.get('/public/conversation/messages/stream', async (req, res) => {
+// /public/conversation/messages/stream — SSE streaming endpoint
+router.all('/public/conversation/messages/stream', async (req, res) => {
   try {
-    const convSessionId = req.query.convSessionId as string;
-    const content = req.query.content as string;
+    const source = req.method === 'POST' ? req.body : req.query;
+    const accessToken = String(source.accessToken ?? '');
+    const convSessionId = String(source.convSessionId ?? '');
+    const content = String(source.content ?? '');
 
     if (!convSessionId || !content?.trim()) return res.status(400).json({ error: 'convSessionId and content required' });
+
+    const access = await validateConversationAccess(accessToken, convSessionId);
+    if (!access.valid) return res.status(access.status).json({ error: access.error });
+    if (access.conv.status !== 'active') return res.status(400).json({ error: 'Conversation is not active' });
 
     // Save candidate message
     await query(
@@ -247,8 +272,11 @@ router.get('/public/conversation/messages/stream', async (req, res) => {
 // POST /public/conversation/complete
 router.post('/public/conversation/complete', async (req, res) => {
   try {
-    const { convSessionId } = req.body;
+    const { accessToken, convSessionId } = req.body;
     if (!convSessionId) return res.status(400).json({ error: 'convSessionId is required' });
+
+    const access = await validateConversationAccess(String(accessToken ?? ''), String(convSessionId));
+    if (!access.valid) return res.status(access.status).json({ error: access.error });
 
     await query(
       `UPDATE conversational_interview_sessions SET status = 'completed', completed_at = NOW() WHERE id = $1`,
@@ -271,8 +299,10 @@ router.post('/public/conversation/complete', async (req, res) => {
 // POST /public/conversation/score
 router.post('/public/conversation/score', async (req, res) => {
   try {
-    const { convSessionId } = req.body;
+    const { accessToken, convSessionId } = req.body;
     if (!convSessionId) return res.status(400).json({ error: 'convSessionId is required' });
+    const access = await validateConversationAccess(String(accessToken ?? ''), String(convSessionId));
+    if (!access.valid) return res.status(access.status).json({ error: access.error });
 
     // Dev server returns mock scoring data
     res.json({
@@ -299,8 +329,10 @@ router.post('/public/conversation/score', async (req, res) => {
 // POST /public/conversation/candidate-question
 router.post('/public/conversation/candidate-question', async (req, res) => {
   try {
-    const { convSessionId, question } = req.body;
+    const { accessToken, convSessionId, question } = req.body;
     if (!convSessionId || !question?.trim()) return res.status(400).json({ error: 'convSessionId and question required' });
+    const access = await validateConversationAccess(String(accessToken ?? ''), String(convSessionId));
+    if (!access.valid) return res.status(access.status).json({ error: access.error });
 
     await query(
       `INSERT INTO candidate_questions_asked (conv_session_id, candidate_question, ai_response, response_timestamp, is_answered)

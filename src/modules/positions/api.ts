@@ -79,14 +79,9 @@ export const listPositionsByProject = async (projectId: string): Promise<Positio
 };
 
 export const getPositionDetail = async (_positionId: string): Promise<PositionDetail | null> => {
-  console.log('[DEBUG] getPositionDetail called, positionId:', _positionId);
-  console.log('[DEBUG] getPositionDetail - USE_MOCK_API:', USE_MOCK_API);
   if (USE_MOCK_API) {
     await new Promise(r => setTimeout(r, 120));
-    const stored = positionDetailsMap[_positionId] || null;
-    console.log('[DEBUG] getPositionDetail mock - positionId:', _positionId);
-    console.log('[DEBUG] getPositionDetail mock - stored:', JSON.stringify(stored?.profileRules));
-    return stored;
+    return positionDetailsMap[_positionId] || null;
   }
 
   // Get position + detail from Edge Function
@@ -94,22 +89,17 @@ export const getPositionDetail = async (_positionId: string): Promise<PositionDe
   const positionData = result?.position ?? null;
   const detailData = result?.detail ?? null;
 
-  console.log('[DEBUG] getPositionDetail - positionData:', JSON.stringify(positionData).slice(0, 500));
-  console.log('[DEBUG] getPositionDetail - detailData:', JSON.stringify(detailData || {}).slice(0, 500));
-
   if (positionData && typeof positionData === 'object') {
     const raw = positionData as Record<string, unknown>;
 
     // Handle profileRules - check snake_case, camelCase, and legacy 'profile' format
     let rawProfileRules: RawProfileRule[] = [];
     if (Array.isArray(raw.profile_rules)) {
-      console.log('[DEBUG] getPositionDetail - using profile_rules from response');
       rawProfileRules = raw.profile_rules;
     } else if (Array.isArray((raw as Record<string, unknown>).profileRules)) {
       rawProfileRules = (raw as Record<string, unknown>).profileRules as RawProfileRule[];
     } else if (raw.profile && typeof raw.profile === 'object') {
       // Legacy format: profile has mustHave, niceToHave, bonus arrays
-      console.log('[DEBUG] getPositionDetail - using legacy profile from response');
       const legacyProfile = raw.profile as Record<string, unknown>;
       const allItems = [
         ...(Array.isArray(legacyProfile.mustHave) ? legacyProfile.mustHave : []),
@@ -217,8 +207,6 @@ export const savePositionDetail = async (
   positionId: string,
   detail: SavePositionDetailInput,
 ): Promise<PositionDetail | null> => {
-  console.log('[DEBUG] savePositionDetail called, positionId:', positionId);
-  console.log('[DEBUG] savePositionDetail detail.profileRules:', JSON.stringify(detail.profileRules));
   if (USE_MOCK_API) {
     await new Promise(r => setTimeout(r, 120));
     const position = positionsData.find((p) => p.id === positionId);
@@ -231,7 +219,6 @@ export const savePositionDetail = async (
       baseScoreConfig: detail.baseScoreConfig,
       aiPrompt: detail.aiPrompt,
     };
-    console.log('[DEBUG] savePositionDetail - stored:', JSON.stringify(updated.profileRules));
     positionDetailsMap[positionId] = updated;
     savePositionDetails();
     return updated;

@@ -1,4 +1,5 @@
 import { createSupabaseAdmin } from '../_shared/supabaseClient.ts';
+import { callLLM } from '../_shared/llmClient.ts';
 
 
 function jsonRes(body: unknown, status = 200, extraHeaders: Record<string, string> = {}) {
@@ -29,6 +30,49 @@ function getPathSegments(req: Request, prefix: string): string[] {
 // Extract query params
 function getQuery(req: Request, key: string): string | null {
   return new URL(req.url).searchParams.get(key);
+}
+
+function getTrainingPortalSecret(): string {
+  return Deno.env.get('TRAINING_PORTAL_SECRET')
+    ?? Deno.env.get('SUPABASE_JWT_SECRET')
+    ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+    ?? '';
+}
+
+function base64Url(bytes: Uint8Array): string {
+  let binary = '';
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+}
+
+function timingSafeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) {
+    diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return diff === 0;
+}
+
+async function createTrainingPortalToken(candidateId: string): Promise<string> {
+  const secret = getTrainingPortalSecret();
+  if (!secret) return '';
+  const encoder = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    'raw',
+    encoder.encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign'],
+  );
+  const signature = await crypto.subtle.sign('HMAC', key, encoder.encode(`training-portal:${candidateId}`));
+  return base64Url(new Uint8Array(signature));
+}
+
+async function verifyTrainingPortalToken(candidateId: string, token: string | null): Promise<boolean> {
+  if (!token) return false;
+  const expected = await createTrainingPortalToken(candidateId);
+  return !!expected && timingSafeEqual(token, expected);
 }
 
 // =============================================================================
@@ -653,23 +697,9 @@ const portalHandler = async (req: Request): Promise<Response> => {
       return jsonRes({ error: { code: 'VALIDATION_ERROR', message: 'Candidate ID required' } }, 400);
     }
 
-    // Optional token verification
     const token = new URL(req.url).searchParams.get('token');
-    if (token) {
-      try {
-        const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
-        const secret = supabaseUrl.slice(0, 16);
-        const enc = new TextEncoder();
-        const data = enc.encode(candidateId + secret);
-        // Use hex instead of btoa for Deno compatibility
-        const expected = Array.from(data.slice(0, 4)).map(b => b.toString(16).padStart(2, '0')).join('');
-        if (token !== expected) {
-          return jsonRes({ error: { code: 'FORBIDDEN', message: 'Invalid access token' } }, 403);
-        }
-      } catch {
-        // If token validation itself fails, degrade gracefully
-        console.warn('[training portal] Token validation failed, proceeding without verification');
-      }
+    if (!(await verifyTrainingPortalToken(candidateId, token))) {
+      return jsonRes({ error: { code: 'FORBIDDEN', message: 'Invalid access token' } }, 403);
     }
 
     // Fetch enrollments with course details
@@ -1232,7 +1262,7 @@ const batchEnroll = async (req: Request): Promise<Response> => {
 };
 
 // =============================================================================
-// Training Notes CRUD — no auth required (candidate portal uses token)
+// Training Notes CRUD — authenticated route; mutations are restricted by router auth.
 // =============================================================================
 
 const handleNotes = async (req: Request): Promise<Response> => {
@@ -1313,12 +1343,49 @@ const handleNotes = async (req: Request): Promise<Response> => {
 // AI Summarize & Q&A — call LLM with course content/transcript
 // =============================================================================
 
+async function resolveTrainingLLMConfig(supabase: ReturnType<typeof createSupabaseAdmin>) {
+  let { data } = await supabase
+    .from('ai_model_configs')
+    .select('*')
+    .eq('is_default', true)
+    .eq('is_active', true)
+    .limit(1)
+    .maybeSingle();
+
+  if (!data) {
+    const fallback = await supabase
+      .from('ai_model_configs')
+      .select('*')
+      .eq('is_active', true)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    data = fallback.data;
+  }
+
+  const row = data as Record<string, unknown> | null;
+  if (!row) return null;
+  return {
+    id: String(row.id),
+    provider: String(row.provider),
+    model_name: String(row.model_name),
+    api_key: String(row.api_key),
+    base_url: row.base_url ? String(row.base_url) : null,
+    temperature: Number(row.temperature ?? 0.7),
+    max_tokens: Number(row.max_tokens ?? 4096),
+  };
+}
+
 const handleTrainingAi = async (req: Request): Promise<Response> => {
   try {
     const supabase = createSupabaseAdmin(req);
     const body = await req.json();
     const url = new URL(req.url);
     const path = url.pathname.replace(/^\/embox-api/, '') || '/';
+    const llmConfig = await resolveTrainingLLMConfig(supabase);
+    if (!llmConfig) {
+      return jsonRes({ error: { code: 'AI_CONFIG_MISSING', message: 'No active AI model configured' } }, 400);
+    }
 
     // POST /training/ai/summarize
     if (path.endsWith('/summarize')) {
@@ -1326,10 +1393,9 @@ const handleTrainingAi = async (req: Request): Promise<Response> => {
       if (!content) {
         return jsonRes({ error: { code: 'VALIDATION_ERROR', message: 'content is required' } }, 400);
       }
-      const { callLLM } = await import('../_shared/llmClient.ts');
       const systemPrompt = '你是一个专业的培训课程助手。请根据提供的课程内容，生成一个简洁的中文摘要，包括：1）课程主题；2）核心知识点（3-5点）；3）学习建议。回复格式清晰，用中文。';
       const userMessage = `课程标题：${title ?? '未命名课程'}\n\n课程内容：\n${typeof content === 'string' ? content : JSON.stringify(content)}`;
-      const result = await callLLM({}, systemPrompt, userMessage);
+      const result = await callLLM(llmConfig, systemPrompt, userMessage);
       return jsonRes({ summary: result });
     }
 
@@ -1339,10 +1405,9 @@ const handleTrainingAi = async (req: Request): Promise<Response> => {
       if (!question) {
         return jsonRes({ error: { code: 'VALIDATION_ERROR', message: 'question is required' } }, 400);
       }
-      const { callLLM } = await import('../_shared/llmClient.ts');
       const systemPrompt = '你是一个专业的视频学习助手。基于提供的视频文字稿，准确回答用户的问题。如果文字稿中没有相关信息，请说明并尝试基于常识回答。回复用中文，简洁明了。';
       const userMessage = `课程标题：${courseTitle ?? '未知课程'}\n视频时间点：${videoTime ?? '未知'}\n\n文字稿内容：\n${transcript ?? '（无文字稿）'}\n\n用户问题：${question}`;
-      const result = await callLLM({}, systemPrompt, userMessage);
+      const result = await callLLM(llmConfig, systemPrompt, userMessage);
       return jsonRes({ answer: result });
     }
 
@@ -1352,7 +1417,6 @@ const handleTrainingAi = async (req: Request): Promise<Response> => {
       if (!content) {
         return jsonRes({ error: { code: 'VALIDATION_ERROR', message: 'content is required' } }, 400);
       }
-      const { callLLM } = await import('../_shared/llmClient.ts');
       const systemPrompt = `你是一个视频内容分析专家。根据提供的带时间戳的视频文字稿，提取3-8个主要主题/话题。
 
 要求：
@@ -1365,7 +1429,7 @@ const handleTrainingAi = async (req: Request): Promise<Response> => {
 返回格式示例：
 {"topics":[{"title":"开场介绍","startTime":0,"endTime":150},{"title":"STAR法则","startTime":150,"endTime":480}]}`;
       const userMessage = `课程标题：${title ?? '未命名课程'}\n视频总时长：${duration ? Math.floor(duration) + '秒' : '未知'}\n\n文字稿内容：\n${typeof content === 'string' ? content : JSON.stringify(content)}`;
-      const result = await callLLM({}, systemPrompt, userMessage);
+      const result = await callLLM(llmConfig, systemPrompt, userMessage);
       let topics;
       try {
         const jsonMatch = result.match(/\{[\s\S]*\}/);

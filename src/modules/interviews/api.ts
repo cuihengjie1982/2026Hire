@@ -1151,7 +1151,7 @@ export const createPublicConvSession = async (
 
 /** Send a message via public conversational endpoint */
 export const sendPublicConversationMessage = async (
-  convSessionId: string, content: string,
+  accessToken: string, convSessionId: string, content: string,
 ): Promise<{
   message: ConversationMessage;
   conversationState: { currentTopic: string | null; topicsCovered: number; shouldClose: boolean };
@@ -1166,23 +1166,27 @@ export const sendPublicConversationMessage = async (
       conversationState: { currentTopic: '工作经验', topicsCovered: 1, shouldClose: false },
     };
   }
-  return publicFetch('/public/conversation/messages', 'POST', { convSessionId, content });
+  return publicFetch('/public/conversation/messages', 'POST', { accessToken, convSessionId, content });
 };
 
 /** Stream AI response via SSE for public candidate flow */
 export const streamPublicConversationMessage = (
-  convSessionId: string, content: string,
+  accessToken: string, convSessionId: string, content: string,
   onToken: (token: string) => void,
   onDone: (data: { messageId: string | null; conversationState: { currentTopic: string | null; shouldClose: boolean } }) => void,
   onError: (error: string) => void,
 ): () => void => {
   const base = USE_MOCK_API ? '' : API_BASE_URL;
-  const params = new URLSearchParams({ convSessionId, content });
-  const url = `${base}/functions/v1/embox-api/public/conversation/messages/stream?${params}`;
+  const url = `${base}/functions/v1/embox-api/public/conversation/messages/stream`;
 
   const controller = new AbortController();
 
-  fetch(url, { signal: controller.signal }).then(async (res) => {
+  fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ accessToken, convSessionId, content }),
+    signal: controller.signal,
+  }).then(async (res) => {
     if (!res.ok) { onError(`HTTP ${res.status}`); return; }
     const reader = res.body?.getReader();
     if (!reader) { onError('No response body'); return; }
@@ -1232,15 +1236,15 @@ export const streamPublicConversationMessage = (
 
 /** Complete conversation via public endpoint */
 export const completePublicConversation = async (
-  convSessionId: string,
+  accessToken: string, convSessionId: string,
 ): Promise<{ status: string; messageCount: number; durationMinutes: number }> => {
   if (USE_MOCK_API) return { status: 'completed', messageCount: 12, durationMinutes: 15 };
-  return publicFetch('/public/conversation/complete', 'POST', { convSessionId });
+  return publicFetch('/public/conversation/complete', 'POST', { accessToken, convSessionId });
 };
 
 /** Score conversation via public endpoint */
 export const scorePublicConversation = async (
-  convSessionId: string,
+  accessToken: string, convSessionId: string,
 ): Promise<ConversationScore> => {
   if (USE_MOCK_API) {
     return {
@@ -1255,12 +1259,12 @@ export const scorePublicConversation = async (
       summary: '整体表现良好。', status: 'completed',
     };
   }
-  return publicFetch<ConversationScore>('/public/conversation/score', 'POST', { convSessionId });
+  return publicFetch<ConversationScore>('/public/conversation/score', 'POST', { accessToken, convSessionId });
 };
 
 /** Candidate asks a question via public endpoint */
 export const askPublicCandidateQuestion = async (
-  convSessionId: string, question: string,
+  accessToken: string, convSessionId: string, question: string,
 ): Promise<{ questionId: string; message: ConversationMessage }> => {
   if (USE_MOCK_API) {
     return {
@@ -1272,5 +1276,5 @@ export const askPublicCandidateQuestion = async (
       },
     };
   }
-  return publicFetch('/public/conversation/candidate-question', 'POST', { convSessionId, question });
+  return publicFetch('/public/conversation/candidate-question', 'POST', { accessToken, convSessionId, question });
 };

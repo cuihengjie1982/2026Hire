@@ -680,7 +680,6 @@ export const CandidateSearchPage = () => {
           console.warn('Position detail not found for id:', selectedPositionId);
           return;
         }
-        console.log('Position detail loaded:', detail.position?.name, 'scoringRules:', detail.scoringRules?.length, 'gradeRules:', detail.gradeRules?.length);
         setPositionDetail(detail);
       })
       .catch(() => {
@@ -696,16 +695,10 @@ export const CandidateSearchPage = () => {
     if (!selectedPositionId || !positionDetail) return;
     if (!candidatesData || candidatesData.length === 0) return;
 
-    console.log('[SmartMatch] Scoring candidates with positionDetail:', positionDetail.position?.name);
-    console.log('[SmartMatch] scoringRules:', JSON.stringify(positionDetail.scoringRules));
-    console.log('[SmartMatch] gradeRules:', JSON.stringify(positionDetail.gradeRules));
-    console.log('[SmartMatch] candidates count:', candidatesData.length);
-
     const newScores: Record<string, {fitScore: number[]; grade: string; scoreColor: string; gradeColor: string; scoreResult: ScoreResult}> = {};
     candidatesData.forEach((candidate) => {
       if (candidate.resumeParsedInfo) {
         const scoreResult = calculateResumeScore(candidate.resumeParsedInfo, positionDetail);
-        console.log('[SmartMatch] Candidate:', candidate.name, '-> score:', scoreResult?.totalScore, 'grade:', scoreResult?.grade, 'matchedKW:', scoreResult?.matchedKeywords);
         if (scoreResult) {
           newScores[candidate.id] = {
             fitScore: [scoreResult.totalScore],
@@ -717,7 +710,6 @@ export const CandidateSearchPage = () => {
         }
       }
     });
-    console.log('[SmartMatch] Computed scores for', Object.keys(newScores).length, 'candidates');
     setComputedScores(newScores);
   }, [candidatesData, selectedPositionId, positionDetail, smartMatchActive]);
 
@@ -1056,27 +1048,8 @@ export const CandidateSearchPage = () => {
                     setSortOption('score');
 
                     // Score all candidates directly
-                    console.log('[SmartMatch] Scoring candidates with positionDetail:', positionDetail.position?.name);
-                    console.log('[SmartMatch] scoringRules:', JSON.stringify(positionDetail.scoringRules));
-                    console.log('[SmartMatch] gradeRules:', JSON.stringify(positionDetail.gradeRules));
-                    console.log('[SmartMatch] candidates count:', candidatesData.length, 'matchTimeWindow:', matchTimeWindow, 'matchDateFrom:', matchDateFrom, 'matchDateTo:', matchDateTo);
-
                     const newScores: Record<string, {fitScore: number[]; grade: string; scoreColor: string; gradeColor: string; scoreResult: ScoreResult}> = {};
                     if (candidatesData && candidatesData.length > 0) {
-                      // Debug: check first candidate's resumeParsedInfo
-                      const firstWithResume = candidatesData.find(c => c.resumeParsedInfo);
-                      if (firstWithResume) {
-                        console.log('[SmartMatch] Sample candidate resumeParsedInfo:', JSON.stringify({
-                          name: firstWithResume.name,
-                          skills: firstWithResume.resumeParsedInfo?.skills,
-                          workExperience: firstWithResume.resumeParsedInfo?.workExperience,
-                          education: firstWithResume.resumeParsedInfo?.education,
-                          rawTextLength: firstWithResume.resumeParsedInfo?.rawText?.length
-                        }, null, 2));
-                      } else {
-                        console.log('[SmartMatch] No candidate has resumeParsedInfo!');
-                      }
-
                       candidatesData.forEach((candidate) => {
                         // Filter by time window for imported candidates
                         if (matchTimeWindow !== 'all' && candidate.id.startsWith('imported-')) {
@@ -1095,7 +1068,6 @@ export const CandidateSearchPage = () => {
                         }
                         if (candidate.resumeParsedInfo) {
                           const scoreResult = calculateResumeScore(candidate.resumeParsedInfo, positionDetail);
-                          console.log('[SmartMatch] Candidate:', candidate.name, '-> score:', scoreResult?.totalScore, 'grade:', scoreResult?.grade, 'matchedKW:', scoreResult?.matchedKeywords);
                           if (scoreResult) {
                             newScores[candidate.id] = {
                               fitScore: [scoreResult.totalScore],
@@ -1108,7 +1080,6 @@ export const CandidateSearchPage = () => {
                         }
                       });
                     }
-                    console.log('[SmartMatch] Computed scores for', Object.keys(newScores).length, 'candidates');
                     setComputedScores(newScores);
                     setSuppressSmartMatchEffect(false); // re-enable auto-scoring for future matches
 

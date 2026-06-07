@@ -8,7 +8,10 @@ function jsonRes(body: unknown, status = 200) {
 export const listUsers = async (req: Request, _userId: string, _userRole: string): Promise<Response> => {
   try {
     const supabase = createSupabaseAdmin(req);
-    const { data } = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
+    const { data } = await supabase
+      .from('profiles')
+      .select('id, name, email, role, phone, department, avatar, status, last_login_at, created_at, updated_at')
+      .order('created_at', { ascending: false });
     return jsonRes(data ?? []);
   } catch {
     return jsonRes({ error: { code: 'INTERNAL_ERROR', message: 'An internal error occurred' } }, 500);

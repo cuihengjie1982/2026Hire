@@ -137,6 +137,27 @@ async function validateAccessToken(
   return { valid: true, session: s };
 }
 
+async function validateConversationAccess(
+  supabase: ReturnType<typeof createSupabaseAdmin>,
+  accessToken: string,
+  convSessionId: string,
+): Promise<{ valid: false; error: Response } | { valid: true; session: Record<string, unknown>; conv: Record<string, unknown> }> {
+  if (!accessToken) return { valid: false, error: jsonRes({ error: 'accessToken is required' }, 400) };
+  const validation = await validateAccessToken(supabase, accessToken);
+  if (!validation.valid) return validation;
+
+  const { data: convData } = await supabase.from('conversational_interview_sessions')
+    .select('*').eq('id', convSessionId).single();
+  if (!convData) return { valid: false, error: jsonRes({ error: 'Conversation session not found' }, 404) };
+
+  const conv = convData as Record<string, unknown>;
+  if (String(conv.session_id) !== String(validation.session.id)) {
+    return { valid: false, error: jsonRes({ error: 'Conversation session does not match access token' }, 403) };
+  }
+
+  return { valid: true, session: validation.session, conv };
+}
+
 // ============================================================================
 // Main public conversation router
 // ============================================================================
@@ -277,17 +298,15 @@ export const handlePublicConversation = async (req: Request, _userId: string, _u
     // ---- POST /messages — send candidate message, get AI reply ----
     if (path === '/messages' && method === 'POST') {
       const body = await req.json() as Record<string, unknown>;
-      const { convSessionId, content } = body;
+      const { accessToken, convSessionId, content } = body;
 
       if (!convSessionId || !content?.trim()) {
         return jsonRes({ error: 'convSessionId and content are required' }, 400);
       }
 
-      const { data: convData } = await supabase.from('conversational_interview_sessions')
-        .select('*').eq('id', String(convSessionId)).single();
-      if (!convData) return jsonRes({ error: 'Conversation session not found' }, 404);
-
-      const conv = convData as Record<string, unknown>;
+      const access = await validateConversationAccess(supabase, String(accessToken ?? ''), String(convSessionId));
+      if (!access.valid) return access.error;
+      const conv = access.conv;
       if (conv.status !== 'active') return jsonRes({ error: 'Conversation is not active' }, 400);
 
       // Save candidate message
@@ -368,19 +387,21 @@ export const handlePublicConversation = async (req: Request, _userId: string, _u
     }
 
     // ---- GET /messages/stream — SSE streaming ----
-    if (path === '/messages/stream' && method === 'GET') {
-      const convSessionId = url.searchParams.get('convSessionId');
-      const content = url.searchParams.get('content');
+    if (path === '/messages/stream' && (method === 'GET' || method === 'POST')) {
+      const input = method === 'POST'
+        ? await req.json() as Record<string, unknown>
+        : Object.fromEntries(url.searchParams.entries());
+      const accessToken = String(input.accessToken ?? '');
+      const convSessionId = String(input.convSessionId ?? '');
+      const content = String(input.content ?? '');
 
       if (!convSessionId || !content?.trim()) {
         return jsonRes({ error: 'convSessionId and content are required' }, 400);
       }
 
-      const { data: convData } = await supabase.from('conversational_interview_sessions')
-        .select('*').eq('id', convSessionId).single();
-      if (!convData) return jsonRes({ error: 'Conversation session not found' }, 404);
-
-      const conv = convData as Record<string, unknown>;
+      const access = await validateConversationAccess(supabase, accessToken, convSessionId);
+      if (!access.valid) return access.error;
+      const conv = access.conv;
       if (conv.status !== 'active') return jsonRes({ error: 'Conversation is not active' }, 400);
 
       // Save candidate message
@@ -494,15 +515,13 @@ export const handlePublicConversation = async (req: Request, _userId: string, _u
     // ---- POST /complete — end conversation ----
     if (path === '/complete' && method === 'POST') {
       const body = await req.json() as Record<string, unknown>;
-      const { convSessionId } = body;
+      const { accessToken, convSessionId } = body;
 
       if (!convSessionId) return jsonRes({ error: 'convSessionId is required' }, 400);
 
-      const { data: convData } = await supabase.from('conversational_interview_sessions')
-        .select('*').eq('id', String(convSessionId)).single();
-      if (!convData) return jsonRes({ error: 'Conversation session not found' }, 404);
-
-      const conv = convData as Record<string, unknown>;
+      const access = await validateConversationAccess(supabase, String(accessToken ?? ''), String(convSessionId));
+      if (!access.valid) return access.error;
+      const conv = access.conv;
       const { count } = await supabase.from('conversational_interview_messages')
         .select('*', { count: 'exact', head: true }).eq('conv_session_id', String(convSessionId));
 
@@ -531,15 +550,13 @@ export const handlePublicConversation = async (req: Request, _userId: string, _u
     // ---- POST /score — score the conversation ----
     if (path === '/score' && method === 'POST') {
       const body = await req.json() as Record<string, unknown>;
-      const { convSessionId } = body;
+      const { accessToken, convSessionId } = body;
 
       if (!convSessionId) return jsonRes({ error: 'convSessionId is required' }, 400);
 
-      const { data: convData } = await supabase.from('conversational_interview_sessions')
-        .select('*').eq('id', String(convSessionId)).single();
-      if (!convData) return jsonRes({ error: 'Conversation session not found' }, 404);
-
-      const conv = convData as Record<string, unknown>;
+      const access = await validateConversationAccess(supabase, String(accessToken ?? ''), String(convSessionId));
+      if (!access.valid) return access.error;
+      const conv = access.conv;
 
       const { data: interviewSession } = await supabase.from('interview_sessions')
         .select('*, candidates(name, email), interview_templates(name, scoring_config, grade_rules)')
@@ -663,15 +680,15 @@ export const handlePublicConversation = async (req: Request, _userId: string, _u
     // ---- POST /candidate-question — candidate asks a question ----
     if (path === '/candidate-question' && method === 'POST') {
       const body = await req.json() as Record<string, unknown>;
-      const { convSessionId, question } = body;
+      const { accessToken, convSessionId, question } = body;
 
       if (!convSessionId || !question?.trim()) {
         return jsonRes({ error: 'convSessionId and question are required' }, 400);
       }
 
-      const { data: convData } = await supabase.from('conversational_interview_sessions')
-        .select('session_id, transcript_full, message_count').eq('id', String(convSessionId)).single();
-      const conv = convData as Record<string, unknown>;
+      const access = await validateConversationAccess(supabase, String(accessToken ?? ''), String(convSessionId));
+      if (!access.valid) return access.error;
+      const conv = access.conv;
 
       const { data: interviewSession } = await supabase.from('interview_sessions')
         .select('template_id').eq('id', String(conv.session_id)).single();

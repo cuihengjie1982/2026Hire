@@ -18,6 +18,11 @@ import {
 } from './mineruClient';
 import {USE_MOCK_API, API_BASE_URL, getAuthToken} from './runtime';
 
+const RESUME_PARSE_DEBUG = import.meta.env.DEV && import.meta.env.VITE_RESUME_PARSE_DEBUG === 'true';
+const debugResumeParse = (...args: unknown[]) => {
+  if (RESUME_PARSE_DEBUG) console.debug(...args);
+};
+
 // ---------------------------------------------------------------------------
 // 类型定义
 // ---------------------------------------------------------------------------
@@ -709,7 +714,7 @@ function emptyResult(photoBase64 = ''): ParsedResumeInfo {
  *   mineruToken: MINERU_API_TOKEN,
  *   authToken: getAuthToken(),
  * });
- * console.log(result.parsedInfo, result.metadata);
+ * inspect result.parsedInfo and result.metadata in a debugger.
  * ```
  */
 /** Build a markdown representation from parsed resume fields.
@@ -755,7 +760,7 @@ export async function parseResume(
   // 1. 路由决策
   const route = await routeFile(file);
   stages.push(`route:${route.path}`);
-  console.log(`[Pipeline] ${file.name} → ${route.path} (${route.reason})`);
+  debugResumeParse(`[Pipeline] ${file.name} -> ${route.path} (${route.reason})`);
 
   let parsedInfo: ParsedResumeInfo;
   let contentMd = '';
@@ -791,7 +796,7 @@ export async function parseResume(
     // 质量检查：如果 TEXT_PATH 结果不好，升级到 VISION_PATH（仅非 mock 模式）
     const quality = assessQuality(parsedInfo);
     if (quality.score < 65 && !USE_MOCK_API) {
-      console.log(`[Pipeline] TEXT_PATH quality=${quality.score} (< 40), escalating to VISION_PATH`);
+      debugResumeParse(`[Pipeline] TEXT_PATH quality=${quality.score} (< 65), escalating to VISION_PATH`);
       const visionResult = await extractViaVisionPath(file, config, stages);
       if (visionResult.info.name || visionResult.info.phone) {
         parsedInfo = mergeResults(visionResult.info, parsedInfo);
@@ -803,7 +808,7 @@ export async function parseResume(
       }
       visionLlmUsed = stages.includes('visionParse');
     } else if (quality.score < 65 && USE_MOCK_API) {
-      console.log(`[Pipeline] TEXT_PATH quality=${quality.score} (< 40), skipping vision escalation (mock mode)`);
+      debugResumeParse(`[Pipeline] TEXT_PATH quality=${quality.score} (< 65), skipping vision escalation (mock mode)`);
       stages.push('vision:skipped(mock)');
     }
   }
@@ -822,7 +827,7 @@ export async function parseResume(
     visionLlmUsed,
   };
 
-  console.log(`[Pipeline] ${file.name}: route=${finalRoute}, quality=${quality.score}(${quality.level}), ` +
+  debugResumeParse(`[Pipeline] ${file.name}: route=${finalRoute}, quality=${quality.score}(${quality.level}), ` +
     `${quality.missing.length > 0 ? `missing=[${quality.missing.join(',')}]` : 'all fields present'}, ` +
     `${totalMs}ms, stages=${stages.join('→')}`);
 

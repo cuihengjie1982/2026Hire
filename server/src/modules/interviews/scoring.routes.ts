@@ -71,6 +71,27 @@ function parseJSONResponse(raw: string): Record<string, unknown> {
   return {score: 0, error: 'Failed to parse structured response', rawResponse: raw.slice(0, 1000)};
 }
 
+function clampScore(value: unknown, max = 100): number {
+  const score = Number(value);
+  if (!Number.isFinite(score)) return 0;
+  return Math.max(0, Math.min(max, Math.round(score)));
+}
+
+function normalizeDimensionScores(value: unknown): Array<{dimension: string; score: number; maxScore: number; reasoning: string}> {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((item): item is Record<string, unknown> => item !== null && typeof item === 'object')
+    .map((item) => {
+      const maxScore = clampScore(item.maxScore ?? item.max_score ?? 100);
+      return {
+        dimension: String(item.dimension ?? item.name ?? '综合评估'),
+        score: clampScore(item.score, maxScore || 100),
+        maxScore: maxScore || 100,
+        reasoning: String(item.reasoning ?? ''),
+      };
+    });
+}
+
 // ---------------------------------------------------------------------------
 // POST /transcribe-and-score — primary per-question endpoint
 // ---------------------------------------------------------------------------
@@ -169,10 +190,10 @@ router.post('/transcribe-and-score', upload.single('audio'), async (req, res, ne
       const rawResponse = await callLLM(llmConfig, systemPrompt, userMessage);
       const parsed = parseJSONResponse(rawResponse);
 
-      const score = typeof parsed.score === 'number' ? parsed.score : 0;
+      const score = clampScore(parsed.score);
       const maxScore = 100;
       const scoreReasoning = typeof parsed.overallAssessment === 'string' ? parsed.overallAssessment : '';
-      const dimensionScores = Array.isArray(parsed.dimensionScores) ? parsed.dimensionScores : [];
+      const dimensionScores = normalizeDimensionScores(parsed.dimensionScores);
 
       await query(
         `UPDATE interview_answer_scores

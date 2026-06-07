@@ -4,6 +4,7 @@ import multer from 'multer';
 
 const router = Router();
 const upload = multer({storage: multer.memoryStorage(), limits: {fileSize: 10 * 1024 * 1024}});
+const RESERVED_EMPLOYEE_COLLECTION_PATHS = new Set(['custom-fields', 'competency-models', 'scorecard-overview']);
 
 // Predefined column name mapping (Chinese/English → employee_profiles columns)
 const COLUMN_MAP: Record<string, {column: string; jsonb?: boolean}> = {
@@ -195,6 +196,11 @@ router.get('/stats', async (_req, res, next) => {
 
 // GET /:id — single employee profile
 router.get('/:id', async (req, res, next) => {
+  if (RESERVED_EMPLOYEE_COLLECTION_PATHS.has(req.params.id)) {
+    next('route');
+    return;
+  }
+
   try {
     const row = await queryOne(
       `SELECT ep.*,
@@ -885,14 +891,12 @@ router.get('/:id/scorecard', async (req, res, next) => {
     const {id} = req.params;
     let card = await queryOne(`SELECT * FROM employee_scorecards WHERE employee_id = $1`, [id]);
 
-    // Lazy recompute if no card or card is older than 24h
-    if (!card || (card as Record<string, unknown>).last_recomputed_at) {
-      const lastComputed = new Date(String((card as Record<string, unknown>)?.last_recomputed_at ?? 0));
-      const age = Date.now() - lastComputed.getTime();
-      if (!card || age > 24 * 3600000) {
-        await recomputeScorecard(id);
-        card = await queryOne(`SELECT * FROM employee_scorecards WHERE employee_id = $1`, [id]);
-      }
+    const lastRecomputedAt = (card as Record<string, unknown> | null)?.last_recomputed_at;
+    const lastComputedAt = lastRecomputedAt ? new Date(String(lastRecomputedAt)).getTime() : 0;
+    const isStale = !lastComputedAt || Number.isNaN(lastComputedAt) || Date.now() - lastComputedAt > 24 * 3600000;
+    if (!card || isStale) {
+      await recomputeScorecard(id);
+      card = await queryOne(`SELECT * FROM employee_scorecards WHERE employee_id = $1`, [id]);
     }
 
     if (!card) {

@@ -75,7 +75,7 @@ const loadHandlers = async (): Promise<RouteHandler[]> => {
     { pattern: '/settings/users/', methods: ['POST'], auth: 'admin', handler: createUser },
     { pattern: '/settings/users/', methods: ['PATCH'], auth: 'admin', handler: updateUser },
     { pattern: '/settings/users/', methods: ['DELETE'], auth: 'admin', handler: deleteUser },
-    { pattern: '/settings/users', methods: ['GET'], auth: 'any', handler: listUsers },
+    { pattern: '/settings/users', methods: ['GET'], auth: 'admin', handler: listUsers },
     // Settings - Permissions (read-only, any authenticated)
     { pattern: '/settings/permissions', methods: ['GET'], auth: 'any', handler: getPermissions },
     { pattern: '/settings/role-permissions', methods: ['GET'], auth: 'any', handler: getRolePermissions },

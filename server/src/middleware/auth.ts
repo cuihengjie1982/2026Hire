@@ -8,6 +8,7 @@ export interface JwtPayload {
   email: string;
   role: string;
   jti: string;  // unique token ID for blacklist tracking
+  iat?: number;
 }
 
 declare global {
@@ -54,7 +55,7 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction) 
     }
 
     // Check token blacklist (async but we need to block)
-    checkBlacklist(decoded.jti).then(blacklisted => {
+    isTokenBlacklisted(decoded.jti, decoded.userId, decoded.iat).then(blacklisted => {
       if (blacklisted) {
         res.status(401).json({error: {code: 'TOKEN_REVOKED', message: 'Token has been revoked'}});
         return;
@@ -74,10 +75,22 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction) 
 /**
  * Check if a token's jti is in the blacklist.
  */
-async function checkBlacklist(jti: string): Promise<boolean> {
+export async function isTokenBlacklisted(jti: string, userId: string, issuedAt?: number): Promise<boolean> {
+  const issuedAtIso = issuedAt ? new Date(issuedAt * 1000).toISOString() : null;
   const row = await queryOne<{id: string}>(
-    `SELECT id FROM token_blacklist WHERE jti = $1 AND expires_at > now()`,
-    [jti],
+    `SELECT id
+     FROM token_blacklist
+     WHERE expires_at > now()
+       AND (
+         jti = $1
+         OR (
+           user_id = $2
+           AND jti LIKE 'revoke-all-%'
+           AND ($3::timestamptz IS NULL OR created_at > $3::timestamptz)
+         )
+       )
+     LIMIT 1`,
+    [jti, userId, issuedAtIso],
   );
   return !!row;
 }

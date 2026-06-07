@@ -9,6 +9,27 @@ function jsonRes(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 }
 
+function clampScore(value: unknown, max = 100): number {
+  const score = Number(value);
+  if (!Number.isFinite(score)) return 0;
+  return Math.max(0, Math.min(max, Math.round(score)));
+}
+
+function normalizeDimensionScores(value: unknown): Array<{ dimension: string; score: number; maxScore: number; reasoning: string }> {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((item): item is Record<string, unknown> => item !== null && typeof item === 'object')
+    .map((item) => {
+      const maxScore = clampScore(item.maxScore ?? item.max_score ?? 100);
+      return {
+        dimension: String(item.dimension ?? item.name ?? '综合评估'),
+        score: clampScore(item.score, maxScore || 100),
+        maxScore: maxScore || 100,
+        reasoning: String(item.reasoning ?? ''),
+      };
+    });
+}
+
 async function resolveConfig(supabase: ReturnType<typeof createSupabaseAdmin>, filter: Record<string, unknown>) {
   let q = supabase.from('ai_model_configs').select('*').eq('is_active', true);
   for (const [k, v] of Object.entries(filter)) q = q.eq(k, v);
@@ -113,9 +134,9 @@ export const transcribeAndScore = async (req: Request, _userId: string, _userRol
     try {
       const raw = await callLLM(llmConfig, systemPrompt, userMessage);
       const parsed = parseJSONResponse(raw);
-      const score = typeof parsed.score === 'number' ? parsed.score : 0;
+      const score = clampScore(parsed.score);
       const scoreReasoning = typeof parsed.overallAssessment === 'string' ? parsed.overallAssessment : '';
-      const dimensionScores = Array.isArray(parsed.dimensionScores) ? parsed.dimensionScores : [];
+      const dimensionScores = normalizeDimensionScores(parsed.dimensionScores);
 
       await supabase.from('interview_answer_scores').update({
         status: 'completed', score, max_score: 100, score_reasoning: scoreReasoning,

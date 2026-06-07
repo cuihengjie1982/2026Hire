@@ -1002,14 +1002,13 @@ const getScorecard = async (req: Request): Promise<Response> => {
 
     let { data: card } = await supabase.from('employee_scorecards').select('*').eq('employee_id', employeeId).maybeSingle();
 
-    // Lazy recompute if stale or missing
-    if (!card || (card as Record<string, unknown>).last_recomputed_at) {
-      const lastComputed = new Date(String((card as Record<string, unknown>)?.last_recomputed_at ?? 0));
-      if (!card || Date.now() - lastComputed.getTime() > 24 * 3600000) {
-        await recomputeScorecardEF(supabase, employeeId);
-        const result = await supabase.from('employee_scorecards').select('*').eq('employee_id', employeeId).maybeSingle();
-        card = result.data;
-      }
+    const lastRecomputedAt = (card as Record<string, unknown> | null)?.last_recomputed_at;
+    const lastComputedAt = lastRecomputedAt ? new Date(String(lastRecomputedAt)).getTime() : 0;
+    const isStale = !lastComputedAt || Number.isNaN(lastComputedAt) || Date.now() - lastComputedAt > 24 * 3600000;
+    if (!card || isStale) {
+      await recomputeScorecardEF(supabase, employeeId);
+      const result = await supabase.from('employee_scorecards').select('*').eq('employee_id', employeeId).maybeSingle();
+      card = result.data;
     }
 
     if (!card) {

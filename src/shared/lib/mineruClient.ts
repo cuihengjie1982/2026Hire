@@ -38,6 +38,10 @@ async function parseResumeImageViaProxy(imageBase64: string, mimeType: string): 
 // The backend /api/mineru/file_parse route is only available in the local
 // Express dev server. In production (Vercel + Supabase), we call MinerU directly.
 const MINERU_API_URL = 'https://mineru.net/api/v4/extract/task';
+const RESUME_PARSE_DEBUG = import.meta.env.DEV && import.meta.env.VITE_RESUME_PARSE_DEBUG === 'true';
+const debugResumeParse = (...args: unknown[]) => {
+  if (RESUME_PARSE_DEBUG) console.debug(...args);
+};
 
 export interface MinerUParseResult {
   success: boolean;
@@ -351,7 +355,7 @@ export const parseResumeWithMinerU = async (
           }
 
           const startResult = await startResponse.json();
-          console.log('[MinerU] Parse start:', JSON.stringify(startResult).slice(0, 300));
+          debugResumeParse('[MinerU] Parse start:', JSON.stringify(startResult).slice(0, 300));
           // If the proxy returned content directly (backward compat), use it
           if (startResult.content_md && startResult.content_md.length > 50) {
             clearTimeout(timeoutId);
@@ -398,7 +402,7 @@ export const parseResumeWithMinerU = async (
               }
 
               const pollResult = await pollResponse.json();
-              console.log(`[MinerU] Poll ${i + 1}: status=${pollResult.status}, state=${pollResult.state || '?'}, hasContent=${!!pollResult.content_md}, contentLen=${pollResult.content_md?.length ?? 0}`);
+              debugResumeParse(`[MinerU] Poll ${i + 1}: status=${pollResult.status}, state=${pollResult.state || '?'}, hasContent=${!!pollResult.content_md}, contentLen=${pollResult.content_md?.length ?? 0}`);
 
               if (pollResult.error) {
                 clearTimeout(pollTimeoutId);
@@ -421,7 +425,7 @@ export const parseResumeWithMinerU = async (
                 };
               }
 
-              console.log(`[MinerU] Poll ${i + 1}: status=${pollResult.status}, state=${pollResult.state || '?'}`);
+              debugResumeParse(`[MinerU] Poll ${i + 1}: status=${pollResult.status}, state=${pollResult.state || '?'}`);
             }
 
             clearTimeout(pollTimeoutId);
@@ -429,7 +433,7 @@ export const parseResumeWithMinerU = async (
           }
         } catch (proxyErr) {
           clearTimeout(timeoutId);
-          console.log('[MinerU] Proxy failed, falling back to client-side parsing:', proxyErr);
+          debugResumeParse('[MinerU] Proxy failed, falling back to client-side parsing:', proxyErr);
         }
       } else {
         // Dev mode: direct MinerU call (token loaded from env)
@@ -464,14 +468,14 @@ export const parseResumeWithMinerU = async (
               photoBase64,
             };
           }
-          console.log('[MinerU] Proxy returned insufficient content, using client-side parsing');
+          debugResumeParse('[MinerU] Proxy returned insufficient content, using client-side parsing');
         }
       }
 
       clearTimeout(timeoutId);
     } catch (fetchError) {
       clearTimeout(timeoutId);
-      console.log('Proxy fetch failed, using client-side parsing');
+      debugResumeParse('Proxy fetch failed, using client-side parsing', fetchError);
     }
 
     // For image files, we can't extract text client-side without OCR
@@ -481,7 +485,7 @@ export const parseResumeWithMinerU = async (
 
     // For PDFs: fall back to client-side PDF parsing
     if (isPdf) {
-      console.log('[MinerU] Using client-side PDF parsing for:', file.name);
+      debugResumeParse('[MinerU] Using client-side PDF parsing for:', file.name);
       const pdfText = await extractTextFromPdfClientSide(file);
       if (!pdfText) {
         return {success: false, error: 'PDF parsing failed (no text extracted)'};

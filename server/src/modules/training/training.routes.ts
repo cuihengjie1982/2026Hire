@@ -16,6 +16,28 @@ const upload = multer({
   limits: {fileSize: 500 * 1024 * 1024}, // 500MB
 });
 
+async function resolveTrainingLLMConfig() {
+  let row = await queryOne<Record<string, unknown>>(
+    `SELECT * FROM ai_model_configs WHERE is_default = true AND is_active = true LIMIT 1`,
+  );
+  if (!row) {
+    row = await queryOne<Record<string, unknown>>(
+      `SELECT * FROM ai_model_configs WHERE is_active = true ORDER BY created_at DESC LIMIT 1`,
+    );
+  }
+  if (!row) return null;
+
+  return {
+    id: String(row.id),
+    provider: String(row.provider),
+    model_name: String(row.model_name),
+    api_key: String(row.api_key),
+    base_url: row.base_url ? String(row.base_url) : null,
+    temperature: Number(row.temperature ?? 0.7),
+    max_tokens: Number(row.max_tokens ?? 4096),
+  };
+}
+
 // ═══════════════════════════════════════════════════════════════════
 // Courses (admin + recruiter 可管理, viewer 只读)
 // ═══════════════════════════════════════════════════════════════════
@@ -890,7 +912,7 @@ router.post('/enrollments/batch', requireRole('admin', 'recruiter'), async (req,
 });
 
 // ═══════════════════════════════════════════════════════════════════
-// Training Notes CRUD (no auth required — candidate portal uses token)
+// Training Notes CRUD (authenticated /api route; mutations limited to training managers)
 // ═══════════════════════════════════════════════════════════════════
 
 // GET /notes/:enrollmentId — list notes for an enrollment
@@ -905,7 +927,7 @@ router.get('/notes/:enrollmentId', async (req, res, next) => {
 });
 
 // POST /notes — create a note
-router.post('/notes', async (req, res, next) => {
+router.post('/notes', requireRole('admin', 'recruiter'), async (req, res, next) => {
   try {
     const {enrollmentId, candidateId, videoTimestamp, noteTitle, noteContent} = req.body;
     if (!enrollmentId || !candidateId || !noteTitle) {
@@ -922,7 +944,7 @@ router.post('/notes', async (req, res, next) => {
 });
 
 // PATCH /notes/:id — update a note
-router.patch('/notes/:id', async (req, res, next) => {
+router.patch('/notes/:id', requireRole('admin', 'recruiter'), async (req, res, next) => {
   try {
     const {noteTitle, noteContent, videoTimestamp} = req.body;
     const fields: string[] = [];
@@ -965,11 +987,16 @@ router.post('/ai/summarize', async (req, res, next) => {
     }
 
     const {callLLM} = await import('../../modules/ai/llmClient.js');
+    const aiConfig = await resolveTrainingLLMConfig();
+    if (!aiConfig) {
+      res.status(400).json({error: {code: 'AI_CONFIG_MISSING', message: 'No active AI model configured'}});
+      return;
+    }
 
     const systemPrompt = '你是一个专业的培训课程助手。请根据提供的课程内容，生成一个简洁的中文摘要，包括：1）课程主题；2）核心知识点（3-5点）；3）学习建议。回复格式清晰，用中文。';
     const userMessage = `课程标题：${title ?? '未命名课程'}\n\n课程内容：\n${typeof content === 'string' ? content : JSON.stringify(content)}`;
 
-    const result = await callLLM({}, systemPrompt, userMessage);
+    const result = await callLLM(aiConfig, systemPrompt, userMessage);
     res.json({summary: result});
   } catch (e) { next(e); }
 });
@@ -987,11 +1014,16 @@ router.post('/ai/qa', async (req, res, next) => {
     }
 
     const {callLLM} = await import('../../modules/ai/llmClient.js');
+    const aiConfig = await resolveTrainingLLMConfig();
+    if (!aiConfig) {
+      res.status(400).json({error: {code: 'AI_CONFIG_MISSING', message: 'No active AI model configured'}});
+      return;
+    }
 
     const systemPrompt = '你是一个专业的视频学习助手。基于提供的视频文字稿，准确回答用户的问题。如果文字稿中没有相关信息，请说明并尝试基于常识回答。回复用中文，简洁明了。';
     const userMessage = `课程标题：${courseTitle ?? '未知课程'}\n视频时间点：${videoTime ?? '未知'}\n\n文字稿内容：\n${transcript ?? '（无文字稿）'}\n\n用户问题：${question}`;
 
-    const result = await callLLM({}, systemPrompt, userMessage);
+    const result = await callLLM(aiConfig, systemPrompt, userMessage);
     res.json({answer: result});
   } catch (e) { next(e); }
 });
@@ -1009,6 +1041,11 @@ router.post('/ai/topics', async (req, res, next) => {
     }
 
     const {callLLM} = await import('../../modules/ai/llmClient.js');
+    const aiConfig = await resolveTrainingLLMConfig();
+    if (!aiConfig) {
+      res.status(400).json({error: {code: 'AI_CONFIG_MISSING', message: 'No active AI model configured'}});
+      return;
+    }
 
     const systemPrompt = `你是一个视频内容分析专家。根据提供的带时间戳的视频文字稿，提取3-8个主要主题/话题。
 
@@ -1024,7 +1061,7 @@ router.post('/ai/topics', async (req, res, next) => {
 
     const userMessage = `课程标题：${title ?? '未命名课程'}\n视频总时长：${duration ? Math.floor(duration) + '秒' : '未知'}\n\n文字稿内容：\n${typeof content === 'string' ? content : JSON.stringify(content)}`;
 
-    const result = await callLLM({}, systemPrompt, userMessage);
+    const result = await callLLM(aiConfig, systemPrompt, userMessage);
 
     // Parse JSON from LLM response
     let topics;

@@ -108,7 +108,7 @@ const loadHandlers = async (): Promise<RouteHandler[]> => {
     { pattern: '/settings/users/', methods: ['POST'], auth: 'admin', handler: createUser },
     { pattern: '/settings/users/', methods: ['PATCH'], auth: 'admin', handler: updateUser },
     { pattern: '/settings/users/', methods: ['DELETE'], auth: 'admin', handler: deleteUser },
-    { pattern: '/settings/users', methods: ['GET'], auth: 'any', handler: listUsers },
+    { pattern: '/settings/users', methods: ['GET'], auth: 'admin', handler: listUsers },
     // Settings - Permissions (read-only, any authenticated)
     { pattern: '/settings/permissions', methods: ['GET'], auth: 'any', handler: getPermissions },
     { pattern: '/settings/role-permissions', methods: ['GET'], auth: 'any', handler: getRolePermissions },
@@ -165,8 +165,9 @@ const loadHandlers = async (): Promise<RouteHandler[]> => {
     { pattern: '/training/paths', methods: ['GET', 'POST', 'PATCH', 'DELETE'], auth: 'recruiter+', handler: handlePaths },
     // Training Academy — Public Candidate Portal (no auth)
     { pattern: '/training/portal', methods: ['GET'], auth: 'none', handler: portalHandler },
-    // Training Academy — Notes CRUD (no auth — candidate portal)
-    { pattern: '/training/notes', methods: ['GET', 'POST', 'PATCH', 'DELETE'], auth: 'any', handler: handleNotes },
+    // Training Academy — Notes CRUD
+    { pattern: '/training/notes', methods: ['GET'], auth: 'any', handler: handleNotes },
+    { pattern: '/training/notes', methods: ['POST', 'PATCH', 'DELETE'], auth: 'recruiter+', handler: handleNotes },
     // Training Academy — AI Summarize & Q&A (any authenticated)
     { pattern: '/training/ai/', methods: ['POST'], auth: 'any', handler: handleTrainingAi },
     // Stats — dashboard/sidebar/search (any authenticated)
@@ -202,7 +203,7 @@ const loadHandlers = async (): Promise<RouteHandler[]> => {
     { pattern: '/public/interview', methods: ['GET'], auth: 'none', handler: handlePublicInterview },
     // Public Conversation — candidate-facing conversational endpoints (no auth)
     { pattern: '/public/conversation/sessions', methods: ['POST'], auth: 'none', handler: handlePublicConversation },
-    { pattern: '/public/conversation/messages/stream', methods: ['GET'], auth: 'none', handler: handlePublicConversation },
+    { pattern: '/public/conversation/messages/stream', methods: ['GET', 'POST'], auth: 'none', handler: handlePublicConversation },
     { pattern: '/public/conversation/messages', methods: ['POST'], auth: 'none', handler: handlePublicConversation },
     { pattern: '/public/conversation/complete', methods: ['POST'], auth: 'none', handler: handlePublicConversation },
     { pattern: '/public/conversation/score', methods: ['POST'], auth: 'none', handler: handlePublicConversation },
@@ -249,7 +250,9 @@ const serverHandler = async (req: Request): Promise<Response> => {
     // Supabase strips /functions/v1/ but keeps the function name as prefix
     const path = rawPath.replace(/^\/embox-api/, '') || '/';
     const method = req.method;
-    console.log('[embox-api]', method, 'raw:', rawPath, 'stripped:', path);
+    if (Deno.env.get('EMBOX_API_DEBUG') === 'true') {
+      console.log('[embox-api]', method, 'raw:', rawPath, 'stripped:', path);
+    }
 
     // Match routes: longest pattern first, then check method
     const matched = handlers.find(h => {

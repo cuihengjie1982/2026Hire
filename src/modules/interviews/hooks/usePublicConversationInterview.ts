@@ -4,7 +4,7 @@ import type {
   ConversationScore, ConversationalConfig,
 } from '../types';
 import {
-  createPublicConvSession, sendPublicConversationMessage,
+  createPublicConvSession,
   streamPublicConversationMessage, completePublicConversation,
   scorePublicConversation, askPublicCandidateQuestion,
 } from '../api';
@@ -101,7 +101,7 @@ export const usePublicConversationInterview = (accessToken: string, sessionId: s
 
     let fullContent = '';
     cancelStreamRef.current = streamPublicConversationMessage(
-      convSessionId, content.trim(),
+      accessToken, convSessionId, content.trim(),
       (token) => {
         fullContent += token;
         setMessages(prev => {
@@ -141,26 +141,26 @@ export const usePublicConversationInterview = (accessToken: string, sessionId: s
         setSubState('idle');
       },
     );
-  }, [convSessionId, state, addMessage]);
+  }, [accessToken, convSessionId, state, addMessage]);
 
   const completeInterview = useCallback(async () => {
     if (state !== 'active') return;
     try {
       if (cancelStreamRef.current) cancelStreamRef.current();
-      await completePublicConversation(convSessionId);
-      const result = await scorePublicConversation(convSessionId);
+      await completePublicConversation(accessToken, convSessionId);
+      const result = await scorePublicConversation(accessToken, convSessionId);
       setScore(result);
       setState('completed');
       if (timerRef.current) clearInterval(timerRef.current);
     } catch (e) {
       setError(e instanceof Error ? e.message : '结束面试失败');
     }
-  }, [convSessionId, state]);
+  }, [accessToken, convSessionId, state]);
 
   const askQuestion = useCallback(async (question: string) => {
     if (!question.trim() || state !== 'active') return;
     try {
-      const result = await askPublicCandidateQuestion(convSessionId, question.trim());
+      const result = await askPublicCandidateQuestion(accessToken, convSessionId, question.trim());
       addMessage({
         id: `candq-${Date.now()}`, convSessionId, role: 'candidate',
         content: question.trim(), messageType: 'candidate_question',
@@ -170,7 +170,7 @@ export const usePublicConversationInterview = (accessToken: string, sessionId: s
     } catch (e) {
       setError(e instanceof Error ? e.message : '提问失败');
     }
-  }, [convSessionId, state, addMessage]);
+  }, [accessToken, convSessionId, state, addMessage]);
 
   const retry = useCallback(() => {
     setError(null);

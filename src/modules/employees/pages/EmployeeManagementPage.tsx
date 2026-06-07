@@ -11,8 +11,10 @@ import {
   listPerformance, addPerformance,
   listCompetencyModels, createCompetencyModel, deriveCompetencyModel,
   updateCompetencyModel, deleteCompetencyModel,
+  listCustomFields, getCustomValues, updateCustomValues,
   type EmployeeProfile, type PerformanceRecord, type CompetencyModel,
   type EmployeeStats, type CreateEmployeeInput, type CreatePerformanceInput,
+  type CustomFieldDef,
 } from '../api';
 import VersionTimeline from '../components/VersionTimeline';
 import CustomFieldManager from '../components/CustomFieldManager';
@@ -109,6 +111,10 @@ export const EmployeeManagementPage = () => {
   const [showExcelImport, setShowExcelImport] = useState(false);
   const [perfForm, setPerfForm] = useState({period: '', score: '', rating: '', notes: ''});
 
+  // ── Custom fields in modal ──
+  const [modalCustomFields, setModalCustomFields] = useState<CustomFieldDef[]>([]);
+  const [modalCustomValues, setModalCustomValues] = useState<Record<string, unknown>>({});
+
   // ── Competency state ──
   const [models, setModels] = useState<CompetencyModel[]>([]);
   const [positions, setPositions] = useState<PositionSummary[]>([]);
@@ -173,8 +179,13 @@ export const EmployeeManagementPage = () => {
     status: 'active', hireDate: new Date().toISOString().slice(0, 10),
   });
 
-  const openCreate = () => { resetForm(); setEditingEmployee(null); setShowCreateModal(true); };
-  const openEdit = (emp: EmployeeProfile) => {
+  const openCreate = async () => {
+    resetForm(); setEditingEmployee(null);
+    setModalCustomValues({});
+    try { setModalCustomFields(await listCustomFields()); } catch { setModalCustomFields([]); }
+    setShowCreateModal(true);
+  };
+  const openEdit = async (emp: EmployeeProfile) => {
     setEditingEmployee(emp);
     setFormData({
       name: emp.name, email: emp.email, phone: emp.phone,
@@ -183,6 +194,21 @@ export const EmployeeManagementPage = () => {
       education: emp.education ?? '', major: emp.major ?? '',
       status: emp.status, hireDate: emp.hireDate?.slice(0, 10) ?? '',
     });
+    try {
+      const [fields, currentValues] = await Promise.all([
+        listCustomFields(),
+        getCustomValues(emp.id),
+      ]);
+      setModalCustomFields(fields);
+      const valMap: Record<string, unknown> = {};
+      for (const cv of currentValues) {
+        if (cv.valueText != null) valMap[cv.fieldId] = cv.valueText;
+        else if (cv.valueNum != null) valMap[cv.fieldId] = cv.valueNum;
+        else if (cv.valueDate != null) valMap[cv.fieldId] = cv.valueDate;
+        else if (cv.valueJson != null) valMap[cv.fieldId] = cv.valueJson;
+      }
+      setModalCustomValues(valMap);
+    } catch { setModalCustomFields([]); setModalCustomValues({}); }
     setShowCreateModal(true);
   };
 
@@ -190,10 +216,21 @@ export const EmployeeManagementPage = () => {
     if (!formData.name.trim()) return;
     setSubmitting(true);
     try {
+      let savedId = editingEmployee?.id;
       if (editingEmployee) {
         await updateEmployee(editingEmployee.id, formData as unknown as Partial<CreateEmployeeInput>);
       } else {
-        await createEmployee({...formData, candidateId: 'manual'} as unknown as CreateEmployeeInput);
+        const created = await createEmployee({...formData, candidateId: 'manual'} as unknown as CreateEmployeeInput);
+        savedId = created.id;
+      }
+      // Save custom field values
+      if (savedId && modalCustomFields.length > 0) {
+        const updates = Object.entries(modalCustomValues)
+          .filter(([, v]) => v !== undefined && v !== '')
+          .map(([fieldId, value]) => ({fieldId, value}));
+        if (updates.length > 0) {
+          await updateCustomValues(savedId, updates);
+        }
       }
       setShowCreateModal(false);
       await loadEmployees();
@@ -827,6 +864,55 @@ export const EmployeeManagementPage = () => {
                 <input type="date" value={formData.hireDate} onChange={e => setFormData({...formData, hireDate: e.target.value})}
                   className="w-full px-3 py-2 border border-gray-200 rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]" />
               </div>
+
+              {/* Dynamic custom fields */}
+              {modalCustomFields.length > 0 && (
+                <>
+                  <div className="border-t border-gray-100 pt-3 mt-1">
+                    <h4 className="text-[13px] font-medium text-gray-500 mb-2">自定义字段</h4>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    {modalCustomFields.map(field => (
+                      <div key={field.id}>
+                        <label className="block text-[13px] font-medium text-gray-700 mb-1">{field.fieldLabel}</label>
+                        {field.fieldType === 'select' ? (
+                          <select
+                            value={String(modalCustomValues[field.id] ?? '')}
+                            onChange={e => setModalCustomValues({...modalCustomValues, [field.id]: e.target.value})}
+                            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
+                          >
+                            <option value="">请选择</option>
+                            {field.options?.map(opt => (
+                              <option key={opt.value} value={opt.value}>{opt.label}</option>
+                            ))}
+                          </select>
+                        ) : field.fieldType === 'boolean' ? (
+                          <label className="flex items-center gap-2 py-2">
+                            <input
+                              type="checkbox"
+                              checked={!!modalCustomValues[field.id]}
+                              onChange={e => setModalCustomValues({...modalCustomValues, [field.id]: e.target.checked})}
+                              className="rounded border-gray-300 text-[#1a4bc4] focus:ring-[#1a4bc4]"
+                            />
+                            <span className="text-[13px] text-gray-600">{modalCustomValues[field.id] ? '是' : '否'}</span>
+                          </label>
+                        ) : (
+                          <input
+                            type={field.fieldType === 'number' ? 'number' : field.fieldType === 'date' ? 'date' : 'text'}
+                            value={String(modalCustomValues[field.id] ?? '')}
+                            onChange={e => setModalCustomValues({
+                              ...modalCustomValues,
+                              [field.id]: field.fieldType === 'number' ? Number(e.target.value) : e.target.value,
+                            })}
+                            placeholder={field.fieldLabel}
+                            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
+                          />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
             <div className="flex gap-3 mt-6">
               <button onClick={() => setShowCreateModal(false)}

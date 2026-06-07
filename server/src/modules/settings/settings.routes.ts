@@ -2,6 +2,7 @@ import {Router} from 'express';
 import bcrypt from 'bcryptjs';
 import {query, queryOne} from '../../config/database.js';
 import {requireRole} from '../../middleware/requireRole.js';
+import {revokeAllUserTokens} from '../../middleware/auth.js';
 
 // ---------------------------------------------------------------------------
 // User routes (mounted at /api/users)
@@ -151,6 +152,7 @@ usersRouter.post('/reset-password', async (req, res, next) => {
 
     const hash = await bcrypt.hash(newPassword, 12);
     await query('UPDATE users SET password_hash = $1, updated_at = now() WHERE id = $2', [hash, id]);
+    await revokeAllUserTokens(id, 'admin_revoke');
 
     res.json({success: true, message: `${user.name} 的密码已重置`});
   } catch (e) { next(e); }
