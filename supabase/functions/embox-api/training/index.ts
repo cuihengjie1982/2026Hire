@@ -1244,13 +1244,13 @@ export const handlePaths = async (req: Request): Promise<Response> => {
 const TRAINING_MATERIALS_BUCKET = 'training-materials';
 
 const ensureTrainingMaterialsBucket = async (supabase: ReturnType<typeof createSupabaseAdmin>) => {
-  const { data: existingBucket } = await supabase.storage.getBucket(TRAINING_MATERIALS_BUCKET);
+  const { data: existingBucket, error: getBucketError } = await supabase.storage.getBucket(TRAINING_MATERIALS_BUCKET);
   if (!existingBucket) {
     const { error: createBucketError } = await supabase.storage.createBucket(TRAINING_MATERIALS_BUCKET, {
       public: true,
       fileSizeLimit: 500 * 1024 * 1024,
     });
-    if (createBucketError) throw createBucketError;
+    if (createBucketError) throw new Error(`Create storage bucket failed: ${createBucketError.message}`);
     return;
   }
 
@@ -1258,7 +1258,13 @@ const ensureTrainingMaterialsBucket = async (supabase: ReturnType<typeof createS
     public: true,
     fileSizeLimit: 500 * 1024 * 1024,
   });
-  if (updateBucketError) throw updateBucketError;
+  if (updateBucketError) {
+    console.warn('[training signed upload] bucket update skipped', {
+      bucket: TRAINING_MATERIALS_BUCKET,
+      getBucketError: getBucketError?.message,
+      updateBucketError: updateBucketError.message,
+    });
+  }
 };
 
 const createSignedMaterialUpload = async (req: Request): Promise<Response> => {
@@ -1280,7 +1286,9 @@ const createSignedMaterialUpload = async (req: Request): Promise<Response> => {
       .from(TRAINING_MATERIALS_BUCKET)
       .createSignedUploadUrl(path);
 
-    if (error || !data) throw error ?? new Error('Failed to create signed upload URL');
+    if (error || !data) {
+      throw new Error(`Create signed upload URL failed: ${error?.message ?? 'empty response'}`);
+    }
 
     const { data: urlData } = supabase.storage
       .from(TRAINING_MATERIALS_BUCKET)
@@ -1296,7 +1304,8 @@ const createSignedMaterialUpload = async (req: Request): Promise<Response> => {
     });
   } catch (e) {
     console.error('[training signed upload]', e);
-    return jsonRes({ error: { code: 'INTERNAL_ERROR', message: 'Failed to create upload URL' } }, 500);
+    const message = e instanceof Error ? e.message : 'Failed to create upload URL';
+    return jsonRes({ error: { code: 'INTERNAL_ERROR', message } }, 500);
   }
 };
 
