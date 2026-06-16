@@ -1254,10 +1254,11 @@ const ensureTrainingMaterialsBucket = async (supabase: ReturnType<typeof createS
     return;
   }
 
-  if (existingBucket.public === false) {
-    const { error: updateBucketError } = await supabase.storage.updateBucket(TRAINING_MATERIALS_BUCKET, { public: true });
-    if (updateBucketError) throw updateBucketError;
-  }
+  const { error: updateBucketError } = await supabase.storage.updateBucket(TRAINING_MATERIALS_BUCKET, {
+    public: true,
+    fileSizeLimit: 500 * 1024 * 1024,
+  });
+  if (updateBucketError) throw updateBucketError;
 };
 
 const createSignedMaterialUpload = async (req: Request): Promise<Response> => {

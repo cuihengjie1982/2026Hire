@@ -1161,8 +1161,8 @@ const CreateCourseModal = ({initial, onClose, onSubmit}: {
                                   const input = e.currentTarget;
                                   const file = e.target.files?.[0];
                                   if (!file) return;
-                                  await handleUploadSectionFile(file, i);
                                   input.value = '';
+                                  await handleUploadSectionFile(file, i);
                                 }} />
                             </label>
                           </div>
@@ -1215,8 +1215,8 @@ const CreateCourseModal = ({initial, onClose, onSubmit}: {
                       const input = e.currentTarget;
                       const file = e.target.files?.[0];
                       if (!file) return;
-                      await handleUploadMaterialFile(file, i);
                       input.value = '';
+                      await handleUploadMaterialFile(file, i);
                     }} />
                 </label>
                 <button onClick={() => removeMaterial(i)} className="text-red-400 hover:text-red-600 text-xs">删除</button>
