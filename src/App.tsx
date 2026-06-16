@@ -7,6 +7,15 @@ import {ErrorBoundary} from './shared/components/ErrorBoundary';
 import {ToastProvider} from './shared/components/ToastProvider';
 import {NotificationProvider} from './shared/components/NotificationProvider';
 
+const PUBLIC_ROUTE_PREFIXES = [
+  '/training/videos/watch',
+];
+
+const isPublicRoute = () => {
+  if (typeof window === 'undefined') return false;
+  return PUBLIC_ROUTE_PREFIXES.some((prefix) => window.location.pathname.startsWith(prefix));
+};
+
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
 
@@ -75,11 +84,15 @@ export default function App() {
 
   return (
     <ErrorBoundary>
-      {isAuthenticated ? (
+      {isAuthenticated || isPublicRoute() ? (
         <ToastProvider>
-          <NotificationProvider>
+          {isAuthenticated ? (
+            <NotificationProvider>
+              <AppRouter onLogout={handleLogout} />
+            </NotificationProvider>
+          ) : (
             <AppRouter onLogout={handleLogout} />
-          </NotificationProvider>
+          )}
         </ToastProvider>
       ) : (
         <LoginPage onLogin={() => setIsAuthenticated(true)} />

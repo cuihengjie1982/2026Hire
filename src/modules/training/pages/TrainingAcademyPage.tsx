@@ -1158,10 +1158,11 @@ const CreateCourseModal = ({initial, onClose, onSubmit}: {
                                 disabled={uploadingSectionIndex !== null}
                                 accept={sec.contentType === 'video' ? '.mp4,.mov,.webm,.avi,.mkv' : '.pdf,.doc,.docx,.ppt,.pptx,.txt,.md,.jpg,.jpeg,.png,.gif,.mp4,.mov,.webm,.zip,.rar'}
                                 onChange={async (e) => {
+                                  const input = e.currentTarget;
                                   const file = e.target.files?.[0];
                                   if (!file) return;
                                   await handleUploadSectionFile(file, i);
-                                  e.currentTarget.value = '';
+                                  input.value = '';
                                 }} />
                             </label>
                           </div>
@@ -1211,10 +1212,11 @@ const CreateCourseModal = ({initial, onClose, onSubmit}: {
                   <input type="file" className="hidden" accept=".pdf,.doc,.docx,.ppt,.pptx,.mp4,.mov,.jpg,.jpeg,.png,.gif"
                     disabled={uploadingMaterialIndex !== null}
                     onChange={async (e) => {
+                      const input = e.currentTarget;
                       const file = e.target.files?.[0];
                       if (!file) return;
                       await handleUploadMaterialFile(file, i);
-                      e.currentTarget.value = '';
+                      input.value = '';
                     }} />
                 </label>
                 <button onClick={() => removeMaterial(i)} className="text-red-400 hover:text-red-600 text-xs">删除</button>

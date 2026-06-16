@@ -46,6 +46,7 @@ vi.mock('./shared/lib/supabase', () => ({
 
 describe('App', () => {
   beforeEach(() => {
+    window.history.pushState({}, '', '/');
     localStorage.clear();
     vi.clearAllMocks();
     // Default: not authenticated
@@ -65,6 +66,17 @@ describe('App', () => {
 
   it('restores authenticated shell when session exists', async () => {
     mockGetSession.mockResolvedValue({data: {session: {access_token: 'mock-jwt-token'}}});
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(screen.getByText('mock-router')).toBeInTheDocument();
+    });
+    expect(screen.queryByText('mock-login')).not.toBeInTheDocument();
+  });
+
+  it('allows public training video route without login', async () => {
+    window.history.pushState({}, '', '/training/videos/watch?courseId=c1&token=public-token');
 
     render(<App />);
 
