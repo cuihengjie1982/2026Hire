@@ -2,7 +2,7 @@
 
 ## 模块概述
 
-培训学堂是招聘→入职→培训闭环的最后一环。支持课程管理、学习路径、候选人注册、考核评估、薄弱项分析、培训效果统计。有两套访问界面：管理员端（`TrainingAcademyPage`，5 个 Tab）和候选人公开门户（`CandidateTrainingPortal`，无账号访问）。
+培训学堂是招聘→入职→培训闭环的最后一环。支持课程管理、学习路径、候选人注册、考核评估、薄弱项分析、培训效果统计。有三套访问界面：管理员端（`TrainingAcademyPage`，5 个 Tab）、候选人公开门户（`CandidateTrainingPortal`，无账号访问）、员工培训视频公开页（`PublicTrainingVideoPage`，token 免登录观看）。另有可复用的视频学习助手组件（`VideoLearningAssistant`，支持 `publicMode`）。
 
 ## 目录结构
 
@@ -11,12 +11,17 @@ src/modules/training/
 ├── types.ts                          # 全部类型（15+ 接口）
 ├── api.ts                            # 全部 API 调用（含 mock store）
 ├── fixtures.ts                       # Mock 数据（4 课程 + 3 注册）
+├── components/
+│   └── VideoLearningAssistant/        # 视频学习助手（边看边学边记，支持 publicMode）
+│       ├── VideoLearningAssistant.tsx
+│       └── LearningTabPanel.tsx
 └── pages/
-    ├── TrainingAcademyPage.tsx        # 管理后台（1637 行，5 Tab + 7 Modal 内联）
-    └── CandidateTrainingPortal.tsx    # 候选人门户（357 行，只读）
+    ├── TrainingAcademyPage.tsx        # 管理后台（5 Tab + 7 Modal 内联）
+    ├── CandidateTrainingPortal.tsx    # 候选人门户（只读）
+    └── PublicTrainingVideoPage.tsx    # 员工培训视频公开页（courseId+token 免登录）
 ```
 
-所有子组件（Cards, Tabs, Modals）均内联在 `TrainingAcademyPage.tsx` 中，无独立 components/ 目录。
+管理员端的子组件（Cards, Tabs, Modals）内联在 `TrainingAcademyPage.tsx` 中；视频学习助手作为独立组件抽离到 `components/VideoLearningAssistant/`，在管理后台和公开视频页共用。
 
 ## 后端对应
 
@@ -81,6 +86,10 @@ Edge Function: `supabase/functions/embox-api/training/index.ts`（1257 行）
 ### 门户（公开）
 | `GET /training/portal/:candidateId?token=` | 候选人查看自己的培训进度 |
 
+### 公开视频分享（无 JWT 认证）
+| `POST /training/share-links` | 生成员工公开视频链接（admin/recruiter），返回 HMAC token + path |
+| `GET /training/public/course/:courseId?token=` | 免登录读取单个课程（token 鉴权，用于 `PublicTrainingVideoPage`） |
+
 ## 关键实现细节
 
 ### 候选人门户（无 JWT 认证）
@@ -88,6 +97,13 @@ Edge Function: `supabase/functions/embox-api/training/index.ts`（1257 行）
 - Token 算法：`Base64(candidateId + JWT_SECRET[0:16]).slice(0, 8)`
 - 返回：候选人信息 + 所有注册记录（含课程详情、嵌套考核结果）
 - 仅读操作，SELECT only
+
+### 员工公开培训视频（无 JWT 认证）
+- 接入方式：`/training/videos/watch?courseId=<id>&token=<hmac>`
+- Token 算法：`HMAC-SHA256(JWT_SECRET, "training-video:" + courseId)` → base64url
+- 验证：`timingSafeEqual`（防时序攻击），Edge Function 与 Express 双端实现一致
+- 用途：管理员生成链接分享给员工，免登录观看单个培训视频课程，复用 `VideoLearningAssistant` 组件（`publicMode`）
+- 仅读操作
 
 ### 培训效果闭环
 ```
