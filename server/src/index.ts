@@ -1,6 +1,7 @@
 import nodeCrypto from 'crypto';
 import express from 'express';
 import cors from 'cors';
+import path from 'path';
 import {env} from './config/env.js';
 import {testConnection, query, queryOne} from './config/database.js';
 import {authMiddleware, cleanupExpiredTokens} from './middleware/auth.js';
@@ -55,6 +56,7 @@ app.use(cors({
 app.use(express.json({limit: '100mb'}));
 app.use(securityMiddleware);
 app.use(csrfMiddleware);
+app.use('/uploads/training-materials', express.static(path.resolve('server/uploads/training-materials')));
 
 // Request logging
 app.use((req, _res, next) => {

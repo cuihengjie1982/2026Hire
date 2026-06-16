@@ -917,7 +917,7 @@ router.post('/materials/upload', requireRole('admin', 'recruiter'), upload.singl
     // Rename temp file to clean name
     fs.renameSync(req.file.path, destPath);
 
-    const url = `/uploads/training-materials/${path.basename(filename)}`;
+    const url = `${req.protocol}://${req.get('host')}/uploads/training-materials/${path.basename(filename)}`;
     res.status(201).json({url, filename: req.file.originalname});
   } catch (e) { next(e); }
 });

@@ -7,6 +7,7 @@ import {
   Target, Award, ArrowUpRight, Download, Loader2, Layers, Edit3, Trash2, MapPin,
   Upload, Search, X, Copy, Link2, ExternalLink,
 } from 'lucide-react';
+import {useToast} from '../../../shared/components/ToastProvider';
 import {getAuthToken, API_BASE_URL} from '../../../shared/lib/runtime';
 import {
   listCourses, listEnrollments, createCourse, updateCourse, deleteCourse, updateEnrollment, submitAssessment,
@@ -952,6 +953,9 @@ const CreateCourseModal = ({initial, onClose, onSubmit}: {
   const [competencyDim, setCompetencyDim] = useState(initial?.competencyDimension ?? '');
   const [showContentEditor, setShowContentEditor] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [uploadingSectionIndex, setUploadingSectionIndex] = useState<number | null>(null);
+  const [uploadingMaterialIndex, setUploadingMaterialIndex] = useState<number | null>(null);
+  const toast = useToast();
 
   const addSection = () => setSections(s => [...s, {sectionTitle: '', contentType: 'text', text: '', contentUrl: ''}]);
   const updateSection = (i: number, field: string, val: string) => {
@@ -964,6 +968,35 @@ const CreateCourseModal = ({initial, onClose, onSubmit}: {
     setMaterials(m => m.map((mat, idx) => idx === i ? {...mat, [field]: val} : mat));
   };
   const removeMaterial = (i: number) => setMaterials(m => m.filter((_, idx) => idx !== i));
+
+  const handleUploadSectionFile = async (file: File, index: number) => {
+    setUploadingSectionIndex(index);
+    try {
+      const result = await uploadMaterial(file);
+      updateSection(index, 'contentUrl', result.url);
+      toast.success('视频已上传，已自动填入地址');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : '上传失败';
+      toast.error(`上传失败：${message}`);
+    } finally {
+      setUploadingSectionIndex(null);
+    }
+  };
+
+  const handleUploadMaterialFile = async (file: File, index: number) => {
+    setUploadingMaterialIndex(index);
+    try {
+      const result = await uploadMaterial(file);
+      updateMaterial(index, 'url', result.url);
+      if (!materials[index]?.title.trim()) updateMaterial(index, 'title', result.filename);
+      toast.success('素材已上传，已自动填入地址');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : '上传失败';
+      toast.error(`上传失败：${message}`);
+    } finally {
+      setUploadingMaterialIndex(null);
+    }
+  };
 
   const handleSubmit = async () => {
     if (!title.trim() || isSubmitting) return;
@@ -1114,17 +1147,21 @@ const CreateCourseModal = ({initial, onClose, onSubmit}: {
                           <div className="flex-1 flex gap-2">
                             <input value={sec.contentUrl} onChange={e => updateSection(i, 'contentUrl', e.target.value)}
                               className="flex-1 px-2 py-1 border rounded text-sm" placeholder="URL" />
-                            <label className="shrink-0 px-2 py-1 bg-gray-100 hover:bg-gray-200 text-gray-500 rounded text-xs cursor-pointer transition-colors flex items-center gap-1">
-                              <Upload className="w-3 h-3" /> 本地上传
+                            <label className={`shrink-0 px-2 py-1 rounded text-xs transition-colors flex items-center gap-1 ${
+                              uploadingSectionIndex === i
+                                ? 'bg-indigo-50 text-indigo-600 cursor-wait'
+                                : 'bg-gray-100 hover:bg-gray-200 text-gray-500 cursor-pointer'
+                            }`}>
+                              {uploadingSectionIndex === i ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
+                              {uploadingSectionIndex === i ? '上传中' : '本地上传'}
                               <input type="file" className="hidden"
+                                disabled={uploadingSectionIndex !== null}
                                 accept={sec.contentType === 'video' ? '.mp4,.mov,.webm,.avi,.mkv' : '.pdf,.doc,.docx,.ppt,.pptx,.txt,.md,.jpg,.jpeg,.png,.gif,.mp4,.mov,.webm,.zip,.rar'}
                                 onChange={async (e) => {
                                   const file = e.target.files?.[0];
                                   if (!file) return;
-                                  try {
-                                    const result = await uploadMaterial(file);
-                                    updateSection(i, 'contentUrl', result.url);
-                                  } catch (err) { console.error('Upload failed:', err); }
+                                  await handleUploadSectionFile(file, i);
+                                  e.currentTarget.value = '';
                                 }} />
                             </label>
                           </div>
@@ -1159,19 +1196,20 @@ const CreateCourseModal = ({initial, onClose, onSubmit}: {
                 </select>
                 <input value={mat.url} onChange={e => updateMaterial(i, 'url', e.target.value)}
                   className="w-40 px-2 py-1 border rounded text-sm" placeholder="URL (可选)" />
-                <label className="px-2 py-1 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded text-xs cursor-pointer transition-colors flex items-center gap-1">
-                  <Upload className="w-3 h-3" /> 上传
+                <label className={`px-2 py-1 rounded text-xs transition-colors flex items-center gap-1 ${
+                  uploadingMaterialIndex === i
+                    ? 'bg-indigo-50 text-indigo-600 cursor-wait'
+                    : 'bg-gray-100 hover:bg-gray-200 text-gray-600 cursor-pointer'
+                }`}>
+                  {uploadingMaterialIndex === i ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
+                  {uploadingMaterialIndex === i ? '上传中' : '上传'}
                   <input type="file" className="hidden" accept=".pdf,.doc,.docx,.ppt,.pptx,.mp4,.mov,.jpg,.jpeg,.png,.gif"
+                    disabled={uploadingMaterialIndex !== null}
                     onChange={async (e) => {
                       const file = e.target.files?.[0];
                       if (!file) return;
-                      try {
-                        const result = await uploadMaterial(file);
-                        updateMaterial(i, 'url', result.url);
-                        if (!mat.title.trim()) updateMaterial(i, 'title', file.name);
-                      } catch (err) {
-                        console.error('Upload failed:', err);
-                      }
+                      await handleUploadMaterialFile(file, i);
+                      e.currentTarget.value = '';
                     }} />
                 </label>
                 <button onClick={() => removeMaterial(i)} className="text-red-400 hover:text-red-600 text-xs">删除</button>

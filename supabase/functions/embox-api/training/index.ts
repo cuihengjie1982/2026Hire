@@ -1257,9 +1257,22 @@ const uploadMaterial = async (req: Request): Promise<Response> => {
 
     const ext = file.name.split('.').pop()?.toLowerCase() || 'bin';
     const filename = `materials/${Date.now()}-${crypto.randomUUID().slice(0, 8)}.${ext}`;
+    const bucket = 'training-materials';
+
+    const { data: existingBucket } = await supabase.storage.getBucket(bucket);
+    if (!existingBucket) {
+      const { error: createBucketError } = await supabase.storage.createBucket(bucket, {
+        public: true,
+        fileSizeLimit: 500 * 1024 * 1024,
+      });
+      if (createBucketError) throw createBucketError;
+    } else if (existingBucket.public === false) {
+      const { error: updateBucketError } = await supabase.storage.updateBucket(bucket, { public: true });
+      if (updateBucketError) throw updateBucketError;
+    }
 
     const { data, error } = await supabase.storage
-      .from('training-materials')
+      .from(bucket)
       .upload(filename, await file.arrayBuffer(), {
         contentType: file.type,
         upsert: false,
@@ -1268,7 +1281,7 @@ const uploadMaterial = async (req: Request): Promise<Response> => {
     if (error) throw error;
 
     const { data: urlData } = supabase.storage
-      .from('training-materials')
+      .from(bucket)
       .getPublicUrl(filename);
 
     return jsonRes({ url: urlData.publicUrl, filename: file.name }, 201);
