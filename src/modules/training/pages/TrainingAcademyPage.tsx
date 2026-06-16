@@ -5,7 +5,7 @@ import {
   BookOpen, Users, TrendingUp, BarChart3, Plus, Clock, Star,
   CheckCircle, XCircle, PlayCircle, ChevronRight, AlertTriangle,
   Target, Award, ArrowUpRight, Download, Loader2, Layers, Edit3, Trash2, MapPin,
-  Upload, Search, X,
+  Upload, Search, X, Copy, Link2, ExternalLink,
 } from 'lucide-react';
 import {getAuthToken, API_BASE_URL} from '../../../shared/lib/runtime';
 import {
@@ -15,6 +15,7 @@ import {
   listPaths, createPath, updatePath, deletePath,
   getPathEnrollments, enrollCandidateInPath, updatePathEnrollment, deletePathEnrollment,
   uploadMaterial, batchEnroll,
+  createTrainingShareLink,
   type TrainingCourse, type TrainingEnrollment, type TrainingStats,
   type WeaknessAnalysis, type TrainingEffectiveness,
   type CourseRecommendation,
@@ -22,10 +23,11 @@ import {
 } from '../api';
 import type {LearningPath} from '../types';
 
-type TabId = 'courses' | 'enrollments' | 'analysis' | 'effectiveness' | 'paths';
+type TabId = 'courses' | 'videos' | 'enrollments' | 'analysis' | 'effectiveness' | 'paths';
 
 const TABS: {id: TabId; label: string; icon: React.ElementType}[] = [
   {id: 'courses', label: '课程管理', icon: BookOpen},
+  {id: 'videos', label: '视频分享', icon: PlayCircle},
   {id: 'paths', label: '学习路径', icon: Layers},
   {id: 'enrollments', label: '培训记录', icon: Users},
   {id: 'analysis', label: '薄弱分析', icon: Target},
@@ -238,7 +240,7 @@ export const TrainingAcademyPage = () => {
       )}
 
       {/* Tab Navigation */}
-      <div className="flex gap-1 bg-gray-100 rounded-xl p-1">
+      <div className="flex gap-1 bg-gray-100 rounded-xl p-1 overflow-x-auto">
         {TABS.map(tab => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -246,7 +248,7 @@ export const TrainingAcademyPage = () => {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all flex-1 justify-center ${
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all min-w-[112px] flex-1 justify-center whitespace-nowrap ${
                 isActive ? 'bg-white text-[#1a4bc4] shadow-sm' : 'text-gray-500 hover:text-gray-700'
               }`}
             >
@@ -273,6 +275,13 @@ export const TrainingAcademyPage = () => {
             enrollments={enrollmentList}
             onScore={handleScoreSubmit}
             onExport={() => exportEnrollmentsCSV()}
+          />
+        )}
+        {activeTab === 'videos' && (
+          <VideoShareTab
+            courses={courses}
+            onAddCourse={() => setShowCreateCourse(true)}
+            onPreview={(courseId) => navigate(`/training/preview?courseId=${courseId}`)}
           />
         )}
         {activeTab === 'analysis' && weaknessData && (
@@ -460,6 +469,157 @@ const CoursesTab = ({courses, onAdd, onBatchEnroll, onEdit, onDelete}: {
           </div>
         ))}
       </div>
+    </div>
+  );
+};
+
+const VideoShareTab = ({courses, onAddCourse, onPreview}: {
+  courses: TrainingCourse[];
+  onAddCourse: () => void;
+  onPreview: (courseId: string) => void;
+}) => {
+  const videoCourses = courses.filter(course => course.content.some(section => section.contentType === 'video'));
+  const [links, setLinks] = useState<Record<string, string>>({});
+  const [loadingId, setLoadingId] = useState<string | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [error, setError] = useState('');
+
+  const ensureLink = async (courseId: string) => {
+    if (links[courseId]) return links[courseId];
+    setLoadingId(courseId);
+    setError('');
+    try {
+      const result = await createTrainingShareLink(courseId);
+      setLinks(prev => ({...prev, [courseId]: result.url}));
+      return result.url;
+    } catch (e) {
+      const message = e instanceof Error ? e.message : '生成链接失败';
+      setError(message);
+      return '';
+    } finally {
+      setLoadingId(null);
+    }
+  };
+
+  const handleCopy = async (courseId: string) => {
+    const url = await ensureLink(courseId);
+    if (!url) return;
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopiedId(courseId);
+      window.setTimeout(() => setCopiedId(null), 1800);
+    } catch {
+      window.prompt('复制下面的培训链接', url);
+    }
+  };
+
+  const handleOpen = async (courseId: string) => {
+    const url = await ensureLink(courseId);
+    if (url) window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-white rounded-xl border border-gray-200 p-5">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h2 className="font-semibold text-gray-900 flex items-center gap-2">
+              <Link2 className="w-4 h-4 text-[#1a4bc4]" />
+              员工培训视频分享
+            </h2>
+            <p className="text-sm text-gray-500 mt-1">
+              生成后可通过微信发送给已入职员工，员工无需报名课程、无需登录后台即可观看。
+            </p>
+          </div>
+          <button onClick={onAddCourse} className="flex items-center justify-center gap-2 px-4 py-2 bg-[#1a4bc4] text-white rounded-lg text-sm hover:bg-[#153da0] transition-colors">
+            <Plus className="w-4 h-4" /> 新建视频课程
+          </button>
+        </div>
+      </div>
+
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm">
+          {error}
+        </div>
+      )}
+
+      {videoCourses.length === 0 ? (
+        <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
+          <PlayCircle className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+          <p className="text-gray-600 font-medium">暂无可分享的视频课程</p>
+          <p className="text-sm text-gray-400 mt-1">请先新建课程，并在课程章节中添加视频 URL 或上传视频。</p>
+          <button onClick={onAddCourse} className="mt-4 px-4 py-2 bg-[#1a4bc4] text-white rounded-lg text-sm hover:bg-[#153da0]">
+            新建课程
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+          {videoCourses.map(course => {
+            const videoCount = course.content.filter(section => section.contentType === 'video').length;
+            const link = links[course.id];
+            const isLoading = loadingId === course.id;
+            const copied = copiedId === course.id;
+
+            return (
+              <div key={course.id} className="bg-white rounded-xl border border-gray-200 p-5 space-y-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <h3 className="font-semibold text-gray-900 truncate">{course.title}</h3>
+                    <p className="text-sm text-gray-500 mt-1 line-clamp-2">{course.description || '暂无课程描述'}</p>
+                  </div>
+                  <span className={`shrink-0 px-2 py-0.5 rounded text-xs font-medium ${(DIFFICULTY_LABELS[course.difficulty]?.color ?? 'bg-gray-100 text-gray-600')}`}>
+                    {course.difficulty}
+                  </span>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 text-xs">
+                  <span className={`px-2 py-0.5 rounded font-medium ${CATEGORY_COLORS[course.category] ?? 'bg-gray-100 text-gray-600'}`}>
+                    {course.category}
+                  </span>
+                  <span className="flex items-center gap-1 text-gray-500">
+                    <PlayCircle className="w-3.5 h-3.5" /> {videoCount} 个视频
+                  </span>
+                  <span className="flex items-center gap-1 text-gray-500">
+                    <Clock className="w-3.5 h-3.5" /> {course.durationMinutes} 分钟
+                  </span>
+                </div>
+
+                <div className="rounded-lg bg-gray-50 border border-gray-200 p-3">
+                  {link ? (
+                    <p className="text-xs text-gray-600 break-all">{link}</p>
+                  ) : (
+                    <p className="text-xs text-gray-400">点击“生成并复制链接”后，可直接粘贴到微信发送给员工。</p>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <button
+                    onClick={() => handleCopy(course.id)}
+                    disabled={isLoading}
+                    className="flex items-center justify-center gap-2 px-3 py-2 bg-[#1a4bc4] text-white rounded-lg text-sm hover:bg-[#153da0] disabled:opacity-60 transition-colors"
+                  >
+                    {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Copy className="w-4 h-4" />}
+                    {copied ? '已复制' : link ? '复制链接' : '生成并复制'}
+                  </button>
+                  <button
+                    onClick={() => handleOpen(course.id)}
+                    disabled={isLoading}
+                    className="flex items-center justify-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm hover:bg-gray-50 disabled:opacity-60 transition-colors"
+                  >
+                    <ExternalLink className="w-4 h-4" /> 打开公开页
+                  </button>
+                  <button
+                    onClick={() => onPreview(course.id)}
+                    className="flex items-center justify-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm hover:bg-gray-50 transition-colors"
+                  >
+                    <PlayCircle className="w-4 h-4" /> 后台预览
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 };

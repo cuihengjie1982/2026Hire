@@ -1,5 +1,5 @@
-import React, {useState} from 'react';
-import {BookOpen, FileText, Edit3, MessageCircle, Sparkles} from 'lucide-react';
+import React from 'react';
+import {FileText, Edit3, MessageCircle, Sparkles} from 'lucide-react';
 
 type TabId = 'summary' | 'transcript' | 'notes' | 'qa';
 
@@ -11,6 +11,7 @@ interface LearningTabPanelProps {
   notesTab: React.ReactNode;
   qaTab: React.ReactNode;
   onAISummary?: () => void;
+  visibleTabs?: TabId[];
 }
 
 const TABS: {id: TabId; label: string; icon: React.ElementType}[] = [
@@ -27,13 +28,15 @@ export const LearningTabPanel: React.FC<LearningTabPanelProps> = ({
   transcriptTab,
   notesTab,
   qaTab,
-  onAISummary,
+  visibleTabs,
 }) => {
+  const tabs = visibleTabs ? TABS.filter(tab => visibleTabs.includes(tab.id)) : TABS;
+
   return (
     <div className="flex flex-col h-full bg-white rounded-xl border border-gray-200 overflow-hidden">
       {/* Tab bar */}
       <div className="flex border-b border-gray-200">
-        {TABS.map(tab => {
+        {tabs.map(tab => {
           const Icon = tab.icon;
           return (
             <button

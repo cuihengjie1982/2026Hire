@@ -8,6 +8,8 @@ coverage/
 !.env.example
 .gstack/
 .vercel
+playwright-report/
+test-results/
 .claude/
 .codex/
 .mcp.json

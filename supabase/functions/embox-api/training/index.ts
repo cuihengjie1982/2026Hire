@@ -75,6 +75,27 @@ async function verifyTrainingPortalToken(candidateId: string, token: string | nu
   return !!expected && timingSafeEqual(token, expected);
 }
 
+async function createTrainingVideoToken(courseId: string): Promise<string> {
+  const secret = getTrainingPortalSecret();
+  if (!secret) return '';
+  const encoder = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    'raw',
+    encoder.encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign'],
+  );
+  const signature = await crypto.subtle.sign('HMAC', key, encoder.encode(`training-video:${courseId}`));
+  return base64Url(new Uint8Array(signature));
+}
+
+async function verifyTrainingVideoToken(courseId: string, token: string | null): Promise<boolean> {
+  if (!token) return false;
+  const expected = await createTrainingVideoToken(courseId);
+  return !!expected && timingSafeEqual(token, expected);
+}
+
 // =============================================================================
 // Courses
 // =============================================================================
@@ -734,6 +755,72 @@ const portalHandler = async (req: Request): Promise<Response> => {
   } catch (e) {
     console.error('[training portal]', e);
     return jsonRes({ error: { code: 'INTERNAL_ERROR', message: 'Failed to load portal data' } }, 500);
+  }
+};
+
+// =============================================================================
+// Public Employee Video Share — no enrollment required
+// =============================================================================
+
+const shareLinkHandler = async (req: Request): Promise<Response> => {
+  try {
+    const supabase = createSupabaseAdmin(req);
+    const body = await req.json().catch(() => ({})) as Record<string, unknown>;
+    const courseId = String(body.courseId ?? '');
+    if (!courseId) {
+      return jsonRes({ error: { code: 'VALIDATION_ERROR', message: 'courseId is required' } }, 400);
+    }
+
+    const { data: course, error } = await supabase
+      .from('training_courses')
+      .select('id, title')
+      .eq('id', courseId)
+      .eq('is_active', true)
+      .single();
+    if (error || !course) {
+      return jsonRes({ error: { code: 'NOT_FOUND', message: 'Course not found' } }, 404);
+    }
+
+    const token = await createTrainingVideoToken(courseId);
+    return jsonRes({
+      courseId,
+      token,
+      path: `/training/videos/watch?courseId=${encodeURIComponent(courseId)}&token=${encodeURIComponent(token)}`,
+    });
+  } catch (e) {
+    console.error('[training share link]', e);
+    return jsonRes({ error: { code: 'INTERNAL_ERROR', message: 'Failed to create share link' } }, 500);
+  }
+};
+
+const publicVideoCourseHandler = async (req: Request): Promise<Response> => {
+  try {
+    const supabase = createSupabaseAdmin(req);
+    const segments = getPathSegments(req, '/training/public/course');
+    const courseId = segments[0];
+    if (!courseId) {
+      return jsonRes({ error: { code: 'VALIDATION_ERROR', message: 'Course ID required' } }, 400);
+    }
+
+    const token = new URL(req.url).searchParams.get('token');
+    if (!(await verifyTrainingVideoToken(courseId, token))) {
+      return jsonRes({ error: { code: 'FORBIDDEN', message: 'Invalid access token' } }, 403);
+    }
+
+    const { data, error } = await supabase
+      .from('training_courses')
+      .select('*, positions(name)')
+      .eq('id', courseId)
+      .eq('is_active', true)
+      .single();
+    if (error || !data) {
+      return jsonRes({ error: { code: 'NOT_FOUND', message: 'Course not found' } }, 404);
+    }
+
+    return jsonRes({ course: data });
+  } catch (e) {
+    console.error('[training public video]', e);
+    return jsonRes({ error: { code: 'INTERNAL_ERROR', message: 'Failed to load course' } }, 500);
   }
 };
 
@@ -1465,6 +1552,8 @@ export {
   getTrainingStats,
   exportEnrollmentsCsv,
   portalHandler,
+  shareLinkHandler,
+  publicVideoCourseHandler,
   uploadMaterial,
   batchEnroll,
   handleNotes,

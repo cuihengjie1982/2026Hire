@@ -31,10 +31,15 @@ export type {
 };
 
 // Helper to call embox-api Edge Function (production) or fall through to fetchJson (dev)
-const efetch = async <T>(path: string, method = 'GET', body?: Record<string, unknown>): Promise<T> => {
+const trainingEndpoint = (path: string) => {
   const base = USE_MOCK_API ? '' : API_BASE_URL;
+  const isLocalExpress = base.includes('localhost') || base.includes('127.0.0.1');
+  return isLocalExpress ? `${base}/api${path}` : `${base}/functions/v1/embox-api${path}`;
+};
+
+const efetch = async <T>(path: string, method = 'GET', body?: Record<string, unknown>): Promise<T> => {
   const token = getAuthToken();
-  const res = await fetch(`${base}/functions/v1/embox-api${path}`, {
+  const res = await fetch(trainingEndpoint(path), {
     method,
     headers: {
       'Content-Type': 'application/json',
@@ -68,6 +73,13 @@ const mapCourse = (raw: Record<string, unknown>): TrainingCourse => ({
   createdAt: String(raw.created_at ?? ''),
   updatedAt: String(raw.updated_at ?? ''),
 });
+
+export interface TrainingShareLink {
+  courseId: string;
+  token: string;
+  path: string;
+  url: string;
+}
 
 const mapEnrollment = (raw: Record<string, unknown>): TrainingEnrollment => ({
   id: String(raw.id ?? ''),
@@ -192,6 +204,33 @@ export const updateCourse = async (id: string, updates: Partial<TrainingCourse>)
 export const deleteCourse = async (id: string): Promise<void> => {
   if (USE_MOCK_API) { await mockDelay(); courses = courses.filter(c => c.id !== id); return; }
   await efetch(`/training/courses/${id}`, 'DELETE');
+};
+
+export const createTrainingShareLink = async (courseId: string): Promise<TrainingShareLink> => {
+  if (USE_MOCK_API) {
+    await mockDelay();
+    const token = `mock-${courseId}`;
+    const path = `/training/videos/watch?courseId=${encodeURIComponent(courseId)}&token=${encodeURIComponent(token)}`;
+    return {courseId, token, path, url: `${window.location.origin}${path}`};
+  }
+
+  const raw = await efetch<{courseId: string; token: string; path: string}>('/training/share-links', 'POST', {courseId});
+  return {...raw, url: `${window.location.origin}${raw.path}`};
+};
+
+export const getPublicTrainingCourse = async (courseId: string, token: string): Promise<TrainingCourse> => {
+  if (USE_MOCK_API) {
+    await mockDelay();
+    const c = courses.find(course => course.id === courseId);
+    if (!c) throw new Error('课程不存在');
+    return c;
+  }
+
+  const params = new URLSearchParams({token});
+  const res = await fetch(trainingEndpoint(`/training/public/course/${encodeURIComponent(courseId)}?${params.toString()}`));
+  const data = await res.json();
+  if (!res.ok) throw new Error(data?.error?.message || `API error ${res.status}`);
+  return mapCourse((data.course ?? data) as Record<string, unknown>);
 };
 
 // ─── Enrollments ────────────────────────────────────────────────────────

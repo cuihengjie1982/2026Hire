@@ -48,25 +48,26 @@ export const VideoLearningAssistant: React.FC<{
   candidateId?: string;
   token?: string;
   course?: TrainingCourse;
-}> = ({enrollment, candidateId, token, course}) => {
+  publicMode?: boolean;
+}> = ({enrollment, candidateId, course, publicMode = false}) => {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<TabId>('summary');
+  const [activeTab, setActiveTab] = useState<TabId>(publicMode ? 'transcript' : 'summary');
   const [currentVideoTime, setCurrentVideoTime] = useState(0);
   const [seekTo, setSeekTo] = useState<number | undefined>(undefined);
   const [videoDuration, setVideoDuration] = useState(0);
   const [topicSegments, setTopicSegments] = useState<TopicSegmentUI[]>([]);
   const [topicsLoading, setTopicsLoading] = useState(false);
 
-  const isPreviewMode = !!course;
+  const isStandaloneCourse = !!course;
+  const isPreviewMode = isStandaloneCourse && !publicMode;
 
-  const contentSections: CourseSection[] = isPreviewMode
+  const contentSections: CourseSection[] = isStandaloneCourse
     ? (course!.content ?? [])
     : (enrollment!.content ?? []);
 
-  const courseTitle = isPreviewMode ? course!.title : enrollment!.course_title;
-  const courseDescription = isPreviewMode ? course!.description : enrollment!.course_description;
-  const durationMinutes = isPreviewMode ? course!.durationMinutes : enrollment!.duration_minutes;
-  const subtitle = isPreviewMode ? '管理员预览' : enrollment!.candidate_name;
+  const courseTitle = isStandaloneCourse ? course!.title : enrollment!.course_title;
+  const durationMinutes = isStandaloneCourse ? course!.durationMinutes : enrollment!.duration_minutes;
+  const subtitle = publicMode ? '员工培训视频' : isPreviewMode ? '管理员预览' : enrollment!.candidate_name;
 
   const videoSection = contentSections.find(s => s.contentType === 'video');
   const videoUrl = videoSection?.contentUrl ?? '';
@@ -78,6 +79,7 @@ export const VideoLearningAssistant: React.FC<{
 
   // Auto-generate topics when transcript is available
   useEffect(() => {
+    if (publicMode) return;
     if (!transcriptText) return;
     let cancelled = false;
     setTopicsLoading(true);
@@ -96,7 +98,7 @@ export const VideoLearningAssistant: React.FC<{
       .catch(() => {})
       .finally(() => { if (!cancelled) setTopicsLoading(false); });
     return () => { cancelled = true; };
-  }, [transcriptText, courseTitle, videoDuration, durationMinutes]);
+  }, [publicMode, transcriptText, courseTitle, videoDuration, durationMinutes]);
 
   const handleTimeUpdate = useCallback((time: number) => {
     setCurrentVideoTime(time);
@@ -121,23 +123,23 @@ export const VideoLearningAssistant: React.FC<{
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 min-w-0">
             <div className={`p-1.5 rounded-lg ${isPreviewMode ? 'bg-amber-100' : 'bg-indigo-100'}`}>
               {isPreviewMode
                 ? <Shield className="w-5 h-5 text-amber-600" />
                 : <GraduationCap className="w-5 h-5 text-indigo-600" />
               }
             </div>
-            <div>
-              <h1 className="font-semibold text-gray-900 text-sm">{courseTitle}</h1>
+            <div className="min-w-0">
+              <h1 className="font-semibold text-gray-900 text-sm truncate">{courseTitle}</h1>
               <p className="text-xs text-gray-400">{subtitle}</p>
             </div>
           </div>
-          <div className="ml-auto flex items-center gap-2">
+          <div className="ml-auto flex items-center gap-2 shrink-0">
             {isPreviewMode && (
               <span className="text-xs px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full">预览模式</span>
             )}
-            <span className="text-xs text-gray-400 flex items-center gap-1">
+            <span className="hidden sm:flex text-xs text-gray-400 items-center gap-1">
               <BookOpen className="w-3.5 h-3.5" />
               {durationMinutes} 分钟
             </span>
@@ -147,9 +149,9 @@ export const VideoLearningAssistant: React.FC<{
 
       {/* Main content: video + tabs */}
       <div className="flex-1 max-w-7xl mx-auto w-full p-4">
-        <div className="flex gap-4 h-[calc(100vh-120px)]">
+        <div className="flex flex-col lg:flex-row gap-4 lg:h-[calc(100vh-120px)]">
           {/* Left: Video player */}
-          <div className="w-[60%] flex flex-col gap-3 overflow-y-auto">
+          <div className="w-full lg:w-[60%] flex flex-col gap-3 lg:overflow-y-auto">
             {videoUrl ? (
               <VideoPlayer
                 src={videoUrl}
@@ -221,7 +223,7 @@ export const VideoLearningAssistant: React.FC<{
           </div>
 
           {/* Right: Tab panel */}
-          <div className="w-[40%] flex flex-col">
+          <div className="w-full lg:w-[40%] flex flex-col min-h-[420px] lg:min-h-0">
             <LearningTabPanel
               activeTab={activeTab}
               onTabChange={setActiveTab}
@@ -233,11 +235,11 @@ export const VideoLearningAssistant: React.FC<{
               }
               notesTab={
                 <NotesTab
-                  enrollmentId={isPreviewMode ? course!.id : enrollment!.id}
-                  candidateId={isPreviewMode ? 'admin-preview' : (candidateId ?? '')}
+                  enrollmentId={isStandaloneCourse ? course!.id : enrollment!.id}
+                  candidateId={isStandaloneCourse ? 'standalone-video' : (candidateId ?? '')}
                   currentVideoTime={currentVideoTime}
                   onSeek={handleSeek}
-                  previewMode={isPreviewMode}
+                  previewMode={isStandaloneCourse}
                 />
               }
               qaTab={
@@ -247,6 +249,7 @@ export const VideoLearningAssistant: React.FC<{
                   currentVideoTime={currentVideoTime}
                 />
               }
+              visibleTabs={publicMode ? ['transcript', 'notes'] : undefined}
             />
           </div>
         </div>

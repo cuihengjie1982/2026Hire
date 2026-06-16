@@ -5,6 +5,7 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import crypto from 'crypto';
+import {env} from '../../config/env.js';
 
 const router = Router();
 
@@ -36,6 +37,21 @@ async function resolveTrainingLLMConfig() {
     temperature: Number(row.temperature ?? 0.7),
     max_tokens: Number(row.max_tokens ?? 4096),
   };
+}
+
+function createTrainingVideoToken(courseId: string): string {
+  return crypto
+    .createHmac('sha256', env.JWT_SECRET)
+    .update(`training-video:${courseId}`)
+    .digest('base64url');
+}
+
+function verifyTrainingVideoToken(courseId: string, token: string | undefined): boolean {
+  if (!token) return false;
+  const expected = createTrainingVideoToken(courseId);
+  const actualBuf = Buffer.from(token);
+  const expectedBuf = Buffer.from(expected);
+  return actualBuf.length === expectedBuf.length && crypto.timingSafeEqual(actualBuf, expectedBuf);
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -148,6 +164,58 @@ router.delete('/courses/:id', requireRole('admin'), async (req, res, next) => {
     const row = await queryOne(`DELETE FROM training_courses WHERE id = $1 RETURNING id`, [req.params.id]);
     if (!row) { res.status(404).json({error: {code: 'NOT_FOUND', message: 'Course not found'}}); return; }
     res.json({deleted: true, id: row.id});
+  } catch (e) { next(e); }
+});
+
+// POST /share-links — generate a public employee training video link for a course
+router.post('/share-links', requireRole('admin', 'recruiter'), async (req, res, next) => {
+  try {
+    const {courseId} = req.body as {courseId?: string};
+    if (!courseId) {
+      res.status(400).json({error: {code: 'VALIDATION_ERROR', message: 'courseId is required'}});
+      return;
+    }
+
+    const course = await queryOne<Record<string, unknown>>(
+      `SELECT id, title, content FROM training_courses WHERE id = $1 AND is_active = true`,
+      [courseId],
+    );
+    if (!course) {
+      res.status(404).json({error: {code: 'NOT_FOUND', message: 'Course not found'}});
+      return;
+    }
+
+    const token = createTrainingVideoToken(courseId);
+    res.json({
+      courseId,
+      token,
+      path: `/training/videos/watch?courseId=${encodeURIComponent(courseId)}&token=${encodeURIComponent(token)}`,
+    });
+  } catch (e) { next(e); }
+});
+
+// GET /public/course/:courseId — public read-only employee video course access
+router.get('/public/course/:courseId', async (req, res, next) => {
+  try {
+    const {courseId} = req.params;
+    const token = typeof req.query.token === 'string' ? req.query.token : undefined;
+    if (!verifyTrainingVideoToken(courseId, token)) {
+      res.status(403).json({error: {code: 'FORBIDDEN', message: 'Invalid access token'}});
+      return;
+    }
+
+    const course = await queryOne(
+      `SELECT tc.*, p.name AS position_name
+       FROM training_courses tc LEFT JOIN positions p ON p.id = tc.position_id
+       WHERE tc.id = $1 AND tc.is_active = true`,
+      [courseId],
+    );
+    if (!course) {
+      res.status(404).json({error: {code: 'NOT_FOUND', message: 'Course not found'}});
+      return;
+    }
+
+    res.json({course});
   } catch (e) { next(e); }
 });
 

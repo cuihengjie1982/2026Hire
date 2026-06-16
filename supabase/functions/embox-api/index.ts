@@ -48,7 +48,7 @@ const loadHandlers = async (): Promise<RouteHandler[]> => {
   // SMS Gateway
   const { sendSmsHandler, listTemplates, createTemplate } = await import('./sms-gateway/index.ts');
   // Training Academy
-  const { handleCourses, handleEnrollments, handleAnalytics, getTrainingStats, exportEnrollmentsCsv, portalHandler, handlePaths, uploadMaterial, batchEnroll, handleNotes, handleTrainingAi } = await import('./training/index.ts');
+  const { handleCourses, handleEnrollments, handleAnalytics, getTrainingStats, exportEnrollmentsCsv, portalHandler, shareLinkHandler, publicVideoCourseHandler, handlePaths, uploadMaterial, batchEnroll, handleNotes, handleTrainingAi } = await import('./training/index.ts');
   // Stats (sidebar counts + unified search)
   const { sidebarStats, searchStats, dashboardStats } = await import('./stats/index.ts');
   // Shortlist (pipeline)
@@ -163,6 +163,9 @@ const loadHandlers = async (): Promise<RouteHandler[]> => {
     { pattern: '/training/export', methods: ['GET'], auth: 'recruiter+', handler: exportEnrollmentsCsv },
     // Training Academy — Learning Paths (CRUD + courses + enrollments)
     { pattern: '/training/paths', methods: ['GET', 'POST', 'PATCH', 'DELETE'], auth: 'recruiter+', handler: handlePaths },
+    // Training Academy — Public employee video share
+    { pattern: '/training/share-links', methods: ['POST'], auth: 'recruiter+', handler: shareLinkHandler },
+    { pattern: '/training/public/course', methods: ['GET'], auth: 'none', handler: publicVideoCourseHandler },
     // Training Academy — Public Candidate Portal (no auth)
     { pattern: '/training/portal', methods: ['GET'], auth: 'none', handler: portalHandler },
     // Training Academy — Notes CRUD
