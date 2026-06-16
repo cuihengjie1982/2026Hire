@@ -1241,6 +1241,64 @@ export const handlePaths = async (req: Request): Promise<Response> => {
 // File Upload for training materials
 // =============================================================================
 
+const TRAINING_MATERIALS_BUCKET = 'training-materials';
+
+const ensureTrainingMaterialsBucket = async (supabase: ReturnType<typeof createSupabaseAdmin>) => {
+  const { data: existingBucket } = await supabase.storage.getBucket(TRAINING_MATERIALS_BUCKET);
+  if (!existingBucket) {
+    const { error: createBucketError } = await supabase.storage.createBucket(TRAINING_MATERIALS_BUCKET, {
+      public: true,
+      fileSizeLimit: 500 * 1024 * 1024,
+    });
+    if (createBucketError) throw createBucketError;
+    return;
+  }
+
+  if (existingBucket.public === false) {
+    const { error: updateBucketError } = await supabase.storage.updateBucket(TRAINING_MATERIALS_BUCKET, { public: true });
+    if (updateBucketError) throw updateBucketError;
+  }
+};
+
+const createSignedMaterialUpload = async (req: Request): Promise<Response> => {
+  try {
+    const supabase = createSupabaseAdmin(req);
+    const body = await req.json().catch(() => ({})) as Record<string, unknown>;
+    const filenameRaw = String(body.filename ?? 'video.mp4');
+    const ext = filenameRaw.split('.').pop()?.toLowerCase().replace(/[^a-z0-9]/g, '') || 'bin';
+    const fileSize = Number(body.size ?? 0);
+
+    if (fileSize > 500 * 1024 * 1024) {
+      return jsonRes({ error: { code: 'VALIDATION_ERROR', message: 'File too large (max 500MB)' } }, 400);
+    }
+
+    await ensureTrainingMaterialsBucket(supabase);
+
+    const path = `materials/${Date.now()}-${crypto.randomUUID().slice(0, 8)}.${ext}`;
+    const { data, error } = await supabase.storage
+      .from(TRAINING_MATERIALS_BUCKET)
+      .createSignedUploadUrl(path);
+
+    if (error || !data) throw error ?? new Error('Failed to create signed upload URL');
+
+    const { data: urlData } = supabase.storage
+      .from(TRAINING_MATERIALS_BUCKET)
+      .getPublicUrl(path);
+
+    return jsonRes({
+      bucket: TRAINING_MATERIALS_BUCKET,
+      path: data.path,
+      token: data.token,
+      signedUrl: data.signedUrl,
+      publicUrl: urlData.publicUrl,
+      filename: filenameRaw,
+    });
+  } catch (e) {
+    console.error('[training signed upload]', e);
+    return jsonRes({ error: { code: 'INTERNAL_ERROR', message: 'Failed to create upload URL' } }, 500);
+  }
+};
+
 const uploadMaterial = async (req: Request): Promise<Response> => {
   try {
     const supabase = createSupabaseAdmin(req);
@@ -1257,22 +1315,10 @@ const uploadMaterial = async (req: Request): Promise<Response> => {
 
     const ext = file.name.split('.').pop()?.toLowerCase() || 'bin';
     const filename = `materials/${Date.now()}-${crypto.randomUUID().slice(0, 8)}.${ext}`;
-    const bucket = 'training-materials';
-
-    const { data: existingBucket } = await supabase.storage.getBucket(bucket);
-    if (!existingBucket) {
-      const { error: createBucketError } = await supabase.storage.createBucket(bucket, {
-        public: true,
-        fileSizeLimit: 500 * 1024 * 1024,
-      });
-      if (createBucketError) throw createBucketError;
-    } else if (existingBucket.public === false) {
-      const { error: updateBucketError } = await supabase.storage.updateBucket(bucket, { public: true });
-      if (updateBucketError) throw updateBucketError;
-    }
+    await ensureTrainingMaterialsBucket(supabase);
 
     const { data, error } = await supabase.storage
-      .from(bucket)
+      .from(TRAINING_MATERIALS_BUCKET)
       .upload(filename, await file.arrayBuffer(), {
         contentType: file.type,
         upsert: false,
@@ -1281,7 +1327,7 @@ const uploadMaterial = async (req: Request): Promise<Response> => {
     if (error) throw error;
 
     const { data: urlData } = supabase.storage
-      .from(bucket)
+      .from(TRAINING_MATERIALS_BUCKET)
       .getPublicUrl(filename);
 
     return jsonRes({ url: urlData.publicUrl, filename: file.name }, 201);
@@ -1567,6 +1613,7 @@ export {
   portalHandler,
   shareLinkHandler,
   publicVideoCourseHandler,
+  createSignedMaterialUpload,
   uploadMaterial,
   batchEnroll,
   handleNotes,

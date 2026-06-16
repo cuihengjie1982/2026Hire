@@ -1,5 +1,6 @@
 import {getItemsFromPayload} from '../../shared/lib/apiClient';
 import {USE_MOCK_API, API_BASE_URL, getAuthToken} from '../../shared/lib/runtime';
+import {getSupabase} from '../../shared/lib/supabase';
 import {courseFixtures, enrollmentFixtures} from './fixtures';
 import {
   type TrainingCourse,
@@ -620,15 +621,38 @@ export const uploadMaterial = async (file: File): Promise<MaterialUploadResult> 
     await mockDelay();
     return { url: URL.createObjectURL(file), filename: file.name };
   }
-  const formData = new FormData();
-  formData.append('file', file);
+
   const token = getAuthToken();
   // In local Vite dev, use the same-origin /api proxy so uploads do not hit CORS.
   // In production, go through Supabase Edge Function.
   const isLocalDev = API_BASE_URL.includes('localhost') || API_BASE_URL.includes('127.0.0.1');
-  const uploadUrl = isLocalDev
-    ? '/api/training/materials/upload'
-    : `${API_BASE_URL}/functions/v1/embox-api/training/materials/upload`;
+  if (!isLocalDev) {
+    const prepareRes = await fetch(`${API_BASE_URL}/functions/v1/embox-api/training/materials/signed-upload`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({filename: file.name, contentType: file.type, size: file.size}),
+    });
+    const uploadInfo = await prepareRes.json();
+    if (!prepareRes.ok) throw new Error(uploadInfo?.error?.message || `Create upload URL failed ${prepareRes.status}`);
+
+    const supabase = getSupabase();
+    const {error} = await supabase.storage
+      .from(String(uploadInfo.bucket ?? 'training-materials'))
+      .uploadToSignedUrl(String(uploadInfo.path), String(uploadInfo.token), file, {
+        contentType: file.type || 'application/octet-stream',
+        upsert: false,
+      });
+    if (error) throw new Error(error.message);
+
+    return {url: String(uploadInfo.publicUrl), filename: file.name};
+  }
+
+  const formData = new FormData();
+  formData.append('file', file);
+  const uploadUrl = '/api/training/materials/upload';
   const res = await fetch(uploadUrl, {
     method: 'POST',
     headers: token ? { Authorization: `Bearer ${token}` } : {},

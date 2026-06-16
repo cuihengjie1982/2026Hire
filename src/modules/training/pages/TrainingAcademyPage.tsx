@@ -1166,6 +1166,11 @@ const CreateCourseModal = ({initial, onClose, onSubmit}: {
                             </label>
                           </div>
                         )}
+                        {sec.contentType === 'video' && (
+                          <p className="text-[10px] text-gray-400">
+                            大视频会直传对象存储，100MB 文件可能需要数分钟，请保持页面打开。
+                          </p>
+                        )}
                       </div>
                     </div>
                     <button onClick={() => removeSection(i)} className="text-red-400 hover:text-red-600 text-xs mt-1">删除</button>

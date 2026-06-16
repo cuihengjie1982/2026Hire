@@ -48,7 +48,7 @@ const loadHandlers = async (): Promise<RouteHandler[]> => {
   // SMS Gateway
   const { sendSmsHandler, listTemplates, createTemplate } = await import('./sms-gateway/index.ts');
   // Training Academy
-  const { handleCourses, handleEnrollments, handleAnalytics, getTrainingStats, exportEnrollmentsCsv, portalHandler, shareLinkHandler, publicVideoCourseHandler, handlePaths, uploadMaterial, batchEnroll, handleNotes, handleTrainingAi } = await import('./training/index.ts');
+  const { handleCourses, handleEnrollments, handleAnalytics, getTrainingStats, exportEnrollmentsCsv, portalHandler, shareLinkHandler, publicVideoCourseHandler, handlePaths, createSignedMaterialUpload, uploadMaterial, batchEnroll, handleNotes, handleTrainingAi } = await import('./training/index.ts');
   // Stats (sidebar counts + unified search)
   const { sidebarStats, searchStats, dashboardStats } = await import('./stats/index.ts');
   // Shortlist (pipeline)
@@ -154,6 +154,7 @@ const loadHandlers = async (): Promise<RouteHandler[]> => {
     { pattern: '/training/enrollments', methods: ['DELETE'], auth: 'recruiter+', handler: handleEnrollments },
     // Training Academy — Materials Upload
     { pattern: '/training/materials/upload', methods: ['POST'], auth: 'recruiter+', handler: uploadMaterial },
+    { pattern: '/training/materials/signed-upload', methods: ['POST'], auth: 'recruiter+', handler: createSignedMaterialUpload },
     // Training Academy — Analytics
     { pattern: '/training/analytics', methods: ['GET'], auth: 'any', handler: handleAnalytics },
     { pattern: '/training/analytics/', methods: ['POST'], auth: 'any', handler: handleAnalytics },
