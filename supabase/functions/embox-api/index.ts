@@ -297,7 +297,7 @@ const serverHandler = async (req: Request): Promise<Response> => {
       }
 
       // Rate limiting (authenticated routes only)
-      const isUpload = path.startsWith('/training/materials/upload');
+      const isUpload = path.startsWith('/training/materials/upload') || path.startsWith('/training/materials/signed-upload');
       if (isUpload && !uploadRateLimit(req)) {
         return jsonRes({ error: { code: 'RATE_LIMITED', message: '上传频率过高，请稍后重试' } }, 429, corsH);
       }

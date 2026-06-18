@@ -396,6 +396,9 @@ const CoursesTab = ({courses, onAdd, onBatchEnroll, onEdit, onDelete}: {
   const [filter, setFilter] = useState('');
   const filtered = filter ? courses.filter(c => c.category === filter) : courses;
   const categories = [...new Set(courses.map(c => c.category))];
+  const hasPlayableVideo = (course: TrainingCourse) => course.content.some(
+    (s: {contentType: string; contentUrl?: string}) => s.contentType === 'video' && Boolean(s.contentUrl),
+  );
 
   return (
     <div className="space-y-4">
@@ -427,14 +430,14 @@ const CoursesTab = ({courses, onAdd, onBatchEnroll, onEdit, onDelete}: {
           <div
             key={course.id}
             className="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md transition-shadow group relative cursor-pointer"
-            onClick={() => course.content.some((s: {contentType: string}) => s.contentType === 'video') && navigate(`/training/preview?courseId=${course.id}`)}
+            onClick={() => hasPlayableVideo(course) && navigate(`/training/preview?courseId=${course.id}`)}
           >
             <div className="flex items-start justify-between mb-3">
               <div>
                 <h3 className="font-semibold text-gray-900 text-sm">{course.title}</h3>
                 <p className="text-xs text-gray-500 mt-1 line-clamp-2">{course.description}</p>
               </div>
-              {course.content.some((s: {contentType: string}) => s.contentType === 'video') && (
+              {hasPlayableVideo(course) && (
                 <span className="shrink-0 ml-2 px-1.5 py-0.5 bg-indigo-100 text-indigo-600 rounded text-[10px] font-medium flex items-center gap-1">
                   <PlayCircle className="w-3 h-3" /> 含视频
                 </span>
@@ -461,7 +464,7 @@ const CoursesTab = ({courses, onAdd, onBatchEnroll, onEdit, onDelete}: {
               <button onClick={(e) => { e.stopPropagation(); onDelete(course.id); }} className="flex items-center gap-1 px-3 py-1.5 text-xs text-gray-600 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
                 <Trash2 className="w-3.5 h-3.5" /> 删除
               </button>
-              {course.content.some((s: {contentType: string}) => s.contentType === 'video') && (
+              {hasPlayableVideo(course) && (
                 <button onClick={(e) => { e.stopPropagation(); navigate(`/training/preview?courseId=${course.id}`); }} className="flex items-center gap-1 px-3 py-1.5 text-xs text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors ml-auto">
                   <PlayCircle className="w-3.5 h-3.5" /> 进入学习
                 </button>
@@ -479,7 +482,13 @@ const VideoShareTab = ({courses, onAddCourse, onPreview}: {
   onAddCourse: () => void;
   onPreview: (courseId: string) => void;
 }) => {
-  const videoCourses = courses.filter(course => course.content.some(section => section.contentType === 'video'));
+  const hasShareableVideo = (course: TrainingCourse) =>
+    course.content.some(section => section.contentType === 'video' && Boolean(section.contentUrl))
+    || course.materials.some(material => material.type === 'video' && Boolean(material.url));
+  const getVideoCount = (course: TrainingCourse) =>
+    course.content.filter(section => section.contentType === 'video' && Boolean(section.contentUrl)).length
+    + course.materials.filter(material => material.type === 'video' && Boolean(material.url)).length;
+  const videoCourses = courses.filter(hasShareableVideo);
   const [links, setLinks] = useState<Record<string, string>>({});
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -548,7 +557,7 @@ const VideoShareTab = ({courses, onAddCourse, onPreview}: {
         <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
           <PlayCircle className="w-12 h-12 text-gray-300 mx-auto mb-3" />
           <p className="text-gray-600 font-medium">暂无可分享的视频课程</p>
-          <p className="text-sm text-gray-400 mt-1">请先新建课程，并在课程章节中添加视频 URL 或上传视频。</p>
+          <p className="text-sm text-gray-400 mt-1">请先新建课程，在章节中上传视频并保存课程。</p>
           <button onClick={onAddCourse} className="mt-4 px-4 py-2 bg-[#1a4bc4] text-white rounded-lg text-sm hover:bg-[#153da0]">
             新建课程
           </button>
@@ -556,7 +565,7 @@ const VideoShareTab = ({courses, onAddCourse, onPreview}: {
       ) : (
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
           {videoCourses.map(course => {
-            const videoCount = course.content.filter(section => section.contentType === 'video').length;
+            const videoCount = getVideoCount(course);
             const link = links[course.id];
             const isLoading = loadingId === course.id;
             const copied = copiedId === course.id;
@@ -955,6 +964,8 @@ const CreateCourseModal = ({initial, onClose, onSubmit}: {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadingSectionIndex, setUploadingSectionIndex] = useState<number | null>(null);
   const [uploadingMaterialIndex, setUploadingMaterialIndex] = useState<number | null>(null);
+  const [sectionUploadProgress, setSectionUploadProgress] = useState(0);
+  const [materialUploadProgress, setMaterialUploadProgress] = useState(0);
   const toast = useToast();
 
   const addSection = () => setSections(s => [...s, {sectionTitle: '', contentType: 'text', text: '', contentUrl: ''}]);
@@ -971,41 +982,65 @@ const CreateCourseModal = ({initial, onClose, onSubmit}: {
 
   const handleUploadSectionFile = async (file: File, index: number) => {
     setUploadingSectionIndex(index);
+    setSectionUploadProgress(0);
     try {
-      const result = await uploadMaterial(file);
-      updateSection(index, 'contentUrl', result.url);
-      toast.success('视频已上传，已自动填入地址');
+      const result = await uploadMaterial(file, setSectionUploadProgress);
+      setSections(prev => prev.map((section, idx) => idx === index
+        ? {
+            ...section,
+            sectionTitle: section.sectionTitle.trim() || result.filename.replace(/\.[^.]+$/, '') || '培训视频',
+            contentType: 'video',
+            contentUrl: result.url,
+          }
+        : section,
+      ));
+      toast.success('视频已上传，已自动填入地址，请保存课程');
     } catch (err) {
       const message = err instanceof Error ? err.message : '上传失败';
       toast.error(`上传失败：${message}`);
     } finally {
       setUploadingSectionIndex(null);
+      setSectionUploadProgress(0);
     }
   };
 
   const handleUploadMaterialFile = async (file: File, index: number) => {
     setUploadingMaterialIndex(index);
+    setMaterialUploadProgress(0);
     try {
-      const result = await uploadMaterial(file);
+      const result = await uploadMaterial(file, setMaterialUploadProgress);
       updateMaterial(index, 'url', result.url);
       if (!materials[index]?.title.trim()) updateMaterial(index, 'title', result.filename);
-      toast.success('素材已上传，已自动填入地址');
+      toast.success('素材已上传，已自动填入地址，请保存课程');
     } catch (err) {
       const message = err instanceof Error ? err.message : '上传失败';
       toast.error(`上传失败：${message}`);
     } finally {
       setUploadingMaterialIndex(null);
+      setMaterialUploadProgress(0);
     }
   };
 
   const handleSubmit = async () => {
     if (!title.trim() || isSubmitting) return;
+    const normalizedSections = sections
+      .map((s, index) => ({
+        ...s,
+        sectionTitle: s.sectionTitle.trim() || (s.contentType === 'video' && s.contentUrl ? `培训视频 ${index + 1}` : ''),
+      }))
+      .filter(s => s.sectionTitle.trim() || s.text.trim() || s.contentUrl.trim());
+    const invalidVideoSection = normalizedSections.find(s => s.contentType === 'video' && !s.contentUrl.trim());
+    if (invalidVideoSection) {
+      toast.error('视频章节还没有视频地址，请先上传视频或填写 URL');
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       await onSubmit({
         title, category, difficulty, description: desc,
         durationMinutes: duration,
-        content: sections.filter(s => s.sectionTitle.trim()).map(s => ({
+        content: normalizedSections.map(s => ({
           sectionTitle: s.sectionTitle,
           contentType: s.contentType as 'text' | 'video' | 'link',
           text: s.text,
@@ -1153,10 +1188,10 @@ const CreateCourseModal = ({initial, onClose, onSubmit}: {
                                 : 'bg-gray-100 hover:bg-gray-200 text-gray-500 cursor-pointer'
                             }`}>
                               {uploadingSectionIndex === i ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
-                              {uploadingSectionIndex === i ? '上传中' : '本地上传'}
+                              {uploadingSectionIndex === i ? `上传 ${sectionUploadProgress}%` : '本地上传'}
                               <input type="file" className="hidden"
                                 disabled={uploadingSectionIndex !== null}
-                                accept={sec.contentType === 'video' ? '.mp4,.mov,.webm,.avi,.mkv' : '.pdf,.doc,.docx,.ppt,.pptx,.txt,.md,.jpg,.jpeg,.png,.gif,.mp4,.mov,.webm,.zip,.rar'}
+                                accept={sec.contentType === 'video' ? '.mp4,.m4v,.mov,.webm,.avi,.mkv' : '.pdf,.doc,.docx,.ppt,.pptx,.txt,.md,.jpg,.jpeg,.png,.gif,.mp4,.m4v,.mov,.webm,.zip,.rar'}
                                 onChange={async (e) => {
                                   const input = e.currentTarget;
                                   const file = e.target.files?.[0];
@@ -1208,8 +1243,8 @@ const CreateCourseModal = ({initial, onClose, onSubmit}: {
                     : 'bg-gray-100 hover:bg-gray-200 text-gray-600 cursor-pointer'
                 }`}>
                   {uploadingMaterialIndex === i ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
-                  {uploadingMaterialIndex === i ? '上传中' : '上传'}
-                  <input type="file" className="hidden" accept=".pdf,.doc,.docx,.ppt,.pptx,.mp4,.mov,.jpg,.jpeg,.png,.gif"
+                  {uploadingMaterialIndex === i ? `上传 ${materialUploadProgress}%` : '上传'}
+                  <input type="file" className="hidden" accept=".pdf,.doc,.docx,.ppt,.pptx,.mp4,.m4v,.mov,.webm,.avi,.mkv,.jpg,.jpeg,.png,.gif"
                     disabled={uploadingMaterialIndex !== null}
                     onChange={async (e) => {
                       const input = e.currentTarget;

@@ -10,6 +10,8 @@ import {
   type WeaknessAnalysis,
   type TrainingEffectiveness,
   type CourseRecommendation,
+  type CourseMaterial,
+  type CourseSection,
   type PathEnrollment,
   type BatchEnrollInput,
   type BatchEnrollResult,
@@ -29,6 +31,71 @@ export type {
   BatchEnrollInput,
   BatchEnrollResult,
   MaterialUploadResult,
+};
+
+const MATERIAL_UPLOAD_TIMEOUT_MS = 15 * 60 * 1000;
+
+const inferContentType = (file: File): string => {
+  if (file.type) return file.type;
+  const ext = file.name.split('.').pop()?.toLowerCase();
+  const mimeByExt: Record<string, string> = {
+    mp4: 'video/mp4',
+    m4v: 'video/mp4',
+    mov: 'video/quicktime',
+    webm: 'video/webm',
+    avi: 'video/x-msvideo',
+    mkv: 'video/x-matroska',
+    pdf: 'application/pdf',
+    jpg: 'image/jpeg',
+    jpeg: 'image/jpeg',
+    png: 'image/png',
+    gif: 'image/gif',
+    txt: 'text/plain',
+    md: 'text/markdown',
+    zip: 'application/zip',
+  };
+  return ext ? mimeByExt[ext] ?? 'application/octet-stream' : 'application/octet-stream';
+};
+
+const normalizeUploadFile = (file: File): File => {
+  const contentType = inferContentType(file);
+  return file.type === contentType ? file : new File([file], file.name, {type: contentType, lastModified: file.lastModified});
+};
+
+const getErrorMessageFromText = (text: string, fallback: string): string => {
+  if (!text) return fallback;
+  try {
+    const data = JSON.parse(text) as {error?: {message?: string}; message?: string};
+    return data.error?.message || data.message || text;
+  } catch {
+    return text;
+  }
+};
+
+const uploadSignedStorageFile = async (
+  bucket: string,
+  path: string,
+  token: string,
+  signedUrl: string,
+  file: File,
+  onProgress?: (progress: number) => void,
+): Promise<void> => {
+  onProgress?.(5);
+  const timeout = new Promise<never>((_, reject) => {
+    window.setTimeout(() => reject(new Error('上传超时，请检查网络后重试')), MATERIAL_UPLOAD_TIMEOUT_MS);
+  });
+  const upload = getSupabase().storage
+    .from(bucket)
+    .uploadToSignedUrl(path, token, file, {
+      cacheControl: '3600',
+      contentType: file.type || 'application/octet-stream',
+    });
+
+  const {error} = await Promise.race([upload, timeout]);
+  if (error) {
+    throw new Error(error.message || `Storage upload failed: ${signedUrl}`);
+  }
+  onProgress?.(100);
 };
 
 // Helper to call embox-api Edge Function (production) or fall through to fetchJson (dev)
@@ -55,25 +122,48 @@ const efetch = async <T>(path: string, method = 'GET', body?: Record<string, unk
 
 // ─── Mappers ────────────────────────────────────────────────────────────
 
-const mapCourse = (raw: Record<string, unknown>): TrainingCourse => ({
-  id: String(raw.id ?? ''),
-  title: String(raw.title ?? ''),
-  description: String(raw.description ?? ''),
-  category: String(raw.category ?? '综合'),
-  difficulty: String(raw.difficulty ?? '初级') as TrainingCourse['difficulty'],
-  durationMinutes: Number(raw.duration_minutes ?? raw.durationMinutes ?? 30),
-  content: (raw.content ?? []) as TrainingCourse['content'],
-  materials: (raw.materials ?? []) as TrainingCourse['materials'],
-  assessmentConfig: (raw.assessment_config ?? raw.assessmentConfig ?? {type: 'quiz', passingScore: 60}) as TrainingCourse['assessmentConfig'],
-  positionId: raw.position_id ? String(raw.position_id) : undefined,
-  positionName: (raw.positions as Record<string, unknown>)?.name
-    ? String((raw.positions as Record<string, unknown>).name)
-    : raw.position_name ? String(raw.position_name) : undefined,
-  competencyDimension: raw.competency_dimension ? String(raw.competency_dimension) : undefined,
-  isActive: Boolean(raw.is_active ?? raw.isActive ?? true),
-  createdAt: String(raw.created_at ?? ''),
-  updatedAt: String(raw.updated_at ?? ''),
-});
+const normalizeCourseVideoContent = (content: CourseSection[], materials: CourseMaterial[]): CourseSection[] => {
+  if (content.some(section => section.contentType === 'video' && section.contentUrl)) {
+    return content;
+  }
+
+  const materialVideo = materials.find(material => material.type === 'video' && material.url);
+  if (!materialVideo?.url) return content;
+
+  return [
+    ...content,
+    {
+      sectionTitle: materialVideo.title || '培训视频',
+      contentType: 'video',
+      contentUrl: materialVideo.url,
+    },
+  ];
+};
+
+const mapCourse = (raw: Record<string, unknown>): TrainingCourse => {
+  const materials = (raw.materials ?? []) as CourseMaterial[];
+  const content = normalizeCourseVideoContent((raw.content ?? []) as CourseSection[], materials);
+
+  return {
+    id: String(raw.id ?? ''),
+    title: String(raw.title ?? ''),
+    description: String(raw.description ?? ''),
+    category: String(raw.category ?? '综合'),
+    difficulty: String(raw.difficulty ?? '初级') as TrainingCourse['difficulty'],
+    durationMinutes: Number(raw.duration_minutes ?? raw.durationMinutes ?? 30),
+    content,
+    materials,
+    assessmentConfig: (raw.assessment_config ?? raw.assessmentConfig ?? {type: 'quiz', passingScore: 60}) as TrainingCourse['assessmentConfig'],
+    positionId: raw.position_id ? String(raw.position_id) : undefined,
+    positionName: (raw.positions as Record<string, unknown>)?.name
+      ? String((raw.positions as Record<string, unknown>).name)
+      : raw.position_name ? String(raw.position_name) : undefined,
+    competencyDimension: raw.competency_dimension ? String(raw.competency_dimension) : undefined,
+    isActive: Boolean(raw.is_active ?? raw.isActive ?? true),
+    createdAt: String(raw.created_at ?? ''),
+    updatedAt: String(raw.updated_at ?? ''),
+  };
+};
 
 export interface TrainingShareLink {
   courseId: string;
@@ -616,12 +706,17 @@ export const deletePathEnrollment = async (pathId: string, enrollmentId: string)
   await efetch(`/training/paths/${pathId}/enrollments/${enrollmentId}`, 'DELETE');
 };
 
-export const uploadMaterial = async (file: File): Promise<MaterialUploadResult> => {
+export const uploadMaterial = async (
+  file: File,
+  onProgress?: (progress: number) => void,
+): Promise<MaterialUploadResult> => {
   if (USE_MOCK_API) {
     await mockDelay();
+    onProgress?.(100);
     return { url: URL.createObjectURL(file), filename: file.name };
   }
 
+  const uploadFile = normalizeUploadFile(file);
   const token = getAuthToken();
   // In local Vite dev, use the same-origin /api proxy so uploads do not hit CORS.
   // In production, go through Supabase Edge Function.
@@ -633,25 +728,31 @@ export const uploadMaterial = async (file: File): Promise<MaterialUploadResult> 
         'Content-Type': 'application/json',
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
-      body: JSON.stringify({filename: file.name, contentType: file.type, size: file.size}),
+      body: JSON.stringify({filename: uploadFile.name, contentType: uploadFile.type, size: uploadFile.size}),
     });
-    const uploadInfo = await prepareRes.json();
-    if (!prepareRes.ok) throw new Error(uploadInfo?.error?.message || `Create upload URL failed ${prepareRes.status}`);
+    const prepareText = await prepareRes.text();
+    const uploadInfo = prepareText ? JSON.parse(prepareText) : {};
+    if (!prepareRes.ok) {
+      throw new Error(uploadInfo?.error?.message || uploadInfo?.message || `Create upload URL failed ${prepareRes.status}`);
+    }
+    if (!uploadInfo?.signedUrl || !uploadInfo?.publicUrl) {
+      throw new Error('Create upload URL failed: empty signed upload response');
+    }
 
-    const supabase = getSupabase();
-    const {error} = await supabase.storage
-      .from(String(uploadInfo.bucket ?? 'training-materials'))
-      .uploadToSignedUrl(String(uploadInfo.path), String(uploadInfo.token), file, {
-        contentType: file.type || 'application/octet-stream',
-        upsert: false,
-      });
-    if (error) throw new Error(error.message);
+    await uploadSignedStorageFile(
+      String(uploadInfo.bucket ?? 'training-materials'),
+      String(uploadInfo.path),
+      String(uploadInfo.token),
+      String(uploadInfo.signedUrl),
+      uploadFile,
+      onProgress,
+    );
 
-    return {url: String(uploadInfo.publicUrl), filename: file.name};
+    return {url: String(uploadInfo.publicUrl), filename: uploadFile.name};
   }
 
   const formData = new FormData();
-  formData.append('file', file);
+  formData.append('file', uploadFile);
   const uploadUrl = '/api/training/materials/upload';
   const res = await fetch(uploadUrl, {
     method: 'POST',
@@ -660,6 +761,7 @@ export const uploadMaterial = async (file: File): Promise<MaterialUploadResult> 
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data?.error?.message || `Upload failed ${res.status}`);
+  onProgress?.(100);
   return data as MaterialUploadResult;
 };
 

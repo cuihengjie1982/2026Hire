@@ -1242,29 +1242,41 @@ export const handlePaths = async (req: Request): Promise<Response> => {
 // =============================================================================
 
 const TRAINING_MATERIALS_BUCKET = 'training-materials';
+const TRAINING_MATERIALS_ALLOWED_MIME_TYPES = [
+  'video/*',
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-powerpoint',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/zip',
+  'application/x-rar-compressed',
+  'image/*',
+  'text/plain',
+  'text/markdown',
+];
 
 const ensureTrainingMaterialsBucket = async (supabase: ReturnType<typeof createSupabaseAdmin>) => {
   const { data: existingBucket, error: getBucketError } = await supabase.storage.getBucket(TRAINING_MATERIALS_BUCKET);
-  if (!existingBucket) {
-    const { error: createBucketError } = await supabase.storage.createBucket(TRAINING_MATERIALS_BUCKET, {
-      public: true,
-      fileSizeLimit: 500 * 1024 * 1024,
-    });
-    if (createBucketError) throw new Error(`Create storage bucket failed: ${createBucketError.message}`);
+  if (existingBucket) {
     return;
   }
 
-  const { error: updateBucketError } = await supabase.storage.updateBucket(TRAINING_MATERIALS_BUCKET, {
-    public: true,
-    fileSizeLimit: 500 * 1024 * 1024,
-  });
-  if (updateBucketError) {
-    console.warn('[training signed upload] bucket update skipped', {
+  if (getBucketError) {
+    console.info('[training signed upload] bucket lookup failed, trying to create bucket', {
       bucket: TRAINING_MATERIALS_BUCKET,
-      getBucketError: getBucketError?.message,
-      updateBucketError: updateBucketError.message,
+      error: getBucketError.message,
     });
   }
+
+  const { error: createBucketError } = await supabase.storage.createBucket(TRAINING_MATERIALS_BUCKET, {
+    public: true,
+    fileSizeLimit: 500 * 1024 * 1024,
+    allowedMimeTypes: TRAINING_MATERIALS_ALLOWED_MIME_TYPES,
+  });
+  if (createBucketError) throw new Error(`Create storage bucket failed: ${createBucketError.message}`);
 };
 
 const createSignedMaterialUpload = async (req: Request): Promise<Response> => {
@@ -1284,7 +1296,7 @@ const createSignedMaterialUpload = async (req: Request): Promise<Response> => {
     const path = `materials/${Date.now()}-${crypto.randomUUID().slice(0, 8)}.${ext}`;
     const { data, error } = await supabase.storage
       .from(TRAINING_MATERIALS_BUCKET)
-      .createSignedUploadUrl(path);
+      .createSignedUploadUrl(path, { upsert: false });
 
     if (error || !data) {
       throw new Error(`Create signed upload URL failed: ${error?.message ?? 'empty response'}`);
