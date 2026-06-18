@@ -33,6 +33,16 @@ export interface AssessmentConfig {
   type: 'quiz' | 'ai_review' | 'manual';
   passingScore: number;
   questions?: {text: string; options?: string[]; answer?: string}[];
+  actionCaptions?: TrainingActionCaption[];
+  actionCaptionGeneratedAt?: string;
+  actionCaptionSource?: string;
+}
+
+export interface TrainingActionCaption {
+  start: number;
+  end: number;
+  text: string;
+  confidence?: number;
 }
 
 export interface TrainingEnrollment {
@@ -154,4 +164,16 @@ export interface BatchEnrollResult {
 export interface MaterialUploadResult {
   url: string;
   filename: string;
+}
+
+export interface TrainingActionCaptionFrame {
+  time: number;
+  image: string;
+  mediaType: 'image/jpeg' | 'image/png';
+}
+
+export interface TrainingActionCaptionResult {
+  captions: TrainingActionCaption[];
+  generatedAt: string;
+  model?: string;
 }

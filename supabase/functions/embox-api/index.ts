@@ -172,6 +172,8 @@ const loadHandlers = async (): Promise<RouteHandler[]> => {
     // Training Academy — Notes CRUD
     { pattern: '/training/notes', methods: ['GET'], auth: 'any', handler: handleNotes },
     { pattern: '/training/notes', methods: ['POST', 'PATCH', 'DELETE'], auth: 'recruiter+', handler: handleNotes },
+    // Training Academy — AI action captions mutate course config (recruiter+)
+    { pattern: '/training/ai/action-captions', methods: ['POST'], auth: 'recruiter+', handler: handleTrainingAi },
     // Training Academy — AI Summarize & Q&A (any authenticated)
     { pattern: '/training/ai/', methods: ['POST'], auth: 'any', handler: handleTrainingAi },
     // Stats — dashboard/sidebar/search (any authenticated)

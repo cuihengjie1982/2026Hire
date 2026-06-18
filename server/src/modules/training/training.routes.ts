@@ -6,6 +6,7 @@ import path from 'path';
 import fs from 'fs';
 import crypto from 'crypto';
 import {env} from '../../config/env.js';
+import type {ContentPart} from '../ai/llmClient.js';
 
 const router = Router();
 
@@ -37,6 +38,68 @@ async function resolveTrainingLLMConfig() {
     temperature: Number(row.temperature ?? 0.7),
     max_tokens: Number(row.max_tokens ?? 4096),
   };
+}
+
+async function resolveTrainingVisionLLMConfig() {
+  const visionPatterns = ['glm-5v', 'glm-4v', 'MiniMax-01', 'MiniMax-VL', 'gpt-4o', 'gpt-4v', 'vision', 'gemini'];
+  for (const pattern of visionPatterns) {
+    const row = await queryOne<Record<string, unknown>>(
+      `SELECT * FROM ai_model_configs WHERE model_name ILIKE $1 AND is_active = true LIMIT 1`,
+      [`%${pattern}%`],
+    );
+    if (row) {
+      return {
+        id: String(row.id),
+        provider: String(row.provider),
+        model_name: String(row.model_name),
+        api_key: String(row.api_key),
+        base_url: row.base_url ? String(row.base_url) : null,
+        temperature: Number(row.temperature ?? 0.1),
+        max_tokens: Number(row.max_tokens ?? 4096),
+      };
+    }
+  }
+  return resolveTrainingLLMConfig();
+}
+
+type TrainingActionCaption = {
+  start: number;
+  end: number;
+  text: string;
+  confidence?: number;
+};
+
+function parseJsonObject(raw: string): Record<string, unknown> {
+  const cleaned = raw.replace(/```json|```/g, '').trim();
+  try {
+    return JSON.parse(cleaned) as Record<string, unknown>;
+  } catch {
+    const match = cleaned.match(/\{[\s\S]*\}/);
+    if (!match) return {};
+    try {
+      return JSON.parse(match[0]) as Record<string, unknown>;
+    } catch {
+      return {};
+    }
+  }
+}
+
+function normalizeActionCaptions(value: unknown, duration: number): TrainingActionCaption[] {
+  const items = Array.isArray(value) ? value : [];
+  return items
+    .map(item => {
+      const row = item as Record<string, unknown>;
+      const start = Math.max(0, Number(row.start ?? row.startTime ?? 0));
+      const endRaw = Number(row.end ?? row.endTime ?? start + 3);
+      const endLimit = Number.isFinite(duration) && duration > 0 ? duration : endRaw;
+      const end = Math.max(start + 0.5, Math.min(endLimit, endRaw));
+      const text = String(row.text ?? row.caption ?? row.action ?? '').trim();
+      const confidence = row.confidence === undefined ? undefined : Math.max(0, Math.min(1, Number(row.confidence)));
+      return text ? {start, end, text, ...(Number.isFinite(confidence) ? {confidence} : {})} : null;
+    })
+    .filter((item): item is TrainingActionCaption => Boolean(item))
+    .sort((a, b) => a.start - b.start)
+    .slice(0, 80);
 }
 
 function createTrainingVideoToken(courseId: string): string {
@@ -1045,6 +1108,93 @@ router.delete('/notes/:id', requireRole('admin', 'recruiter'), async (req, res, 
 // ═══════════════════════════════════════════════════════════════════
 // AI Summarize (POST /training/ai/summarize)
 // ═══════════════════════════════════════════════════════════════════
+
+router.post('/ai/action-captions', requireRole('admin', 'recruiter'), async (req, res, next) => {
+  try {
+    const {courseId, title, description, duration, frames} = req.body as {
+      courseId?: string;
+      title?: string;
+      description?: string;
+      duration?: number;
+      frames?: Array<{time?: number; image?: string; mediaType?: string}>;
+    };
+    if (!courseId) {
+      res.status(400).json({error: {code: 'VALIDATION_ERROR', message: 'courseId is required'}});
+      return;
+    }
+    if (!Array.isArray(frames) || frames.length === 0) {
+      res.status(400).json({error: {code: 'VALIDATION_ERROR', message: 'frames are required'}});
+      return;
+    }
+
+    const course = await queryOne<Record<string, unknown>>(
+      `SELECT id, title, description, assessment_config FROM training_courses WHERE id = $1`,
+      [courseId],
+    );
+    if (!course) {
+      res.status(404).json({error: {code: 'NOT_FOUND', message: 'Course not found'}});
+      return;
+    }
+
+    const {callVisionLLM} = await import('../ai/llmClient.js');
+    const aiConfig = await resolveTrainingVisionLLMConfig();
+    if (!aiConfig) {
+      res.status(400).json({error: {code: 'AI_CONFIG_MISSING', message: 'No active vision AI model configured'}});
+      return;
+    }
+
+    const safeFrames = frames.filter(frame => typeof frame.image === 'string' && frame.image.length > 0).slice(0, 10);
+    if (safeFrames.length === 0) {
+      res.status(400).json({error: {code: 'VALIDATION_ERROR', message: 'valid frames are required'}});
+      return;
+    }
+    const frameTimes = safeFrames.map(frame => Number(frame.time ?? 0));
+    const systemPrompt = `你是培训视频动作字幕分析助手。请根据连续视频截图，识别画面中手部、鼠标、触控、界面变化和业务操作步骤，生成员工观看时可同步显示的中文动作字幕。
+
+要求：
+1. 只返回 JSON，不要解释。
+2. 输出 {"captions":[{"start":数字秒,"end":数字秒,"text":"动作说明","confidence":0到1}]}。
+3. text 使用简洁中文，像“点击左侧菜单”“在搜索框输入关键词”“确认保存设置”。
+4. 如果看不清具体按钮文字，可以描述可见动作，不要编造系统不存在的内容。
+5. 每条字幕 5 到 18 个汉字，时间段必须覆盖相邻截图之间的主要动作。`;
+    const parts: ContentPart[] = [
+      {
+        type: 'text',
+        text: `课程标题：${title ?? course.title ?? '培训视频'}\n课程描述：${description ?? course.description ?? ''}\n视频时长：${duration ?? '未知'} 秒\n截图时间点：${frameTimes.join(', ')} 秒\n请按时间点生成动作字幕。`,
+      },
+      ...safeFrames.map(frame => ({
+        type: 'image' as const,
+        image: {
+          media_type: frame.mediaType === 'image/png' ? 'image/png' : 'image/jpeg',
+          data: String(frame.image),
+        },
+      })),
+    ];
+
+    const raw = await callVisionLLM(aiConfig, systemPrompt, parts);
+    const parsed = parseJsonObject(raw);
+    const captions = normalizeActionCaptions(parsed.captions, Number(duration ?? 0));
+    if (captions.length === 0) {
+      res.status(502).json({error: {code: 'AI_PARSE_ERROR', message: 'AI did not return valid action captions'}});
+      return;
+    }
+
+    const assessmentConfig = (course.assessment_config ?? {}) as Record<string, unknown>;
+    const generatedAt = new Date().toISOString();
+    const nextAssessmentConfig = {
+      ...assessmentConfig,
+      actionCaptions: captions,
+      actionCaptionGeneratedAt: generatedAt,
+      actionCaptionSource: 'vision-frames',
+    };
+    await queryOne(
+      `UPDATE training_courses SET assessment_config = $1, updated_at = now() WHERE id = $2 RETURNING id`,
+      [JSON.stringify(nextAssessmentConfig), courseId],
+    );
+
+    res.json({captions, generatedAt, model: `${aiConfig.provider}/${aiConfig.model_name}`});
+  } catch (e) { next(e); }
+});
 
 router.post('/ai/summarize', async (req, res, next) => {
   try {

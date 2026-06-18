@@ -5,7 +5,7 @@ import {
   BookOpen, Users, TrendingUp, BarChart3, Plus, Clock, Star,
   CheckCircle, XCircle, PlayCircle, ChevronRight, AlertTriangle,
   Target, Award, ArrowUpRight, Download, Loader2, Layers, Edit3, Trash2, MapPin,
-  Upload, Search, X, Copy, Link2, ExternalLink,
+  Upload, Search, X, Copy, Link2, ExternalLink, Sparkles,
 } from 'lucide-react';
 import {useToast} from '../../../shared/components/ToastProvider';
 import {getAuthToken, API_BASE_URL} from '../../../shared/lib/runtime';
@@ -17,6 +17,7 @@ import {
   getPathEnrollments, enrollCandidateInPath, updatePathEnrollment, deletePathEnrollment,
   uploadMaterial, batchEnroll,
   createTrainingShareLink,
+  generateTrainingActionCaptions,
   type TrainingCourse, type TrainingEnrollment, type TrainingStats,
   type WeaknessAnalysis, type TrainingEffectiveness,
   type CourseRecommendation,
@@ -283,6 +284,7 @@ export const TrainingAcademyPage = () => {
             courses={courses}
             onAddCourse={() => setShowCreateCourse(true)}
             onPreview={(courseId) => navigate(`/training/preview?courseId=${courseId}`)}
+            onCaptionsGenerated={loadData}
           />
         )}
         {activeTab === 'analysis' && weaknessData && (
@@ -477,10 +479,11 @@ const CoursesTab = ({courses, onAdd, onBatchEnroll, onEdit, onDelete}: {
   );
 };
 
-const VideoShareTab = ({courses, onAddCourse, onPreview}: {
+const VideoShareTab = ({courses, onAddCourse, onPreview, onCaptionsGenerated}: {
   courses: TrainingCourse[];
   onAddCourse: () => void;
   onPreview: (courseId: string) => void;
+  onCaptionsGenerated: () => Promise<void>;
 }) => {
   const hasShareableVideo = (course: TrainingCourse) =>
     course.content.some(section => section.contentType === 'video' && Boolean(section.contentUrl))
@@ -491,6 +494,8 @@ const VideoShareTab = ({courses, onAddCourse, onPreview}: {
   const videoCourses = courses.filter(hasShareableVideo);
   const [links, setLinks] = useState<Record<string, string>>({});
   const [loadingId, setLoadingId] = useState<string | null>(null);
+  const [captionLoadingId, setCaptionLoadingId] = useState<string | null>(null);
+  const [captionProgress, setCaptionProgress] = useState<Record<string, number>>({});
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [error, setError] = useState('');
 
@@ -526,6 +531,24 @@ const VideoShareTab = ({courses, onAddCourse, onPreview}: {
   const handleOpen = async (courseId: string) => {
     const url = await ensureLink(courseId);
     if (url) window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
+  const handleGenerateCaptions = async (course: TrainingCourse) => {
+    setCaptionLoadingId(course.id);
+    setCaptionProgress(prev => ({...prev, [course.id]: 0}));
+    setError('');
+    try {
+      await generateTrainingActionCaptions(course, progress => {
+        setCaptionProgress(prev => ({...prev, [course.id]: progress}));
+      });
+      await onCaptionsGenerated();
+    } catch (e) {
+      const message = e instanceof Error ? e.message : '生成动作字幕失败';
+      setError(message);
+    } finally {
+      setCaptionLoadingId(null);
+      setCaptionProgress(prev => ({...prev, [course.id]: 0}));
+    }
   };
 
   return (
@@ -568,6 +591,9 @@ const VideoShareTab = ({courses, onAddCourse, onPreview}: {
             const videoCount = getVideoCount(course);
             const link = links[course.id];
             const isLoading = loadingId === course.id;
+            const isCaptionLoading = captionLoadingId === course.id;
+            const captionsCount = course.assessmentConfig.actionCaptions?.length ?? 0;
+            const progress = captionProgress[course.id] ?? 0;
             const copied = copiedId === course.id;
 
             return (
@@ -592,6 +618,9 @@ const VideoShareTab = ({courses, onAddCourse, onPreview}: {
                   <span className="flex items-center gap-1 text-gray-500">
                     <Clock className="w-3.5 h-3.5" /> {course.durationMinutes} 分钟
                   </span>
+                  <span className={`flex items-center gap-1 ${captionsCount > 0 ? 'text-emerald-600' : 'text-gray-400'}`}>
+                    <Sparkles className="w-3.5 h-3.5" /> {captionsCount > 0 ? `${captionsCount} 条动作字幕` : '未生成动作字幕'}
+                  </span>
                 </div>
 
                 <div className="rounded-lg bg-gray-50 border border-gray-200 p-3">
@@ -602,10 +631,10 @@ const VideoShareTab = ({courses, onAddCourse, onPreview}: {
                   )}
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
                   <button
                     onClick={() => handleCopy(course.id)}
-                    disabled={isLoading}
+                    disabled={isLoading || isCaptionLoading}
                     className="flex items-center justify-center gap-2 px-3 py-2 bg-[#1a4bc4] text-white rounded-lg text-sm hover:bg-[#153da0] disabled:opacity-60 transition-colors"
                   >
                     {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Copy className="w-4 h-4" />}
@@ -613,14 +642,23 @@ const VideoShareTab = ({courses, onAddCourse, onPreview}: {
                   </button>
                   <button
                     onClick={() => handleOpen(course.id)}
-                    disabled={isLoading}
+                    disabled={isLoading || isCaptionLoading}
                     className="flex items-center justify-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm hover:bg-gray-50 disabled:opacity-60 transition-colors"
                   >
                     <ExternalLink className="w-4 h-4" /> 打开公开页
                   </button>
                   <button
+                    onClick={() => handleGenerateCaptions(course)}
+                    disabled={isLoading || isCaptionLoading}
+                    className="flex items-center justify-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm hover:bg-gray-50 disabled:opacity-60 transition-colors"
+                  >
+                    {isCaptionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                    {isCaptionLoading ? `${progress}%` : captionsCount > 0 ? '重新生成字幕' : '生成动作字幕'}
+                  </button>
+                  <button
                     onClick={() => onPreview(course.id)}
-                    className="flex items-center justify-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm hover:bg-gray-50 transition-colors"
+                    disabled={isCaptionLoading}
+                    className="flex items-center justify-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm hover:bg-gray-50 disabled:opacity-60 transition-colors"
                   >
                     <PlayCircle className="w-4 h-4" /> 后台预览
                   </button>

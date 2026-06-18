@@ -16,6 +16,8 @@ import {
   type BatchEnrollInput,
   type BatchEnrollResult,
   type MaterialUploadResult,
+  type TrainingActionCaptionFrame,
+  type TrainingActionCaptionResult,
 } from './types';
 
 // Re-export types for consumers
@@ -31,6 +33,8 @@ export type {
   BatchEnrollInput,
   BatchEnrollResult,
   MaterialUploadResult,
+  TrainingActionCaptionFrame,
+  TrainingActionCaptionResult,
 };
 
 const MATERIAL_UPLOAD_TIMEOUT_MS = 15 * 60 * 1000;
@@ -146,6 +150,14 @@ const proxyPublicTrainingMaterialUrl = (url?: string): string | undefined => {
   if (!url.startsWith(publicStoragePrefix)) return url;
   const objectPath = url.slice(publicStoragePrefix.length);
   return `${window.location.origin}/training-media/${objectPath}`;
+};
+
+const proxyTrainingMaterialUrlForCurrentOrigin = (url?: string): string | undefined => {
+  if (!url || typeof window === 'undefined') return url;
+  const marker = '/storage/v1/object/public/training-materials/';
+  const markerIndex = url.indexOf(marker);
+  if (markerIndex === -1) return url;
+  return `${window.location.origin}/training-media/${url.slice(markerIndex + marker.length)}`;
 };
 
 const mapPublicCourseMediaUrls = (course: TrainingCourse): TrainingCourse => ({
@@ -348,6 +360,130 @@ export const getPublicTrainingCourse = async (courseId: string, token: string): 
   if (!res.ok) throw new Error(data?.error?.message || `API error ${res.status}`);
   const course = mapCourse((data.course ?? data) as Record<string, unknown>);
   return isLocalExpress ? course : mapPublicCourseMediaUrls(course);
+};
+
+const findCourseVideoUrl = (course: TrainingCourse): string => {
+  const sectionVideo = course.content.find(section => section.contentType === 'video' && section.contentUrl);
+  if (sectionVideo?.contentUrl) return sectionVideo.contentUrl;
+  const materialVideo = course.materials.find(material => material.type === 'video' && material.url);
+  return materialVideo?.url ?? '';
+};
+
+const waitForVideoEvent = (video: HTMLVideoElement, eventName: keyof HTMLMediaElementEventMap, timeoutMs = 12000): Promise<void> => new Promise((resolve, reject) => {
+  const timer = window.setTimeout(() => {
+    cleanup();
+    reject(new Error('视频加载超时，无法抽取画面'));
+  }, timeoutMs);
+  const cleanup = () => {
+    window.clearTimeout(timer);
+    video.removeEventListener(eventName, handleEvent);
+    video.removeEventListener('error', handleError);
+  };
+  const handleEvent = () => {
+    cleanup();
+    resolve();
+  };
+  const handleError = () => {
+    cleanup();
+    reject(new Error('视频无法加载，无法生成动作字幕'));
+  };
+  video.addEventListener(eventName, handleEvent, {once: true});
+  video.addEventListener('error', handleError, {once: true});
+});
+
+const seekVideo = async (video: HTMLVideoElement, time: number): Promise<void> => {
+  video.currentTime = Math.min(Math.max(time, 0), Math.max((video.duration || 0) - 0.1, 0));
+  await waitForVideoEvent(video, 'seeked', 10000);
+};
+
+const extractVideoFrames = async (
+  course: TrainingCourse,
+  onProgress?: (progress: number) => void,
+): Promise<{frames: TrainingActionCaptionFrame[]; duration: number}> => {
+  const rawUrl = findCourseVideoUrl(course);
+  const videoUrl = proxyTrainingMaterialUrlForCurrentOrigin(rawUrl) ?? rawUrl;
+  if (!videoUrl) throw new Error('课程还没有可分析的视频');
+
+  const video = document.createElement('video');
+  video.crossOrigin = 'anonymous';
+  video.muted = true;
+  video.playsInline = true;
+  video.preload = 'auto';
+  video.src = videoUrl;
+  video.load();
+
+  await waitForVideoEvent(video, 'loadedmetadata', 15000);
+  const duration = Number.isFinite(video.duration) && video.duration > 0 ? video.duration : course.durationMinutes * 60;
+  const sampleCount = Math.min(10, Math.max(4, Math.ceil(duration / 8)));
+  const startOffset = duration > 2 ? 1 : 0;
+  const times = Array.from({length: sampleCount}, (_, index) => {
+    if (sampleCount === 1) return startOffset;
+    return startOffset + ((Math.max(duration - startOffset - 0.5, 0)) * index) / (sampleCount - 1);
+  });
+
+  const canvas = document.createElement('canvas');
+  const width = 640;
+  const ratio = video.videoWidth && video.videoHeight ? video.videoHeight / video.videoWidth : 9 / 16;
+  canvas.width = width;
+  canvas.height = Math.max(240, Math.round(width * ratio));
+  const context = canvas.getContext('2d');
+  if (!context) throw new Error('浏览器不支持视频抽帧');
+
+  const frames: TrainingActionCaptionFrame[] = [];
+  for (let index = 0; index < times.length; index += 1) {
+    await seekVideo(video, times[index]);
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    let dataUrl = '';
+    try {
+      dataUrl = canvas.toDataURL('image/jpeg', 0.72);
+    } catch {
+      throw new Error('当前视频地址不允许浏览器抽帧，请使用系统上传的视频文件');
+    }
+    frames.push({
+      time: Math.round(times[index] * 10) / 10,
+      image: dataUrl.replace(/^data:image\/jpeg;base64,/, ''),
+      mediaType: 'image/jpeg',
+    });
+    onProgress?.(Math.round(((index + 1) / times.length) * 65));
+  }
+
+  video.removeAttribute('src');
+  video.load();
+  return {frames, duration};
+};
+
+export const generateTrainingActionCaptions = async (
+  course: TrainingCourse,
+  onProgress?: (progress: number) => void,
+): Promise<TrainingActionCaptionResult> => {
+  if (USE_MOCK_API) {
+    await mockDelay();
+    onProgress?.(100);
+    return {
+      generatedAt: new Date().toISOString(),
+      captions: [
+        {start: 0, end: 5, text: '打开培训页面，准备开始操作演示', confidence: 0.7},
+        {start: 5, end: 12, text: '根据画面提示完成关键步骤', confidence: 0.7},
+      ],
+      model: 'mock',
+    };
+  }
+
+  if (typeof document === 'undefined') {
+    throw new Error('当前环境无法抽取视频画面');
+  }
+
+  const {frames, duration} = await extractVideoFrames(course, onProgress);
+  onProgress?.(72);
+  const result = await efetch<TrainingActionCaptionResult>('/training/ai/action-captions', 'POST', {
+    courseId: course.id,
+    title: course.title,
+    description: course.description,
+    duration,
+    frames: frames as unknown as Record<string, unknown>[],
+  });
+  onProgress?.(100);
+  return result;
 };
 
 // ─── Enrollments ────────────────────────────────────────────────────────

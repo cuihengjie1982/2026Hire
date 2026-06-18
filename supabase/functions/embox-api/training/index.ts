@@ -1,5 +1,5 @@
 import { createSupabaseAdmin } from '../_shared/supabaseClient.ts';
-import { callLLM } from '../_shared/llmClient.ts';
+import { callLLM, callVisionLLM, type ContentPart } from '../_shared/llmClient.ts';
 
 
 function jsonRes(body: unknown, status = 200, extraHeaders: Record<string, string> = {}) {
@@ -1544,6 +1544,80 @@ async function resolveTrainingLLMConfig(supabase: ReturnType<typeof createSupaba
   };
 }
 
+async function resolveTrainingVisionLLMConfig(supabase: ReturnType<typeof createSupabaseAdmin>) {
+  const getRow = async (query: ReturnType<typeof supabase.from>['select']) => {
+    const { data } = await query;
+    return data as Record<string, unknown> | null;
+  };
+
+  let row: Record<string, unknown> | null = null;
+  const visionPatterns = ['glm-5v', 'glm-4v', 'MiniMax-01', 'MiniMax-VL', 'gpt-4o', 'gpt-4v', 'vision', 'gemini'];
+  for (const pattern of visionPatterns) {
+    row = await getRow(
+      supabase.from('ai_model_configs')
+        .select('*')
+        .ilike('model_name', `%${pattern}%`)
+        .eq('is_active', true)
+        .limit(1)
+        .single(),
+    );
+    if (row) break;
+  }
+
+  if (!row) {
+    return resolveTrainingLLMConfig(supabase);
+  }
+
+  return {
+    id: String(row.id),
+    provider: String(row.provider),
+    model_name: String(row.model_name),
+    api_key: String(row.api_key),
+    base_url: row.base_url ? String(row.base_url) : null,
+    temperature: Number(row.temperature ?? 0.1),
+    max_tokens: Number(row.max_tokens ?? 4096),
+  };
+}
+
+type TrainingActionCaption = {
+  start: number;
+  end: number;
+  text: string;
+  confidence?: number;
+};
+
+function parseJsonObject(raw: string): Record<string, unknown> {
+  const cleaned = raw.replace(/```json|```/g, '').trim();
+  try {
+    return JSON.parse(cleaned) as Record<string, unknown>;
+  } catch {
+    const match = cleaned.match(/\{[\s\S]*\}/);
+    if (!match) return {};
+    try {
+      return JSON.parse(match[0]) as Record<string, unknown>;
+    } catch {
+      return {};
+    }
+  }
+}
+
+function normalizeActionCaptions(value: unknown, duration: number): TrainingActionCaption[] {
+  const items = Array.isArray(value) ? value : [];
+  return items
+    .map((item) => {
+      const row = item as Record<string, unknown>;
+      const start = Math.max(0, Number(row.start ?? row.startTime ?? 0));
+      const endRaw = Number(row.end ?? row.endTime ?? start + 3);
+      const end = Math.max(start + 0.5, Math.min(Number.isFinite(duration) && duration > 0 ? duration : endRaw, endRaw));
+      const text = String(row.text ?? row.caption ?? row.action ?? '').trim();
+      const confidence = row.confidence === undefined ? undefined : Math.max(0, Math.min(1, Number(row.confidence)));
+      return text ? { start, end, text, ...(Number.isFinite(confidence) ? { confidence } : {}) } : null;
+    })
+    .filter((item): item is TrainingActionCaption => Boolean(item))
+    .sort((a, b) => a.start - b.start)
+    .slice(0, 80);
+}
+
 const handleTrainingAi = async (req: Request): Promise<Response> => {
   try {
     const supabase = createSupabaseAdmin(req);
@@ -1553,6 +1627,93 @@ const handleTrainingAi = async (req: Request): Promise<Response> => {
     const llmConfig = await resolveTrainingLLMConfig(supabase);
     if (!llmConfig) {
       return jsonRes({ error: { code: 'AI_CONFIG_MISSING', message: 'No active AI model configured' } }, 400);
+    }
+
+    // POST /training/ai/action-captions
+    if (path.endsWith('/action-captions')) {
+      const { courseId, title, description, duration, frames } = body as {
+        courseId?: string;
+        title?: string;
+        description?: string;
+        duration?: number;
+        frames?: Array<{time?: number; image?: string; mediaType?: string}>;
+      };
+      if (!courseId) {
+        return jsonRes({ error: { code: 'VALIDATION_ERROR', message: 'courseId is required' } }, 400);
+      }
+      if (!Array.isArray(frames) || frames.length === 0) {
+        return jsonRes({ error: { code: 'VALIDATION_ERROR', message: 'frames are required' } }, 400);
+      }
+
+      const { data: course, error: courseError } = await supabase
+        .from('training_courses')
+        .select('id, title, description, assessment_config')
+        .eq('id', courseId)
+        .single();
+      if (courseError || !course) {
+        return jsonRes({ error: { code: 'NOT_FOUND', message: 'Course not found' } }, 404);
+      }
+
+      const visionConfig = await resolveTrainingVisionLLMConfig(supabase);
+      if (!visionConfig) {
+        return jsonRes({ error: { code: 'AI_CONFIG_MISSING', message: 'No active vision AI model configured' } }, 400);
+      }
+
+      const safeFrames = frames
+        .filter(frame => typeof frame.image === 'string' && frame.image.length > 0)
+        .slice(0, 10);
+      if (safeFrames.length === 0) {
+        return jsonRes({ error: { code: 'VALIDATION_ERROR', message: 'valid frames are required' } }, 400);
+      }
+      const frameTimes = safeFrames.map(frame => Number(frame.time ?? 0));
+      const systemPrompt = `你是培训视频动作字幕分析助手。请根据连续视频截图，识别画面中手部、鼠标、触控、界面变化和业务操作步骤，生成员工观看时可同步显示的中文动作字幕。
+
+要求：
+1. 只返回 JSON，不要解释。
+2. 输出 {"captions":[{"start":数字秒,"end":数字秒,"text":"动作说明","confidence":0到1}]}。
+3. text 使用简洁中文，像“点击左侧菜单”“在搜索框输入关键词”“确认保存设置”。
+4. 如果看不清具体按钮文字，可以描述可见动作，不要编造系统不存在的内容。
+5. 每条字幕 5 到 18 个汉字，时间段必须覆盖相邻截图之间的主要动作。`;
+      const parts: ContentPart[] = [
+        {
+          type: 'text',
+          text: `课程标题：${title ?? course.title ?? '培训视频'}\n课程描述：${description ?? course.description ?? ''}\n视频时长：${duration ?? '未知'} 秒\n截图时间点：${frameTimes.join(', ')} 秒\n请按时间点生成动作字幕。`,
+        },
+        ...safeFrames.map(frame => ({
+          type: 'image' as const,
+          image: {
+            media_type: frame.mediaType === 'image/png' ? 'image/png' : 'image/jpeg',
+            data: String(frame.image),
+          },
+        })),
+      ];
+
+      const raw = await callVisionLLM(visionConfig, systemPrompt, parts);
+      const parsed = parseJsonObject(raw);
+      const captions = normalizeActionCaptions(parsed.captions, Number(duration ?? 0));
+      if (captions.length === 0) {
+        return jsonRes({ error: { code: 'AI_PARSE_ERROR', message: 'AI did not return valid action captions' } }, 502);
+      }
+
+      const assessmentConfig = ((course as Record<string, unknown>).assessment_config ?? {}) as Record<string, unknown>;
+      const generatedAt = new Date().toISOString();
+      const nextAssessmentConfig = {
+        ...assessmentConfig,
+        actionCaptions: captions,
+        actionCaptionGeneratedAt: generatedAt,
+        actionCaptionSource: 'vision-frames',
+      };
+      const { error: updateError } = await supabase
+        .from('training_courses')
+        .update({ assessment_config: nextAssessmentConfig, updated_at: generatedAt })
+        .eq('id', courseId);
+      if (updateError) throw updateError;
+
+      return jsonRes({
+        captions,
+        generatedAt,
+        model: `${visionConfig.provider}/${visionConfig.model_name}`,
+      });
     }
 
     // POST /training/ai/summarize

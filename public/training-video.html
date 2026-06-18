@@ -77,6 +77,17 @@
         font-size: 14px;
         line-height: 1.7;
       }
+      .live-caption {
+        margin-top: 10px;
+        padding: 12px 14px;
+        border: 1px solid #dbeafe;
+        border-radius: 10px;
+        background: #eff6ff;
+        color: #1e3a8a;
+        font-size: 15px;
+        font-weight: 650;
+        line-height: 1.6;
+      }
       .actions {
         display: flex;
         gap: 10px;
@@ -197,14 +208,20 @@
       </section>
 
       <section id="message" class="message">正在加载培训视频，请稍候。</section>
+      <section id="live-caption" class="live-caption hidden">动作字幕准备中。</section>
       <section id="actions" class="actions hidden">
         <a id="open-video" class="secondary" target="_blank" rel="noreferrer">视频打不开时使用</a>
         <button class="secondary" type="button" onclick="window.location.reload()">刷新</button>
       </section>
 
       <section id="tabs" class="tabs hidden">
+        <button id="tab-actions" class="tab" type="button">动作字幕</button>
         <button id="tab-transcript" class="tab active" type="button">文字稿</button>
         <button id="tab-notes" class="tab" type="button">笔记</button>
+      </section>
+
+      <section id="actions-panel" class="panel hidden">
+        <div id="actions-content"></div>
       </section>
 
       <section id="transcript-panel" class="panel hidden">
@@ -240,9 +257,13 @@
         var playButtonEl = document.getElementById('play-button');
         var actionsEl = document.getElementById('actions');
         var openVideoEl = document.getElementById('open-video');
+        var liveCaptionEl = document.getElementById('live-caption');
         var tabsEl = document.getElementById('tabs');
+        var tabActionsEl = document.getElementById('tab-actions');
         var tabTranscriptEl = document.getElementById('tab-transcript');
         var tabNotesEl = document.getElementById('tab-notes');
+        var actionsPanelEl = document.getElementById('actions-panel');
+        var actionsContentEl = document.getElementById('actions-content');
         var transcriptPanelEl = document.getElementById('transcript-panel');
         var transcriptContentEl = document.getElementById('transcript-content');
         var notesPanelEl = document.getElementById('notes-panel');
@@ -252,6 +273,7 @@
         var playTimeout = null;
         var fallbackVideoUrl = '';
         var triedFallbackVideoUrl = false;
+        var actionCaptions = [];
 
         function setMessage(text) {
           messageEl.textContent = text;
@@ -324,6 +346,22 @@
           return sections;
         }
 
+        function getActionCaptions(course) {
+          var config = course.assessmentConfig || course.assessment_config || {};
+          var captions = config.actionCaptions || config.action_captions || [];
+          if (!Array.isArray(captions)) return [];
+          return captions
+            .map(function (item) {
+              var start = Number(item.start || item.startTime || 0);
+              var end = Number(item.end || item.endTime || start + 3);
+              var text = String(item.text || item.caption || item.action || '').trim();
+              if (!text) return null;
+              return { start: start, end: end, text: text };
+            })
+            .filter(Boolean)
+            .sort(function (a, b) { return a.start - b.start; });
+        }
+
         function formatTime(seconds) {
           var value = Math.max(0, Math.floor(seconds || 0));
           var minutes = Math.floor(value / 60);
@@ -351,6 +389,48 @@
             item.appendChild(text);
             transcriptContentEl.appendChild(item);
           });
+        }
+
+        function renderActionCaptions(course) {
+          actionCaptions = getActionCaptions(course);
+          actionsContentEl.innerHTML = '';
+          if (!actionCaptions.length) {
+            actionsContentEl.innerHTML = '<p class="transcript-text">暂无动作字幕。管理员可在后台视频分享中生成。</p>';
+            liveCaptionEl.classList.add('hidden');
+            return;
+          }
+          actionCaptions.forEach(function (caption) {
+            var item = document.createElement('div');
+            item.className = 'transcript-item';
+            var title = document.createElement('p');
+            title.className = 'transcript-title';
+            title.textContent = formatTime(caption.start) + ' - ' + formatTime(caption.end);
+            var text = document.createElement('p');
+            text.className = 'transcript-text';
+            text.textContent = caption.text;
+            item.appendChild(title);
+            item.appendChild(text);
+            actionsContentEl.appendChild(item);
+          });
+          updateLiveCaption();
+        }
+
+        function updateLiveCaption() {
+          if (!actionCaptions.length) return;
+          var current = videoEl.currentTime || 0;
+          var active = null;
+          for (var i = 0; i < actionCaptions.length; i += 1) {
+            if (current >= actionCaptions[i].start && current < actionCaptions[i].end) {
+              active = actionCaptions[i];
+              break;
+            }
+          }
+          if (!active) {
+            liveCaptionEl.classList.add('hidden');
+            return;
+          }
+          liveCaptionEl.textContent = active.text;
+          liveCaptionEl.classList.remove('hidden');
         }
 
         function getNotesKey() {
@@ -396,11 +476,14 @@
         }
 
         function switchTab(tab) {
+          var isActions = tab === 'actions';
           var isTranscript = tab === 'transcript';
+          tabActionsEl.classList.toggle('active', isActions);
           tabTranscriptEl.classList.toggle('active', isTranscript);
-          tabNotesEl.classList.toggle('active', !isTranscript);
+          tabNotesEl.classList.toggle('active', tab === 'notes');
+          actionsPanelEl.classList.toggle('hidden', !isActions);
           transcriptPanelEl.classList.toggle('hidden', !isTranscript);
-          notesPanelEl.classList.toggle('hidden', isTranscript);
+          notesPanelEl.classList.toggle('hidden', tab !== 'notes');
         }
 
         function describeVideoError() {
@@ -470,6 +553,7 @@
             playerEl.classList.remove('hidden');
             tabsEl.classList.remove('hidden');
             transcriptPanelEl.classList.remove('hidden');
+            renderActionCaptions(course);
             renderTranscript(course);
             renderNotes();
             setMessage('请点击视频上的播放按钮开始学习。iPhone 微信不允许带声音视频自动播放，这是系统限制。');
@@ -508,12 +592,19 @@
           }
         });
 
+        videoEl.addEventListener('timeupdate', updateLiveCaption);
+        videoEl.addEventListener('seeked', updateLiveCaption);
+
         videoEl.addEventListener('error', function () {
           if (playTimeout) window.clearTimeout(playTimeout);
           if (switchToFallbackVideo('视频加载失败。')) return;
           actionsEl.classList.remove('hidden');
           playButtonEl.textContent = '重新播放';
           setMessage(describeVideoError());
+        });
+
+        tabActionsEl.addEventListener('click', function () {
+          switchTab('actions');
         });
 
         tabTranscriptEl.addEventListener('click', function () {
