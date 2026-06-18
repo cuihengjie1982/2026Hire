@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    <title>培训视频</title>
+    <style>
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: #f8fafc;
+        color: #111827;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+      .page {
+        max-width: 860px;
+        margin: 0 auto;
+        padding: 20px 14px 32px;
+      }
+      .header {
+        padding: 4px 2px 14px;
+      }
+      .label {
+        margin: 0 0 6px;
+        color: #4f46e5;
+        font-size: 13px;
+        font-weight: 600;
+      }
+      h1 {
+        margin: 0;
+        font-size: 22px;
+        line-height: 1.35;
+      }
+      .desc {
+        margin: 8px 0 0;
+        color: #6b7280;
+        font-size: 14px;
+        line-height: 1.6;
+      }
+      .player {
+        width: 100%;
+        margin-top: 8px;
+        background: #000;
+        border-radius: 10px;
+        overflow: hidden;
+      }
+      video {
+        display: block;
+        width: 100%;
+        min-height: 220px;
+        max-height: 72vh;
+        background: #000;
+      }
+      .message {
+        margin-top: 14px;
+        padding: 14px;
+        border: 1px solid #e5e7eb;
+        border-radius: 10px;
+        background: #fff;
+        color: #4b5563;
+        font-size: 14px;
+        line-height: 1.7;
+      }
+      .actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-top: 14px;
+      }
+      a, button {
+        appearance: none;
+        border: 0;
+        border-radius: 8px;
+        padding: 10px 14px;
+        background: #111827;
+        color: #fff;
+        font-size: 14px;
+        font-weight: 600;
+        text-decoration: none;
+      }
+      button.secondary, a.secondary {
+        background: #e5e7eb;
+        color: #111827;
+      }
+      .hidden { display: none; }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <section class="header">
+        <p class="label">员工培训视频</p>
+        <h1 id="course-title">正在加载...</h1>
+        <p id="course-desc" class="desc"></p>
+      </section>
+
+      <section id="player" class="player hidden">
+        <video
+          id="video"
+          controls
+          playsinline
+          webkit-playsinline
+          x5-playsinline
+          x5-video-player-type="h5-page"
+          preload="metadata"
+        ></video>
+      </section>
+
+      <section id="message" class="message">正在加载培训视频，请稍候。</section>
+      <section id="actions" class="actions hidden">
+        <a id="open-video" target="_blank" rel="noreferrer">直接打开视频</a>
+        <button class="secondary" type="button" onclick="window.location.reload()">刷新</button>
+      </section>
+    </main>
+
+    <script>
+      (function () {
+        var params = new URLSearchParams(window.location.search);
+        var courseId = params.get('courseId') || '';
+        var token = params.get('token') || '';
+        var titleEl = document.getElementById('course-title');
+        var descEl = document.getElementById('course-desc');
+        var messageEl = document.getElementById('message');
+        var playerEl = document.getElementById('player');
+        var videoEl = document.getElementById('video');
+        var actionsEl = document.getElementById('actions');
+        var openVideoEl = document.getElementById('open-video');
+
+        function setMessage(text) {
+          messageEl.textContent = text;
+        }
+
+        function toProxyUrl(url) {
+          if (!url) return '';
+          var marker = '/storage/v1/object/public/training-materials/';
+          var markerIndex = url.indexOf(marker);
+          if (markerIndex === -1) return url;
+          return window.location.origin + '/training-media/' + url.slice(markerIndex + marker.length);
+        }
+
+        function findVideoUrl(course) {
+          var content = Array.isArray(course.content) ? course.content : [];
+          for (var i = 0; i < content.length; i += 1) {
+            if (content[i].contentType === 'video' && content[i].contentUrl) return content[i].contentUrl;
+            if (content[i].content_type === 'video' && content[i].content_url) return content[i].content_url;
+          }
+          var materials = Array.isArray(course.materials) ? course.materials : [];
+          for (var j = 0; j < materials.length; j += 1) {
+            if (materials[j].type === 'video' && materials[j].url) return materials[j].url;
+          }
+          return '';
+        }
+
+        if (!courseId || !token) {
+          titleEl.textContent = '培训链接不可用';
+          setMessage('链接缺少必要参数，请重新获取分享链接。');
+          return;
+        }
+
+        fetch('/training-public-api/course/' + encodeURIComponent(courseId) + '?token=' + encodeURIComponent(token), {
+          cache: 'no-store',
+          headers: { 'Accept': 'application/json' }
+        })
+          .then(function (res) {
+            return res.json().then(function (data) {
+              if (!res.ok) throw new Error((data.error && data.error.message) || '培训链接不可用');
+              return data.course || data;
+            });
+          })
+          .then(function (course) {
+            var videoUrl = toProxyUrl(findVideoUrl(course));
+            titleEl.textContent = course.title || '培训视频';
+            descEl.textContent = course.description || '';
+            if (!videoUrl) {
+              setMessage('这个课程还没有可播放的视频。');
+              return;
+            }
+            videoEl.src = videoUrl;
+            openVideoEl.href = videoUrl;
+            playerEl.classList.remove('hidden');
+            actionsEl.classList.remove('hidden');
+            setMessage('如果视频没有自动显示，请点击视频播放按钮。');
+          })
+          .catch(function (error) {
+            titleEl.textContent = '培训链接不可用';
+            setMessage(error && error.message ? error.message : '网络出错，请稍后重试。');
+          });
+      })();
+    </script>
+  </body>
+</html>

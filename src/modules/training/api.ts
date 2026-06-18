@@ -321,12 +321,13 @@ export const createTrainingShareLink = async (courseId: string): Promise<Trainin
   if (USE_MOCK_API) {
     await mockDelay();
     const token = `mock-${courseId}`;
-    const path = `/training/videos/watch?courseId=${encodeURIComponent(courseId)}&token=${encodeURIComponent(token)}`;
+    const path = `/training-video.html?courseId=${encodeURIComponent(courseId)}&token=${encodeURIComponent(token)}`;
     return {courseId, token, path, url: `${window.location.origin}${path}`};
   }
 
   const raw = await efetch<{courseId: string; token: string; path: string}>('/training/share-links', 'POST', {courseId});
-  return {...raw, url: `${window.location.origin}${raw.path}`};
+  const path = `/training-video.html?courseId=${encodeURIComponent(raw.courseId)}&token=${encodeURIComponent(raw.token)}`;
+  return {...raw, path, url: `${window.location.origin}${path}`};
 };
 
 export const getPublicTrainingCourse = async (courseId: string, token: string): Promise<TrainingCourse> => {

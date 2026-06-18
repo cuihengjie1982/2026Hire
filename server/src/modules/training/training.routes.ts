@@ -189,7 +189,7 @@ router.post('/share-links', requireRole('admin', 'recruiter'), async (req, res, 
     res.json({
       courseId,
       token,
-      path: `/training/videos/watch?courseId=${encodeURIComponent(courseId)}&token=${encodeURIComponent(token)}`,
+      path: `/training-video.html?courseId=${encodeURIComponent(courseId)}&token=${encodeURIComponent(token)}`,
     });
   } catch (e) { next(e); }
 });
