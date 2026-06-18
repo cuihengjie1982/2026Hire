@@ -318,7 +318,11 @@ export const getPublicTrainingCourse = async (courseId: string, token: string): 
   }
 
   const params = new URLSearchParams({token});
-  const res = await fetch(trainingEndpoint(`/training/public/course/${encodeURIComponent(courseId)}?${params.toString()}`));
+  const isLocalExpress = API_BASE_URL.includes('localhost') || API_BASE_URL.includes('127.0.0.1');
+  const url = isLocalExpress
+    ? trainingEndpoint(`/training/public/course/${encodeURIComponent(courseId)}?${params.toString()}`)
+    : `${API_BASE_URL}/functions/v1/training-public/course/${encodeURIComponent(courseId)}?${params.toString()}`;
+  const res = await fetch(url);
   const data = await res.json();
   if (!res.ok) throw new Error(data?.error?.message || `API error ${res.status}`);
   return mapCourse((data.course ?? data) as Record<string, unknown>);

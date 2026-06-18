@@ -52,3 +52,6 @@ enable_confirmations = false
 # Edge Functions configuration
 [edge_runtime]
 enabled = true
+
+[functions.training-public]
+verify_jwt = false
