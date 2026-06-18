@@ -249,6 +249,7 @@
         var noteInputEl = document.getElementById('note-input');
         var saveNoteEl = document.getElementById('save-note');
         var notesListEl = document.getElementById('notes-list');
+        var playTimeout = null;
 
         function setMessage(text) {
           messageEl.textContent = text;
@@ -370,6 +371,40 @@
           notesPanelEl.classList.toggle('hidden', isTranscript);
         }
 
+        function describeVideoError() {
+          var error = videoEl.error;
+          if (!error) return '视频暂时无法播放，请切换网络后重试。';
+          if (error.code === MediaError.MEDIA_ERR_NETWORK) return '视频网络加载失败，请切换网络后重试。';
+          if (error.code === MediaError.MEDIA_ERR_DECODE) return '当前微信无法解码这个视频，请使用兜底按钮打开。';
+          if (error.code === MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED) return '当前微信不支持这个视频地址或格式。';
+          return '视频暂时无法播放，请稍后重试。';
+        }
+
+        function attemptPlay() {
+          if (!videoEl.src) return;
+          actionsEl.classList.add('hidden');
+          playButtonEl.textContent = '正在缓冲...';
+          setMessage('正在加载视频，如果网络较慢请稍候。');
+          if (videoEl.readyState === 0) videoEl.load();
+          if (playTimeout) window.clearTimeout(playTimeout);
+          playTimeout = window.setTimeout(function () {
+            if (videoEl.paused) {
+              actionsEl.classList.remove('hidden');
+              playButtonEl.textContent = '重新播放';
+              setMessage('视频还在加载或网络较慢，请重试；如果仍不播放，可以使用下方兜底按钮。');
+            }
+          }, 8000);
+          var playResult = videoEl.play();
+          if (playResult && typeof playResult.catch === 'function') {
+            playResult.catch(function () {
+              if (playTimeout) window.clearTimeout(playTimeout);
+              actionsEl.classList.remove('hidden');
+              playButtonEl.textContent = '重新播放';
+              setMessage(describeVideoError());
+            });
+          }
+        }
+
         if (!courseId || !token) {
           titleEl.textContent = '培训链接不可用';
           setMessage('链接缺少必要参数，请重新获取分享链接。');
@@ -395,6 +430,7 @@
               return;
             }
             videoEl.src = videoUrl;
+            videoEl.load();
             openVideoEl.href = videoUrl;
             playerEl.classList.remove('hidden');
             tabsEl.classList.remove('hidden');
@@ -408,25 +444,40 @@
             setMessage(error && error.message ? error.message : '网络出错，请稍后重试。');
           });
 
-        playButtonEl.addEventListener('click', function () {
-          videoEl.play().catch(function () {
-            actionsEl.classList.remove('hidden');
-            setMessage('视频播放失败，请点击下方兜底按钮直接打开视频。');
-          });
-        });
+        playButtonEl.addEventListener('click', attemptPlay);
+        videoEl.addEventListener('click', attemptPlay);
 
         videoEl.addEventListener('play', function () {
+          if (playTimeout) window.clearTimeout(playTimeout);
           playButtonEl.classList.add('hidden');
           setMessage('视频正在播放。');
         });
 
         videoEl.addEventListener('pause', function () {
-          if (!videoEl.ended) playButtonEl.classList.remove('hidden');
+          if (!videoEl.ended) {
+            playButtonEl.textContent = '继续播放';
+            playButtonEl.classList.remove('hidden');
+          }
+        });
+
+        videoEl.addEventListener('waiting', function () {
+          playButtonEl.textContent = '正在缓冲...';
+          playButtonEl.classList.remove('hidden');
+          setMessage('视频正在缓冲，请稍候。');
+        });
+
+        videoEl.addEventListener('canplay', function () {
+          if (videoEl.paused) {
+            playButtonEl.textContent = '播放视频';
+            setMessage('视频已加载，请点击播放按钮开始学习。');
+          }
         });
 
         videoEl.addEventListener('error', function () {
+          if (playTimeout) window.clearTimeout(playTimeout);
           actionsEl.classList.remove('hidden');
-          setMessage('视频加载失败，请点击下方兜底按钮直接打开视频。');
+          playButtonEl.textContent = '重新播放';
+          setMessage(describeVideoError());
         });
 
         tabTranscriptEl.addEventListener('click', function () {
