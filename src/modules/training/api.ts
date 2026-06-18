@@ -140,6 +140,26 @@ const normalizeCourseVideoContent = (content: CourseSection[], materials: Course
   ];
 };
 
+const proxyPublicTrainingMaterialUrl = (url?: string): string | undefined => {
+  if (!url || typeof window === 'undefined') return url;
+  const publicStoragePrefix = `${API_BASE_URL}/storage/v1/object/public/training-materials/`;
+  if (!url.startsWith(publicStoragePrefix)) return url;
+  const objectPath = url.slice(publicStoragePrefix.length);
+  return `${window.location.origin}/training-media/${objectPath}`;
+};
+
+const mapPublicCourseMediaUrls = (course: TrainingCourse): TrainingCourse => ({
+  ...course,
+  content: course.content.map(section => ({
+    ...section,
+    contentUrl: proxyPublicTrainingMaterialUrl(section.contentUrl) ?? section.contentUrl,
+  })),
+  materials: course.materials.map(material => ({
+    ...material,
+    url: proxyPublicTrainingMaterialUrl(material.url) ?? material.url,
+  })),
+});
+
 const mapCourse = (raw: Record<string, unknown>): TrainingCourse => {
   const materials = (raw.materials ?? []) as CourseMaterial[];
   const content = normalizeCourseVideoContent((raw.content ?? []) as CourseSection[], materials);
@@ -321,11 +341,12 @@ export const getPublicTrainingCourse = async (courseId: string, token: string): 
   const isLocalExpress = API_BASE_URL.includes('localhost') || API_BASE_URL.includes('127.0.0.1');
   const url = isLocalExpress
     ? trainingEndpoint(`/training/public/course/${encodeURIComponent(courseId)}?${params.toString()}`)
-    : `${API_BASE_URL}/functions/v1/training-public/course/${encodeURIComponent(courseId)}?${params.toString()}`;
+    : `/training-public-api/course/${encodeURIComponent(courseId)}?${params.toString()}`;
   const res = await fetch(url);
   const data = await res.json();
   if (!res.ok) throw new Error(data?.error?.message || `API error ${res.status}`);
-  return mapCourse((data.course ?? data) as Record<string, unknown>);
+  const course = mapCourse((data.course ?? data) as Record<string, unknown>);
+  return isLocalExpress ? course : mapPublicCourseMediaUrls(course);
 };
 
 // ─── Enrollments ────────────────────────────────────────────────────────

@@ -1,5 +1,13 @@
 {
   "rewrites": [
+    {
+      "source": "/training-public-api/:path*",
+      "destination": "https://eqdfyhqeqkbjvivscjau.supabase.co/functions/v1/training-public/:path*"
+    },
+    {
+      "source": "/training-media/:path*",
+      "destination": "https://eqdfyhqeqkbjvivscjau.supabase.co/storage/v1/object/public/training-materials/:path*"
+    },
     { "source": "/((?!assets/).*)", "destination": "/index.html" }
   ],
   "headers": [
