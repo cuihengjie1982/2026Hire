@@ -5,6 +5,7 @@ import {
   GraduationCap,
   Home,
   Lock,
+  Share2,
   Settings,
   Target,
   UserCheck,
@@ -39,6 +40,7 @@ export const navigationItems: NavigationItem[] = [
   {id: 'approvals', title: '审批中心', icon: Lock, path: '/approvals', badge: '待审批', badgeColor: 'bg-orange-500'},
   // 发展
   {id: 'training', title: '培训学堂', icon: GraduationCap, path: '/training'},
+  {id: 'videoShare', title: '视频分享', icon: Share2, path: '/video-sharing'},
   // 档案
   {id: 'employees', title: '员工档案', icon: UserCheck, path: '/employees'},
   // 管理

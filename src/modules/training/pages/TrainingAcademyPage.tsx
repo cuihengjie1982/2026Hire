@@ -25,11 +25,10 @@ import {
 } from '../api';
 import type {LearningPath} from '../types';
 
-type TabId = 'courses' | 'videos' | 'enrollments' | 'analysis' | 'effectiveness' | 'paths';
+type TabId = 'courses' | 'enrollments' | 'analysis' | 'effectiveness' | 'paths';
 
 const TABS: {id: TabId; label: string; icon: React.ElementType}[] = [
   {id: 'courses', label: '课程管理', icon: BookOpen},
-  {id: 'videos', label: '视频分享', icon: PlayCircle},
   {id: 'paths', label: '学习路径', icon: Layers},
   {id: 'enrollments', label: '培训记录', icon: Users},
   {id: 'analysis', label: '薄弱分析', icon: Target},
@@ -72,7 +71,6 @@ export const TrainingAcademyPage = () => {
   const [editingPath, setEditingPath] = useState<LearningPath | null>(null);
   const [enrollmentPathId, setEnrollmentPathId] = useState<string | null>(null);
   const [showBatchEnroll, setShowBatchEnroll] = useState(false);
-  const navigate = useNavigate();
 
   useEffect(() => {
     loadData();
@@ -279,14 +277,6 @@ export const TrainingAcademyPage = () => {
             onExport={() => exportEnrollmentsCSV()}
           />
         )}
-        {activeTab === 'videos' && (
-          <VideoShareTab
-            courses={courses}
-            onAddCourse={() => setShowCreateCourse(true)}
-            onPreview={(courseId) => navigate(`/training/preview?courseId=${courseId}`)}
-            onCaptionsGenerated={loadData}
-          />
-        )}
         {activeTab === 'analysis' && weaknessData && (
           <AnalysisTab data={weaknessData} courses={courses} />
         )}
@@ -479,11 +469,12 @@ const CoursesTab = ({courses, onAdd, onBatchEnroll, onEdit, onDelete}: {
   );
 };
 
-const VideoShareTab = ({courses, onAddCourse, onPreview, onCaptionsGenerated}: {
+export const VideoShareTab = ({courses, onAddCourse, onPreview, onCaptionsGenerated, onEditCourse}: {
   courses: TrainingCourse[];
   onAddCourse: () => void;
   onPreview: (courseId: string) => void;
   onCaptionsGenerated: () => Promise<void>;
+  onEditCourse?: (course: TrainingCourse) => void;
 }) => {
   const hasShareableVideo = (course: TrainingCourse) =>
     course.content.some(section => section.contentType === 'video' && Boolean(section.contentUrl))
@@ -631,7 +622,7 @@ const VideoShareTab = ({courses, onAddCourse, onPreview, onCaptionsGenerated}: {
                   )}
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                   <button
                     onClick={() => handleCopy(course.id)}
                     disabled={isLoading || isCaptionLoading}
@@ -655,6 +646,15 @@ const VideoShareTab = ({courses, onAddCourse, onPreview, onCaptionsGenerated}: {
                     {isCaptionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
                     {isCaptionLoading ? `${progress}%` : captionsCount > 0 ? '重新生成字幕' : '生成动作字幕'}
                   </button>
+                  {onEditCourse && (
+                    <button
+                      onClick={() => onEditCourse(course)}
+                      disabled={isCaptionLoading}
+                      className="flex items-center justify-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm hover:bg-gray-50 disabled:opacity-60 transition-colors"
+                    >
+                      <Edit3 className="w-4 h-4" /> 编辑视频
+                    </button>
+                  )}
                   <button
                     onClick={() => onPreview(course.id)}
                     disabled={isCaptionLoading}
@@ -972,7 +972,7 @@ const EffectivenessTab = ({data}: {data: TrainingEffectiveness}) => {
   );
 };
 
-const CreateCourseModal = ({initial, onClose, onSubmit}: {
+export const CreateCourseModal = ({initial, onClose, onSubmit}: {
   initial?: TrainingCourse;
   onClose: () => void;
   onSubmit: (input: {
@@ -1089,7 +1089,7 @@ const CreateCourseModal = ({initial, onClose, onSubmit}: {
           type: m.type as 'pdf' | 'video' | 'article' | 'exercise',
           url: m.url,
         })),
-        assessmentConfig: {type: assessType, passingScore},
+        assessmentConfig: {...initial?.assessmentConfig, type: assessType, passingScore},
         competencyDimension: competencyDim || undefined,
       });
     } finally {
