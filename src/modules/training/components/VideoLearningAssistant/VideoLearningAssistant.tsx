@@ -159,6 +159,7 @@ export const VideoLearningAssistant: React.FC<{
                 onDurationChange={handleDurationChange}
                 externalSeek={seekTo}
                 topicSegments={topicSegments}
+                nativeControls={publicMode || isPreviewMode}
               />
             ) : (
               <div className="aspect-video bg-gray-900 rounded-xl flex items-center justify-center shrink-0">

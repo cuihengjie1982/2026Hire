@@ -14,6 +14,7 @@ interface VideoPlayerProps {
   onDurationChange?: (duration: number) => void;
   externalSeek?: number;
   topicSegments?: TopicSegment[];
+  nativeControls?: boolean;
 }
 
 export interface VideoPlayerHandle {
@@ -26,6 +27,7 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(({
   onDurationChange,
   externalSeek,
   topicSegments = [],
+  nativeControls = false,
 }, ref) => {
   const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -39,7 +41,15 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(({
   const [muted, setMuted] = useState(false);
   const [playbackRate, setPlaybackRate] = useState(1);
   const [showControls, setShowControls] = useState(true);
+  const [errorMessage, setErrorMessage] = useState('');
   const hideTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    setPlaying(false);
+    setCurrentTime(0);
+    setDuration(0);
+    setErrorMessage('');
+  }, [src]);
 
   useEffect(() => {
     if (externalSeek !== undefined && videoRef.current && Math.abs(videoRef.current.currentTime - externalSeek) > 1) {
@@ -67,14 +77,37 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(({
     if (videoRef.current) {
       setDuration(videoRef.current.duration);
       onDurationChange?.(videoRef.current.duration);
+      setErrorMessage('');
     }
   };
 
   const togglePlay = () => {
     if (videoRef.current) {
       if (playing) videoRef.current.pause();
-      else videoRef.current.play();
+      else {
+        const playResult = videoRef.current.play();
+        playResult?.catch(() => {
+          setErrorMessage('浏览器暂时无法自动播放，请点击视频自带播放按钮或直接打开视频。');
+        });
+      }
     }
+  };
+
+  const handleVideoError = () => {
+    const errorCode = videoRef.current?.error?.code;
+    if (errorCode === MediaError.MEDIA_ERR_NETWORK) {
+      setErrorMessage('视频网络加载失败，请检查网络后重试，或点击直接打开视频。');
+      return;
+    }
+    if (errorCode === MediaError.MEDIA_ERR_DECODE) {
+      setErrorMessage('当前浏览器无法解码这个视频，请点击直接打开视频，或重新上传 H.264 MP4 视频。');
+      return;
+    }
+    if (errorCode === MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED) {
+      setErrorMessage('当前浏览器不支持这个视频地址或格式，请重新上传 MP4 视频。');
+      return;
+    }
+    setErrorMessage('视频加载失败，请刷新页面后重试，或点击直接打开视频。');
   };
 
   const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -123,17 +156,24 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(({
       onMouseLeave={() => playing && setShowControls(false)}
     >
       <video
+        key={src}
         ref={videoRef}
         src={src}
+        controls={nativeControls}
+        playsInline
+        preload="metadata"
         className="w-full aspect-video object-contain bg-black"
         onTimeUpdate={handleTimeUpdate}
         onLoadedMetadata={handleLoadedMetadata}
+        onCanPlay={() => setErrorMessage('')}
+        onError={handleVideoError}
         onPlay={() => setPlaying(true)}
         onPause={() => setPlaying(false)}
-        onClick={togglePlay}
+        onClick={nativeControls ? undefined : togglePlay}
       />
 
       {/* Controls overlay */}
+      {!nativeControls && (
       <div className={`absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-black/80 via-transparent to-transparent transition-opacity duration-300 ${showControls || !playing ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
         {/* Progress bar */}
         <div className="px-4 pt-4 pb-2">
@@ -234,13 +274,31 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(({
           </div>
         </div>
       </div>
+      )}
 
       {/* Play button overlay when paused */}
-      {!playing && (
+      {!nativeControls && !playing && !errorMessage && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/30">
           <div className="w-16 h-16 rounded-full bg-white/20 backdrop-blur flex items-center justify-center cursor-pointer hover:bg-white/30 transition-colors"
             onClick={togglePlay}>
             <svg viewBox="0 0 24 24" className="w-8 h-8 fill-white ml-1"><polygon points="5,3 19,12 5,21"/></svg>
+          </div>
+        </div>
+      )}
+
+      {errorMessage && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/70 px-4">
+          <div className="max-w-sm rounded-lg bg-white p-4 text-center shadow-xl">
+            <p className="text-sm font-medium text-gray-900">视频暂时无法播放</p>
+            <p className="mt-1 text-xs leading-5 text-gray-500">{errorMessage}</p>
+            <a
+              href={src}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-3 inline-flex items-center justify-center rounded-md bg-gray-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-gray-800"
+            >
+              直接打开视频
+            </a>
           </div>
         </div>
       )}
