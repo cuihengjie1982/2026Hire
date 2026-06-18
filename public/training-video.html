@@ -42,6 +42,7 @@
         line-height: 1.6;
       }
       .player {
+        position: relative;
         width: 100%;
         margin-top: 8px;
         background: #000;
@@ -54,6 +55,17 @@
         min-height: 220px;
         max-height: 72vh;
         background: #000;
+      }
+      .play-overlay {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        border-radius: 999px;
+        padding: 13px 20px;
+        background: rgba(255, 255, 255, 0.92);
+        color: #111827;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.28);
       }
       .message {
         margin-top: 14px;
@@ -86,6 +98,80 @@
         background: #e5e7eb;
         color: #111827;
       }
+      .tabs {
+        display: flex;
+        gap: 8px;
+        margin-top: 16px;
+        padding: 4px;
+        border: 1px solid #e5e7eb;
+        border-radius: 10px;
+        background: #fff;
+      }
+      .tab {
+        flex: 1;
+        background: transparent;
+        color: #4b5563;
+      }
+      .tab.active {
+        background: #111827;
+        color: #fff;
+      }
+      .panel {
+        margin-top: 12px;
+        padding: 14px;
+        border: 1px solid #e5e7eb;
+        border-radius: 10px;
+        background: #fff;
+      }
+      .transcript-item {
+        padding: 12px 0;
+        border-bottom: 1px solid #f3f4f6;
+      }
+      .transcript-item:last-child {
+        border-bottom: 0;
+      }
+      .transcript-title {
+        margin: 0 0 6px;
+        font-size: 14px;
+        font-weight: 700;
+      }
+      .transcript-text {
+        margin: 0;
+        white-space: pre-wrap;
+        color: #4b5563;
+        font-size: 14px;
+        line-height: 1.75;
+      }
+      textarea {
+        display: block;
+        width: 100%;
+        min-height: 92px;
+        resize: vertical;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        padding: 10px;
+        color: #111827;
+        font: inherit;
+      }
+      .note {
+        margin-top: 12px;
+        padding: 12px;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        background: #f9fafb;
+      }
+      .note-meta {
+        margin: 0 0 6px;
+        color: #6b7280;
+        font-size: 12px;
+      }
+      .note-text {
+        margin: 0;
+        white-space: pre-wrap;
+        color: #374151;
+        font-size: 14px;
+        line-height: 1.65;
+      }
       .hidden { display: none; }
     </style>
   </head>
@@ -107,12 +193,30 @@
           x5-video-player-type="h5-page"
           preload="metadata"
         ></video>
+        <button id="play-button" class="play-overlay" type="button">播放视频</button>
       </section>
 
       <section id="message" class="message">正在加载培训视频，请稍候。</section>
       <section id="actions" class="actions hidden">
-        <a id="open-video" target="_blank" rel="noreferrer">直接打开视频</a>
+        <a id="open-video" class="secondary" target="_blank" rel="noreferrer">视频打不开时使用</a>
         <button class="secondary" type="button" onclick="window.location.reload()">刷新</button>
+      </section>
+
+      <section id="tabs" class="tabs hidden">
+        <button id="tab-transcript" class="tab active" type="button">文字稿</button>
+        <button id="tab-notes" class="tab" type="button">笔记</button>
+      </section>
+
+      <section id="transcript-panel" class="panel hidden">
+        <div id="transcript-content"></div>
+      </section>
+
+      <section id="notes-panel" class="panel hidden">
+        <textarea id="note-input" placeholder="记录当前学习笔记"></textarea>
+        <div class="actions">
+          <button id="save-note" type="button">保存笔记</button>
+        </div>
+        <div id="notes-list"></div>
       </section>
     </main>
 
@@ -133,8 +237,18 @@
         var messageEl = document.getElementById('message');
         var playerEl = document.getElementById('player');
         var videoEl = document.getElementById('video');
+        var playButtonEl = document.getElementById('play-button');
         var actionsEl = document.getElementById('actions');
         var openVideoEl = document.getElementById('open-video');
+        var tabsEl = document.getElementById('tabs');
+        var tabTranscriptEl = document.getElementById('tab-transcript');
+        var tabNotesEl = document.getElementById('tab-notes');
+        var transcriptPanelEl = document.getElementById('transcript-panel');
+        var transcriptContentEl = document.getElementById('transcript-content');
+        var notesPanelEl = document.getElementById('notes-panel');
+        var noteInputEl = document.getElementById('note-input');
+        var saveNoteEl = document.getElementById('save-note');
+        var notesListEl = document.getElementById('notes-list');
 
         function setMessage(text) {
           messageEl.textContent = text;
@@ -159,6 +273,101 @@
             if (materials[j].type === 'video' && materials[j].url) return materials[j].url;
           }
           return '';
+        }
+
+        function getTextSections(course) {
+          var content = Array.isArray(course.content) ? course.content : [];
+          var sections = [];
+          for (var i = 0; i < content.length; i += 1) {
+            var type = content[i].contentType || content[i].content_type;
+            var text = content[i].text || content[i].content || '';
+            if (type === 'text' && text) {
+              sections.push({
+                title: content[i].sectionTitle || content[i].section_title || '文字稿',
+                text: text
+              });
+            }
+          }
+          return sections;
+        }
+
+        function formatTime(seconds) {
+          var value = Math.max(0, Math.floor(seconds || 0));
+          var minutes = Math.floor(value / 60);
+          var secs = value % 60;
+          return minutes + ':' + String(secs).padStart(2, '0');
+        }
+
+        function renderTranscript(course) {
+          var sections = getTextSections(course);
+          transcriptContentEl.innerHTML = '';
+          if (!sections.length) {
+            transcriptContentEl.innerHTML = '<p class="transcript-text">暂无文字稿内容。</p>';
+            return;
+          }
+          sections.forEach(function (section) {
+            var item = document.createElement('div');
+            item.className = 'transcript-item';
+            var title = document.createElement('p');
+            title.className = 'transcript-title';
+            title.textContent = section.title;
+            var text = document.createElement('p');
+            text.className = 'transcript-text';
+            text.textContent = section.text;
+            item.appendChild(title);
+            item.appendChild(text);
+            transcriptContentEl.appendChild(item);
+          });
+        }
+
+        function getNotesKey() {
+          return 'em-box.public-training-notes.' + courseId;
+        }
+
+        function loadNotes() {
+          try {
+            return JSON.parse(localStorage.getItem(getNotesKey()) || '[]');
+          } catch (e) {
+            return [];
+          }
+        }
+
+        function saveNotes(notes) {
+          try {
+            localStorage.setItem(getNotesKey(), JSON.stringify(notes));
+          } catch (e) {
+            setMessage('笔记保存失败，请检查微信存储权限。');
+          }
+        }
+
+        function renderNotes() {
+          var notes = loadNotes();
+          notesListEl.innerHTML = '';
+          if (!notes.length) {
+            notesListEl.innerHTML = '<p class="transcript-text">暂无笔记。</p>';
+            return;
+          }
+          notes.forEach(function (note) {
+            var item = document.createElement('div');
+            item.className = 'note';
+            var meta = document.createElement('p');
+            meta.className = 'note-meta';
+            meta.textContent = '视频 ' + formatTime(note.time) + ' · ' + note.createdAt;
+            var text = document.createElement('p');
+            text.className = 'note-text';
+            text.textContent = note.text;
+            item.appendChild(meta);
+            item.appendChild(text);
+            notesListEl.appendChild(item);
+          });
+        }
+
+        function switchTab(tab) {
+          var isTranscript = tab === 'transcript';
+          tabTranscriptEl.classList.toggle('active', isTranscript);
+          tabNotesEl.classList.toggle('active', !isTranscript);
+          transcriptPanelEl.classList.toggle('hidden', !isTranscript);
+          notesPanelEl.classList.toggle('hidden', isTranscript);
         }
 
         if (!courseId || !token) {
@@ -188,13 +397,64 @@
             videoEl.src = videoUrl;
             openVideoEl.href = videoUrl;
             playerEl.classList.remove('hidden');
-            actionsEl.classList.remove('hidden');
-            setMessage('如果视频没有自动显示，请点击视频播放按钮。');
+            tabsEl.classList.remove('hidden');
+            transcriptPanelEl.classList.remove('hidden');
+            renderTranscript(course);
+            renderNotes();
+            setMessage('请点击视频上的播放按钮开始学习。iPhone 微信不允许带声音视频自动播放，这是系统限制。');
           })
           .catch(function (error) {
             titleEl.textContent = '培训链接不可用';
             setMessage(error && error.message ? error.message : '网络出错，请稍后重试。');
           });
+
+        playButtonEl.addEventListener('click', function () {
+          videoEl.play().catch(function () {
+            actionsEl.classList.remove('hidden');
+            setMessage('视频播放失败，请点击下方兜底按钮直接打开视频。');
+          });
+        });
+
+        videoEl.addEventListener('play', function () {
+          playButtonEl.classList.add('hidden');
+          setMessage('视频正在播放。');
+        });
+
+        videoEl.addEventListener('pause', function () {
+          if (!videoEl.ended) playButtonEl.classList.remove('hidden');
+        });
+
+        videoEl.addEventListener('error', function () {
+          actionsEl.classList.remove('hidden');
+          setMessage('视频加载失败，请点击下方兜底按钮直接打开视频。');
+        });
+
+        tabTranscriptEl.addEventListener('click', function () {
+          switchTab('transcript');
+        });
+
+        tabNotesEl.addEventListener('click', function () {
+          switchTab('notes');
+        });
+
+        saveNoteEl.addEventListener('click', function () {
+          var text = noteInputEl.value.trim();
+          if (!text) {
+            setMessage('请输入笔记内容。');
+            return;
+          }
+          var notes = loadNotes();
+          notes.unshift({
+            text: text,
+            time: videoEl.currentTime || 0,
+            createdAt: new Date().toLocaleString()
+          });
+          saveNotes(notes);
+          noteInputEl.value = '';
+          renderNotes();
+          switchTab('notes');
+          setMessage('笔记已保存在当前手机浏览器。');
+        });
       })();
     </script>
   </body>
