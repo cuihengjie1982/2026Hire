@@ -1,6 +1,10 @@
 {
   "rewrites": [
     {
+      "source": "/tv/:courseId/:token",
+      "destination": "/training-video.html?courseId=:courseId&token=:token"
+    },
+    {
       "source": "/training-public-api/:path*",
       "destination": "https://eqdfyhqeqkbjvivscjau.supabase.co/functions/v1/training-public/:path*"
     },

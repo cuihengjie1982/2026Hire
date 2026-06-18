@@ -321,12 +321,12 @@ export const createTrainingShareLink = async (courseId: string): Promise<Trainin
   if (USE_MOCK_API) {
     await mockDelay();
     const token = `mock-${courseId}`;
-    const path = `/training-video.html?courseId=${encodeURIComponent(courseId)}&token=${encodeURIComponent(token)}`;
+    const path = `/tv/${encodeURIComponent(courseId)}/${encodeURIComponent(token)}`;
     return {courseId, token, path, url: `${window.location.origin}${path}`};
   }
 
   const raw = await efetch<{courseId: string; token: string; path: string}>('/training/share-links', 'POST', {courseId});
-  const path = `/training-video.html?courseId=${encodeURIComponent(raw.courseId)}&token=${encodeURIComponent(raw.token)}`;
+  const path = `/tv/${encodeURIComponent(raw.courseId)}/${encodeURIComponent(raw.token)}`;
   return {...raw, path, url: `${window.location.origin}${path}`};
 };
 

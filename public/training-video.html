@@ -121,6 +121,13 @@
         var params = new URLSearchParams(window.location.search);
         var courseId = params.get('courseId') || '';
         var token = params.get('token') || '';
+        if (!courseId || !token) {
+          var pathMatch = window.location.pathname.match(/^\/tv\/([^/]+)\/([^/]+)/);
+          if (pathMatch) {
+            courseId = decodeURIComponent(pathMatch[1]);
+            token = decodeURIComponent(pathMatch[2]);
+          }
+        }
         var titleEl = document.getElementById('course-title');
         var descEl = document.getElementById('course-desc');
         var messageEl = document.getElementById('message');

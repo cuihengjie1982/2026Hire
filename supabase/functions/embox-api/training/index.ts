@@ -785,7 +785,7 @@ const shareLinkHandler = async (req: Request): Promise<Response> => {
     return jsonRes({
       courseId,
       token,
-      path: `/training-video.html?courseId=${encodeURIComponent(courseId)}&token=${encodeURIComponent(token)}`,
+      path: `/tv/${encodeURIComponent(courseId)}/${encodeURIComponent(token)}`,
     });
   } catch (e) {
     console.error('[training share link]', e);
