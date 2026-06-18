@@ -250,6 +250,8 @@
         var saveNoteEl = document.getElementById('save-note');
         var notesListEl = document.getElementById('notes-list');
         var playTimeout = null;
+        var fallbackVideoUrl = '';
+        var triedFallbackVideoUrl = false;
 
         function setMessage(text) {
           messageEl.textContent = text;
@@ -261,6 +263,36 @@
           var markerIndex = url.indexOf(marker);
           if (markerIndex === -1) return url;
           return window.location.origin + '/training-media/' + url.slice(markerIndex + marker.length);
+        }
+
+        function isIOSDevice() {
+          var ua = navigator.userAgent || '';
+          return /iPhone|iPad|iPod/i.test(ua) || (/Macintosh/i.test(ua) && 'ontouchend' in document);
+        }
+
+        function selectVideoUrl(rawUrl) {
+          var proxyUrl = toProxyUrl(rawUrl);
+          if (isIOSDevice()) {
+            fallbackVideoUrl = proxyUrl && proxyUrl !== rawUrl ? proxyUrl : '';
+            return rawUrl;
+          }
+          fallbackVideoUrl = rawUrl && proxyUrl !== rawUrl ? rawUrl : '';
+          return proxyUrl || rawUrl;
+        }
+
+        function switchToFallbackVideo(reason) {
+          if (!fallbackVideoUrl || triedFallbackVideoUrl) return false;
+          triedFallbackVideoUrl = true;
+          if (playTimeout) window.clearTimeout(playTimeout);
+          videoEl.pause();
+          videoEl.src = fallbackVideoUrl;
+          openVideoEl.href = fallbackVideoUrl;
+          videoEl.load();
+          playButtonEl.textContent = '播放备用线路';
+          playButtonEl.classList.remove('hidden');
+          actionsEl.classList.remove('hidden');
+          setMessage(reason + ' 已切换备用视频线路，请再点一次播放。');
+          return true;
         }
 
         function findVideoUrl(course) {
@@ -389,6 +421,7 @@
           if (playTimeout) window.clearTimeout(playTimeout);
           playTimeout = window.setTimeout(function () {
             if (videoEl.paused) {
+              if (switchToFallbackVideo('当前视频线路加载较慢。')) return;
               actionsEl.classList.remove('hidden');
               playButtonEl.textContent = '重新播放';
               setMessage('视频还在加载或网络较慢，请重试；如果仍不播放，可以使用下方兜底按钮。');
@@ -398,6 +431,7 @@
           if (playResult && typeof playResult.catch === 'function') {
             playResult.catch(function () {
               if (playTimeout) window.clearTimeout(playTimeout);
+              if (switchToFallbackVideo('当前视频线路无法播放。')) return;
               actionsEl.classList.remove('hidden');
               playButtonEl.textContent = '重新播放';
               setMessage(describeVideoError());
@@ -422,7 +456,8 @@
             });
           })
           .then(function (course) {
-            var videoUrl = toProxyUrl(findVideoUrl(course));
+            var rawVideoUrl = findVideoUrl(course);
+            var videoUrl = selectVideoUrl(rawVideoUrl);
             titleEl.textContent = course.title || '培训视频';
             descEl.textContent = course.description || '';
             if (!videoUrl) {
@@ -475,6 +510,7 @@
 
         videoEl.addEventListener('error', function () {
           if (playTimeout) window.clearTimeout(playTimeout);
+          if (switchToFallbackVideo('视频加载失败。')) return;
           actionsEl.classList.remove('hidden');
           playButtonEl.textContent = '重新播放';
           setMessage(describeVideoError());
