@@ -271,6 +271,8 @@
         var saveNoteEl = document.getElementById('save-note');
         var notesListEl = document.getElementById('notes-list');
         var playTimeout = null;
+        var bufferingTimer = null;
+        var lastPlaybackTime = 0;
         var fallbackVideoUrl = '';
         var triedFallbackVideoUrl = false;
         var actionCaptions = [];
@@ -305,7 +307,7 @@
         function switchToFallbackVideo(reason) {
           if (!fallbackVideoUrl || triedFallbackVideoUrl) return false;
           triedFallbackVideoUrl = true;
-          if (playTimeout) window.clearTimeout(playTimeout);
+          clearPlaybackTimers();
           videoEl.pause();
           videoEl.src = fallbackVideoUrl;
           openVideoEl.href = fallbackVideoUrl;
@@ -433,6 +435,34 @@
           liveCaptionEl.classList.remove('hidden');
         }
 
+        function clearPlaybackTimers() {
+          if (playTimeout) {
+            window.clearTimeout(playTimeout);
+            playTimeout = null;
+          }
+          if (bufferingTimer) {
+            window.clearTimeout(bufferingTimer);
+            bufferingTimer = null;
+          }
+        }
+
+        function hidePlaybackOverlay(message) {
+          clearPlaybackTimers();
+          playButtonEl.classList.add('hidden');
+          actionsEl.classList.add('hidden');
+          if (message) setMessage(message);
+        }
+
+        function updatePlaybackStateFromProgress() {
+          updateLiveCaption();
+          var current = videoEl.currentTime || 0;
+          var hasAdvanced = current > lastPlaybackTime + 0.05;
+          if (current > lastPlaybackTime) lastPlaybackTime = current;
+          if (!videoEl.paused && !videoEl.ended && (hasAdvanced || videoEl.readyState >= 2)) {
+            hidePlaybackOverlay('视频正在播放。');
+          }
+        }
+
         function getNotesKey() {
           return 'em-box.public-training-notes.' + courseId;
         }
@@ -497,11 +527,11 @@
 
         function attemptPlay() {
           if (!videoEl.src) return;
+          clearPlaybackTimers();
           actionsEl.classList.add('hidden');
           playButtonEl.textContent = '正在缓冲...';
           setMessage('正在加载视频，如果网络较慢请稍候。');
           if (videoEl.readyState === 0) videoEl.load();
-          if (playTimeout) window.clearTimeout(playTimeout);
           playTimeout = window.setTimeout(function () {
             if (videoEl.paused) {
               if (switchToFallbackVideo('当前视频线路加载较慢。')) return;
@@ -513,7 +543,7 @@
           var playResult = videoEl.play();
           if (playResult && typeof playResult.catch === 'function') {
             playResult.catch(function () {
-              if (playTimeout) window.clearTimeout(playTimeout);
+              clearPlaybackTimers();
               if (switchToFallbackVideo('当前视频线路无法播放。')) return;
               actionsEl.classList.remove('hidden');
               playButtonEl.textContent = '重新播放';
@@ -567,9 +597,11 @@
         videoEl.addEventListener('click', attemptPlay);
 
         videoEl.addEventListener('play', function () {
-          if (playTimeout) window.clearTimeout(playTimeout);
-          playButtonEl.classList.add('hidden');
-          setMessage('视频正在播放。');
+          hidePlaybackOverlay('视频正在播放。');
+        });
+
+        videoEl.addEventListener('playing', function () {
+          hidePlaybackOverlay('视频正在播放。');
         });
 
         videoEl.addEventListener('pause', function () {
@@ -580,23 +612,40 @@
         });
 
         videoEl.addEventListener('waiting', function () {
-          playButtonEl.textContent = '正在缓冲...';
-          playButtonEl.classList.remove('hidden');
-          setMessage('视频正在缓冲，请稍候。');
+          if (bufferingTimer) window.clearTimeout(bufferingTimer);
+          bufferingTimer = window.setTimeout(function () {
+            if (!videoEl.paused && !videoEl.ended && videoEl.currentTime > lastPlaybackTime + 0.05) {
+              updatePlaybackStateFromProgress();
+              return;
+            }
+            playButtonEl.textContent = '正在缓冲...';
+            playButtonEl.classList.remove('hidden');
+            setMessage('视频正在缓冲，请稍候。');
+          }, 700);
         });
 
         videoEl.addEventListener('canplay', function () {
           if (videoEl.paused) {
             playButtonEl.textContent = '播放视频';
             setMessage('视频已加载，请点击播放按钮开始学习。');
+          } else {
+            hidePlaybackOverlay('视频正在播放。');
           }
         });
 
-        videoEl.addEventListener('timeupdate', updateLiveCaption);
-        videoEl.addEventListener('seeked', updateLiveCaption);
+        videoEl.addEventListener('canplaythrough', function () {
+          if (!videoEl.paused) hidePlaybackOverlay('视频正在播放。');
+        });
+
+        videoEl.addEventListener('progress', function () {
+          if (!videoEl.paused && videoEl.readyState >= 2) hidePlaybackOverlay('视频正在播放。');
+        });
+
+        videoEl.addEventListener('timeupdate', updatePlaybackStateFromProgress);
+        videoEl.addEventListener('seeked', updatePlaybackStateFromProgress);
 
         videoEl.addEventListener('error', function () {
-          if (playTimeout) window.clearTimeout(playTimeout);
+          clearPlaybackTimers();
           if (switchToFallbackVideo('视频加载失败。')) return;
           actionsEl.classList.remove('hidden');
           playButtonEl.textContent = '重新播放';
