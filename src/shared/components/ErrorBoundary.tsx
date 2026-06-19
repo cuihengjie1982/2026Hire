@@ -1,6 +1,7 @@
 import { AlertTriangle } from 'lucide-react';
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { navigateToPage } from '../../navigation';
+import { isDynamicImportError, reloadOnceForDynamicImportError } from '../lib/chunkLoadRecovery';
 
 type ErrorBoundaryProps = {
   children: ReactNode;
@@ -8,6 +9,7 @@ type ErrorBoundaryProps = {
 
 type ErrorBoundaryState = {
   hasError: boolean;
+  staleAssetError: boolean;
 };
 
 export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
@@ -19,17 +21,23 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
   constructor(props: ErrorBoundaryProps) {
     super(props);
-    this.state = { hasError: false };
+    this.state = { hasError: false, staleAssetError: false };
   }
 
   static getDerivedStateFromError(): ErrorBoundaryState {
-    return { hasError: true };
+    return { hasError: true, staleAssetError: false };
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
     console.error('[ErrorBoundary] Uncaught error:', error);
     if (errorInfo.componentStack) {
       console.error('[ErrorBoundary] Component stack:', errorInfo.componentStack);
+    }
+    if (reloadOnceForDynamicImportError(error, 'root')) {
+      return;
+    }
+    if (isDynamicImportError(error)) {
+      this.setState({ staleAssetError: true });
     }
   }
 
@@ -38,7 +46,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   }
 
   handleGoHome(): void {
-    this.setState({ hasError: false });
+    this.setState({ hasError: false, staleAssetError: false });
     navigateToPage('search');
   }
 
@@ -64,7 +72,9 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
           {/* Description */}
           <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
-            抱歉，页面遇到了一个意外错误。您可以尝试重新加载页面，或返回首页继续操作。
+            {this.state.staleAssetError
+              ? '系统刚刚更新过版本，当前浏览器还在使用旧资源。请重新加载页面获取最新版本。'
+              : '抱歉，页面遇到了一个意外错误。您可以尝试重新加载页面，或返回首页继续操作。'}
           </p>
 
           {/* Actions */}

@@ -1,12 +1,13 @@
 import {AlertTriangle, RefreshCw} from 'lucide-react';
 import {Component, type ErrorInfo, type ReactNode} from 'react';
+import {isDynamicImportError, reloadOnceForDynamicImportError} from '../lib/chunkLoadRecovery';
 
 type Props = {
   children: ReactNode;
   pageName?: string;
 };
 
-type State = {hasError: boolean};
+type State = {hasError: boolean; staleAssetError: boolean};
 
 export class PageErrorBoundary extends Component<Props, State> {
   declare state: State;
@@ -15,19 +16,29 @@ export class PageErrorBoundary extends Component<Props, State> {
 
   constructor(props: Props) {
     super(props);
-    this.state = {hasError: false};
+    this.state = {hasError: false, staleAssetError: false};
   }
 
   static getDerivedStateFromError(): State {
-    return {hasError: true};
+    return {hasError: true, staleAssetError: false};
   }
 
   componentDidCatch(error: Error, info: ErrorInfo): void {
     console.error(`[PageErrorBoundary] ${this.props.pageName ?? 'page'} error:`, error, info.componentStack?.slice(0, 300));
+    if (reloadOnceForDynamicImportError(error, this.props.pageName ?? 'page')) {
+      return;
+    }
+    if (isDynamicImportError(error)) {
+      this.setState({staleAssetError: true});
+    }
   }
 
   handleRetry = () => {
-    this.setState({hasError: false});
+    if (this.state.staleAssetError) {
+      window.location.reload();
+      return;
+    }
+    this.setState({hasError: false, staleAssetError: false});
   };
 
   render(): ReactNode {
@@ -47,14 +58,16 @@ export class PageErrorBoundary extends Component<Props, State> {
             {this.props.pageName ? `${this.props.pageName} 加载失败` : '页面加载失败'}
           </h2>
           <p className="text-sm text-gray-500 mb-6 max-w-md mx-auto">
-            此页面遇到了一个错误，请尝试重新加载。如果问题持续出现，请联系系统管理员。
+            {this.state.staleAssetError
+              ? '系统刚刚更新过版本，当前浏览器还在使用旧资源。请重新加载页面获取最新版本。'
+              : '此页面遇到了一个错误，请尝试重新加载。如果问题持续出现，请联系系统管理员。'}
           </p>
           <button
             onClick={this.handleRetry}
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium text-white bg-[#1a4bc4] hover:bg-[#1e3a8a] transition-colors shadow-sm"
           >
             <RefreshCw className="w-4 h-4" />
-            重试
+            {this.state.staleAssetError ? '重新加载' : '重试'}
           </button>
         </div>
       </div>
