@@ -1,6 +1,7 @@
 import {getItemsFromPayload} from '../../shared/lib/apiClient';
-import {USE_MOCK_API, API_BASE_URL, getAuthToken} from '../../shared/lib/runtime';
+import {USE_MOCK_API, API_BASE_URL, SUPABASE_ANON_KEY, getAuthToken} from '../../shared/lib/runtime';
 import {getSupabase} from '../../shared/lib/supabase';
+import * as tus from 'tus-js-client';
 import {courseFixtures, enrollmentFixtures} from './fixtures';
 import {
   type TrainingCourse,
@@ -38,6 +39,8 @@ export type {
 };
 
 const MATERIAL_UPLOAD_TIMEOUT_MS = 15 * 60 * 1000;
+const RESUMABLE_UPLOAD_THRESHOLD_BYTES = 6 * 1024 * 1024;
+const SUPABASE_TUS_CHUNK_SIZE_BYTES = 6 * 1024 * 1024;
 
 const inferContentType = (file: File): string => {
   if (file.type) return file.type;
@@ -100,6 +103,72 @@ const uploadSignedStorageFile = async (
     throw new Error(error.message || `Storage upload failed: ${signedUrl}`);
   }
   onProgress?.(100);
+};
+
+const getSupabaseProjectRef = (): string => {
+  try {
+    const host = new URL(API_BASE_URL).hostname;
+    return host.split('.')[0] ?? '';
+  } catch {
+    return '';
+  }
+};
+
+const uploadSignedStorageFileResumable = async (
+  bucket: string,
+  path: string,
+  token: string,
+  file: File,
+  onProgress?: (progress: number) => void,
+): Promise<void> => {
+  const projectRef = getSupabaseProjectRef();
+  if (!projectRef) {
+    throw new Error('无法识别 Supabase 项目地址，不能使用大文件续传上传');
+  }
+
+  onProgress?.(1);
+  await new Promise<void>((resolve, reject) => {
+    const upload = new tus.Upload(file, {
+      endpoint: `https://${projectRef}.storage.supabase.co/storage/v1/upload/resumable`,
+      retryDelays: [0, 3000, 5000, 10000, 20000],
+      chunkSize: SUPABASE_TUS_CHUNK_SIZE_BYTES,
+      uploadDataDuringCreation: true,
+      removeFingerprintOnSuccess: true,
+      headers: {
+        ...(SUPABASE_ANON_KEY ? {apikey: SUPABASE_ANON_KEY} : {}),
+        'x-signature': token,
+      },
+      metadata: {
+        bucketName: bucket,
+        objectName: path,
+        contentType: file.type || 'application/octet-stream',
+        cacheControl: '3600',
+      },
+      onError: (error) => {
+        reject(error instanceof Error ? error : new Error(String(error)));
+      },
+      onProgress: (bytesUploaded, bytesTotal) => {
+        if (!bytesTotal) return;
+        const progress = Math.max(1, Math.min(99, Math.round((bytesUploaded / bytesTotal) * 100)));
+        onProgress?.(progress);
+      },
+      onSuccess: () => {
+        onProgress?.(100);
+        resolve();
+      },
+    });
+
+    upload.findPreviousUploads()
+      .then((previousUploads) => {
+        if (previousUploads.length > 0) {
+          upload.resumeFromPreviousUpload(previousUploads[0]);
+        }
+        upload.start();
+      })
+      .catch((error) => {
+        reject(error instanceof Error ? error : new Error(String(error)));
+      });
+  });
 };
 
 // Helper to call embox-api Edge Function (production) or fall through to fetchJson (dev)
@@ -901,14 +970,21 @@ export const uploadMaterial = async (
       throw new Error('Create upload URL failed: empty signed upload response');
     }
 
-    await uploadSignedStorageFile(
-      String(uploadInfo.bucket ?? 'training-materials'),
-      String(uploadInfo.path),
-      String(uploadInfo.token),
-      String(uploadInfo.signedUrl),
-      uploadFile,
-      onProgress,
-    );
+    const bucket = String(uploadInfo.bucket ?? 'training-materials');
+    const path = String(uploadInfo.path);
+    const signedToken = String(uploadInfo.token);
+    if (uploadFile.size > RESUMABLE_UPLOAD_THRESHOLD_BYTES) {
+      await uploadSignedStorageFileResumable(bucket, path, signedToken, uploadFile, onProgress);
+    } else {
+      await uploadSignedStorageFile(
+        bucket,
+        path,
+        signedToken,
+        String(uploadInfo.signedUrl),
+        uploadFile,
+        onProgress,
+      );
+    }
 
     return {url: String(uploadInfo.publicUrl), filename: uploadFile.name};
   }
