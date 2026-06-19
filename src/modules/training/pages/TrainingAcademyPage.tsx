@@ -1032,7 +1032,7 @@ export const CreateCourseModal = ({initial, onClose, onSubmit}: {
           }
         : section,
       ));
-      toast.success('视频已上传，已自动填入地址，请保存课程');
+      toast.success(isEdit ? '视频已上传，已替换当前章节地址，请点击保存修改后公开链接会播放新视频' : '视频已上传，已自动填入地址，请创建课程');
     } catch (err) {
       const message = err instanceof Error ? err.message : '上传失败';
       toast.error(`上传失败：${message}`);
@@ -1049,7 +1049,7 @@ export const CreateCourseModal = ({initial, onClose, onSubmit}: {
       const result = await uploadMaterial(file, setMaterialUploadProgress);
       updateMaterial(index, 'url', result.url);
       if (!materials[index]?.title.trim()) updateMaterial(index, 'title', result.filename);
-      toast.success('素材已上传，已自动填入地址，请保存课程');
+      toast.success(isEdit ? '素材已上传，已替换当前资料地址，请点击保存修改后公开链接会使用新地址' : '素材已上传，已自动填入地址，请创建课程');
     } catch (err) {
       const message = err instanceof Error ? err.message : '上传失败';
       toast.error(`上传失败：${message}`);
@@ -1242,7 +1242,7 @@ export const CreateCourseModal = ({initial, onClose, onSubmit}: {
                         )}
                         {sec.contentType === 'video' && (
                           <p className="text-[10px] text-gray-400">
-                            大视频会直传对象存储，100MB 文件可能需要数分钟，请保持页面打开。
+                            大视频会分片直传对象存储。编辑已有视频时，上传完成后需要点击底部「保存修改」才会更新公开链接。
                           </p>
                         )}
                       </div>

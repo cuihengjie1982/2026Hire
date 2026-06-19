@@ -64,13 +64,23 @@ export const VideoLearningAssistant: React.FC<{
   const contentSections: CourseSection[] = isStandaloneCourse
     ? (course!.content ?? [])
     : (enrollment!.content ?? []);
+  const materials = isStandaloneCourse
+    ? (course!.materials ?? [])
+    : (enrollment!.materials ?? []);
 
   const courseTitle = isStandaloneCourse ? course!.title : enrollment!.course_title;
   const durationMinutes = isStandaloneCourse ? course!.durationMinutes : enrollment!.duration_minutes;
   const subtitle = publicMode ? '员工培训视频' : isPreviewMode ? '管理员预览' : enrollment!.candidate_name;
 
-  const videoSection = contentSections.find(s => s.contentType === 'video');
-  const videoUrl = videoSection?.contentUrl ?? '';
+  const videoCandidates = [
+    ...contentSections
+      .filter(s => s.contentType === 'video' && s.contentUrl)
+      .map(s => s.contentUrl!),
+    ...materials
+      .filter(material => material.type === 'video' && material.url)
+      .map(material => material.url!),
+  ];
+  const videoUrl = videoCandidates[videoCandidates.length - 1] ?? '';
 
   const transcriptText = contentSections
     .filter(s => s.contentType === 'text' && s.text)

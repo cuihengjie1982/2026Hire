@@ -200,7 +200,7 @@ const normalizeCourseVideoContent = (content: CourseSection[], materials: Course
     return content;
   }
 
-  const materialVideo = materials.find(material => material.type === 'video' && material.url);
+  const materialVideo = [...materials].reverse().find(material => material.type === 'video' && material.url);
   if (!materialVideo?.url) return content;
 
   return [
@@ -432,9 +432,9 @@ export const getPublicTrainingCourse = async (courseId: string, token: string): 
 };
 
 const findCourseVideoUrl = (course: TrainingCourse): string => {
-  const sectionVideo = course.content.find(section => section.contentType === 'video' && section.contentUrl);
+  const sectionVideo = [...course.content].reverse().find(section => section.contentType === 'video' && section.contentUrl);
   if (sectionVideo?.contentUrl) return sectionVideo.contentUrl;
-  const materialVideo = course.materials.find(material => material.type === 'video' && material.url);
+  const materialVideo = [...course.materials].reverse().find(material => material.type === 'video' && material.url);
   return materialVideo?.url ?? '';
 };
 
