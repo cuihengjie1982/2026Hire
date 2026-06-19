@@ -1243,7 +1243,6 @@ export const handlePaths = async (req: Request): Promise<Response> => {
 
 const TRAINING_MATERIALS_BUCKET = 'training-materials';
 const TRAINING_MATERIALS_MAX_FILE_BYTES = 500 * 1024 * 1024;
-const TRAINING_MATERIALS_BUCKET_LIMIT_BUFFER_BYTES = 1024 * 1024;
 
 const inferTrainingMaterialContentType = (file: File): string => {
   if (file.type) return file.type;
@@ -1267,26 +1266,11 @@ const inferTrainingMaterialContentType = (file: File): string => {
   return ext ? byExt[ext] ?? 'application/octet-stream' : 'application/octet-stream';
 };
 
-const getTrainingMaterialsBucketLimit = (fileSize: number): number => {
-  const requestedLimit = Math.max(fileSize + TRAINING_MATERIALS_BUCKET_LIMIT_BUFFER_BYTES, 6 * 1024 * 1024);
-  return Math.min(TRAINING_MATERIALS_MAX_FILE_BYTES, requestedLimit);
-};
-
 const ensureTrainingMaterialsBucket = async (
   supabase: ReturnType<typeof createSupabaseAdmin>,
-  requiredFileSize = 0,
 ) => {
-  const fileSizeLimit = getTrainingMaterialsBucketLimit(requiredFileSize);
   const { data: existingBucket, error: getBucketError } = await supabase.storage.getBucket(TRAINING_MATERIALS_BUCKET);
   if (existingBucket) {
-    const { error: updateBucketError } = await supabase.storage.updateBucket(TRAINING_MATERIALS_BUCKET, {
-      public: true,
-      fileSizeLimit,
-      allowedMimeTypes: null,
-    });
-    if (updateBucketError) {
-      throw new Error(`Update storage bucket failed (${Math.ceil(fileSizeLimit / 1024 / 1024)}MB): ${updateBucketError.message}`);
-    }
     return;
   }
 
@@ -1299,11 +1283,11 @@ const ensureTrainingMaterialsBucket = async (
 
   const { error: createBucketError } = await supabase.storage.createBucket(TRAINING_MATERIALS_BUCKET, {
     public: true,
-    fileSizeLimit,
+    fileSizeLimit: TRAINING_MATERIALS_MAX_FILE_BYTES,
     allowedMimeTypes: null,
   });
   if (createBucketError) {
-    throw new Error(`Create storage bucket failed (${Math.ceil(fileSizeLimit / 1024 / 1024)}MB): ${createBucketError.message}`);
+    throw new Error(`Create storage bucket failed: ${createBucketError.message}`);
   }
 };
 
@@ -1319,7 +1303,7 @@ const createSignedMaterialUpload = async (req: Request): Promise<Response> => {
       return jsonRes({ error: { code: 'VALIDATION_ERROR', message: 'File too large (max 500MB)' } }, 400);
     }
 
-    await ensureTrainingMaterialsBucket(supabase, fileSize);
+    await ensureTrainingMaterialsBucket(supabase);
 
     const path = `materials/${Date.now()}-${crypto.randomUUID().slice(0, 8)}.${ext}`;
     const { data, error } = await supabase.storage
@@ -1365,7 +1349,7 @@ const uploadMaterial = async (req: Request): Promise<Response> => {
 
     const ext = file.name.split('.').pop()?.toLowerCase() || 'bin';
     const filename = `materials/${Date.now()}-${crypto.randomUUID().slice(0, 8)}.${ext}`;
-    await ensureTrainingMaterialsBucket(supabase, file.size);
+    await ensureTrainingMaterialsBucket(supabase);
 
     const { data, error } = await supabase.storage
       .from(TRAINING_MATERIALS_BUCKET)
