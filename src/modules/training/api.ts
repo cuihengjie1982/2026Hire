@@ -1,6 +1,5 @@
 import {getItemsFromPayload} from '../../shared/lib/apiClient';
 import {USE_MOCK_API, API_BASE_URL, SUPABASE_ANON_KEY, getAuthToken} from '../../shared/lib/runtime';
-import {getSupabase} from '../../shared/lib/supabase';
 import * as tus from 'tus-js-client';
 import type {DetailedError} from 'tus-js-client';
 import {courseFixtures, enrollmentFixtures} from './fixtures';
@@ -74,37 +73,67 @@ const normalizeUploadFile = (file: File): File => {
 const getErrorMessageFromText = (text: string, fallback: string): string => {
   if (!text) return fallback;
   try {
-    const data = JSON.parse(text) as {error?: {message?: string}; message?: string};
-    return data.error?.message || data.message || text;
+    const data = JSON.parse(text) as {error?: {message?: string} | string; message?: string};
+    return (typeof data.error === 'string' ? data.error : data.error?.message) || data.message || text;
   } catch {
     return text;
   }
 };
 
 const uploadSignedStorageFile = async (
-  bucket: string,
-  path: string,
-  token: string,
+  _bucket: string,
+  _path: string,
+  _token: string,
   signedUrl: string,
   file: File,
   onProgress?: (progress: number) => void,
 ): Promise<void> => {
-  onProgress?.(5);
-  const timeout = new Promise<never>((_, reject) => {
-    window.setTimeout(() => reject(new Error('上传超时，请检查网络后重试')), MATERIAL_UPLOAD_TIMEOUT_MS);
-  });
-  const upload = getSupabase().storage
-    .from(bucket)
-    .uploadToSignedUrl(path, token, file, {
-      cacheControl: '3600',
-      contentType: file.type || 'application/octet-stream',
-    });
+  onProgress?.(1);
+  await new Promise<void>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    const timer = window.setTimeout(() => {
+      xhr.abort();
+      reject(new Error('上传超时，请检查网络后重试'));
+    }, MATERIAL_UPLOAD_TIMEOUT_MS);
 
-  const {error} = await Promise.race([upload, timeout]);
-  if (error) {
-    throw new Error(error.message || `Storage upload failed: ${signedUrl}`);
-  }
-  onProgress?.(100);
+    xhr.open('PUT', signedUrl);
+    xhr.setRequestHeader('x-upsert', 'false');
+    if (SUPABASE_ANON_KEY) {
+      xhr.setRequestHeader('apikey', SUPABASE_ANON_KEY);
+      xhr.setRequestHeader('Authorization', `Bearer ${SUPABASE_ANON_KEY}`);
+    }
+
+    xhr.upload.onprogress = (event) => {
+      if (!event.lengthComputable || !event.total) return;
+      const progress = Math.max(1, Math.min(99, Math.round((event.loaded / event.total) * 100)));
+      onProgress?.(progress);
+    };
+
+    xhr.onload = () => {
+      window.clearTimeout(timer);
+      if (xhr.status >= 200 && xhr.status < 300) {
+        onProgress?.(100);
+        resolve();
+        return;
+      }
+      reject(new Error(getErrorMessageFromText(xhr.responseText, `Storage upload failed ${xhr.status}`)));
+    };
+
+    xhr.onerror = () => {
+      window.clearTimeout(timer);
+      reject(new Error('视频上传网络失败，请切换网络后重试'));
+    };
+
+    xhr.onabort = () => {
+      window.clearTimeout(timer);
+      reject(new Error('视频上传已中断，请重新选择文件上传'));
+    };
+
+    const formData = new FormData();
+    formData.append('cacheControl', '3600');
+    formData.append('', file);
+    xhr.send(formData);
+  });
 };
 
 const getStorageErrorMessage = (error: Error | DetailedError): string => {
