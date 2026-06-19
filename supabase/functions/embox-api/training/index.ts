@@ -1242,25 +1242,39 @@ export const handlePaths = async (req: Request): Promise<Response> => {
 // =============================================================================
 
 const TRAINING_MATERIALS_BUCKET = 'training-materials';
-const TRAINING_MATERIALS_ALLOWED_MIME_TYPES = [
-  'video/*',
-  'application/pdf',
-  'application/msword',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  'application/vnd.ms-powerpoint',
-  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-  'application/vnd.ms-excel',
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  'application/zip',
-  'application/x-rar-compressed',
-  'image/*',
-  'text/plain',
-  'text/markdown',
-];
+const TRAINING_MATERIALS_MAX_FILE_BYTES = 500 * 1024 * 1024;
+
+const inferTrainingMaterialContentType = (file: File): string => {
+  if (file.type) return file.type;
+  const ext = file.name.split('.').pop()?.toLowerCase();
+  const byExt: Record<string, string> = {
+    mp4: 'video/mp4',
+    m4v: 'video/mp4',
+    mov: 'video/quicktime',
+    webm: 'video/webm',
+    avi: 'video/x-msvideo',
+    mkv: 'video/x-matroska',
+    pdf: 'application/pdf',
+    jpg: 'image/jpeg',
+    jpeg: 'image/jpeg',
+    png: 'image/png',
+    gif: 'image/gif',
+    txt: 'text/plain',
+    md: 'text/markdown',
+    zip: 'application/zip',
+  };
+  return ext ? byExt[ext] ?? 'application/octet-stream' : 'application/octet-stream';
+};
 
 const ensureTrainingMaterialsBucket = async (supabase: ReturnType<typeof createSupabaseAdmin>) => {
   const { data: existingBucket, error: getBucketError } = await supabase.storage.getBucket(TRAINING_MATERIALS_BUCKET);
   if (existingBucket) {
+    const { error: updateBucketError } = await supabase.storage.updateBucket(TRAINING_MATERIALS_BUCKET, {
+      public: true,
+      fileSizeLimit: TRAINING_MATERIALS_MAX_FILE_BYTES,
+      allowedMimeTypes: null,
+    });
+    if (updateBucketError) throw new Error(`Update storage bucket failed: ${updateBucketError.message}`);
     return;
   }
 
@@ -1273,8 +1287,8 @@ const ensureTrainingMaterialsBucket = async (supabase: ReturnType<typeof createS
 
   const { error: createBucketError } = await supabase.storage.createBucket(TRAINING_MATERIALS_BUCKET, {
     public: true,
-    fileSizeLimit: 500 * 1024 * 1024,
-    allowedMimeTypes: TRAINING_MATERIALS_ALLOWED_MIME_TYPES,
+    fileSizeLimit: TRAINING_MATERIALS_MAX_FILE_BYTES,
+    allowedMimeTypes: null,
   });
   if (createBucketError) throw new Error(`Create storage bucket failed: ${createBucketError.message}`);
 };
@@ -1287,7 +1301,7 @@ const createSignedMaterialUpload = async (req: Request): Promise<Response> => {
     const ext = filenameRaw.split('.').pop()?.toLowerCase().replace(/[^a-z0-9]/g, '') || 'bin';
     const fileSize = Number(body.size ?? 0);
 
-    if (fileSize > 500 * 1024 * 1024) {
+    if (fileSize > TRAINING_MATERIALS_MAX_FILE_BYTES) {
       return jsonRes({ error: { code: 'VALIDATION_ERROR', message: 'File too large (max 500MB)' } }, 400);
     }
 
@@ -1331,7 +1345,7 @@ const uploadMaterial = async (req: Request): Promise<Response> => {
       return jsonRes({ error: { code: 'VALIDATION_ERROR', message: 'file is required' } }, 400);
     }
 
-    if (file.size > 500 * 1024 * 1024) {
+    if (file.size > TRAINING_MATERIALS_MAX_FILE_BYTES) {
       return jsonRes({ error: { code: 'VALIDATION_ERROR', message: 'File too large (max 500MB)' } }, 400);
     }
 
@@ -1342,7 +1356,7 @@ const uploadMaterial = async (req: Request): Promise<Response> => {
     const { data, error } = await supabase.storage
       .from(TRAINING_MATERIALS_BUCKET)
       .upload(filename, await file.arrayBuffer(), {
-        contentType: file.type,
+        contentType: inferTrainingMaterialContentType(file),
         upsert: false,
       });
 
@@ -1355,7 +1369,8 @@ const uploadMaterial = async (req: Request): Promise<Response> => {
     return jsonRes({ url: urlData.publicUrl, filename: file.name }, 201);
   } catch (e) {
     console.error('[training upload]', e);
-    return jsonRes({ error: { code: 'INTERNAL_ERROR', message: 'Failed to upload file' } }, 500);
+    const message = e instanceof Error ? e.message : 'Failed to upload file';
+    return jsonRes({ error: { code: 'INTERNAL_ERROR', message } }, 500);
   }
 };
 

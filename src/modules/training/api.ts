@@ -1053,11 +1053,8 @@ export const uploadMaterial = async (
   // In local Vite dev, use the same-origin /api proxy so uploads do not hit CORS.
   // In production, go through Supabase Edge Function.
   const isLocalDev = API_BASE_URL.includes('localhost') || API_BASE_URL.includes('127.0.0.1');
-  if (uploadFile.size <= DIRECT_UPLOAD_PREFERRED_MAX_BYTES) {
-    const uploadUrl = isLocalDev
-      ? '/api/training/materials/upload'
-      : `${API_BASE_URL}/functions/v1/embox-api/training/materials/upload`;
-    return uploadMaterialViaApi(uploadUrl, uploadFile, token, onProgress);
+  if (isLocalDev) {
+    return uploadMaterialViaApi('/api/training/materials/upload', uploadFile, token, onProgress);
   }
 
   if (!isLocalDev) {
