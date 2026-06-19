@@ -4,6 +4,7 @@ import {motion} from 'motion/react';
 import {Loader2, PlayCircle, Share2, Upload} from 'lucide-react';
 import {
   createCourse,
+  deleteCourse,
   listCourses,
   updateCourse,
   type TrainingCourse,
@@ -70,6 +71,18 @@ export const TrainingVideoSharePage = () => {
     await updateCourse(editingCourse.id, input as Parameters<typeof updateCourse>[1]);
     setEditingCourse(null);
     await loadData();
+  };
+
+  const handleDeleteCourse = async (course: TrainingCourse) => {
+    if (!confirm(`确定要删除视频「${course.title}」吗？删除后已复制出去的公开链接也将不可用。`)) return;
+    setError('');
+    try {
+      await deleteCourse(course.id);
+      if (editingCourse?.id === course.id) setEditingCourse(null);
+      setCourses(prev => prev.filter(item => item.id !== course.id));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '删除视频失败');
+    }
   };
 
   if (loading) {
@@ -145,6 +158,7 @@ export const TrainingVideoSharePage = () => {
         courses={courses}
         onAddCourse={() => setShowCreateCourse(true)}
         onEditCourse={setEditingCourse}
+        onDeleteCourse={handleDeleteCourse}
         onPreview={(courseId) => navigate(`/training/preview?courseId=${courseId}`)}
         onCaptionsGenerated={loadData}
       />

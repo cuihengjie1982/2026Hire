@@ -469,12 +469,13 @@ const CoursesTab = ({courses, onAdd, onBatchEnroll, onEdit, onDelete}: {
   );
 };
 
-export const VideoShareTab = ({courses, onAddCourse, onPreview, onCaptionsGenerated, onEditCourse}: {
+export const VideoShareTab = ({courses, onAddCourse, onPreview, onCaptionsGenerated, onEditCourse, onDeleteCourse}: {
   courses: TrainingCourse[];
   onAddCourse: () => void;
   onPreview: (courseId: string) => void;
   onCaptionsGenerated: () => Promise<void>;
   onEditCourse?: (course: TrainingCourse) => void;
+  onDeleteCourse?: (course: TrainingCourse) => void;
 }) => {
   const hasShareableVideo = (course: TrainingCourse) =>
     course.content.some(section => section.contentType === 'video' && Boolean(section.contentUrl))
@@ -653,6 +654,15 @@ export const VideoShareTab = ({courses, onAddCourse, onPreview, onCaptionsGenera
                       className="flex items-center justify-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm hover:bg-gray-50 disabled:opacity-60 transition-colors"
                     >
                       <Edit3 className="w-4 h-4" /> 编辑视频
+                    </button>
+                  )}
+                  {onDeleteCourse && (
+                    <button
+                      onClick={() => onDeleteCourse(course)}
+                      disabled={isLoading || isCaptionLoading}
+                      className="flex items-center justify-center gap-2 px-3 py-2 bg-white border border-red-200 text-red-600 rounded-lg text-sm hover:bg-red-50 disabled:opacity-60 transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" /> 删除视频
                     </button>
                   )}
                   <button
