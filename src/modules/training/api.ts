@@ -40,6 +40,7 @@ export type {
 
 const MATERIAL_UPLOAD_TIMEOUT_MS = 15 * 60 * 1000;
 const RESUMABLE_UPLOAD_THRESHOLD_BYTES = 6 * 1024 * 1024;
+const DIRECT_SIGNED_UPLOAD_FALLBACK_MAX_BYTES = 100 * 1024 * 1024;
 const SUPABASE_TUS_CHUNK_SIZE_BYTES = 6 * 1024 * 1024;
 
 const inferContentType = (file: File): string => {
@@ -243,7 +244,7 @@ const uploadSignedStorageFileResumable = async (
       endpoint: `https://${projectRef}.storage.supabase.co/storage/v1/upload/resumable`,
       retryDelays: [0, 3000, 5000, 10000, 20000],
       chunkSize: SUPABASE_TUS_CHUNK_SIZE_BYTES,
-      uploadDataDuringCreation: true,
+      uploadDataDuringCreation: false,
       storeFingerprintForResuming: false,
       removeFingerprintOnSuccess: true,
       headers: {
@@ -1085,7 +1086,10 @@ export const uploadMaterial = async (
       try {
         await uploadSignedStorageFileResumable(bucket, path, signedToken, uploadFile, onProgress);
       } catch (error) {
-        if (!shouldFallbackToDirectSignedUpload(error) || uploadFile.size > RESUMABLE_UPLOAD_THRESHOLD_BYTES) throw error;
+        if (uploadFile.size > DIRECT_SIGNED_UPLOAD_FALLBACK_MAX_BYTES) throw error;
+        if (!shouldFallbackToDirectSignedUpload(error)) {
+          console.warn('[training upload] resumable upload failed, falling back to signed direct upload', error);
+        }
         await uploadSignedStorageFile(
           bucket,
           path,
