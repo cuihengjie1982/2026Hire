@@ -165,6 +165,7 @@ export const TrainingVideoSharePage = () => {
 
       {showCreateCourse && (
         <CreateCourseModal
+          defaultContentType="video"
           onClose={() => setShowCreateCourse(false)}
           onSubmit={handleCreateCourse}
         />

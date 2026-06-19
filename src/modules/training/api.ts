@@ -40,7 +40,6 @@ export type {
 
 const MATERIAL_UPLOAD_TIMEOUT_MS = 15 * 60 * 1000;
 const RESUMABLE_UPLOAD_THRESHOLD_BYTES = 6 * 1024 * 1024;
-const DIRECT_UPLOAD_PREFERRED_MAX_BYTES = 128 * 1024 * 1024;
 const SUPABASE_TUS_CHUNK_SIZE_BYTES = 6 * 1024 * 1024;
 
 const inferContentType = (file: File): string => {
@@ -245,7 +244,8 @@ const uploadSignedStorageFileResumable = async (
       storeFingerprintForResuming: false,
       removeFingerprintOnSuccess: true,
       headers: {
-        ...(SUPABASE_ANON_KEY ? {apikey: SUPABASE_ANON_KEY} : {}),
+        ...(SUPABASE_ANON_KEY ? {apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}`} : {}),
+        'x-upsert': 'false',
         'x-signature': token,
       },
       metadata: {
@@ -1078,20 +1078,11 @@ export const uploadMaterial = async (
     const bucket = String(uploadInfo.bucket ?? 'training-materials');
     const path = String(uploadInfo.path);
     const signedToken = String(uploadInfo.token);
-    if (uploadFile.size <= DIRECT_UPLOAD_PREFERRED_MAX_BYTES) {
-      await uploadSignedStorageFile(
-        bucket,
-        path,
-        signedToken,
-        String(uploadInfo.signedUrl),
-        uploadFile,
-        onProgress,
-      );
-    } else if (uploadFile.size > RESUMABLE_UPLOAD_THRESHOLD_BYTES) {
+    if (uploadFile.size > RESUMABLE_UPLOAD_THRESHOLD_BYTES) {
       try {
         await uploadSignedStorageFileResumable(bucket, path, signedToken, uploadFile, onProgress);
       } catch (error) {
-        if (!shouldFallbackToDirectSignedUpload(error)) throw error;
+        if (!shouldFallbackToDirectSignedUpload(error) || uploadFile.size > RESUMABLE_UPLOAD_THRESHOLD_BYTES) throw error;
         await uploadSignedStorageFile(
           bucket,
           path,

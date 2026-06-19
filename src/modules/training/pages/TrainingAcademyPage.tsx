@@ -982,7 +982,7 @@ const EffectivenessTab = ({data}: {data: TrainingEffectiveness}) => {
   );
 };
 
-export const CreateCourseModal = ({initial, onClose, onSubmit}: {
+export const CreateCourseModal = ({initial, onClose, onSubmit, defaultContentType}: {
   initial?: TrainingCourse;
   onClose: () => void;
   onSubmit: (input: {
@@ -992,6 +992,7 @@ export const CreateCourseModal = ({initial, onClose, onSubmit}: {
     assessmentConfig?: {type: string; passingScore: number};
     competencyDimension?: string;
   }) => Promise<void>;
+  defaultContentType?: 'text' | 'video' | 'link';
 }) => {
   const isEdit = !!initial;
   const [title, setTitle] = useState(initial?.title ?? '');
@@ -1000,7 +1001,8 @@ export const CreateCourseModal = ({initial, onClose, onSubmit}: {
   const [desc, setDesc] = useState(initial?.description ?? '');
   const [duration, setDuration] = useState(initial?.durationMinutes ?? 30);
   const [sections, setSections] = useState<{sectionTitle: string; contentType: string; text: string; contentUrl: string}[]>(
-    initial?.content?.map(s => ({sectionTitle: s.sectionTitle, contentType: s.contentType, text: s.text ?? '', contentUrl: s.contentUrl ?? ''})) ?? []
+    initial?.content?.map(s => ({sectionTitle: s.sectionTitle, contentType: s.contentType, text: s.text ?? '', contentUrl: s.contentUrl ?? ''}))
+    ?? (defaultContentType ? [{sectionTitle: '', contentType: defaultContentType, text: '', contentUrl: ''}] : [])
   );
   const [materials, setMaterials] = useState<{title: string; type: string; url: string}[]>(
     initial?.materials?.map(m => ({title: m.title, type: m.type, url: m.url ?? ''})) ?? []
@@ -1008,7 +1010,7 @@ export const CreateCourseModal = ({initial, onClose, onSubmit}: {
   const [passingScore, setPassingScore] = useState(initial?.assessmentConfig?.passingScore ?? 60);
   const [assessType, setAssessType] = useState(initial?.assessmentConfig?.type ?? 'quiz');
   const [competencyDim, setCompetencyDim] = useState(initial?.competencyDimension ?? '');
-  const [showContentEditor, setShowContentEditor] = useState(false);
+  const [showContentEditor, setShowContentEditor] = useState(Boolean(defaultContentType));
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadingSectionIndex, setUploadingSectionIndex] = useState<number | null>(null);
   const [uploadingMaterialIndex, setUploadingMaterialIndex] = useState<number | null>(null);
@@ -1016,7 +1018,7 @@ export const CreateCourseModal = ({initial, onClose, onSubmit}: {
   const [materialUploadProgress, setMaterialUploadProgress] = useState(0);
   const toast = useToast();
 
-  const addSection = () => setSections(s => [...s, {sectionTitle: '', contentType: 'text', text: '', contentUrl: ''}]);
+  const addSection = (contentType: 'text' | 'video' | 'link' = 'text') => setSections(s => [...s, {sectionTitle: '', contentType, text: '', contentUrl: ''}]);
   const updateSection = (i: number, field: string, val: string) => {
     setSections(s => s.map((sec, idx) => idx === i ? {...sec, [field]: val} : sec));
   };
@@ -1227,13 +1229,13 @@ export const CreateCourseModal = ({initial, onClose, onSubmit}: {
                             </div>
                           </div>
                         ) : (
-                          <div className="flex-1 flex gap-2">
+                          <div className="flex-1 flex flex-wrap gap-2">
                             <input value={sec.contentUrl} onChange={e => updateSection(i, 'contentUrl', e.target.value)}
-                              className="flex-1 px-2 py-1 border rounded text-sm" placeholder="URL" />
-                            <label className={`shrink-0 px-2 py-1 rounded text-xs transition-colors flex items-center gap-1 ${
+                              className="min-w-0 flex-1 px-2 py-1 border rounded text-sm" placeholder="URL" />
+                            <label role="button" aria-disabled={uploadingSectionIndex !== null} className={`shrink-0 px-3 py-2 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 border ${
                               uploadingSectionIndex === i
-                                ? 'bg-indigo-50 text-indigo-600 cursor-wait'
-                                : 'bg-gray-100 hover:bg-gray-200 text-gray-500 cursor-pointer'
+                                ? 'border-indigo-200 bg-indigo-50 text-indigo-600 cursor-wait'
+                                : 'border-gray-200 bg-white hover:bg-gray-50 text-gray-700 cursor-pointer shadow-sm'
                             }`}>
                               {uploadingSectionIndex === i ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
                               {uploadingSectionIndex === i ? `上传 ${sectionUploadProgress}%` : '本地上传'}
@@ -1260,8 +1262,8 @@ export const CreateCourseModal = ({initial, onClose, onSubmit}: {
                     <button onClick={() => removeSection(i)} className="text-red-400 hover:text-red-600 text-xs mt-1">删除</button>
                   </div>
                 ))}
-                <button onClick={addSection} className="text-xs px-3 py-1.5 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200">
-                  + 添加章节
+                <button onClick={() => addSection(isEdit ? 'text' : 'video')} className="text-xs px-3 py-1.5 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200">
+                  + 添加{isEdit ? '' : '视频'}章节
                 </button>
               </div>
             )}
