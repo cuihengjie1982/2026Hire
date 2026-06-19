@@ -41,6 +41,7 @@ export type {
 
 const MATERIAL_UPLOAD_TIMEOUT_MS = 15 * 60 * 1000;
 const RESUMABLE_UPLOAD_THRESHOLD_BYTES = 6 * 1024 * 1024;
+const DIRECT_UPLOAD_PREFERRED_MAX_BYTES = 128 * 1024 * 1024;
 const SUPABASE_TUS_CHUNK_SIZE_BYTES = 6 * 1024 * 1024;
 
 const inferContentType = (file: File): string => {
@@ -122,6 +123,11 @@ const getStorageErrorMessage = (error: Error | DetailedError): string => {
   }
 
   return status ? `Storage upload failed ${status}: ${body}` : body;
+};
+
+const shouldFallbackToDirectSignedUpload = (error: unknown): boolean => {
+  const message = error instanceof Error ? error.message : String(error ?? '');
+  return message.includes('Storage upload failed 400') || message.includes('response code: 400');
 };
 
 const getSupabaseProjectRef = (): string => {
@@ -984,8 +990,29 @@ export const uploadMaterial = async (
     const bucket = String(uploadInfo.bucket ?? 'training-materials');
     const path = String(uploadInfo.path);
     const signedToken = String(uploadInfo.token);
-    if (uploadFile.size > RESUMABLE_UPLOAD_THRESHOLD_BYTES) {
-      await uploadSignedStorageFileResumable(bucket, path, signedToken, uploadFile, onProgress);
+    if (uploadFile.size <= DIRECT_UPLOAD_PREFERRED_MAX_BYTES) {
+      await uploadSignedStorageFile(
+        bucket,
+        path,
+        signedToken,
+        String(uploadInfo.signedUrl),
+        uploadFile,
+        onProgress,
+      );
+    } else if (uploadFile.size > RESUMABLE_UPLOAD_THRESHOLD_BYTES) {
+      try {
+        await uploadSignedStorageFileResumable(bucket, path, signedToken, uploadFile, onProgress);
+      } catch (error) {
+        if (!shouldFallbackToDirectSignedUpload(error)) throw error;
+        await uploadSignedStorageFile(
+          bucket,
+          path,
+          signedToken,
+          String(uploadInfo.signedUrl),
+          uploadFile,
+          onProgress,
+        );
+      }
     } else {
       await uploadSignedStorageFile(
         bucket,
