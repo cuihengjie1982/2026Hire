@@ -40,7 +40,7 @@ export type {
 
 const MATERIAL_UPLOAD_TIMEOUT_MS = 15 * 60 * 1000;
 const RESUMABLE_UPLOAD_THRESHOLD_BYTES = 6 * 1024 * 1024;
-const DIRECT_SIGNED_UPLOAD_FALLBACK_MAX_BYTES = 100 * 1024 * 1024;
+const DIRECT_SIGNED_UPLOAD_FALLBACK_MAX_BYTES = 45 * 1024 * 1024;
 const DIRECT_SIGNED_UPLOAD_RETRY_COUNT = 3;
 const SUPABASE_TUS_CHUNK_SIZE_BYTES = 6 * 1024 * 1024;
 
@@ -329,7 +329,7 @@ const uploadSignedStorageFileResumable = async (
       endpoint: `https://${projectRef}.storage.supabase.co/storage/v1/upload/resumable`,
       retryDelays: [0, 3000, 5000, 10000, 20000],
       chunkSize: SUPABASE_TUS_CHUNK_SIZE_BYTES,
-      uploadDataDuringCreation: false,
+      uploadDataDuringCreation: true,
       storeFingerprintForResuming: false,
       removeFingerprintOnSuccess: true,
       headers: {
