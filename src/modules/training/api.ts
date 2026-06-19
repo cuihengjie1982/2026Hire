@@ -2,6 +2,7 @@ import {getItemsFromPayload} from '../../shared/lib/apiClient';
 import {USE_MOCK_API, API_BASE_URL, SUPABASE_ANON_KEY, getAuthToken} from '../../shared/lib/runtime';
 import {getSupabase} from '../../shared/lib/supabase';
 import * as tus from 'tus-js-client';
+import type {DetailedError} from 'tus-js-client';
 import {courseFixtures, enrollmentFixtures} from './fixtures';
 import {
   type TrainingCourse,
@@ -105,6 +106,24 @@ const uploadSignedStorageFile = async (
   onProgress?.(100);
 };
 
+const getStorageErrorMessage = (error: Error | DetailedError): string => {
+  const detailed = error as DetailedError;
+  const response = detailed.originalResponse;
+  const status = response?.getStatus();
+  const body = response?.getBody();
+  if (!body) return error.message || (status ? `Storage upload failed ${status}` : 'Storage upload failed');
+
+  try {
+    const data = JSON.parse(body) as {error?: string; message?: string; statusCode?: string | number};
+    const message = data.message || data.error;
+    if (message) return status ? `Storage upload failed ${status}: ${message}` : message;
+  } catch {
+    // Plain text bodies from Storage are still useful for diagnostics.
+  }
+
+  return status ? `Storage upload failed ${status}: ${body}` : body;
+};
+
 const getSupabaseProjectRef = (): string => {
   try {
     const host = new URL(API_BASE_URL).hostname;
@@ -133,6 +152,7 @@ const uploadSignedStorageFileResumable = async (
       retryDelays: [0, 3000, 5000, 10000, 20000],
       chunkSize: SUPABASE_TUS_CHUNK_SIZE_BYTES,
       uploadDataDuringCreation: true,
+      storeFingerprintForResuming: false,
       removeFingerprintOnSuccess: true,
       headers: {
         ...(SUPABASE_ANON_KEY ? {apikey: SUPABASE_ANON_KEY} : {}),
@@ -145,7 +165,7 @@ const uploadSignedStorageFileResumable = async (
         cacheControl: '3600',
       },
       onError: (error) => {
-        reject(error instanceof Error ? error : new Error(String(error)));
+        reject(new Error(getStorageErrorMessage(error)));
       },
       onProgress: (bytesUploaded, bytesTotal) => {
         if (!bytesTotal) return;
@@ -158,16 +178,7 @@ const uploadSignedStorageFileResumable = async (
       },
     });
 
-    upload.findPreviousUploads()
-      .then((previousUploads) => {
-        if (previousUploads.length > 0) {
-          upload.resumeFromPreviousUpload(previousUploads[0]);
-        }
-        upload.start();
-      })
-      .catch((error) => {
-        reject(error instanceof Error ? error : new Error(String(error)));
-      });
+    upload.start();
   });
 };
 
