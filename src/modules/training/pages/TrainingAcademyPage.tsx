@@ -1016,6 +1016,7 @@ export const CreateCourseModal = ({initial, onClose, onSubmit, defaultContentTyp
   const [uploadingMaterialIndex, setUploadingMaterialIndex] = useState<number | null>(null);
   const [sectionUploadProgress, setSectionUploadProgress] = useState(0);
   const [materialUploadProgress, setMaterialUploadProgress] = useState(0);
+  const [uploadError, setUploadError] = useState('');
   const toast = useToast();
 
   const addSection = (contentType: 'text' | 'video' | 'link' = 'text') => setSections(s => [...s, {sectionTitle: '', contentType, text: '', contentUrl: ''}]);
@@ -1033,6 +1034,7 @@ export const CreateCourseModal = ({initial, onClose, onSubmit, defaultContentTyp
   const handleUploadSectionFile = async (file: File, index: number) => {
     setUploadingSectionIndex(index);
     setSectionUploadProgress(0);
+    setUploadError('');
     try {
       const result = await uploadMaterial(file, setSectionUploadProgress);
       setSections(prev => prev.map((section, idx) => idx === index
@@ -1047,6 +1049,7 @@ export const CreateCourseModal = ({initial, onClose, onSubmit, defaultContentTyp
       toast.success(isEdit ? '视频已上传，已替换当前章节地址，请点击保存修改后公开链接会播放新视频' : '视频已上传，已自动填入地址，请创建课程');
     } catch (err) {
       const message = err instanceof Error ? err.message : '上传失败';
+      setUploadError(message);
       toast.error(`上传失败：${message}`);
     } finally {
       setUploadingSectionIndex(null);
@@ -1057,6 +1060,7 @@ export const CreateCourseModal = ({initial, onClose, onSubmit, defaultContentTyp
   const handleUploadMaterialFile = async (file: File, index: number) => {
     setUploadingMaterialIndex(index);
     setMaterialUploadProgress(0);
+    setUploadError('');
     try {
       const result = await uploadMaterial(file, setMaterialUploadProgress);
       updateMaterial(index, 'url', result.url);
@@ -1064,6 +1068,7 @@ export const CreateCourseModal = ({initial, onClose, onSubmit, defaultContentTyp
       toast.success(isEdit ? '素材已上传，已替换当前资料地址，请点击保存修改后公开链接会使用新地址' : '素材已上传，已自动填入地址，请创建课程');
     } catch (err) {
       const message = err instanceof Error ? err.message : '上传失败';
+      setUploadError(message);
       toast.error(`上传失败：${message}`);
     } finally {
       setUploadingMaterialIndex(null);
@@ -1162,6 +1167,12 @@ export const CreateCourseModal = ({initial, onClose, onSubmit, defaultContentTyp
           </div>
 
           {/* Content Sections Toggle */}
+          {uploadError && (
+            <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+              上传失败：{uploadError}
+            </div>
+          )}
+
           <div className="border-t pt-4">
             <button onClick={() => setShowContentEditor(v => !v)}
               className="flex items-center gap-2 text-sm font-medium text-[#1a4bc4] hover:text-[#153da0]">

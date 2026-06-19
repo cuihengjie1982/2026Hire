@@ -244,7 +244,6 @@ const uploadSignedStorageFileResumable = async (
       storeFingerprintForResuming: false,
       removeFingerprintOnSuccess: true,
       headers: {
-        ...(SUPABASE_ANON_KEY ? {apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}`} : {}),
         'x-upsert': 'false',
         'x-signature': token,
       },
