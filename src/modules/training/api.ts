@@ -41,6 +41,7 @@ export type {
 const MATERIAL_UPLOAD_TIMEOUT_MS = 15 * 60 * 1000;
 const RESUMABLE_UPLOAD_THRESHOLD_BYTES = 6 * 1024 * 1024;
 const DIRECT_SIGNED_UPLOAD_FALLBACK_MAX_BYTES = 100 * 1024 * 1024;
+const DIRECT_SIGNED_UPLOAD_RETRY_COUNT = 3;
 const SUPABASE_TUS_CHUNK_SIZE_BYTES = 6 * 1024 * 1024;
 
 const inferContentType = (file: File): string => {
@@ -160,6 +161,90 @@ const getStorageErrorMessage = (error: Error | DetailedError): string => {
 const shouldFallbackToDirectSignedUpload = (error: unknown): boolean => {
   const message = error instanceof Error ? error.message : String(error ?? '');
   return message.includes('Storage upload failed 400') || message.includes('response code: 400');
+};
+
+const isTransientUploadError = (error: unknown): boolean => {
+  const message = error instanceof Error ? error.message : String(error ?? '');
+  return message.includes('网络失败')
+    || message.includes('NetworkError')
+    || message.includes('Failed to fetch')
+    || message.includes('中断')
+    || message.includes('超时')
+    || message.includes('ERR_CONNECTION_CLOSED');
+};
+
+const waitForUploadRetry = (attemptIndex: number): Promise<void> => new Promise((resolve) => {
+  window.setTimeout(resolve, Math.min(10_000, 1_500 * 2 ** attemptIndex));
+});
+
+type SignedMaterialUploadInfo = {
+  bucket: string;
+  path: string;
+  token: string;
+  signedUrl: string;
+  publicUrl: string;
+  filename: string;
+};
+
+const createSignedMaterialUploadInfo = async (file: File, token: string | null): Promise<SignedMaterialUploadInfo> => {
+  const prepareRes = await fetch(`${API_BASE_URL}/functions/v1/embox-api/training/materials/signed-upload`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify({filename: file.name, contentType: file.type, size: file.size}),
+  });
+  const prepareText = await prepareRes.text();
+  const uploadInfo = prepareText ? JSON.parse(prepareText) : {};
+  if (!prepareRes.ok) {
+    throw new Error(uploadInfo?.error?.message || uploadInfo?.message || `Create upload URL failed ${prepareRes.status}`);
+  }
+  if (!uploadInfo?.signedUrl || !uploadInfo?.publicUrl) {
+    throw new Error('Create upload URL failed: empty signed upload response');
+  }
+
+  return {
+    bucket: String(uploadInfo.bucket ?? 'training-materials'),
+    path: String(uploadInfo.path),
+    token: String(uploadInfo.token),
+    signedUrl: String(uploadInfo.signedUrl),
+    publicUrl: String(uploadInfo.publicUrl),
+    filename: String(uploadInfo.filename ?? file.name),
+  };
+};
+
+const uploadWithRetriedSignedUrl = async (
+  file: File,
+  token: string | null,
+  onProgress?: (progress: number) => void,
+): Promise<SignedMaterialUploadInfo> => {
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt <= DIRECT_SIGNED_UPLOAD_RETRY_COUNT; attempt += 1) {
+    const uploadInfo = await createSignedMaterialUploadInfo(file, token);
+    try {
+      await uploadSignedStorageFile(
+        uploadInfo.bucket,
+        uploadInfo.path,
+        uploadInfo.token,
+        uploadInfo.signedUrl,
+        file,
+        onProgress,
+      );
+      return uploadInfo;
+    } catch (error) {
+      lastError = error;
+      if (attempt >= DIRECT_SIGNED_UPLOAD_RETRY_COUNT || !isTransientUploadError(error)) {
+        throw error;
+      }
+      console.warn(`[training upload] signed upload interrupted, retrying ${attempt + 1}/${DIRECT_SIGNED_UPLOAD_RETRY_COUNT}`, error);
+      onProgress?.(1);
+      await waitForUploadRetry(attempt);
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error('视频上传失败，请稍后重试');
 };
 
 const uploadMaterialViaApi = async (
@@ -1062,55 +1147,35 @@ export const uploadMaterial = async (
   }
 
   if (!isLocalDev) {
-    const prepareRes = await fetch(`${API_BASE_URL}/functions/v1/embox-api/training/materials/signed-upload`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-      body: JSON.stringify({filename: uploadFile.name, contentType: uploadFile.type, size: uploadFile.size}),
-    });
-    const prepareText = await prepareRes.text();
-    const uploadInfo = prepareText ? JSON.parse(prepareText) : {};
-    if (!prepareRes.ok) {
-      throw new Error(uploadInfo?.error?.message || uploadInfo?.message || `Create upload URL failed ${prepareRes.status}`);
-    }
-    if (!uploadInfo?.signedUrl || !uploadInfo?.publicUrl) {
-      throw new Error('Create upload URL failed: empty signed upload response');
+    if (uploadFile.size <= DIRECT_SIGNED_UPLOAD_FALLBACK_MAX_BYTES) {
+      const uploadInfo = await uploadWithRetriedSignedUrl(uploadFile, token, onProgress);
+      return {url: uploadInfo.publicUrl, filename: uploadFile.name};
     }
 
-    const bucket = String(uploadInfo.bucket ?? 'training-materials');
-    const path = String(uploadInfo.path);
-    const signedToken = String(uploadInfo.token);
+    const uploadInfo = await createSignedMaterialUploadInfo(uploadFile, token);
     if (uploadFile.size > RESUMABLE_UPLOAD_THRESHOLD_BYTES) {
       try {
-        await uploadSignedStorageFileResumable(bucket, path, signedToken, uploadFile, onProgress);
+        await uploadSignedStorageFileResumable(
+          uploadInfo.bucket,
+          uploadInfo.path,
+          uploadInfo.token,
+          uploadFile,
+          onProgress,
+        );
       } catch (error) {
         if (uploadFile.size > DIRECT_SIGNED_UPLOAD_FALLBACK_MAX_BYTES) throw error;
         if (!shouldFallbackToDirectSignedUpload(error)) {
           console.warn('[training upload] resumable upload failed, falling back to signed direct upload', error);
         }
-        await uploadSignedStorageFile(
-          bucket,
-          path,
-          signedToken,
-          String(uploadInfo.signedUrl),
-          uploadFile,
-          onProgress,
-        );
+        const retryInfo = await uploadWithRetriedSignedUrl(uploadFile, token, onProgress);
+        return {url: retryInfo.publicUrl, filename: uploadFile.name};
       }
     } else {
-      await uploadSignedStorageFile(
-        bucket,
-        path,
-        signedToken,
-        String(uploadInfo.signedUrl),
-        uploadFile,
-        onProgress,
-      );
+      const retryInfo = await uploadWithRetriedSignedUrl(uploadFile, token, onProgress);
+      return {url: retryInfo.publicUrl, filename: uploadFile.name};
     }
 
-    return {url: String(uploadInfo.publicUrl), filename: uploadFile.name};
+    return {url: uploadInfo.publicUrl, filename: uploadFile.name};
   }
 
   const formData = new FormData();
