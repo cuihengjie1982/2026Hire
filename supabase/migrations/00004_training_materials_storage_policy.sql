@@ -1,5 +1,13 @@
 DO $$
 BEGIN
+  INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+  VALUES ('training-materials', 'training-materials', true, 524288000, NULL)
+  ON CONFLICT (id) DO UPDATE
+  SET
+    public = true,
+    file_size_limit = 524288000,
+    allowed_mime_types = NULL;
+
   IF NOT EXISTS (
     SELECT 1
     FROM pg_policies

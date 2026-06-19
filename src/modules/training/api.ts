@@ -40,9 +40,9 @@ export type {
 
 const MATERIAL_UPLOAD_TIMEOUT_MS = 15 * 60 * 1000;
 const RESUMABLE_UPLOAD_THRESHOLD_BYTES = 6 * 1024 * 1024;
-const DIRECT_SIGNED_UPLOAD_FALLBACK_MAX_BYTES = 45 * 1024 * 1024;
 const DIRECT_SIGNED_UPLOAD_RETRY_COUNT = 3;
 const SUPABASE_TUS_CHUNK_SIZE_BYTES = 6 * 1024 * 1024;
+const VIDEO_FILE_EXTENSIONS = new Set(['mp4', 'm4v', 'mov', 'webm', 'avi', 'mkv']);
 
 const inferContentType = (file: File): string => {
   if (file.type) return file.type;
@@ -70,6 +70,10 @@ const normalizeUploadFile = (file: File): File => {
   const contentType = inferContentType(file);
   return file.type === contentType ? file : new File([file], file.name, {type: contentType, lastModified: file.lastModified});
 };
+
+const getFileExtension = (fileName: string): string => fileName.split('.').pop()?.toLowerCase() ?? '';
+
+const isVideoUploadFile = (file: File): boolean => file.type.startsWith('video/') || VIDEO_FILE_EXTENSIONS.has(getFileExtension(file.name));
 
 const getErrorMessageFromText = (text: string, fallback: string): string => {
   if (!text) return fallback;
@@ -99,10 +103,6 @@ const uploadSignedStorageFile = async (
 
     xhr.open('PUT', signedUrl);
     xhr.setRequestHeader('x-upsert', 'false');
-    if (SUPABASE_ANON_KEY) {
-      xhr.setRequestHeader('apikey', SUPABASE_ANON_KEY);
-      xhr.setRequestHeader('Authorization', `Bearer ${SUPABASE_ANON_KEY}`);
-    }
 
     xhr.upload.onprogress = (event) => {
       if (!event.lengthComputable || !event.total) return;
@@ -117,7 +117,8 @@ const uploadSignedStorageFile = async (
         resolve();
         return;
       }
-      reject(new Error(getErrorMessageFromText(xhr.responseText, `Storage upload failed ${xhr.status}`)));
+      const message = getErrorMessageFromText(xhr.responseText, `Storage upload failed ${xhr.status}`);
+      reject(new Error(`Direct signed upload failed: ${message}`));
     };
 
     xhr.onerror = () => {
@@ -158,11 +159,6 @@ const getStorageErrorMessage = (error: Error | DetailedError): string => {
   return status ? `Storage upload failed ${status}: ${body}` : body;
 };
 
-const shouldFallbackToDirectSignedUpload = (error: unknown): boolean => {
-  const message = error instanceof Error ? error.message : String(error ?? '');
-  return message.includes('Storage upload failed 400') || message.includes('response code: 400');
-};
-
 const isTransientUploadError = (error: unknown): boolean => {
   const message = error instanceof Error ? error.message : String(error ?? '');
   return message.includes('网络失败')
@@ -182,7 +178,6 @@ type SignedMaterialUploadInfo = {
   path: string;
   token: string;
   signedUrl: string;
-  uploadJwt?: string;
   publicUrl: string;
   filename: string;
 };
@@ -204,13 +199,15 @@ const createSignedMaterialUploadInfo = async (file: File, token: string | null):
   if (!uploadInfo?.signedUrl || !uploadInfo?.publicUrl) {
     throw new Error('Create upload URL failed: empty signed upload response');
   }
+  if (!uploadInfo?.token) {
+    throw new Error('Create upload URL failed: empty signed upload token');
+  }
 
   return {
     bucket: String(uploadInfo.bucket ?? 'training-materials'),
     path: String(uploadInfo.path),
     token: String(uploadInfo.token),
     signedUrl: String(uploadInfo.signedUrl),
-    uploadJwt: uploadInfo.uploadJwt ? String(uploadInfo.uploadJwt) : undefined,
     publicUrl: String(uploadInfo.publicUrl),
     filename: String(uploadInfo.filename ?? file.name),
   };
@@ -304,10 +301,9 @@ const uploadMaterialViaApi = async (
   });
 };
 
-const getSupabaseProjectRef = (): string => {
+const getSupabaseResumableUploadEndpoint = (): string => {
   try {
-    const host = new URL(API_BASE_URL).hostname;
-    return host.split('.')[0] ?? '';
+    return `${API_BASE_URL.replace(/\/$/, '')}/storage/v1/upload/resumable`;
   } catch {
     return '';
   }
@@ -316,29 +312,30 @@ const getSupabaseProjectRef = (): string => {
 const uploadSignedStorageFileResumable = async (
   bucket: string,
   path: string,
-  token: string,
-  uploadJwt: string | undefined,
+  authToken: string | null,
   file: File,
   onProgress?: (progress: number) => void,
 ): Promise<void> => {
-  const projectRef = getSupabaseProjectRef();
-  if (!projectRef) {
+  const endpoint = getSupabaseResumableUploadEndpoint();
+  if (!endpoint) {
     throw new Error('无法识别 Supabase 项目地址，不能使用大文件续传上传');
+  }
+  if (!authToken) {
+    throw new Error('登录状态已过期，请重新登录后上传视频');
   }
 
   onProgress?.(1);
   await new Promise<void>((resolve, reject) => {
     const upload = new tus.Upload(file, {
-      endpoint: `https://${projectRef}.storage.supabase.co/storage/v1/upload/resumable`,
+      endpoint,
       retryDelays: [0, 3000, 5000, 10000, 20000],
       chunkSize: SUPABASE_TUS_CHUNK_SIZE_BYTES,
-      uploadDataDuringCreation: true,
       storeFingerprintForResuming: false,
       removeFingerprintOnSuccess: true,
       headers: {
         ...(SUPABASE_ANON_KEY ? {apikey: SUPABASE_ANON_KEY} : {}),
+        authorization: `Bearer ${authToken}`,
         'x-upsert': 'false',
-        ...(uploadJwt ? {Authorization: `Bearer ${uploadJwt}`} : {'x-signature': token}),
       },
       metadata: {
         bucketName: bucket,
@@ -347,7 +344,7 @@ const uploadSignedStorageFileResumable = async (
         cacheControl: '3600',
       },
       onError: (error) => {
-        reject(new Error(getStorageErrorMessage(error)));
+        reject(new Error(`TUS upload failed: ${getStorageErrorMessage(error)}`));
       },
       onProgress: (bytesUploaded, bytesTotal) => {
         if (!bytesTotal) return;
@@ -1149,51 +1146,21 @@ export const uploadMaterial = async (
     return uploadMaterialViaApi('/api/training/materials/upload', uploadFile, token, onProgress);
   }
 
-  if (!isLocalDev) {
-    if (uploadFile.size <= DIRECT_SIGNED_UPLOAD_FALLBACK_MAX_BYTES) {
-      const uploadInfo = await uploadWithRetriedSignedUrl(uploadFile, token, onProgress);
-      return {url: uploadInfo.publicUrl, filename: uploadFile.name};
-    }
-
+  const shouldUseResumableUpload = isVideoUploadFile(uploadFile) || uploadFile.size > RESUMABLE_UPLOAD_THRESHOLD_BYTES;
+  if (shouldUseResumableUpload) {
     const uploadInfo = await createSignedMaterialUploadInfo(uploadFile, token);
-    if (uploadFile.size > RESUMABLE_UPLOAD_THRESHOLD_BYTES) {
-      try {
-        await uploadSignedStorageFileResumable(
-          uploadInfo.bucket,
-          uploadInfo.path,
-          uploadInfo.token,
-          uploadInfo.uploadJwt,
-          uploadFile,
-          onProgress,
-        );
-      } catch (error) {
-        if (uploadFile.size > DIRECT_SIGNED_UPLOAD_FALLBACK_MAX_BYTES) throw error;
-        if (!shouldFallbackToDirectSignedUpload(error)) {
-          console.warn('[training upload] resumable upload failed, falling back to signed direct upload', error);
-        }
-        const retryInfo = await uploadWithRetriedSignedUrl(uploadFile, token, onProgress);
-        return {url: retryInfo.publicUrl, filename: uploadFile.name};
-      }
-    } else {
-      const retryInfo = await uploadWithRetriedSignedUrl(uploadFile, token, onProgress);
-      return {url: retryInfo.publicUrl, filename: uploadFile.name};
-    }
-
+    await uploadSignedStorageFileResumable(
+      uploadInfo.bucket,
+      uploadInfo.path,
+      token,
+      uploadFile,
+      onProgress,
+    );
     return {url: uploadInfo.publicUrl, filename: uploadFile.name};
   }
 
-  const formData = new FormData();
-  formData.append('file', uploadFile);
-  const uploadUrl = '/api/training/materials/upload';
-  const res = await fetch(uploadUrl, {
-    method: 'POST',
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-    body: formData,
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data?.error?.message || `Upload failed ${res.status}`);
-  onProgress?.(100);
-  return data as MaterialUploadResult;
+  const uploadInfo = await uploadWithRetriedSignedUrl(uploadFile, token, onProgress);
+  return {url: uploadInfo.publicUrl, filename: uploadFile.name};
 };
 
 export const batchEnroll = async (input: BatchEnrollInput): Promise<BatchEnrollResult> => {

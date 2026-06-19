@@ -96,32 +96,6 @@ async function verifyTrainingVideoToken(courseId: string, token: string | null):
   return !!expected && timingSafeEqual(token, expected);
 }
 
-async function createStorageUploadJwt(): Promise<string> {
-  const secret = Deno.env.get('SUPABASE_JWT_SECRET') ?? '';
-  if (!secret) return '';
-
-  const encoder = new TextEncoder();
-  const key = await crypto.subtle.importKey(
-    'raw',
-    encoder.encode(secret),
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['sign'],
-  );
-  const now = Math.floor(Date.now() / 1000);
-  const header = base64Url(encoder.encode(JSON.stringify({ alg: 'HS256', typ: 'JWT' })));
-  const payload = base64Url(encoder.encode(JSON.stringify({
-    aud: 'authenticated',
-    exp: now + 2 * 60 * 60,
-    iat: now,
-    role: 'authenticated',
-    sub: 'training-material-upload',
-  })));
-  const signingInput = `${header}.${payload}`;
-  const signature = await crypto.subtle.sign('HMAC', key, encoder.encode(signingInput));
-  return `${signingInput}.${base64Url(new Uint8Array(signature))}`;
-}
-
 // =============================================================================
 // Courses
 // =============================================================================
@@ -1297,6 +1271,22 @@ const ensureTrainingMaterialsBucket = async (
 ) => {
   const { data: existingBucket, error: getBucketError } = await supabase.storage.getBucket(TRAINING_MATERIALS_BUCKET);
   if (existingBucket) {
+    const existingLimit = Number((existingBucket as { file_size_limit?: number | null; fileSizeLimit?: number | null }).file_size_limit
+      ?? (existingBucket as { fileSizeLimit?: number | null }).fileSizeLimit
+      ?? 0);
+    const shouldUpdateBucket = existingBucket.public !== true
+      || existingLimit <= 0
+      || existingLimit < TRAINING_MATERIALS_MAX_FILE_BYTES;
+    if (shouldUpdateBucket) {
+      const { error: updateBucketError } = await supabase.storage.updateBucket(TRAINING_MATERIALS_BUCKET, {
+        public: true,
+        fileSizeLimit: TRAINING_MATERIALS_MAX_FILE_BYTES,
+        allowedMimeTypes: null,
+      });
+      if (updateBucketError) {
+        throw new Error(`Update storage bucket failed: ${updateBucketError.message}`);
+      }
+    }
     return;
   }
 
@@ -1349,7 +1339,6 @@ const createSignedMaterialUpload = async (req: Request): Promise<Response> => {
       path,
       token: data.token,
       signedUrl: data.signedUrl,
-      uploadJwt: await createStorageUploadJwt(),
       publicUrl: urlData.publicUrl,
       filename: filenameRaw,
     });
