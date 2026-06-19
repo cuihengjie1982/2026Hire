@@ -159,6 +159,61 @@ const shouldFallbackToDirectSignedUpload = (error: unknown): boolean => {
   return message.includes('Storage upload failed 400') || message.includes('response code: 400');
 };
 
+const uploadMaterialViaApi = async (
+  url: string,
+  file: File,
+  token: string | null,
+  onProgress?: (progress: number) => void,
+): Promise<MaterialUploadResult> => {
+  onProgress?.(1);
+  return new Promise<MaterialUploadResult>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    const timer = window.setTimeout(() => {
+      xhr.abort();
+      reject(new Error('上传超时，请检查网络后重试'));
+    }, MATERIAL_UPLOAD_TIMEOUT_MS);
+
+    xhr.open('POST', url);
+    if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+
+    xhr.upload.onprogress = (event) => {
+      if (!event.lengthComputable || !event.total) return;
+      const progress = Math.max(1, Math.min(99, Math.round((event.loaded / event.total) * 100)));
+      onProgress?.(progress);
+    };
+
+    xhr.onload = () => {
+      window.clearTimeout(timer);
+      const text = xhr.responseText || '';
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          const data = JSON.parse(text) as MaterialUploadResult;
+          onProgress?.(100);
+          resolve(data);
+        } catch {
+          reject(new Error('上传成功但返回数据格式异常'));
+        }
+        return;
+      }
+      reject(new Error(getErrorMessageFromText(text, `Upload failed ${xhr.status}`)));
+    };
+
+    xhr.onerror = () => {
+      window.clearTimeout(timer);
+      reject(new Error('视频上传网络失败，请切换网络后重试'));
+    };
+
+    xhr.onabort = () => {
+      window.clearTimeout(timer);
+      reject(new Error('视频上传已中断，请重新选择文件上传'));
+    };
+
+    const formData = new FormData();
+    formData.append('file', file);
+    xhr.send(formData);
+  });
+};
+
 const getSupabaseProjectRef = (): string => {
   try {
     const host = new URL(API_BASE_URL).hostname;
@@ -998,6 +1053,13 @@ export const uploadMaterial = async (
   // In local Vite dev, use the same-origin /api proxy so uploads do not hit CORS.
   // In production, go through Supabase Edge Function.
   const isLocalDev = API_BASE_URL.includes('localhost') || API_BASE_URL.includes('127.0.0.1');
+  if (uploadFile.size <= DIRECT_UPLOAD_PREFERRED_MAX_BYTES) {
+    const uploadUrl = isLocalDev
+      ? '/api/training/materials/upload'
+      : `${API_BASE_URL}/functions/v1/embox-api/training/materials/upload`;
+    return uploadMaterialViaApi(uploadUrl, uploadFile, token, onProgress);
+  }
+
   if (!isLocalDev) {
     const prepareRes = await fetch(`${API_BASE_URL}/functions/v1/embox-api/training/materials/signed-upload`, {
       method: 'POST',
