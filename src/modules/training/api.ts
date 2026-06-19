@@ -182,6 +182,7 @@ type SignedMaterialUploadInfo = {
   path: string;
   token: string;
   signedUrl: string;
+  uploadJwt?: string;
   publicUrl: string;
   filename: string;
 };
@@ -209,6 +210,7 @@ const createSignedMaterialUploadInfo = async (file: File, token: string | null):
     path: String(uploadInfo.path),
     token: String(uploadInfo.token),
     signedUrl: String(uploadInfo.signedUrl),
+    uploadJwt: uploadInfo.uploadJwt ? String(uploadInfo.uploadJwt) : undefined,
     publicUrl: String(uploadInfo.publicUrl),
     filename: String(uploadInfo.filename ?? file.name),
   };
@@ -315,6 +317,7 @@ const uploadSignedStorageFileResumable = async (
   bucket: string,
   path: string,
   token: string,
+  uploadJwt: string | undefined,
   file: File,
   onProgress?: (progress: number) => void,
 ): Promise<void> => {
@@ -335,7 +338,7 @@ const uploadSignedStorageFileResumable = async (
       headers: {
         ...(SUPABASE_ANON_KEY ? {apikey: SUPABASE_ANON_KEY} : {}),
         'x-upsert': 'false',
-        'x-signature': token,
+        ...(uploadJwt ? {Authorization: `Bearer ${uploadJwt}`} : {'x-signature': token}),
       },
       metadata: {
         bucketName: bucket,
@@ -1159,6 +1162,7 @@ export const uploadMaterial = async (
           uploadInfo.bucket,
           uploadInfo.path,
           uploadInfo.token,
+          uploadInfo.uploadJwt,
           uploadFile,
           onProgress,
         );
