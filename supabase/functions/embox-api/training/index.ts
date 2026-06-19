@@ -1322,7 +1322,7 @@ const createSignedMaterialUpload = async (req: Request): Promise<Response> => {
 
     return jsonRes({
       bucket: TRAINING_MATERIALS_BUCKET,
-      path: data.path,
+      path,
       token: data.token,
       signedUrl: data.signedUrl,
       publicUrl: urlData.publicUrl,

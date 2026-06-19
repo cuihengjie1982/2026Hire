@@ -140,7 +140,10 @@ const getStorageErrorMessage = (error: Error | DetailedError): string => {
   const response = detailed.originalResponse;
   const status = response?.getStatus();
   const body = response?.getBody();
-  if (!body) return error.message || (status ? `Storage upload failed ${status}` : 'Storage upload failed');
+  if (!body) {
+    const cause = detailed.causingError?.message;
+    return cause || error.message || (status ? `Storage upload failed ${status}` : 'Storage upload failed');
+  }
 
   try {
     const data = JSON.parse(body) as {error?: string; message?: string; statusCode?: string | number};
@@ -244,6 +247,7 @@ const uploadSignedStorageFileResumable = async (
       storeFingerprintForResuming: false,
       removeFingerprintOnSuccess: true,
       headers: {
+        ...(SUPABASE_ANON_KEY ? {apikey: SUPABASE_ANON_KEY} : {}),
         'x-upsert': 'false',
         'x-signature': token,
       },
