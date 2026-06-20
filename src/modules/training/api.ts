@@ -1,5 +1,6 @@
 import {getItemsFromPayload} from '../../shared/lib/apiClient';
-import {USE_MOCK_API, API_BASE_URL, SUPABASE_ANON_KEY, getAuthToken} from '../../shared/lib/runtime';
+import {USE_MOCK_API, API_BASE_URL, SUPABASE_ANON_KEY, getAuthToken, setAuthToken} from '../../shared/lib/runtime';
+import {supabase} from '../../shared/lib/supabase';
 import * as tus from 'tus-js-client';
 import type {DetailedError} from 'tus-js-client';
 import {courseFixtures, enrollmentFixtures} from './fixtures';
@@ -42,6 +43,7 @@ const MATERIAL_UPLOAD_TIMEOUT_MS = 15 * 60 * 1000;
 const RESUMABLE_UPLOAD_THRESHOLD_BYTES = 6 * 1024 * 1024;
 const DIRECT_SIGNED_UPLOAD_RETRY_COUNT = 3;
 const SUPABASE_TUS_CHUNK_SIZE_BYTES = 6 * 1024 * 1024;
+const SUPABASE_TOKEN_REFRESH_SKEW_SECONDS = 10 * 60;
 const VIDEO_FILE_EXTENSIONS = new Set(['mp4', 'm4v', 'mov', 'webm', 'avi', 'mkv']);
 
 const inferContentType = (file: File): string => {
@@ -74,6 +76,31 @@ const normalizeUploadFile = (file: File): File => {
 const getFileExtension = (fileName: string): string => fileName.split('.').pop()?.toLowerCase() ?? '';
 
 const isVideoUploadFile = (file: File): boolean => file.type.startsWith('video/') || VIDEO_FILE_EXTENSIONS.has(getFileExtension(file.name));
+
+const getFreshAuthToken = async (): Promise<string | null> => {
+  if (USE_MOCK_API) return getAuthToken();
+
+  try {
+    const {data} = await supabase.auth.getSession();
+    const session = data.session;
+    if (!session?.access_token) return getAuthToken();
+
+    const nowSeconds = Math.floor(Date.now() / 1000);
+    const expiresAt = session.expires_at ?? 0;
+    if (expiresAt > 0 && expiresAt - nowSeconds <= SUPABASE_TOKEN_REFRESH_SKEW_SECONDS) {
+      const {data: refreshed, error} = await supabase.auth.refreshSession();
+      if (!error && refreshed.session?.access_token) {
+        setAuthToken(refreshed.session.access_token);
+        return refreshed.session.access_token;
+      }
+    }
+
+    setAuthToken(session.access_token);
+    return session.access_token;
+  } catch {
+    return getAuthToken();
+  }
+};
 
 const getErrorMessageFromText = (text: string, fallback: string): string => {
   if (!text) return fallback;
@@ -326,16 +353,35 @@ const uploadSignedStorageFileResumable = async (
 
   onProgress?.(1);
   await new Promise<void>((resolve, reject) => {
+    let activeAuthToken = authToken;
     const upload = new tus.Upload(file, {
       endpoint,
-      retryDelays: [0, 3000, 5000, 10000, 20000],
+      retryDelays: [0, 3000, 5000, 10000, 20000, 30000, 60000, 120000],
       chunkSize: SUPABASE_TUS_CHUNK_SIZE_BYTES,
       storeFingerprintForResuming: false,
       removeFingerprintOnSuccess: true,
       headers: {
         ...(SUPABASE_ANON_KEY ? {apikey: SUPABASE_ANON_KEY} : {}),
-        authorization: `Bearer ${authToken}`,
+        authorization: `Bearer ${activeAuthToken}`,
         'x-upsert': 'false',
+      },
+      uploadDataDuringCreation: false,
+      onBeforeRequest: async (req) => {
+        const nextAuthToken = await getFreshAuthToken();
+        if (nextAuthToken) {
+          activeAuthToken = nextAuthToken;
+          req.setHeader('authorization', `Bearer ${nextAuthToken}`);
+        }
+        if (SUPABASE_ANON_KEY) {
+          req.setHeader('apikey', SUPABASE_ANON_KEY);
+        }
+        req.setHeader('x-upsert', 'false');
+      },
+      onShouldRetry: (error) => {
+        const status = error.originalResponse?.getStatus();
+        if (!status) return true;
+        if ([400, 401, 403, 404, 409, 413].includes(status)) return false;
+        return status === 408 || status === 423 || status === 429 || status >= 500;
       },
       metadata: {
         bucketName: bucket,
@@ -1148,11 +1194,12 @@ export const uploadMaterial = async (
 
   const shouldUseResumableUpload = isVideoUploadFile(uploadFile) || uploadFile.size > RESUMABLE_UPLOAD_THRESHOLD_BYTES;
   if (shouldUseResumableUpload) {
-    const uploadInfo = await createSignedMaterialUploadInfo(uploadFile, token);
+    const freshToken = await getFreshAuthToken();
+    const uploadInfo = await createSignedMaterialUploadInfo(uploadFile, freshToken ?? token);
     await uploadSignedStorageFileResumable(
       uploadInfo.bucket,
       uploadInfo.path,
-      token,
+      freshToken ?? token,
       uploadFile,
       onProgress,
     );
