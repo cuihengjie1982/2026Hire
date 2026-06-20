@@ -207,6 +207,34 @@
         text-transform: uppercase;
         letter-spacing: 0.04em;
       }
+      .document-preview {
+        margin-top: 14px;
+        width: 100%;
+        min-height: 68vh;
+        border: 1px solid #e5e7eb;
+        border-radius: 10px;
+        background: #f9fafb;
+        overflow: hidden;
+      }
+      .document-preview iframe {
+        display: block;
+        width: 100%;
+        height: 68vh;
+        border: 0;
+        background: #fff;
+      }
+      .document-preview img {
+        display: block;
+        width: 100%;
+        height: auto;
+        background: #fff;
+      }
+      .document-preview-fallback {
+        padding: 18px;
+        color: #6b7280;
+        font-size: 14px;
+        line-height: 1.7;
+      }
       .hidden { display: none; }
     </style>
   </head>
@@ -337,6 +365,35 @@
           return toProxyUrl(url || '').split('?')[0];
         }
 
+        function getAbsoluteUrl(url) {
+          try {
+            return new URL(url, window.location.href).href;
+          } catch (e) {
+            return url;
+          }
+        }
+
+        function getPreviewInfo(rawUrl) {
+          var proxiedUrl = toProxyUrl(rawUrl);
+          var ext = getUrlExtension(proxiedUrl);
+          if (['doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx'].indexOf(ext) !== -1) {
+            var absolute = getAbsoluteUrl(proxiedUrl);
+            return {
+              type: 'iframe',
+              url: 'https://view.officeapps.live.com/op/embed.aspx?src=' + encodeURIComponent(absolute),
+              openUrl: 'https://view.officeapps.live.com/op/view.aspx?src=' + encodeURIComponent(absolute),
+              note: 'Word/Office 文件使用在线预览服务打开。'
+            };
+          }
+          if (['pdf', 'txt', 'md'].indexOf(ext) !== -1) {
+            return { type: 'iframe', url: proxiedUrl, openUrl: proxiedUrl };
+          }
+          if (['jpg', 'jpeg', 'png', 'gif', 'webp'].indexOf(ext) !== -1) {
+            return { type: 'image', url: proxiedUrl, openUrl: proxiedUrl };
+          }
+          return { type: 'fallback', url: proxiedUrl, openUrl: proxiedUrl };
+        }
+
         function isIOSDevice() {
           var ua = navigator.userAgent || '';
           return /iPhone|iPad|iPod/i.test(ua) || (/Macintosh/i.test(ua) && 'ontouchend' in document);
@@ -444,6 +501,7 @@
           setMessage('请点击下方按钮打开或下载培训文档。');
           docs.forEach(function (doc) {
             var url = toProxyUrl(doc.url);
+            var preview = getPreviewInfo(doc.url);
             var card = document.createElement('div');
             card.className = 'document-card';
             var title = document.createElement('p');
@@ -452,13 +510,32 @@
             var type = document.createElement('p');
             type.className = 'document-type';
             type.textContent = doc.type || 'document';
+            var previewWrap = document.createElement('div');
+            previewWrap.className = 'document-preview';
+            if (preview.type === 'iframe') {
+              var iframe = document.createElement('iframe');
+              iframe.src = preview.url;
+              iframe.title = doc.title || '培训文档预览';
+              iframe.setAttribute('allowfullscreen', 'true');
+              previewWrap.appendChild(iframe);
+            } else if (preview.type === 'image') {
+              var image = document.createElement('img');
+              image.src = preview.url;
+              image.alt = doc.title || '培训图片';
+              previewWrap.appendChild(image);
+            } else {
+              var fallback = document.createElement('div');
+              fallback.className = 'document-preview-fallback';
+              fallback.textContent = '当前文件类型无法内嵌预览，请点击下方“新窗口预览”或“下载文件”。';
+              previewWrap.appendChild(fallback);
+            }
             var actionWrap = document.createElement('div');
             actionWrap.className = 'actions';
             var open = document.createElement('a');
-            open.href = url;
+            open.href = preview.openUrl || url;
             open.target = '_blank';
             open.rel = 'noreferrer';
-            open.textContent = '打开文档';
+            open.textContent = '新窗口预览';
             var download = document.createElement('a');
             download.href = url;
             download.setAttribute('download', '');
@@ -468,6 +545,7 @@
             actionWrap.appendChild(download);
             card.appendChild(title);
             card.appendChild(type);
+            card.appendChild(previewWrap);
             card.appendChild(actionWrap);
             documentPanelEl.appendChild(card);
           });
