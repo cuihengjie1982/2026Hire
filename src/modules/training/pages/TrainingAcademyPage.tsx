@@ -477,6 +477,21 @@ export const VideoShareTab = ({courses, onAddCourse, onPreview, onCaptionsGenera
   onEditCourse?: (course: TrainingCourse) => void;
   onDeleteCourse?: (course: TrainingCourse) => void;
 }) => {
+  type AssetKind = 'video' | 'document';
+  type AssetFilter = 'all' | 'video' | 'document' | 'pdf' | 'word' | 'other';
+  type ShareableAsset = {
+    id: string;
+    course: TrainingCourse;
+    title: string;
+    url: string;
+    kind: AssetKind;
+    kindLabel: string;
+    sourceLabel: string;
+    extension: string;
+    captionsCount: number;
+    searchText: string;
+  };
+
   const getShareUrlExtension = (url?: string) => {
     if (!url) return '';
     try {
@@ -486,6 +501,14 @@ export const VideoShareTab = ({courses, onAddCourse, onPreview, onCaptionsGenera
     }
   };
   const isShareableVideoUrl = (url?: string) => ['mp4', 'm4v', 'mov', 'webm', 'avi', 'mkv'].includes(getShareUrlExtension(url));
+  const getDocumentLabel = (extension: string) => {
+    if (extension === 'pdf') return 'PDF';
+    if (['doc', 'docx'].includes(extension)) return 'Word';
+    if (['ppt', 'pptx'].includes(extension)) return 'PPT';
+    if (['xls', 'xlsx'].includes(extension)) return '表格';
+    if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(extension)) return '图片';
+    return '文档';
+  };
   const getShareableItems = (course: TrainingCourse) => {
     const sectionItems = course.content
       .filter(section => Boolean(section.contentUrl))
@@ -493,7 +516,8 @@ export const VideoShareTab = ({courses, onAddCourse, onPreview, onCaptionsGenera
         id: `section-${index}`,
         title: section.sectionTitle || `章节 ${index + 1}`,
         url: section.contentUrl!,
-        kind: isShareableVideoUrl(section.contentUrl) ? '视频' : '文档',
+        kind: (section.contentType === 'video' || isShareableVideoUrl(section.contentUrl)) ? 'video' as const : 'document' as const,
+        sourceLabel: `章节 ${index + 1}`,
       }));
     const materialItems = course.materials
       .filter(material => Boolean(material.url))
@@ -501,20 +525,69 @@ export const VideoShareTab = ({courses, onAddCourse, onPreview, onCaptionsGenera
         id: `material-${index}`,
         title: material.title || `资料 ${index + 1}`,
         url: material.url!,
-        kind: isShareableVideoUrl(material.url) ? '视频' : '文档',
+        kind: (material.type === 'video' || isShareableVideoUrl(material.url)) ? 'video' as const : 'document' as const,
+        sourceLabel: `资料 ${index + 1}`,
       }));
     return [...sectionItems, ...materialItems];
   };
   const hasShareableContent = (course: TrainingCourse) => getShareableItems(course).length > 0;
   const getVideoCount = (course: TrainingCourse) =>
-    getShareableItems(course).filter(item => item.kind === '视频').length;
+    getShareableItems(course).filter(item => item.kind === 'video').length;
   const shareableCourses = courses.filter(hasShareableContent);
+  const assets: ShareableAsset[] = shareableCourses.flatMap(course => getShareableItems(course).map(item => {
+    const extension = getShareUrlExtension(item.url);
+    const kindLabel = item.kind === 'video' ? '视频' : getDocumentLabel(extension);
+    return {
+      id: `${course.id}::${item.id}`,
+      course,
+      title: item.title,
+      url: item.url,
+      kind: item.kind,
+      kindLabel,
+      sourceLabel: item.sourceLabel,
+      extension,
+      captionsCount: course.assessmentConfig.actionCaptions?.length ?? 0,
+      searchText: `${course.title} ${course.description} ${course.category} ${item.title} ${kindLabel} ${extension}`.toLowerCase(),
+    };
+  }));
+  const categories = Array.from(new Set(assets.map(asset => asset.course.category || '综合'))).sort((a, b) => a.localeCompare(b, 'zh-Hans-CN'));
   const [links, setLinks] = useState<Record<string, string>>({});
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [captionLoadingId, setCaptionLoadingId] = useState<string | null>(null);
   const [captionProgress, setCaptionProgress] = useState<Record<string, number>>({});
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [error, setError] = useState('');
+  const [query, setQuery] = useState('');
+  const [kindFilter, setKindFilter] = useState<AssetFilter>('all');
+  const [categoryFilter, setCategoryFilter] = useState('全部');
+  const [page, setPage] = useState(1);
+  const pageSize = 12;
+
+  const filteredAssets = assets.filter(asset => {
+    const normalizedQuery = query.trim().toLowerCase();
+    const matchesSearch = !normalizedQuery || asset.searchText.includes(normalizedQuery);
+    const matchesCategory = categoryFilter === '全部' || asset.course.category === categoryFilter;
+    const matchesKind = kindFilter === 'all'
+      || (kindFilter === 'video' && asset.kind === 'video')
+      || (kindFilter === 'document' && asset.kind === 'document')
+      || (kindFilter === 'pdf' && asset.extension === 'pdf')
+      || (kindFilter === 'word' && ['doc', 'docx'].includes(asset.extension))
+      || (kindFilter === 'other' && asset.kind === 'document' && !['pdf', 'doc', 'docx'].includes(asset.extension));
+    return matchesSearch && matchesCategory && matchesKind;
+  });
+  const totalPages = Math.max(1, Math.ceil(filteredAssets.length / pageSize));
+  const safePage = Math.min(page, totalPages);
+  const pageAssets = filteredAssets.slice((safePage - 1) * pageSize, safePage * pageSize);
+  const assetCounts = {
+    video: assets.filter(asset => asset.kind === 'video').length,
+    document: assets.filter(asset => asset.kind === 'document').length,
+    pdf: assets.filter(asset => asset.extension === 'pdf').length,
+    word: assets.filter(asset => ['doc', 'docx'].includes(asset.extension)).length,
+  };
+
+  useEffect(() => {
+    setPage(1);
+  }, [query, kindFilter, categoryFilter]);
 
   const getLinkKey = (courseId: string, targetUrl?: string) => targetUrl ? `${courseId}::${targetUrl}` : courseId;
 
@@ -572,21 +645,29 @@ export const VideoShareTab = ({courses, onAddCourse, onPreview, onCaptionsGenera
     }
   };
 
+  const filters: {id: AssetFilter; label: string; count: number}[] = [
+    {id: 'all', label: '全部资料', count: assets.length},
+    {id: 'video', label: '视频', count: assetCounts.video},
+    {id: 'document', label: '文档', count: assetCounts.document},
+    {id: 'pdf', label: 'PDF', count: assetCounts.pdf},
+    {id: 'word', label: 'Word', count: assetCounts.word},
+  ];
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <div className="bg-white rounded-xl border border-gray-200 p-5">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <h2 className="font-semibold text-gray-900 flex items-center gap-2">
               <Link2 className="w-4 h-4 text-[#1a4bc4]" />
-              员工培训资料分享
+              员工培训资料库
             </h2>
             <p className="text-sm text-gray-500 mt-1">
-              生成后可通过微信发送给已入职员工，员工无需报名课程、无需登录后台即可观看视频或打开文档。
+              按视频、PDF、Word 和课程分类管理公开资料链接，员工无需报名课程、无需登录后台即可观看或预览。
             </p>
           </div>
           <button onClick={onAddCourse} className="flex items-center justify-center gap-2 px-4 py-2 bg-[#1a4bc4] text-white rounded-lg text-sm hover:bg-[#153da0] transition-colors">
-            <Plus className="w-4 h-4" /> 新建视频课程
+            <Plus className="w-4 h-4" /> 新建资料
           </button>
         </div>
       </div>
@@ -607,133 +688,320 @@ export const VideoShareTab = ({courses, onAddCourse, onPreview, onCaptionsGenera
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-          {shareableCourses.map(course => {
-            const videoCount = getVideoCount(course);
-            const courseLinkKey = getLinkKey(course.id);
-            const link = links[courseLinkKey];
-            const isLoading = loadingId === courseLinkKey;
-            const isCaptionLoading = captionLoadingId === course.id;
-            const captionsCount = course.assessmentConfig.actionCaptions?.length ?? 0;
-            const progress = captionProgress[course.id] ?? 0;
-            const copied = copiedId === courseLinkKey;
-            const shareableItems = getShareableItems(course);
-
-            return (
-              <div key={course.id} className="bg-white rounded-xl border border-gray-200 p-5 space-y-4">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="min-w-0">
-                    <h3 className="font-semibold text-gray-900 truncate">{course.title}</h3>
-                    <p className="text-sm text-gray-500 mt-1 line-clamp-2">{course.description || '暂无课程描述'}</p>
-                  </div>
-                  <span className={`shrink-0 px-2 py-0.5 rounded text-xs font-medium ${(DIFFICULTY_LABELS[course.difficulty]?.color ?? 'bg-gray-100 text-gray-600')}`}>
-                    {course.difficulty}
-                  </span>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2 text-xs">
-                  <span className={`px-2 py-0.5 rounded font-medium ${CATEGORY_COLORS[course.category] ?? 'bg-gray-100 text-gray-600'}`}>
-                    {course.category}
-                  </span>
-                  <span className="flex items-center gap-1 text-gray-500">
-                    <PlayCircle className="w-3.5 h-3.5" /> {videoCount} 个视频
-                  </span>
-                  <span className="flex items-center gap-1 text-gray-500">
-                    <FileText className="w-3.5 h-3.5" /> {shareableItems.filter(item => item.kind === '文档').length} 个文档
-                  </span>
-                  <span className="flex items-center gap-1 text-gray-500">
-                    <Clock className="w-3.5 h-3.5" /> {course.durationMinutes} 分钟
-                  </span>
-                  <span className={`flex items-center gap-1 ${captionsCount > 0 ? 'text-emerald-600' : 'text-gray-400'}`}>
-                    <Sparkles className="w-3.5 h-3.5" /> {captionsCount > 0 ? `${captionsCount} 条动作字幕` : '未生成动作字幕'}
-                  </span>
-                </div>
-
-                <div className="rounded-lg bg-gray-50 border border-gray-200 p-3">
-                  {link ? (
-                    <p className="text-xs text-gray-600 break-all">{link}</p>
-                  ) : (
-                    <p className="text-xs text-gray-400">点击“生成并复制链接”后，可直接粘贴到微信发送给员工。</p>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  {shareableItems.map(item => {
-                    const itemKey = getLinkKey(course.id, item.url);
-                    const itemLoading = loadingId === itemKey;
-                    const itemCopied = copiedId === itemKey;
-                    return (
-                      <div key={item.id} className="flex flex-col sm:flex-row sm:items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2">
-                        <div className="min-w-0 flex-1">
-                          <p className="text-xs font-medium text-gray-700 truncate">{item.title}</p>
-                          <p className="text-[11px] text-gray-400">{item.kind} · {getShareUrlExtension(item.url) || 'file'}</p>
-                        </div>
-                        <button
-                          onClick={() => handleCopy(course.id, item.url)}
-                          disabled={itemLoading || isCaptionLoading}
-                          className="shrink-0 flex items-center justify-center gap-1.5 px-3 py-1.5 bg-gray-900 text-white rounded-lg text-xs hover:bg-black disabled:opacity-60 transition-colors"
-                        >
-                          {itemLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Copy className="w-3.5 h-3.5" />}
-                          {itemCopied ? '已复制' : `复制${item.kind}链接`}
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                  <button
-                    onClick={() => handleCopy(course.id)}
-                    disabled={isLoading || isCaptionLoading}
-                    className="flex items-center justify-center gap-2 px-3 py-2 bg-[#1a4bc4] text-white rounded-lg text-sm hover:bg-[#153da0] disabled:opacity-60 transition-colors"
-                  >
-                    {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Copy className="w-4 h-4" />}
-                    {copied ? '已复制' : link ? '复制链接' : '生成并复制'}
-                  </button>
-                  <button
-                    onClick={() => handleOpen(course.id)}
-                    disabled={isLoading || isCaptionLoading}
-                    className="flex items-center justify-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm hover:bg-gray-50 disabled:opacity-60 transition-colors"
-                  >
-                    <ExternalLink className="w-4 h-4" /> 打开公开页
-                  </button>
-                  <button
-                    onClick={() => handleGenerateCaptions(course)}
-                    disabled={isLoading || isCaptionLoading}
-                    className="flex items-center justify-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm hover:bg-gray-50 disabled:opacity-60 transition-colors"
-                  >
-                    {isCaptionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-                    {isCaptionLoading ? `${progress}%` : captionsCount > 0 ? '重新生成字幕' : '生成动作字幕'}
-                  </button>
-                  {onEditCourse && (
-                    <button
-                      onClick={() => onEditCourse(course)}
-                      disabled={isCaptionLoading}
-                      className="flex items-center justify-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm hover:bg-gray-50 disabled:opacity-60 transition-colors"
-                    >
-                      <Edit3 className="w-4 h-4" /> 编辑视频
-                    </button>
-                  )}
-                  {onDeleteCourse && (
-                    <button
-                      onClick={() => onDeleteCourse(course)}
-                      disabled={isLoading || isCaptionLoading}
-                      className="flex items-center justify-center gap-2 px-3 py-2 bg-white border border-red-200 text-red-600 rounded-lg text-sm hover:bg-red-50 disabled:opacity-60 transition-colors"
-                    >
-                      <Trash2 className="w-4 h-4" /> 删除视频
-                    </button>
-                  )}
-                  <button
-                    onClick={() => onPreview(course.id)}
-                    disabled={isCaptionLoading}
-                    className="flex items-center justify-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm hover:bg-gray-50 disabled:opacity-60 transition-colors"
-                  >
-                    <PlayCircle className="w-4 h-4" /> 后台预览
-                  </button>
-                </div>
+        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <div className="p-4 border-b border-gray-200 space-y-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="rounded-lg border border-gray-200 px-3 py-2">
+                <p className="text-xs text-gray-500">全部资料</p>
+                <p className="text-xl font-bold text-gray-900">{assets.length}</p>
               </div>
-            );
-          })}
+              <div className="rounded-lg border border-gray-200 px-3 py-2">
+                <p className="text-xs text-gray-500">视频</p>
+                <p className="text-xl font-bold text-gray-900">{assetCounts.video}</p>
+              </div>
+              <div className="rounded-lg border border-gray-200 px-3 py-2">
+                <p className="text-xs text-gray-500">文档</p>
+                <p className="text-xl font-bold text-gray-900">{assetCounts.document}</p>
+              </div>
+              <div className="rounded-lg border border-gray-200 px-3 py-2">
+                <p className="text-xs text-gray-500">课程</p>
+                <p className="text-xl font-bold text-gray-900">{shareableCourses.length}</p>
+              </div>
+            </div>
+
+            <div className="flex flex-col xl:flex-row gap-3">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  value={query}
+                  onChange={event => setQuery(event.target.value)}
+                  placeholder="搜索标题、课程、分类、文件类型"
+                  className="w-full pl-9 pr-9 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4] focus:border-transparent"
+                />
+                {query && (
+                  <button onClick={() => setQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {filters.map(filter => (
+                  <button
+                    key={filter.id}
+                    onClick={() => setKindFilter(filter.id)}
+                    className={`px-3 py-2 rounded-lg text-sm border transition-colors ${
+                      kindFilter === filter.id
+                        ? 'bg-gray-900 border-gray-900 text-white'
+                        : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    {filter.label} <span className={kindFilter === filter.id ? 'text-gray-300' : 'text-gray-400'}>{filter.count}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 overflow-x-auto pb-1">
+              {['全部', ...categories].map(category => {
+                const count = category === '全部' ? assets.length : assets.filter(asset => asset.course.category === category).length;
+                return (
+                  <button
+                    key={category}
+                    onClick={() => setCategoryFilter(category)}
+                    className={`shrink-0 px-3 py-1.5 rounded-full text-xs border transition-colors ${
+                      categoryFilter === category
+                        ? 'bg-[#1a4bc4] border-[#1a4bc4] text-white'
+                        : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    {category} <span className={categoryFilter === category ? 'text-blue-100' : 'text-gray-400'}>{count}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="hidden lg:block overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-gray-50 border-b border-gray-200">
+                  <th className="text-left px-4 py-3 text-gray-500 font-medium">资料</th>
+                  <th className="text-left px-4 py-3 text-gray-500 font-medium">课程</th>
+                  <th className="text-left px-4 py-3 text-gray-500 font-medium">分类</th>
+                  <th className="text-left px-4 py-3 text-gray-500 font-medium">状态</th>
+                  <th className="text-right px-4 py-3 text-gray-500 font-medium">操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pageAssets.map(asset => {
+                  const itemKey = getLinkKey(asset.course.id, asset.url);
+                  const courseLinkKey = getLinkKey(asset.course.id);
+                  const itemLoading = loadingId === itemKey;
+                  const courseLoading = loadingId === courseLinkKey;
+                  const isCaptionLoading = captionLoadingId === asset.course.id;
+                  const progress = captionProgress[asset.course.id] ?? 0;
+                  const itemCopied = copiedId === itemKey;
+                  const courseCopied = copiedId === courseLinkKey;
+                  return (
+                    <tr key={asset.id} className="border-b border-gray-100 hover:bg-gray-50">
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-3 min-w-[260px]">
+                          <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${asset.kind === 'video' ? 'bg-indigo-50 text-indigo-600' : 'bg-emerald-50 text-emerald-600'}`}>
+                            {asset.kind === 'video' ? <PlayCircle className="w-4 h-4" /> : <FileText className="w-4 h-4" />}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="font-medium text-gray-900 truncate">{asset.title}</p>
+                            <p className="text-xs text-gray-400">{asset.kindLabel} · {asset.extension || 'file'} · {asset.sourceLabel}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <p className="font-medium text-gray-800 truncate max-w-[220px]">{asset.course.title}</p>
+                        <p className="text-xs text-gray-400 truncate max-w-[220px]">{asset.course.description || '暂无描述'}</p>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`px-2 py-0.5 rounded text-xs font-medium ${CATEGORY_COLORS[asset.course.category] ?? 'bg-gray-100 text-gray-600'}`}>
+                          {asset.course.category}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="space-y-1 text-xs">
+                          <p className="flex items-center gap-1 text-gray-500">
+                            <Clock className="w-3.5 h-3.5" /> {asset.course.durationMinutes} 分钟
+                          </p>
+                          <p className={`flex items-center gap-1 ${asset.captionsCount > 0 ? 'text-emerald-600' : 'text-gray-400'}`}>
+                            <Sparkles className="w-3.5 h-3.5" /> {asset.captionsCount > 0 ? `${asset.captionsCount} 条动作字幕` : '未生成字幕'}
+                          </p>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => handleCopy(asset.course.id, asset.url)}
+                            disabled={itemLoading || isCaptionLoading}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-900 text-white rounded-lg text-xs hover:bg-black disabled:opacity-60 transition-colors"
+                          >
+                            {itemLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Copy className="w-3.5 h-3.5" />}
+                            {itemCopied ? '已复制' : '复制链接'}
+                          </button>
+                          <button
+                            onClick={() => handleOpen(asset.course.id, asset.url)}
+                            disabled={itemLoading || isCaptionLoading}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 text-gray-700 rounded-lg text-xs hover:bg-gray-50 disabled:opacity-60 transition-colors"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" /> 打开
+                          </button>
+                          {asset.kind === 'video' && (
+                            <button
+                              onClick={() => handleGenerateCaptions(asset.course)}
+                              disabled={courseLoading || isCaptionLoading}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 text-gray-700 rounded-lg text-xs hover:bg-gray-50 disabled:opacity-60 transition-colors"
+                            >
+                              {isCaptionLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                              {isCaptionLoading ? `${progress}%` : asset.captionsCount > 0 ? '重生成' : '字幕'}
+                            </button>
+                          )}
+                          <button
+                            onClick={() => handleCopy(asset.course.id)}
+                            disabled={courseLoading || isCaptionLoading}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 text-gray-700 rounded-lg text-xs hover:bg-gray-50 disabled:opacity-60 transition-colors"
+                          >
+                            {courseLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <BookOpen className="w-3.5 h-3.5" />}
+                            {courseCopied ? '已复制' : '整课'}
+                          </button>
+                          <button
+                            onClick={() => onPreview(asset.course.id)}
+                            disabled={isCaptionLoading}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 text-gray-700 rounded-lg text-xs hover:bg-gray-50 disabled:opacity-60 transition-colors"
+                          >
+                            <PlayCircle className="w-3.5 h-3.5" /> 预览
+                          </button>
+                          {onEditCourse && (
+                            <button
+                              onClick={() => onEditCourse(asset.course)}
+                              disabled={isCaptionLoading}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 text-gray-700 rounded-lg text-xs hover:bg-gray-50 disabled:opacity-60 transition-colors"
+                            >
+                              <Edit3 className="w-3.5 h-3.5" /> 编辑
+                            </button>
+                          )}
+                          {onDeleteCourse && (
+                            <button
+                              onClick={() => onDeleteCourse(asset.course)}
+                              disabled={courseLoading || isCaptionLoading}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-red-200 text-red-600 rounded-lg text-xs hover:bg-red-50 disabled:opacity-60 transition-colors"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" /> 删除
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="lg:hidden divide-y divide-gray-100">
+            {pageAssets.map(asset => {
+              const itemKey = getLinkKey(asset.course.id, asset.url);
+              const courseLinkKey = getLinkKey(asset.course.id);
+              const itemLoading = loadingId === itemKey;
+              const isCaptionLoading = captionLoadingId === asset.course.id;
+              const progress = captionProgress[asset.course.id] ?? 0;
+              const itemCopied = copiedId === itemKey;
+              return (
+                <div key={asset.id} className="p-4 space-y-3">
+                  <div className="flex items-start gap-3">
+                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${asset.kind === 'video' ? 'bg-indigo-50 text-indigo-600' : 'bg-emerald-50 text-emerald-600'}`}>
+                      {asset.kind === 'video' ? <PlayCircle className="w-5 h-5" /> : <FileText className="w-5 h-5" />}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold text-gray-900">{asset.title}</p>
+                      <p className="text-xs text-gray-400 mt-1">{asset.kindLabel} · {asset.extension || 'file'} · {asset.course.title}</p>
+                      <div className="flex flex-wrap items-center gap-2 mt-2">
+                        <span className={`px-2 py-0.5 rounded text-xs font-medium ${CATEGORY_COLORS[asset.course.category] ?? 'bg-gray-100 text-gray-600'}`}>
+                          {asset.course.category}
+                        </span>
+                        <span className={`text-xs flex items-center gap-1 ${asset.captionsCount > 0 ? 'text-emerald-600' : 'text-gray-400'}`}>
+                          <Sparkles className="w-3 h-3" /> {asset.captionsCount > 0 ? `${asset.captionsCount} 条字幕` : '未生成字幕'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => handleCopy(asset.course.id, asset.url)}
+                      disabled={itemLoading || isCaptionLoading}
+                      className="flex items-center justify-center gap-1.5 px-3 py-2 bg-gray-900 text-white rounded-lg text-xs hover:bg-black disabled:opacity-60"
+                    >
+                      {itemLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Copy className="w-3.5 h-3.5" />}
+                      {itemCopied ? '已复制' : '复制链接'}
+                    </button>
+                    <button
+                      onClick={() => handleOpen(asset.course.id, asset.url)}
+                      disabled={itemLoading || isCaptionLoading}
+                      className="flex items-center justify-center gap-1.5 px-3 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-xs hover:bg-gray-50 disabled:opacity-60"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" /> 打开
+                    </button>
+                    {asset.kind === 'video' && (
+                      <button
+                        onClick={() => handleGenerateCaptions(asset.course)}
+                        disabled={isCaptionLoading}
+                        className="flex items-center justify-center gap-1.5 px-3 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-xs hover:bg-gray-50 disabled:opacity-60"
+                      >
+                        {isCaptionLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                        {isCaptionLoading ? `${progress}%` : '动作字幕'}
+                      </button>
+                    )}
+                    <button
+                      onClick={() => handleCopy(asset.course.id)}
+                      disabled={loadingId === courseLinkKey || isCaptionLoading}
+                      className="flex items-center justify-center gap-1.5 px-3 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-xs hover:bg-gray-50 disabled:opacity-60"
+                    >
+                      <BookOpen className="w-3.5 h-3.5" /> 整课链接
+                    </button>
+                    <button
+                      onClick={() => onPreview(asset.course.id)}
+                      disabled={isCaptionLoading}
+                      className="flex items-center justify-center gap-1.5 px-3 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-xs hover:bg-gray-50 disabled:opacity-60"
+                    >
+                      <PlayCircle className="w-3.5 h-3.5" /> 预览
+                    </button>
+                    {onEditCourse && (
+                      <button
+                        onClick={() => onEditCourse(asset.course)}
+                        disabled={isCaptionLoading}
+                        className="flex items-center justify-center gap-1.5 px-3 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-xs hover:bg-gray-50 disabled:opacity-60"
+                      >
+                        <Edit3 className="w-3.5 h-3.5" /> 编辑
+                      </button>
+                    )}
+                    {onDeleteCourse && (
+                      <button
+                        onClick={() => onDeleteCourse(asset.course)}
+                        disabled={isCaptionLoading}
+                        className="flex items-center justify-center gap-1.5 px-3 py-2 bg-white border border-red-200 text-red-600 rounded-lg text-xs hover:bg-red-50 disabled:opacity-60"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" /> 删除
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {filteredAssets.length === 0 && (
+            <div className="text-center py-12 text-gray-400">
+              <Search className="w-10 h-10 mx-auto mb-2 opacity-50" />
+              没有匹配的培训资料
+            </div>
+          )}
+
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 py-3 bg-gray-50 border-t border-gray-200 text-sm">
+            <span className="text-gray-500">
+              共 {filteredAssets.length} 条，当前第 {safePage} / {totalPages} 页
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setPage(prev => Math.max(1, prev - 1))}
+                disabled={safePage <= 1}
+                className="px-3 py-1.5 bg-white border border-gray-200 text-gray-700 rounded-lg disabled:opacity-50 hover:bg-gray-50"
+              >
+                上一页
+              </button>
+              <button
+                onClick={() => setPage(prev => Math.min(totalPages, prev + 1))}
+                disabled={safePage >= totalPages}
+                className="px-3 py-1.5 bg-white border border-gray-200 text-gray-700 rounded-lg disabled:opacity-50 hover:bg-gray-50"
+              >
+                下一页
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
