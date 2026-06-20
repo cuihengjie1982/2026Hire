@@ -41,22 +41,29 @@ export const PublicPdfPreviewPage = () => {
           if (cancelled) return;
           const page = await pdf.getPage(pageNumber);
           const viewport = page.getViewport({scale: 1});
-          const scale = Math.min(2, width / viewport.width);
+          const scale = width / viewport.width;
           const scaledViewport = page.getViewport({scale});
+          const outputScale = Math.min(Math.max(window.devicePixelRatio || 1, 2), 3);
           const canvas = document.createElement('canvas');
           const context = canvas.getContext('2d');
           if (!context) throw new Error('当前浏览器无法创建 PDF 画布');
-          canvas.width = Math.floor(scaledViewport.width);
-          canvas.height = Math.floor(scaledViewport.height);
-          canvas.style.width = '100%';
-          canvas.style.height = 'auto';
+          canvas.width = Math.floor(scaledViewport.width * outputScale);
+          canvas.height = Math.floor(scaledViewport.height * outputScale);
+          canvas.style.width = `${Math.floor(scaledViewport.width)}px`;
+          canvas.style.maxWidth = '100%';
+          canvas.style.height = `${Math.floor(scaledViewport.height)}px`;
           canvas.style.display = 'block';
           canvas.style.margin = '0 auto 14px';
           canvas.style.background = '#fff';
           canvas.style.borderRadius = '8px';
           canvas.style.boxShadow = '0 1px 8px rgba(15, 23, 42, 0.08)';
           container.appendChild(canvas);
-          await page.render({canvas, canvasContext: context, viewport: scaledViewport}).promise;
+          await page.render({
+            canvas,
+            canvasContext: context,
+            viewport: scaledViewport,
+            transform: outputScale !== 1 ? [outputScale, 0, 0, outputScale, 0, 0] : undefined,
+          }).promise;
         }
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : 'PDF 预览失败');
