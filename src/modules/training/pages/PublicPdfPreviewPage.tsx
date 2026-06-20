@@ -1,6 +1,6 @@
 import {useEffect, useRef, useState} from 'react';
 import {useSearchParams} from 'react-router-dom';
-import {AlertCircle, Download, Loader2} from 'lucide-react';
+import {AlertCircle, Download, ExternalLink, Loader2} from 'lucide-react';
 import pdfjsWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 
 type PdfJsModule = typeof import('pdfjs-dist');
@@ -81,6 +81,35 @@ export const PublicPdfPreviewPage = () => {
 
   return (
     <div className="min-h-screen bg-gray-100 px-3 py-3">
+      {fileUrl && (
+        <div className="max-w-5xl mx-auto mb-3 rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-semibold text-gray-900">PDF 兼容预览</p>
+              <p className="mt-1 text-xs leading-5 text-gray-500">
+                下方预览用于兼容微信浏览器。需要最清晰文字时，请打开原始 PDF。
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <a
+                href={fileUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center justify-center gap-2 rounded-lg bg-gray-900 px-3 py-2 text-sm font-semibold text-white"
+              >
+                <ExternalLink className="h-4 w-4" /> 高清打开原文
+              </a>
+              <a
+                href={fileUrl}
+                download
+                className="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-700"
+              >
+                <Download className="h-4 w-4" /> 下载原文
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
       {loading && (
         <div className="flex items-center justify-center gap-2 py-8 text-sm text-gray-500">
           <Loader2 className="w-4 h-4 animate-spin" />
@@ -98,7 +127,7 @@ export const PublicPdfPreviewPage = () => {
               rel="noreferrer"
               className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-900 text-white text-sm"
             >
-              <Download className="w-4 h-4" /> 打开原文件
+              <ExternalLink className="w-4 h-4" /> 高清打开原文
             </a>
           )}
         </div>

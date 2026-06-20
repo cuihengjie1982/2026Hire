@@ -235,6 +235,12 @@
         font-size: 14px;
         line-height: 1.7;
       }
+      .document-note {
+        margin: 10px 0 0;
+        color: #6b7280;
+        font-size: 13px;
+        line-height: 1.6;
+      }
       .hidden { display: none; }
     </style>
   </head>
@@ -388,8 +394,10 @@
           if (ext === 'pdf') {
             return {
               type: 'iframe',
-              url: '/training/docs/pdf?file=' + encodeURIComponent(proxiedUrl),
-              openUrl: '/training/docs/pdf?file=' + encodeURIComponent(proxiedUrl)
+              url: proxiedUrl,
+              openUrl: proxiedUrl,
+              fallbackUrl: '/training/docs/pdf?file=' + encodeURIComponent(proxiedUrl),
+              note: 'PDF 优先使用高清原文预览；如果微信内无法显示，请使用兼容预览。'
             };
           }
           if (['txt', 'md'].indexOf(ext) !== -1) {
@@ -517,6 +525,12 @@
             var type = document.createElement('p');
             type.className = 'document-type';
             type.textContent = doc.type || 'document';
+            var note = null;
+            if (preview.note) {
+              note = document.createElement('p');
+              note.className = 'document-note';
+              note.textContent = preview.note;
+            }
             var previewWrap = document.createElement('div');
             previewWrap.className = 'document-preview';
             if (preview.type === 'iframe') {
@@ -542,16 +556,26 @@
             open.href = preview.openUrl || url;
             open.target = '_blank';
             open.rel = 'noreferrer';
-            open.textContent = '新窗口预览';
+            open.textContent = preview.fallbackUrl ? '高清打开原文' : '新窗口预览';
+            if (preview.fallbackUrl) {
+              var fallbackOpen = document.createElement('a');
+              fallbackOpen.href = preview.fallbackUrl;
+              fallbackOpen.target = '_blank';
+              fallbackOpen.rel = 'noreferrer';
+              fallbackOpen.className = 'secondary';
+              fallbackOpen.textContent = '兼容预览';
+            }
             var download = document.createElement('a');
             download.href = url;
             download.setAttribute('download', '');
             download.className = 'secondary';
-            download.textContent = '下载文件';
+            download.textContent = preview.fallbackUrl ? '下载原文' : '下载文件';
             actionWrap.appendChild(open);
+            if (fallbackOpen) actionWrap.appendChild(fallbackOpen);
             actionWrap.appendChild(download);
             card.appendChild(title);
             card.appendChild(type);
+            if (note) card.appendChild(note);
             card.appendChild(previewWrap);
             card.appendChild(actionWrap);
             documentPanelEl.appendChild(card);
