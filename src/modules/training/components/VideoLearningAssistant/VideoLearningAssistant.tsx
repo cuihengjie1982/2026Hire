@@ -16,6 +16,19 @@ const TOPIC_COLORS = [
   '#4F46E5', '#059669', '#D97706', '#DC2626',
   '#7C3AED', '#0891B2', '#DB2777', '#65A30D',
 ];
+const VIDEO_FILE_EXTENSIONS = new Set(['mp4', 'm4v', 'mov', 'webm', 'avi', 'mkv']);
+
+const getUrlExtension = (url?: string): string => {
+  if (!url) return '';
+  try {
+    const parsed = new URL(url, window.location.origin);
+    return decodeURIComponent(parsed.pathname).split('.').pop()?.toLowerCase() ?? '';
+  } catch {
+    return url.split('?')[0]?.split('.').pop()?.toLowerCase() ?? '';
+  }
+};
+
+const isPlayableVideoUrl = (url?: string): boolean => VIDEO_FILE_EXTENSIONS.has(getUrlExtension(url));
 
 interface CourseSection {
   sectionTitle: string;
@@ -74,10 +87,10 @@ export const VideoLearningAssistant: React.FC<{
 
   const videoCandidates = [
     ...contentSections
-      .filter(s => s.contentType === 'video' && s.contentUrl)
+      .filter(s => s.contentType === 'video' && s.contentUrl && isPlayableVideoUrl(s.contentUrl))
       .map(s => s.contentUrl!),
     ...materials
-      .filter(material => material.type === 'video' && material.url)
+      .filter(material => material.type === 'video' && material.url && isPlayableVideoUrl(material.url))
       .map(material => material.url!),
   ];
   const videoUrl = videoCandidates[videoCandidates.length - 1] ?? '';

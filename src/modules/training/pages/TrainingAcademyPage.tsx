@@ -1031,22 +1031,38 @@ export const CreateCourseModal = ({initial, onClose, onSubmit, defaultContentTyp
   };
   const removeMaterial = (i: number) => setMaterials(m => m.filter((_, idx) => idx !== i));
 
+  const getUploadFileExtension = (fileName: string) => fileName.split('.').pop()?.toLowerCase() ?? '';
+  const isUploadVideoFile = (file: File) => (
+    file.type.startsWith('video/')
+    || ['mp4', 'm4v', 'mov', 'webm', 'avi', 'mkv'].includes(getUploadFileExtension(file.name))
+  );
+  const inferMaterialType = (file: File): 'pdf' | 'video' | 'article' | 'exercise' => {
+    if (isUploadVideoFile(file)) return 'video';
+    const ext = getUploadFileExtension(file.name);
+    if (ext === 'pdf') return 'pdf';
+    if (['doc', 'docx', 'ppt', 'pptx', 'txt', 'md', 'jpg', 'jpeg', 'png', 'gif'].includes(ext)) return 'article';
+    return 'exercise';
+  };
+
   const handleUploadSectionFile = async (file: File, index: number) => {
     setUploadingSectionIndex(index);
     setSectionUploadProgress(0);
     setUploadError('');
     try {
       const result = await uploadMaterial(file, setSectionUploadProgress);
+      const isVideoFile = isUploadVideoFile(file);
       setSections(prev => prev.map((section, idx) => idx === index
         ? {
             ...section,
-            sectionTitle: section.sectionTitle.trim() || result.filename.replace(/\.[^.]+$/, '') || '培训视频',
-            contentType: 'video',
+            sectionTitle: section.sectionTitle.trim() || result.filename.replace(/\.[^.]+$/, '') || (isVideoFile ? '培训视频' : '培训资料'),
+            contentType: isVideoFile ? 'video' : 'link',
             contentUrl: result.url,
           }
         : section,
       ));
-      toast.success(isEdit ? '视频已上传，已替换当前章节地址，请点击保存修改后公开链接会播放新视频' : '视频已上传，已自动填入地址，请创建课程');
+      toast.success(isEdit
+        ? `${isVideoFile ? '视频' : '文件'}已上传，已替换当前章节地址，请点击保存修改后公开链接会使用新地址`
+        : `${isVideoFile ? '视频' : '文件'}已上传，已自动填入地址，请创建课程`);
     } catch (err) {
       const message = err instanceof Error ? err.message : '上传失败';
       setUploadError(message);
@@ -1064,6 +1080,7 @@ export const CreateCourseModal = ({initial, onClose, onSubmit, defaultContentTyp
     try {
       const result = await uploadMaterial(file, setMaterialUploadProgress);
       updateMaterial(index, 'url', result.url);
+      updateMaterial(index, 'type', inferMaterialType(file));
       if (!materials[index]?.title.trim()) updateMaterial(index, 'title', result.filename);
       toast.success(isEdit ? '素材已上传，已替换当前资料地址，请点击保存修改后公开链接会使用新地址' : '素材已上传，已自动填入地址，请创建课程');
     } catch (err) {
