@@ -183,6 +183,30 @@
         font-size: 14px;
         line-height: 1.65;
       }
+      .document-list {
+        margin-top: 14px;
+        display: grid;
+        gap: 12px;
+      }
+      .document-card {
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        background: #fff;
+        padding: 16px;
+      }
+      .document-title {
+        margin: 0;
+        font-size: 16px;
+        font-weight: 700;
+        line-height: 1.45;
+      }
+      .document-type {
+        margin: 6px 0 0;
+        color: #6b7280;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
       .hidden { display: none; }
     </style>
   </head>
@@ -208,6 +232,7 @@
       </section>
 
       <section id="message" class="message">正在加载培训视频，请稍候。</section>
+      <section id="document-panel" class="document-list hidden"></section>
       <section id="live-caption" class="live-caption hidden">动作字幕准备中。</section>
       <section id="actions" class="actions hidden">
         <a id="open-video" class="secondary" target="_blank" rel="noreferrer">视频打不开时使用</a>
@@ -240,8 +265,10 @@
     <script>
       (function () {
         var params = new URLSearchParams(window.location.search);
+        var hashParams = new URLSearchParams((window.location.hash || '').replace(/^#/, ''));
         var courseId = params.get('courseId') || '';
         var token = params.get('token') || '';
+        var targetUrl = params.get('target') || hashParams.get('target') || '';
         if (!courseId || !token) {
           var pathMatch = window.location.pathname.match(/^\/tv\/([^/]+)\/([^/]+)/);
           if (pathMatch) {
@@ -251,7 +278,9 @@
         }
         var titleEl = document.getElementById('course-title');
         var descEl = document.getElementById('course-desc');
+        var labelEl = document.querySelector('.label');
         var messageEl = document.getElementById('message');
+        var documentPanelEl = document.getElementById('document-panel');
         var playerEl = document.getElementById('player');
         var videoEl = document.getElementById('video');
         var playButtonEl = document.getElementById('play-button');
@@ -289,6 +318,25 @@
           return window.location.origin + '/training-media/' + url.slice(markerIndex + marker.length);
         }
 
+        function getUrlExtension(url) {
+          if (!url) return '';
+          try {
+            var parsed = new URL(url, window.location.origin);
+            var path = decodeURIComponent(parsed.pathname || '');
+            return (path.split('.').pop() || '').toLowerCase();
+          } catch (e) {
+            return ((url.split('?')[0] || '').split('.').pop() || '').toLowerCase();
+          }
+        }
+
+        function isVideoUrl(url) {
+          return ['mp4', 'm4v', 'mov', 'webm', 'avi', 'mkv'].indexOf(getUrlExtension(url)) !== -1;
+        }
+
+        function normalizeComparableUrl(url) {
+          return toProxyUrl(url || '').split('?')[0];
+        }
+
         function isIOSDevice() {
           var ua = navigator.userAgent || '';
           return /iPhone|iPad|iPod/i.test(ua) || (/Macintosh/i.test(ua) && 'ontouchend' in document);
@@ -322,14 +370,108 @@
         function findVideoUrl(course) {
           var content = Array.isArray(course.content) ? course.content : [];
           for (var i = content.length - 1; i >= 0; i -= 1) {
-            if (content[i].contentType === 'video' && content[i].contentUrl) return content[i].contentUrl;
-            if (content[i].content_type === 'video' && content[i].content_url) return content[i].content_url;
+            var contentUrl = content[i].contentUrl || content[i].content_url || '';
+            var contentType = content[i].contentType || content[i].content_type;
+            if (contentType === 'video' && contentUrl && isVideoUrl(contentUrl)) return contentUrl;
           }
           var materials = Array.isArray(course.materials) ? course.materials : [];
           for (var j = materials.length - 1; j >= 0; j -= 1) {
-            if (materials[j].type === 'video' && materials[j].url) return materials[j].url;
+            if (materials[j].type === 'video' && materials[j].url && isVideoUrl(materials[j].url)) return materials[j].url;
           }
           return '';
+        }
+
+        function getDocumentItems(course) {
+          var docs = [];
+          var content = Array.isArray(course.content) ? course.content : [];
+          for (var i = 0; i < content.length; i += 1) {
+            var sectionUrl = content[i].contentUrl || content[i].content_url || '';
+            if (sectionUrl && !isVideoUrl(sectionUrl)) {
+              docs.push({
+                title: content[i].sectionTitle || content[i].section_title || '培训文档',
+                url: sectionUrl,
+                type: getUrlExtension(sectionUrl) || 'document'
+              });
+            }
+          }
+          var materials = Array.isArray(course.materials) ? course.materials : [];
+          for (var j = 0; j < materials.length; j += 1) {
+            if (materials[j].url && materials[j].type !== 'video') {
+              docs.push({
+                title: materials[j].title || '培训资料',
+                url: materials[j].url,
+                type: getUrlExtension(materials[j].url) || materials[j].type || 'document'
+              });
+            }
+          }
+          return docs;
+        }
+
+        function selectTargetDocuments(course) {
+          var docs = getDocumentItems(course);
+          if (!targetUrl) return docs;
+          var targetComparable = normalizeComparableUrl(targetUrl);
+          var matched = docs.filter(function (doc) {
+            return normalizeComparableUrl(doc.url) === targetComparable;
+          });
+          if (matched.length) return matched;
+          return [{
+            title: course.title || '培训文档',
+            url: targetUrl,
+            type: getUrlExtension(targetUrl) || 'document'
+          }];
+        }
+
+        function renderDocumentMode(course) {
+          var docs = selectTargetDocuments(course);
+          labelEl.textContent = '员工培训资料';
+          titleEl.textContent = course.title || '培训资料';
+          descEl.textContent = course.description || '';
+          playerEl.classList.add('hidden');
+          tabsEl.classList.add('hidden');
+          actionsEl.classList.add('hidden');
+          liveCaptionEl.classList.add('hidden');
+          actionsPanelEl.classList.add('hidden');
+          transcriptPanelEl.classList.add('hidden');
+          notesPanelEl.classList.add('hidden');
+          documentPanelEl.innerHTML = '';
+
+          if (!docs.length) {
+            setMessage('这个链接没有可打开的培训文档，请联系管理员重新生成链接。');
+            return;
+          }
+
+          setMessage('请点击下方按钮打开或下载培训文档。');
+          docs.forEach(function (doc) {
+            var url = toProxyUrl(doc.url);
+            var card = document.createElement('div');
+            card.className = 'document-card';
+            var title = document.createElement('p');
+            title.className = 'document-title';
+            title.textContent = doc.title || '培训文档';
+            var type = document.createElement('p');
+            type.className = 'document-type';
+            type.textContent = doc.type || 'document';
+            var actionWrap = document.createElement('div');
+            actionWrap.className = 'actions';
+            var open = document.createElement('a');
+            open.href = url;
+            open.target = '_blank';
+            open.rel = 'noreferrer';
+            open.textContent = '打开文档';
+            var download = document.createElement('a');
+            download.href = url;
+            download.setAttribute('download', '');
+            download.className = 'secondary';
+            download.textContent = '下载文件';
+            actionWrap.appendChild(open);
+            actionWrap.appendChild(download);
+            card.appendChild(title);
+            card.appendChild(type);
+            card.appendChild(actionWrap);
+            documentPanelEl.appendChild(card);
+          });
+          documentPanelEl.classList.remove('hidden');
         }
 
         function getTextSections(course) {
@@ -569,12 +711,16 @@
             });
           })
           .then(function (course) {
+            if (targetUrl && !isVideoUrl(targetUrl)) {
+              renderDocumentMode(course);
+              return;
+            }
             var rawVideoUrl = findVideoUrl(course);
             var videoUrl = selectVideoUrl(rawVideoUrl);
             titleEl.textContent = course.title || '培训视频';
             descEl.textContent = course.description || '';
             if (!videoUrl) {
-              setMessage('这个课程还没有可播放的视频。');
+              renderDocumentMode(course);
               return;
             }
             videoEl.src = videoUrl;
