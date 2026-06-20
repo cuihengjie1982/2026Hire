@@ -9,6 +9,7 @@ import {NotificationProvider} from './shared/components/NotificationProvider';
 
 const PUBLIC_ROUTE_PREFIXES = [
   '/training/videos/watch',
+  '/training/docs/pdf',
 ];
 
 const isPublicRoute = () => {

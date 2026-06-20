@@ -385,7 +385,14 @@
               note: 'Word/Office 文件使用在线预览服务打开。'
             };
           }
-          if (['pdf', 'txt', 'md'].indexOf(ext) !== -1) {
+          if (ext === 'pdf') {
+            return {
+              type: 'iframe',
+              url: '/training/docs/pdf?file=' + encodeURIComponent(proxiedUrl),
+              openUrl: '/training/docs/pdf?file=' + encodeURIComponent(proxiedUrl)
+            };
+          }
+          if (['txt', 'md'].indexOf(ext) !== -1) {
             return { type: 'iframe', url: proxiedUrl, openUrl: proxiedUrl };
           }
           if (['jpg', 'jpeg', 'png', 'gif', 'webp'].indexOf(ext) !== -1) {
