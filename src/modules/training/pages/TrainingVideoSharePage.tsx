@@ -106,7 +106,7 @@ export const TrainingVideoSharePage = () => {
           </div>
           <div>
             <h1 className="text-xl font-bold text-gray-900">视频分享</h1>
-            <p className="text-sm text-gray-500">面向已入职员工的公开培训视频，可微信转发、免登录观看、生成动作字幕。</p>
+            <p className="text-sm text-gray-500">面向已入职员工的公开培训视频，可微信转发、免登录观看、生成实时动作流。</p>
           </div>
         </div>
         <button
@@ -133,7 +133,7 @@ export const TrainingVideoSharePage = () => {
         <motion.div initial={{opacity: 0, y: 8}} animate={{opacity: 1, y: 0}} transition={{delay: 0.04}} className="bg-white rounded-xl border border-gray-200 p-4">
           <div className="flex items-center gap-2 text-sm text-gray-500">
             <Share2 className="w-4 h-4 text-emerald-600" />
-            已生成动作字幕
+            已生成动作流
           </div>
           <p className="mt-2 text-2xl font-bold text-gray-900">
             {courses.filter(course => (course.assessmentConfig.actionCaptions?.length ?? 0) > 0).length}

@@ -153,6 +153,63 @@
         font-size: 14px;
         line-height: 1.75;
       }
+      .action-item {
+        display: block;
+        width: 100%;
+        text-align: left;
+        padding: 12px;
+        border: 1px solid #e5e7eb;
+        border-radius: 10px;
+        background: #fff;
+        color: #111827;
+        margin-bottom: 10px;
+      }
+      .action-item.active {
+        border-color: #93c5fd;
+        background: #eff6ff;
+      }
+      .action-time {
+        margin: 0 0 4px;
+        color: #6b7280;
+        font-size: 12px;
+        font-weight: 700;
+      }
+      .action-title {
+        margin: 0;
+        color: #111827;
+        font-size: 15px;
+        font-weight: 800;
+      }
+      .action-desc {
+        margin: 6px 0 0;
+        color: #4b5563;
+        font-size: 14px;
+        line-height: 1.65;
+      }
+      .action-meta {
+        margin: 8px 0 0;
+        color: #4b5563;
+        font-size: 12px;
+        line-height: 1.6;
+      }
+      .action-meta span {
+        display: inline-block;
+        margin-right: 10px;
+      }
+      .live-caption strong {
+        display: block;
+        color: #111827;
+        font-size: 16px;
+        margin-bottom: 4px;
+      }
+      .live-caption small {
+        display: block;
+        color: #4b5563;
+        font-size: 12px;
+        font-weight: 500;
+        line-height: 1.5;
+        margin-top: 6px;
+      }
       textarea {
         display: block;
         width: 100%;
@@ -267,14 +324,14 @@
 
       <section id="message" class="message">正在加载培训视频，请稍候。</section>
       <section id="document-panel" class="document-list hidden"></section>
-      <section id="live-caption" class="live-caption hidden">动作字幕准备中。</section>
+      <section id="live-caption" class="live-caption hidden">动作流准备中。</section>
       <section id="actions" class="actions hidden">
         <a id="open-video" class="secondary" target="_blank" rel="noreferrer">视频打不开时使用</a>
         <button class="secondary" type="button" onclick="window.location.reload()">刷新</button>
       </section>
 
       <section id="tabs" class="tabs hidden">
-        <button id="tab-actions" class="tab" type="button">动作字幕</button>
+        <button id="tab-actions" class="tab" type="button">动作流</button>
         <button id="tab-transcript" class="tab active" type="button">文字稿</button>
         <button id="tab-notes" class="tab" type="button">笔记</button>
       </section>
@@ -607,9 +664,27 @@
             .map(function (item) {
               var start = Number(item.start || item.startTime || 0);
               var end = Number(item.end || item.endTime || start + 3);
-              var text = String(item.text || item.caption || item.action || '').trim();
+              var title = String(item.title || item.actionTitle || item.action || '').trim();
+              var description = String(item.description || item.detail || item.details || '').trim();
+              var handAction = String(item.handAction || item.hand_action || item.hand || '').trim();
+              var result = String(item.result || item.outcome || '').trim();
+              var objects = Array.isArray(item.objects)
+                ? item.objects.map(function (object) { return String(object || '').trim(); }).filter(Boolean).slice(0, 6)
+                : [];
+              var text = String(item.text || item.caption || title || '').trim();
+              var confidence = item.confidence === undefined ? null : Number(item.confidence);
               if (!text) return null;
-              return { start: start, end: end, text: text };
+              return {
+                start: start,
+                end: end,
+                text: text,
+                title: title || text,
+                description: description,
+                handAction: handAction,
+                objects: objects,
+                result: result,
+                confidence: Number.isFinite(confidence) ? confidence : null
+              };
             })
             .filter(Boolean)
             .sort(function (a, b) { return a.start - b.start; });
@@ -648,21 +723,42 @@
           actionCaptions = getActionCaptions(course);
           actionsContentEl.innerHTML = '';
           if (!actionCaptions.length) {
-            actionsContentEl.innerHTML = '<p class="transcript-text">暂无动作字幕。管理员可在后台视频分享中生成。</p>';
+            actionsContentEl.innerHTML = '<p class="transcript-text">暂无动作流。管理员可在后台视频分享中生成。</p>';
             liveCaptionEl.classList.add('hidden');
             return;
           }
-          actionCaptions.forEach(function (caption) {
-            var item = document.createElement('div');
-            item.className = 'transcript-item';
+          actionCaptions.forEach(function (caption, index) {
+            var item = document.createElement('button');
+            item.type = 'button';
+            item.className = 'action-item';
+            item.setAttribute('data-action-index', String(index));
+            item.addEventListener('click', function () {
+              videoEl.currentTime = caption.start;
+              videoEl.play().catch(function () {});
+            });
+            var time = document.createElement('p');
+            time.className = 'action-time';
+            time.textContent = formatTime(caption.start) + ' - ' + formatTime(caption.end)
+              + (caption.confidence !== null ? ' · 置信度 ' + Math.round(caption.confidence * 100) + '%' : '');
             var title = document.createElement('p');
-            title.className = 'transcript-title';
-            title.textContent = formatTime(caption.start) + ' - ' + formatTime(caption.end);
-            var text = document.createElement('p');
-            text.className = 'transcript-text';
-            text.textContent = caption.text;
+            title.className = 'action-title';
+            title.textContent = caption.title || caption.text;
+            var desc = document.createElement('p');
+            desc.className = 'action-desc';
+            desc.textContent = caption.description || caption.text;
+            item.appendChild(time);
             item.appendChild(title);
-            item.appendChild(text);
+            item.appendChild(desc);
+            if (caption.handAction || caption.result || caption.objects.length) {
+              var meta = document.createElement('p');
+              meta.className = 'action-meta';
+              var chunks = [];
+              if (caption.handAction) chunks.push('手部：' + caption.handAction);
+              if (caption.objects.length) chunks.push('对象：' + caption.objects.join('、'));
+              if (caption.result) chunks.push('结果：' + caption.result);
+              meta.textContent = chunks.join('  ');
+              item.appendChild(meta);
+            }
             actionsContentEl.appendChild(item);
           });
           updateLiveCaption();
@@ -680,9 +776,30 @@
           }
           if (!active) {
             liveCaptionEl.classList.add('hidden');
+            Array.prototype.forEach.call(actionsContentEl.querySelectorAll('.action-item'), function (node) {
+              node.classList.remove('active');
+            });
             return;
           }
-          liveCaptionEl.textContent = active.text;
+          liveCaptionEl.innerHTML = '';
+          var title = document.createElement('strong');
+          title.textContent = active.title || active.text;
+          var desc = document.createElement('span');
+          desc.textContent = active.description || active.text;
+          liveCaptionEl.appendChild(title);
+          liveCaptionEl.appendChild(desc);
+          if (active.handAction || active.result || active.objects.length) {
+            var meta = document.createElement('small');
+            var chunks = [];
+            if (active.handAction) chunks.push('手部：' + active.handAction);
+            if (active.objects.length) chunks.push('对象：' + active.objects.join('、'));
+            if (active.result) chunks.push('结果：' + active.result);
+            meta.textContent = chunks.join('  ');
+            liveCaptionEl.appendChild(meta);
+          }
+          Array.prototype.forEach.call(actionsContentEl.querySelectorAll('.action-item'), function (node, index) {
+            node.classList.toggle('active', actionCaptions[index] === active);
+          });
           liveCaptionEl.classList.remove('hidden');
         }
 
@@ -837,10 +954,10 @@
             openVideoEl.href = videoUrl;
             playerEl.classList.remove('hidden');
             tabsEl.classList.remove('hidden');
-            transcriptPanelEl.classList.remove('hidden');
             renderActionCaptions(course);
             renderTranscript(course);
             renderNotes();
+            switchTab(actionCaptions.length ? 'actions' : 'transcript');
             setMessage('请点击视频上的播放按钮开始学习。iPhone 微信不允许带声音视频自动播放，这是系统限制。');
           })
           .catch(function (error) {

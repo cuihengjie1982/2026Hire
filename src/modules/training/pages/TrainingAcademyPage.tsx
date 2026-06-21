@@ -637,7 +637,7 @@ export const VideoShareTab = ({courses, onAddCourse, onPreview, onCaptionsGenera
       });
       await onCaptionsGenerated();
     } catch (e) {
-      const message = e instanceof Error ? e.message : '生成动作字幕失败';
+      const message = e instanceof Error ? e.message : '生成动作流失败';
       setError(message);
     } finally {
       setCaptionLoadingId(null);
@@ -810,7 +810,7 @@ export const VideoShareTab = ({courses, onAddCourse, onPreview, onCaptionsGenera
                             <Clock className="w-3.5 h-3.5" /> {asset.course.durationMinutes} 分钟
                           </p>
                           <p className={`flex items-center gap-1 ${asset.captionsCount > 0 ? 'text-emerald-600' : 'text-gray-400'}`}>
-                            <Sparkles className="w-3.5 h-3.5" /> {asset.captionsCount > 0 ? `${asset.captionsCount} 条动作字幕` : '未生成字幕'}
+                            <Sparkles className="w-3.5 h-3.5" /> {asset.captionsCount > 0 ? `${asset.captionsCount} 条动作流` : '未生成动作流'}
                           </p>
                         </div>
                       </td>
@@ -838,7 +838,7 @@ export const VideoShareTab = ({courses, onAddCourse, onPreview, onCaptionsGenera
                               className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 text-gray-700 rounded-lg text-xs hover:bg-gray-50 disabled:opacity-60 transition-colors"
                             >
                               {isCaptionLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
-                              {isCaptionLoading ? `${progress}%` : asset.captionsCount > 0 ? '重生成' : '字幕'}
+                              {isCaptionLoading ? `${progress}%` : asset.captionsCount > 0 ? '重生成' : '动作流'}
                             </button>
                           )}
                           <button
@@ -905,7 +905,7 @@ export const VideoShareTab = ({courses, onAddCourse, onPreview, onCaptionsGenera
                           {asset.course.category}
                         </span>
                         <span className={`text-xs flex items-center gap-1 ${asset.captionsCount > 0 ? 'text-emerald-600' : 'text-gray-400'}`}>
-                          <Sparkles className="w-3 h-3" /> {asset.captionsCount > 0 ? `${asset.captionsCount} 条字幕` : '未生成字幕'}
+                          <Sparkles className="w-3 h-3" /> {asset.captionsCount > 0 ? `${asset.captionsCount} 条动作流` : '未生成动作流'}
                         </span>
                       </div>
                     </div>
@@ -933,7 +933,7 @@ export const VideoShareTab = ({courses, onAddCourse, onPreview, onCaptionsGenera
                         className="flex items-center justify-center gap-1.5 px-3 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-xs hover:bg-gray-50 disabled:opacity-60"
                       >
                         {isCaptionLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
-                        {isCaptionLoading ? `${progress}%` : '动作字幕'}
+                        {isCaptionLoading ? `${progress}%` : '动作流'}
                       </button>
                     )}
                     <button

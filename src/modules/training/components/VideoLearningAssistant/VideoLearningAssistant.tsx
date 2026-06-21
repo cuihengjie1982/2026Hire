@@ -2,15 +2,16 @@ import React, {useState, useCallback, useEffect} from 'react';
 import {ArrowLeft, GraduationCap, BookOpen, Shield, FileText} from 'lucide-react';
 import {useNavigate} from 'react-router-dom';
 import {VideoPlayer} from './VideoPlayer';
-import {LearningTabPanel} from './LearningTabPanel';
+import {LearningTabPanel, type LearningTabId} from './LearningTabPanel';
 import {AISummaryTab} from './tabs/AISummaryTab';
 import {TranscriptTab} from './tabs/TranscriptTab';
 import {NotesTab} from './tabs/NotesTab';
 import {AIQAChatTab} from './tabs/AIQAChatTab';
+import {ActionCaptionLiveCard, ActionCaptionsTab} from './tabs/ActionCaptionsTab';
 import {TopicTagBar, type TopicSegment as TopicSegmentUI} from './TopicTagBar';
 import {TopicCardList} from './TopicCardList';
 import {generateTopics, type TopicSegment} from '../../api';
-import type {TrainingCourse} from '../../types';
+import type {TrainingActionCaption, TrainingCourse} from '../../types';
 
 const TOPIC_COLORS = [
   '#4F46E5', '#059669', '#D97706', '#DC2626',
@@ -54,8 +55,6 @@ interface PortalEnrollment {
   materials: {title: string; type: string; url?: string}[];
 }
 
-type TabId = 'summary' | 'transcript' | 'notes' | 'qa';
-
 export const VideoLearningAssistant: React.FC<{
   enrollment?: PortalEnrollment;
   candidateId?: string;
@@ -64,7 +63,24 @@ export const VideoLearningAssistant: React.FC<{
   publicMode?: boolean;
 }> = ({enrollment, candidateId, course, publicMode = false}) => {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<TabId>(publicMode ? 'transcript' : 'summary');
+  const actionCaptions = React.useMemo<TrainingActionCaption[]>(() => {
+    const captions = course?.assessmentConfig?.actionCaptions ?? [];
+    return captions
+      .map(caption => ({
+        ...caption,
+        start: Number(caption.start ?? 0),
+        end: Number(caption.end ?? Number(caption.start ?? 0) + 3),
+        text: String(caption.text ?? caption.title ?? '').trim(),
+        title: caption.title?.trim(),
+        description: caption.description?.trim(),
+        handAction: caption.handAction?.trim(),
+        result: caption.result?.trim(),
+        objects: Array.isArray(caption.objects) ? caption.objects.filter(Boolean) : undefined,
+      }))
+      .filter(caption => caption.text && Number.isFinite(caption.start) && Number.isFinite(caption.end))
+      .sort((a, b) => a.start - b.start);
+  }, [course?.assessmentConfig?.actionCaptions]);
+  const [activeTab, setActiveTab] = useState<LearningTabId>(publicMode && actionCaptions.length > 0 ? 'actions' : publicMode ? 'transcript' : 'summary');
   const [currentVideoTime, setCurrentVideoTime] = useState(0);
   const [seekTo, setSeekTo] = useState<number | undefined>(undefined);
   const [videoDuration, setVideoDuration] = useState(0);
@@ -134,6 +150,12 @@ export const VideoLearningAssistant: React.FC<{
   const handleSeek = useCallback((time: number) => {
     setSeekTo(time);
   }, []);
+
+  useEffect(() => {
+    if (publicMode && actionCaptions.length > 0 && activeTab === 'transcript' && !transcriptText) {
+      setActiveTab('actions');
+    }
+  }, [publicMode, actionCaptions.length, activeTab, transcriptText]);
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -221,6 +243,12 @@ export const VideoLearningAssistant: React.FC<{
               </div>
             )}
 
+            <ActionCaptionLiveCard
+              captions={actionCaptions}
+              currentVideoTime={currentVideoTime}
+              onOpenActions={() => setActiveTab('actions')}
+            />
+
             {/* Quick actions */}
             <div className="flex gap-2">
               <button
@@ -254,6 +282,9 @@ export const VideoLearningAssistant: React.FC<{
               summaryTab={
                 <AISummaryTab content={transcriptText} courseTitle={courseTitle} />
               }
+              actionsTab={
+                <ActionCaptionsTab captions={actionCaptions} currentVideoTime={currentVideoTime} onSeek={handleSeek} />
+              }
               transcriptTab={
                 <TranscriptTab sections={contentSections} onSeek={handleSeek} currentVideoTime={currentVideoTime} />
               }
@@ -273,7 +304,7 @@ export const VideoLearningAssistant: React.FC<{
                   currentVideoTime={currentVideoTime}
                 />
               }
-              visibleTabs={publicMode ? ['transcript', 'notes'] : undefined}
+              visibleTabs={publicMode ? ['actions', 'transcript', 'notes'] : undefined}
             />
           </div>
         </div>

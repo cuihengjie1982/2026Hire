@@ -1,21 +1,23 @@
 import React from 'react';
-import {FileText, Edit3, MessageCircle, Sparkles} from 'lucide-react';
+import {FileText, Edit3, MessageCircle, MousePointer2, Sparkles} from 'lucide-react';
 
-type TabId = 'summary' | 'transcript' | 'notes' | 'qa';
+export type LearningTabId = 'summary' | 'actions' | 'transcript' | 'notes' | 'qa';
 
 interface LearningTabPanelProps {
-  activeTab: TabId;
-  onTabChange: (tab: TabId) => void;
+  activeTab: LearningTabId;
+  onTabChange: (tab: LearningTabId) => void;
   summaryTab: React.ReactNode;
+  actionsTab?: React.ReactNode;
   transcriptTab: React.ReactNode;
   notesTab: React.ReactNode;
   qaTab: React.ReactNode;
   onAISummary?: () => void;
-  visibleTabs?: TabId[];
+  visibleTabs?: LearningTabId[];
 }
 
-const TABS: {id: TabId; label: string; icon: React.ElementType}[] = [
+const TABS: {id: LearningTabId; label: string; icon: React.ElementType}[] = [
   {id: 'summary', label: 'AI摘要', icon: Sparkles},
+  {id: 'actions', label: '动作流', icon: MousePointer2},
   {id: 'transcript', label: '文字稿', icon: FileText},
   {id: 'notes', label: '笔记', icon: Edit3},
   {id: 'qa', label: 'AI问答', icon: MessageCircle},
@@ -25,6 +27,7 @@ export const LearningTabPanel: React.FC<LearningTabPanelProps> = ({
   activeTab,
   onTabChange,
   summaryTab,
+  actionsTab,
   transcriptTab,
   notesTab,
   qaTab,
@@ -58,6 +61,7 @@ export const LearningTabPanel: React.FC<LearningTabPanelProps> = ({
       {/* Tab content */}
       <div className="flex-1 overflow-hidden">
         {activeTab === 'summary' && summaryTab}
+        {activeTab === 'actions' && actionsTab}
         {activeTab === 'transcript' && transcriptTab}
         {activeTab === 'notes' && notesTab}
         {activeTab === 'qa' && qaTab}

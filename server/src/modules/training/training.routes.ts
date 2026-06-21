@@ -66,6 +66,11 @@ type TrainingActionCaption = {
   start: number;
   end: number;
   text: string;
+  title?: string;
+  description?: string;
+  handAction?: string;
+  objects?: string[];
+  result?: string;
   confidence?: number;
 };
 
@@ -93,9 +98,26 @@ function normalizeActionCaptions(value: unknown, duration: number): TrainingActi
       const endRaw = Number(row.end ?? row.endTime ?? start + 3);
       const endLimit = Number.isFinite(duration) && duration > 0 ? duration : endRaw;
       const end = Math.max(start + 0.5, Math.min(endLimit, endRaw));
-      const text = String(row.text ?? row.caption ?? row.action ?? '').trim();
+      const title = String(row.title ?? row.actionTitle ?? row.action ?? '').trim();
+      const description = String(row.description ?? row.detail ?? row.details ?? '').trim();
+      const handAction = String(row.handAction ?? row.hand_action ?? row.hand ?? '').trim();
+      const result = String(row.result ?? row.outcome ?? '').trim();
+      const objects = Array.isArray(row.objects)
+        ? row.objects.map(object => String(object).trim()).filter(Boolean).slice(0, 6)
+        : [];
+      const text = String(row.text ?? row.caption ?? title ?? '').trim();
       const confidence = row.confidence === undefined ? undefined : Math.max(0, Math.min(1, Number(row.confidence)));
-      return text ? {start, end, text, ...(Number.isFinite(confidence) ? {confidence} : {})} : null;
+      return text ? {
+        start,
+        end,
+        text,
+        ...(title ? {title} : {}),
+        ...(description ? {description} : {}),
+        ...(handAction ? {handAction} : {}),
+        ...(objects.length ? {objects} : {}),
+        ...(result ? {result} : {}),
+        ...(Number.isFinite(confidence) ? {confidence} : {}),
+      } : null;
     })
     .filter((item): item is TrainingActionCaption => Boolean(item))
     .sort((a, b) => a.start - b.start)
@@ -1143,20 +1165,23 @@ router.post('/ai/action-captions', requireRole('admin', 'recruiter'), async (req
       return;
     }
 
-    const safeFrames = frames.filter(frame => typeof frame.image === 'string' && frame.image.length > 0).slice(0, 10);
+    const safeFrames = frames.filter(frame => typeof frame.image === 'string' && frame.image.length > 0).slice(0, 18);
     if (safeFrames.length === 0) {
       res.status(400).json({error: {code: 'VALIDATION_ERROR', message: 'valid frames are required'}});
       return;
     }
     const frameTimes = safeFrames.map(frame => Number(frame.time ?? 0));
-    const systemPrompt = `你是培训视频动作字幕分析助手。请根据连续视频截图，识别画面中手部、鼠标、触控、界面变化和业务操作步骤，生成员工观看时可同步显示的中文动作字幕。
+    const systemPrompt = `你是培训视频动作流分析助手。请根据连续视频截图，识别画面中手部动作、身体动作、鼠标/键盘/触控、工具/物品变化和业务操作结果，生成员工观看时可同步显示的中文动作流。
 
 要求：
 1. 只返回 JSON，不要解释。
-2. 输出 {"captions":[{"start":数字秒,"end":数字秒,"text":"动作说明","confidence":0到1}]}。
-3. text 使用简洁中文，像“点击左侧菜单”“在搜索框输入关键词”“确认保存设置”。
-4. 如果看不清具体按钮文字，可以描述可见动作，不要编造系统不存在的内容。
-5. 每条字幕 5 到 18 个汉字，时间段必须覆盖相邻截图之间的主要动作。`;
+2. 输出 {"captions":[{"start":数字秒,"end":数字秒,"title":"动作标题","text":"短字幕","description":"画面动作说明","handAction":"手部或鼠标键盘动作","objects":["物品或界面元素"],"result":"动作结果","confidence":0到1}]}。
+3. title 用 4 到 10 个汉字，text 用 6 到 18 个汉字，适合播放时大字显示。
+4. description 说明画面中真实可见的动作和变化，handAction 专门描述手、鼠标、键盘、工具或身体动作。
+5. objects 只列画面中能看见或能明确判断的物品/界面元素，不要编造。
+6. result 写该动作造成的结果，例如“输入完成”“桌面变干净”“咖啡粉压实”“页面保存成功”。
+7. 如果看不清具体文字，可以描述可见动作，不要编造系统不存在的内容。
+8. 时间段必须覆盖相邻截图之间的主要动作，动作变化明显时拆成更细片段。`;
     const parts: ContentPart[] = [
       {
         type: 'text',

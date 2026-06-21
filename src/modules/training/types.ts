@@ -42,6 +42,11 @@ export interface TrainingActionCaption {
   start: number;
   end: number;
   text: string;
+  title?: string;
+  description?: string;
+  handAction?: string;
+  objects?: string[];
+  result?: string;
   confidence?: number;
 }
 

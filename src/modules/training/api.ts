@@ -695,7 +695,7 @@ const waitForVideoEvent = (video: HTMLVideoElement, eventName: keyof HTMLMediaEl
   };
   const handleError = () => {
     cleanup();
-    reject(new Error('视频无法加载，无法生成动作字幕'));
+    reject(new Error('视频无法加载，无法生成动作流'));
   };
   video.addEventListener(eventName, handleEvent, {once: true});
   video.addEventListener('error', handleError, {once: true});
@@ -724,7 +724,7 @@ const extractVideoFrames = async (
 
   await waitForVideoEvent(video, 'loadedmetadata', 15000);
   const duration = Number.isFinite(video.duration) && video.duration > 0 ? video.duration : course.durationMinutes * 60;
-  const sampleCount = Math.min(10, Math.max(4, Math.ceil(duration / 8)));
+  const sampleCount = Math.min(18, Math.max(6, Math.ceil(duration / 4)));
   const startOffset = duration > 2 ? 1 : 0;
   const times = Array.from({length: sampleCount}, (_, index) => {
     if (sampleCount === 1) return startOffset;
@@ -732,7 +732,7 @@ const extractVideoFrames = async (
   });
 
   const canvas = document.createElement('canvas');
-  const width = 640;
+  const width = 560;
   const ratio = video.videoWidth && video.videoHeight ? video.videoHeight / video.videoWidth : 9 / 16;
   canvas.width = width;
   canvas.height = Math.max(240, Math.round(width * ratio));
@@ -772,8 +772,28 @@ export const generateTrainingActionCaptions = async (
     return {
       generatedAt: new Date().toISOString(),
       captions: [
-        {start: 0, end: 5, text: '打开培训页面，准备开始操作演示', confidence: 0.7},
-        {start: 5, end: 12, text: '根据画面提示完成关键步骤', confidence: 0.7},
+        {
+          start: 0,
+          end: 5,
+          title: '开始操作',
+          text: '打开培训页面，准备开始操作演示',
+          description: '画面进入培训演示环境，操作者准备执行第一步。',
+          handAction: '双手靠近操作区域',
+          objects: ['电脑', '培训页面'],
+          result: '进入演示状态',
+          confidence: 0.7,
+        },
+        {
+          start: 5,
+          end: 12,
+          title: '执行步骤',
+          text: '根据画面提示完成关键步骤',
+          description: '操作者按画面内容继续完成主要流程。',
+          handAction: '持续操作键盘或鼠标',
+          objects: ['界面控件'],
+          result: '完成当前步骤',
+          confidence: 0.7,
+        },
       ],
       model: 'mock',
     };
