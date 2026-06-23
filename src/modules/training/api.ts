@@ -200,6 +200,17 @@ const waitForUploadRetry = (attemptIndex: number): Promise<void> => new Promise(
   window.setTimeout(resolve, Math.min(10_000, 1_500 * 2 ** attemptIndex));
 });
 
+const isRecoverableResumableUploadError = (error: unknown): boolean => {
+  const message = error instanceof Error ? error.message : String(error ?? '');
+  return message.includes('Invalid Compact JWS')
+    || message.includes('JWT')
+    || message.includes('Unauthorized')
+    || message.includes('authorization')
+    || message.includes('signature')
+    || message.includes('401')
+    || message.includes('403');
+};
+
 type SignedMaterialUploadInfo = {
   bucket: string;
   path: string;
@@ -1229,17 +1240,32 @@ export const uploadMaterial = async (
 
   const shouldUseResumableUpload = isVideoUploadFile(uploadFile) || uploadFile.size > RESUMABLE_UPLOAD_THRESHOLD_BYTES;
   if (shouldUseResumableUpload) {
-    const freshToken = await getFreshAuthToken();
-    const uploadInfo = await createSignedMaterialUploadInfo(uploadFile, freshToken ?? token);
-    await uploadSignedStorageFileResumable(
-      uploadInfo.bucket,
-      uploadInfo.path,
-      freshToken ?? token,
-      uploadInfo.token,
-      uploadFile,
-      onProgress,
-    );
-    return {url: uploadInfo.publicUrl, filename: uploadFile.name};
+    let lastError: unknown;
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const freshToken = await getFreshAuthToken();
+      const activeToken = freshToken ?? token;
+      const uploadInfo = await createSignedMaterialUploadInfo(uploadFile, activeToken);
+      try {
+        await uploadSignedStorageFileResumable(
+          uploadInfo.bucket,
+          uploadInfo.path,
+          activeToken,
+          uploadInfo.token,
+          uploadFile,
+          onProgress,
+        );
+        return {url: uploadInfo.publicUrl, filename: uploadFile.name};
+      } catch (error) {
+        lastError = error;
+        if (attempt >= 1 || !isRecoverableResumableUploadError(error)) {
+          throw error;
+        }
+        console.warn('[training upload] resumable upload auth/signature failed, retrying with a new signed token', error);
+        onProgress?.(1);
+        await waitForUploadRetry(0);
+      }
+    }
+    throw lastError instanceof Error ? lastError : new Error('视频上传失败，请重新登录后重试');
   }
 
   const uploadInfo = await uploadWithRetriedSignedUrl(uploadFile, token, onProgress);
