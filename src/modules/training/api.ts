@@ -546,7 +546,7 @@ const findCourseVideoUrl = (course: TrainingCourse, targetUrl?: string): string 
   return materialVideo?.url ?? '';
 };
 
-const waitForVideoEvent = (video: HTMLVideoElement, eventName: keyof HTMLMediaElementEventMap, timeoutMs = 12000): Promise<void> => new Promise((resolve, reject) => {
+const waitForVideoEvent = (video: HTMLVideoElement, eventName: keyof HTMLMediaElementEventMap, timeoutMs = 30000): Promise<void> => new Promise((resolve, reject) => {
   const timer = window.setTimeout(() => {
     cleanup();
     reject(new Error('视频加载超时，无法抽取画面'));
@@ -569,8 +569,11 @@ const waitForVideoEvent = (video: HTMLVideoElement, eventName: keyof HTMLMediaEl
 });
 
 const seekVideo = async (video: HTMLVideoElement, time: number): Promise<void> => {
-  video.currentTime = Math.min(Math.max(time, 0), Math.max((video.duration || 0) - 0.1, 0));
-  await waitForVideoEvent(video, 'seeked', 10000);
+  const targetTime = Math.min(Math.max(time, 0), Math.max((video.duration || 0) - 0.1, 0));
+  if (Math.abs((video.currentTime || 0) - targetTime) < 0.05 && video.readyState >= 2) return;
+  const seeked = waitForVideoEvent(video, 'seeked', 30000);
+  video.currentTime = targetTime;
+  await seeked;
 };
 
 const extractVideoFrames = async (
@@ -590,7 +593,8 @@ const extractVideoFrames = async (
   video.src = videoUrl;
   video.load();
 
-  await waitForVideoEvent(video, 'loadedmetadata', 15000);
+  await waitForVideoEvent(video, 'loadedmetadata', 45000);
+  if (video.readyState < 2) await waitForVideoEvent(video, 'loadeddata', 45000);
   const duration = Number.isFinite(video.duration) && video.duration > 0 ? video.duration : course.durationMinutes * 60;
   const sampleCount = Math.min(18, Math.max(6, Math.ceil(duration / 4)));
   const startOffset = duration > 2 ? 1 : 0;

@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from 'react';
+import React, {useEffect, useRef, useState} from 'react';
 import {useNavigate} from 'react-router-dom';
 import {motion} from 'motion/react';
 import {
@@ -17,12 +17,18 @@ import {
   getPathEnrollments, enrollCandidateInPath, updatePathEnrollment, deletePathEnrollment,
   uploadMaterial, batchEnroll,
   createTrainingShareLink,
-  generateTrainingActionCaptions,
   type TrainingCourse, type TrainingEnrollment, type TrainingStats,
   type WeaknessAnalysis, type TrainingEffectiveness,
   type CourseRecommendation,
   type PathEnrollment, type BatchEnrollResult, type MaterialUploadResult,
 } from '../api';
+import {
+  getActionCaptionJobKey,
+  listActionCaptionJobs,
+  startActionCaptionJob,
+  subscribeActionCaptionJobs,
+  type ActionCaptionJob,
+} from '../actionCaptionJobs';
 import type {LearningPath} from '../types';
 
 type TabId = 'courses' | 'enrollments' | 'analysis' | 'effectiveness' | 'paths';
@@ -573,8 +579,8 @@ export const VideoShareTab = ({courses, onAddCourse, onPreview, onCaptionsGenera
   const categories = Array.from(new Set(assets.map(asset => asset.course.category || '综合'))).sort((a, b) => a.localeCompare(b, 'zh-Hans-CN'));
   const [links, setLinks] = useState<Record<string, string>>({});
   const [loadingId, setLoadingId] = useState<string | null>(null);
-  const [captionLoadingId, setCaptionLoadingId] = useState<string | null>(null);
-  const [captionProgress, setCaptionProgress] = useState<Record<string, number>>({});
+  const [captionJobs, setCaptionJobs] = useState<ActionCaptionJob[]>(() => listActionCaptionJobs());
+  const refreshedCaptionJobIdsRef = useRef<Set<string>>(new Set());
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [query, setQuery] = useState('');
@@ -608,6 +614,15 @@ export const VideoShareTab = ({courses, onAddCourse, onPreview, onCaptionsGenera
   useEffect(() => {
     setPage(1);
   }, [query, kindFilter, categoryFilter]);
+
+  useEffect(() => subscribeActionCaptionJobs(setCaptionJobs), []);
+
+  useEffect(() => {
+    const completedJobs = captionJobs.filter(job => job.status === 'succeeded' && !refreshedCaptionJobIdsRef.current.has(job.id));
+    if (!completedJobs.length) return;
+    completedJobs.forEach(job => refreshedCaptionJobIdsRef.current.add(job.id));
+    void onCaptionsGenerated();
+  }, [captionJobs, onCaptionsGenerated]);
 
   const getLinkKey = (courseId: string, targetUrl?: string) => targetUrl ? `${courseId}::${targetUrl}` : courseId;
 
@@ -648,21 +663,8 @@ export const VideoShareTab = ({courses, onAddCourse, onPreview, onCaptionsGenera
   };
 
   const handleGenerateCaptions = async (course: TrainingCourse, targetUrl?: string) => {
-    setCaptionLoadingId(course.id);
-    setCaptionProgress(prev => ({...prev, [course.id]: 0}));
     setError('');
-    try {
-      await generateTrainingActionCaptions(course, targetUrl, progress => {
-        setCaptionProgress(prev => ({...prev, [course.id]: progress}));
-      });
-      await onCaptionsGenerated();
-    } catch (e) {
-      const message = e instanceof Error ? e.message : '生成动作流失败';
-      setError(message);
-    } finally {
-      setCaptionLoadingId(null);
-      setCaptionProgress(prev => ({...prev, [course.id]: 0}));
-    }
+    startActionCaptionJob(course, targetUrl);
   };
 
   const filters: {id: AssetFilter; label: string; count: number}[] = [
@@ -796,10 +798,11 @@ export const VideoShareTab = ({courses, onAddCourse, onPreview, onCaptionsGenera
                 {pageAssets.map(asset => {
                   const itemKey = getLinkKey(asset.course.id, asset.url);
                   const courseLinkKey = getLinkKey(asset.course.id);
+                  const captionJob = captionJobs.find(job => job.id === itemKey);
                   const itemLoading = loadingId === itemKey;
                   const courseLoading = loadingId === courseLinkKey;
-                  const isCaptionLoading = captionLoadingId === asset.course.id;
-                  const progress = captionProgress[asset.course.id] ?? 0;
+                  const isCaptionLoading = captionJob?.status === 'running';
+                  const progress = captionJob?.progress ?? 0;
                   const itemCopied = copiedId === itemKey;
                   const courseCopied = copiedId === courseLinkKey;
                   return (
@@ -907,9 +910,10 @@ export const VideoShareTab = ({courses, onAddCourse, onPreview, onCaptionsGenera
             {pageAssets.map(asset => {
               const itemKey = getLinkKey(asset.course.id, asset.url);
               const courseLinkKey = getLinkKey(asset.course.id);
+              const captionJob = captionJobs.find(job => job.id === itemKey);
               const itemLoading = loadingId === itemKey;
-              const isCaptionLoading = captionLoadingId === asset.course.id;
-              const progress = captionProgress[asset.course.id] ?? 0;
+              const isCaptionLoading = captionJob?.status === 'running';
+              const progress = captionJob?.progress ?? 0;
               const itemCopied = copiedId === itemKey;
               return (
                 <div key={asset.id} className="p-4 space-y-3">

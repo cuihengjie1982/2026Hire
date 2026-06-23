@@ -6,6 +6,7 @@ import {supabase} from './shared/lib/supabase';
 import {ErrorBoundary} from './shared/components/ErrorBoundary';
 import {ToastProvider} from './shared/components/ToastProvider';
 import {NotificationProvider} from './shared/components/NotificationProvider';
+import {ActionCaptionJobOverlay} from './modules/training/components/ActionCaptionJobOverlay';
 
 const PUBLIC_ROUTE_PREFIXES = [
   '/training/videos/watch',
@@ -90,6 +91,7 @@ export default function App() {
           {isAuthenticated ? (
             <NotificationProvider>
               <AppRouter onLogout={handleLogout} />
+              <ActionCaptionJobOverlay />
             </NotificationProvider>
           ) : (
             <AppRouter onLogout={handleLogout} />
