@@ -339,15 +339,15 @@ const uploadMaterialViaApi = async (
   });
 };
 
-const getSupabaseResumableUploadEndpoint = (): string => {
+const getSupabaseResumableUploadEndpoint = (signed = false): string => {
   try {
     const projectUrl = new URL(API_BASE_URL);
     const storageHost = projectUrl.hostname.endsWith('.supabase.co')
       ? projectUrl.hostname.replace('.supabase.co', '.storage.supabase.co')
       : projectUrl.hostname;
-    return `${projectUrl.protocol}//${storageHost}/storage/v1/upload/resumable`;
+    return `${projectUrl.protocol}//${storageHost}/storage/v1/upload/resumable${signed ? '/sign' : ''}`;
   } catch {
-    return `${API_BASE_URL.replace(/\/$/, '')}/storage/v1/upload/resumable`;
+    return `${API_BASE_URL.replace(/\/$/, '')}/storage/v1/upload/resumable${signed ? '/sign' : ''}`;
   }
 };
 
@@ -358,7 +358,7 @@ const uploadSignedStorageFileResumable = async (
   file: File,
   onProgress?: (progress: number) => void,
 ): Promise<void> => {
-  const endpoint = getSupabaseResumableUploadEndpoint();
+  const endpoint = getSupabaseResumableUploadEndpoint(true);
   if (!endpoint) {
     throw new Error('无法识别 Supabase 项目地址，不能使用大文件续传上传');
   }
