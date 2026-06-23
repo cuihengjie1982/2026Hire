@@ -39,7 +39,7 @@ const setJob = (job: ActionCaptionJob) => {
   notify();
 };
 
-const scheduleCleanup = (jobId: string) => {
+const scheduleCleanup = (jobId: string, delayMs = 60000) => {
   const existing = cleanupTimers.get(jobId);
   if (existing) window.clearTimeout(existing);
   const timer = window.setTimeout(() => {
@@ -90,7 +90,7 @@ export const startActionCaptionJob = (
         status: 'succeeded',
         updatedAt: Date.now(),
       });
-      scheduleCleanup(id);
+      scheduleCleanup(id, 60000);
     })
     .catch(error => {
       const current = jobs.get(id);
@@ -101,7 +101,7 @@ export const startActionCaptionJob = (
         error: error instanceof Error ? error.message : '生成动作流失败',
         updatedAt: Date.now(),
       });
-      scheduleCleanup(id);
+      scheduleCleanup(id, 5 * 60 * 1000);
     });
 
   const job: ActionCaptionJob = {

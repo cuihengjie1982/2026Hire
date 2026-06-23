@@ -547,6 +547,18 @@ const findCourseVideoUrl = (course: TrainingCourse, targetUrl?: string): string 
 };
 
 const waitForVideoEvent = (video: HTMLVideoElement, eventName: keyof HTMLMediaElementEventMap, timeoutMs = 30000): Promise<void> => new Promise((resolve, reject) => {
+  if (eventName === 'loadedmetadata' && video.readyState >= 1) {
+    resolve();
+    return;
+  }
+  if (eventName === 'loadeddata' && video.readyState >= 2) {
+    resolve();
+    return;
+  }
+  if (eventName === 'canplay' && video.readyState >= 3) {
+    resolve();
+    return;
+  }
   const timer = window.setTimeout(() => {
     cleanup();
     reject(new Error('视频加载超时，无法抽取画面'));

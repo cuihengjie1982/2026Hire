@@ -19,6 +19,11 @@ export const TrainingVideoSharePage = () => {
   const [editingCourse, setEditingCourse] = useState<TrainingCourse | null>(null);
   const navigate = useNavigate();
 
+  const hasActionCaptions = (course: TrainingCourse) => {
+    if ((course.assessmentConfig.actionCaptions?.length ?? 0) > 0) return true;
+    return Object.values(course.assessmentConfig.actionCaptionsByUrl ?? {}).some(captions => captions.length > 0);
+  };
+
   const loadData = async () => {
     setLoading(true);
     setError('');
@@ -136,7 +141,7 @@ export const TrainingVideoSharePage = () => {
             已生成动作流
           </div>
           <p className="mt-2 text-2xl font-bold text-gray-900">
-            {courses.filter(course => (course.assessmentConfig.actionCaptions?.length ?? 0) > 0).length}
+            {courses.filter(hasActionCaptions).length}
           </p>
         </motion.div>
         <motion.div initial={{opacity: 0, y: 8}} animate={{opacity: 1, y: 0}} transition={{delay: 0.08}} className="bg-white rounded-xl border border-gray-200 p-4">

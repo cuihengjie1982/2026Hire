@@ -527,6 +527,39 @@ export const VideoShareTab = ({courses, onAddCourse, onPreview, onCaptionsGenera
     }
     return config.actionCaptions ?? [];
   };
+  const getCaptionJobForAsset = (courseId: string, targetUrl?: string) => (
+    captionJobs.find(job => job.id === getActionCaptionJobKey(courseId, targetUrl))
+  );
+  const getCaptionStatus = (asset: ShareableAsset, captionJob?: ActionCaptionJob) => {
+    if (captionJob?.status === 'running') {
+      return {
+        className: 'text-indigo-600',
+        text: `生成中 ${captionJob.progress}%`,
+      };
+    }
+    if (captionJob?.status === 'failed') {
+      return {
+        className: 'text-red-600',
+        text: '生成失败',
+      };
+    }
+    if (captionJob?.status === 'succeeded' && asset.captionsCount === 0) {
+      return {
+        className: 'text-emerald-600',
+        text: '已生成，刷新中',
+      };
+    }
+    if (asset.captionsCount > 0) {
+      return {
+        className: 'text-emerald-600',
+        text: `${asset.captionsCount} 条动作流`,
+      };
+    }
+    return {
+      className: 'text-gray-400',
+      text: '未生成动作流',
+    };
+  };
   const getDocumentLabel = (extension: string) => {
     if (extension === 'pdf') return 'PDF';
     if (['doc', 'docx'].includes(extension)) return 'Word';
@@ -798,7 +831,8 @@ export const VideoShareTab = ({courses, onAddCourse, onPreview, onCaptionsGenera
                 {pageAssets.map(asset => {
                   const itemKey = getLinkKey(asset.course.id, asset.url);
                   const courseLinkKey = getLinkKey(asset.course.id);
-                  const captionJob = captionJobs.find(job => job.id === itemKey);
+                  const captionJob = getCaptionJobForAsset(asset.course.id, asset.url);
+                  const captionStatus = getCaptionStatus(asset, captionJob);
                   const itemLoading = loadingId === itemKey;
                   const courseLoading = loadingId === courseLinkKey;
                   const isCaptionLoading = captionJob?.status === 'running';
@@ -832,8 +866,8 @@ export const VideoShareTab = ({courses, onAddCourse, onPreview, onCaptionsGenera
                           <p className="flex items-center gap-1 text-gray-500">
                             <Clock className="w-3.5 h-3.5" /> {asset.course.durationMinutes} 分钟
                           </p>
-                          <p className={`flex items-center gap-1 ${asset.captionsCount > 0 ? 'text-emerald-600' : 'text-gray-400'}`}>
-                            <Sparkles className="w-3.5 h-3.5" /> {asset.captionsCount > 0 ? `${asset.captionsCount} 条动作流` : '未生成动作流'}
+                          <p className={`flex items-center gap-1 ${captionStatus.className}`} title={captionJob?.error}>
+                            <Sparkles className="w-3.5 h-3.5" /> {captionStatus.text}
                           </p>
                         </div>
                       </td>
@@ -910,7 +944,8 @@ export const VideoShareTab = ({courses, onAddCourse, onPreview, onCaptionsGenera
             {pageAssets.map(asset => {
               const itemKey = getLinkKey(asset.course.id, asset.url);
               const courseLinkKey = getLinkKey(asset.course.id);
-              const captionJob = captionJobs.find(job => job.id === itemKey);
+                  const captionJob = getCaptionJobForAsset(asset.course.id, asset.url);
+                  const captionStatus = getCaptionStatus(asset, captionJob);
               const itemLoading = loadingId === itemKey;
               const isCaptionLoading = captionJob?.status === 'running';
               const progress = captionJob?.progress ?? 0;
@@ -928,8 +963,8 @@ export const VideoShareTab = ({courses, onAddCourse, onPreview, onCaptionsGenera
                         <span className={`px-2 py-0.5 rounded text-xs font-medium ${CATEGORY_COLORS[asset.course.category] ?? 'bg-gray-100 text-gray-600'}`}>
                           {asset.course.category}
                         </span>
-                        <span className={`text-xs flex items-center gap-1 ${asset.captionsCount > 0 ? 'text-emerald-600' : 'text-gray-400'}`}>
-                          <Sparkles className="w-3 h-3" /> {asset.captionsCount > 0 ? `${asset.captionsCount} 条动作流` : '未生成动作流'}
+                        <span className={`text-xs flex items-center gap-1 ${captionStatus.className}`} title={captionJob?.error}>
+                          <Sparkles className="w-3 h-3" /> {captionStatus.text}
                         </span>
                       </div>
                     </div>
