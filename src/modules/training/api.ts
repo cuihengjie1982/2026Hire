@@ -1,8 +1,5 @@
 import {getItemsFromPayload} from '../../shared/lib/apiClient';
-import {USE_MOCK_API, API_BASE_URL, SUPABASE_ANON_KEY, getAuthToken, setAuthToken} from '../../shared/lib/runtime';
-import {supabase} from '../../shared/lib/supabase';
-import * as tus from 'tus-js-client';
-import type {DetailedError} from 'tus-js-client';
+import {USE_MOCK_API, API_BASE_URL, getAuthToken} from '../../shared/lib/runtime';
 import {courseFixtures, enrollmentFixtures} from './fixtures';
 import {
   type TrainingCourse,
@@ -40,11 +37,7 @@ export type {
 };
 
 const MATERIAL_UPLOAD_TIMEOUT_MS = 15 * 60 * 1000;
-const RESUMABLE_UPLOAD_THRESHOLD_BYTES = 6 * 1024 * 1024;
 const DIRECT_SIGNED_UPLOAD_RETRY_COUNT = 3;
-const SUPABASE_TUS_CHUNK_SIZE_BYTES = 6 * 1024 * 1024;
-const SUPABASE_TOKEN_REFRESH_SKEW_SECONDS = 10 * 60;
-const VIDEO_FILE_EXTENSIONS = new Set(['mp4', 'm4v', 'mov', 'webm', 'avi', 'mkv']);
 
 const inferContentType = (file: File): string => {
   if (file.type) return file.type;
@@ -74,33 +67,6 @@ const normalizeUploadFile = (file: File): File => {
 };
 
 const getFileExtension = (fileName: string): string => fileName.split('.').pop()?.toLowerCase() ?? '';
-
-const isVideoUploadFile = (file: File): boolean => file.type.startsWith('video/') || VIDEO_FILE_EXTENSIONS.has(getFileExtension(file.name));
-
-const getFreshAuthToken = async (): Promise<string | null> => {
-  if (USE_MOCK_API) return getAuthToken();
-
-  try {
-    const {data} = await supabase.auth.getSession();
-    const session = data.session;
-    if (!session?.access_token) return getAuthToken();
-
-    const nowSeconds = Math.floor(Date.now() / 1000);
-    const expiresAt = session.expires_at ?? 0;
-    if (expiresAt > 0 && expiresAt - nowSeconds <= SUPABASE_TOKEN_REFRESH_SKEW_SECONDS) {
-      const {data: refreshed, error} = await supabase.auth.refreshSession();
-      if (!error && refreshed.session?.access_token) {
-        setAuthToken(refreshed.session.access_token);
-        return refreshed.session.access_token;
-      }
-    }
-
-    setAuthToken(session.access_token);
-    return session.access_token;
-  } catch {
-    return getAuthToken();
-  }
-};
 
 const getErrorMessageFromText = (text: string, fallback: string): string => {
   if (!text) return fallback;
@@ -165,27 +131,6 @@ const uploadSignedStorageFile = async (
   });
 };
 
-const getStorageErrorMessage = (error: Error | DetailedError): string => {
-  const detailed = error as DetailedError;
-  const response = detailed.originalResponse;
-  const status = response?.getStatus();
-  const body = response?.getBody();
-  if (!body) {
-    const cause = detailed.causingError?.message;
-    return cause || error.message || (status ? `Storage upload failed ${status}` : 'Storage upload failed');
-  }
-
-  try {
-    const data = JSON.parse(body) as {error?: string; message?: string; statusCode?: string | number};
-    const message = data.message || data.error;
-    if (message) return status ? `Storage upload failed ${status}: ${message}` : message;
-  } catch {
-    // Plain text bodies from Storage are still useful for diagnostics.
-  }
-
-  return status ? `Storage upload failed ${status}: ${body}` : body;
-};
-
 const isTransientUploadError = (error: unknown): boolean => {
   const message = error instanceof Error ? error.message : String(error ?? '');
   return message.includes('网络失败')
@@ -199,17 +144,6 @@ const isTransientUploadError = (error: unknown): boolean => {
 const waitForUploadRetry = (attemptIndex: number): Promise<void> => new Promise((resolve) => {
   window.setTimeout(resolve, Math.min(10_000, 1_500 * 2 ** attemptIndex));
 });
-
-const isRecoverableResumableUploadError = (error: unknown): boolean => {
-  const message = error instanceof Error ? error.message : String(error ?? '');
-  return message.includes('Invalid Compact JWS')
-    || message.includes('JWT')
-    || message.includes('Unauthorized')
-    || message.includes('authorization')
-    || message.includes('signature')
-    || message.includes('401')
-    || message.includes('403');
-};
 
 type SignedMaterialUploadInfo = {
   bucket: string;
@@ -336,84 +270,6 @@ const uploadMaterialViaApi = async (
     const formData = new FormData();
     formData.append('file', file);
     xhr.send(formData);
-  });
-};
-
-const getSupabaseResumableUploadEndpoint = (signed = false): string => {
-  try {
-    const projectUrl = new URL(API_BASE_URL);
-    const storageHost = projectUrl.hostname.endsWith('.supabase.co')
-      ? projectUrl.hostname.replace('.supabase.co', '.storage.supabase.co')
-      : projectUrl.hostname;
-    return `${projectUrl.protocol}//${storageHost}/storage/v1/upload/resumable${signed ? '/sign' : ''}`;
-  } catch {
-    return `${API_BASE_URL.replace(/\/$/, '')}/storage/v1/upload/resumable${signed ? '/sign' : ''}`;
-  }
-};
-
-const uploadAuthenticatedStorageFileResumable = async (
-  bucket: string,
-  path: string,
-  authToken: string | null,
-  file: File,
-  onProgress?: (progress: number) => void,
-): Promise<void> => {
-  const endpoint = getSupabaseResumableUploadEndpoint(false);
-  if (!endpoint) {
-    throw new Error('无法识别 Supabase 项目地址，不能使用大文件续传上传');
-  }
-  if (!authToken) {
-    throw new Error('登录凭证已过期，请重新登录后上传视频');
-  }
-
-  onProgress?.(1);
-  await new Promise<void>((resolve, reject) => {
-    const upload = new tus.Upload(file, {
-      endpoint,
-      retryDelays: [0, 3000, 5000, 10000, 20000, 30000, 60000, 120000],
-      chunkSize: SUPABASE_TUS_CHUNK_SIZE_BYTES,
-      storeFingerprintForResuming: false,
-      removeFingerprintOnSuccess: true,
-      headers: {
-        ...(SUPABASE_ANON_KEY ? {apikey: SUPABASE_ANON_KEY} : {}),
-        Authorization: `Bearer ${authToken}`,
-        'x-upsert': 'false',
-      },
-      uploadDataDuringCreation: true,
-      onBeforeRequest: (req) => {
-        if (SUPABASE_ANON_KEY) {
-          req.setHeader('apikey', SUPABASE_ANON_KEY);
-        }
-        req.setHeader('Authorization', `Bearer ${authToken}`);
-        req.setHeader('x-upsert', 'false');
-      },
-      onShouldRetry: (error) => {
-        const status = error.originalResponse?.getStatus();
-        if (!status) return true;
-        if ([400, 401, 403, 404, 409, 413].includes(status)) return false;
-        return status === 408 || status === 423 || status === 429 || status >= 500;
-      },
-      metadata: {
-        bucketName: bucket,
-        objectName: path,
-        contentType: file.type || 'application/octet-stream',
-        cacheControl: '3600',
-      },
-      onError: (error) => {
-        reject(new Error(`TUS upload failed: ${getStorageErrorMessage(error)}`));
-      },
-      onProgress: (bytesUploaded, bytesTotal) => {
-        if (!bytesTotal) return;
-        const progress = Math.max(1, Math.min(99, Math.round((bytesUploaded / bytesTotal) * 100)));
-        onProgress?.(progress);
-      },
-      onSuccess: () => {
-        onProgress?.(100);
-        resolve();
-      },
-    });
-
-    upload.start();
   });
 };
 
@@ -1225,35 +1081,6 @@ export const uploadMaterial = async (
   const isLocalDev = API_BASE_URL.includes('localhost') || API_BASE_URL.includes('127.0.0.1');
   if (isLocalDev) {
     return uploadMaterialViaApi('/api/training/materials/upload', uploadFile, token, onProgress);
-  }
-
-  const shouldUseResumableUpload = isVideoUploadFile(uploadFile) || uploadFile.size > RESUMABLE_UPLOAD_THRESHOLD_BYTES;
-  if (shouldUseResumableUpload) {
-    let lastError: unknown;
-    for (let attempt = 0; attempt < 2; attempt += 1) {
-      const freshToken = await getFreshAuthToken();
-      const activeToken = freshToken ?? token;
-      const uploadInfo = await createSignedMaterialUploadInfo(uploadFile, activeToken);
-      try {
-        await uploadAuthenticatedStorageFileResumable(
-          uploadInfo.bucket,
-          uploadInfo.path,
-          activeToken,
-          uploadFile,
-          onProgress,
-        );
-        return {url: uploadInfo.publicUrl, filename: uploadFile.name};
-      } catch (error) {
-        lastError = error;
-        if (attempt >= 1 || !isRecoverableResumableUploadError(error)) {
-          throw error;
-        }
-        console.warn('[training upload] resumable upload auth/signature failed, retrying with a new signed token', error);
-        onProgress?.(1);
-        await waitForUploadRetry(0);
-      }
-    }
-    throw lastError instanceof Error ? lastError : new Error('视频上传失败，请重新登录后重试');
   }
 
   const uploadInfo = await uploadWithRetriedSignedUrl(uploadFile, token, onProgress);

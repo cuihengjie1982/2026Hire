@@ -1608,7 +1608,7 @@ export const CreateCourseModal = ({initial, onClose, onSubmit, defaultContentTyp
                         )}
                         {sec.contentType === 'video' && (
                           <p className="text-[10px] text-gray-400">
-                            大视频会分片直传对象存储。编辑已有视频时，上传完成后需要点击底部「保存修改」才会更新公开链接。
+                            视频会直传对象存储。编辑已有视频时，上传完成后需要点击底部「保存修改」才会更新公开链接。
                           </p>
                         )}
                       </div>
