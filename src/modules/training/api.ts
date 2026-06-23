@@ -330,9 +330,13 @@ const uploadMaterialViaApi = async (
 
 const getSupabaseResumableUploadEndpoint = (): string => {
   try {
-    return `${API_BASE_URL.replace(/\/$/, '')}/storage/v1/upload/resumable`;
+    const projectUrl = new URL(API_BASE_URL);
+    const storageHost = projectUrl.hostname.endsWith('.supabase.co')
+      ? projectUrl.hostname.replace('.supabase.co', '.storage.supabase.co')
+      : projectUrl.hostname;
+    return `${projectUrl.protocol}//${storageHost}/storage/v1/upload/resumable`;
   } catch {
-    return '';
+    return `${API_BASE_URL.replace(/\/$/, '')}/storage/v1/upload/resumable`;
   }
 };
 
@@ -340,6 +344,7 @@ const uploadSignedStorageFileResumable = async (
   bucket: string,
   path: string,
   authToken: string | null,
+  signedUploadToken: string,
   file: File,
   onProgress?: (progress: number) => void,
 ): Promise<void> => {
@@ -349,6 +354,9 @@ const uploadSignedStorageFileResumable = async (
   }
   if (!authToken) {
     throw new Error('登录状态已过期，请重新登录后上传视频');
+  }
+  if (!signedUploadToken) {
+    throw new Error('上传凭证生成失败，请重新选择文件上传');
   }
 
   onProgress?.(1);
@@ -363,9 +371,10 @@ const uploadSignedStorageFileResumable = async (
       headers: {
         ...(SUPABASE_ANON_KEY ? {apikey: SUPABASE_ANON_KEY} : {}),
         authorization: `Bearer ${activeAuthToken}`,
+        'x-signature': signedUploadToken,
         'x-upsert': 'false',
       },
-      uploadDataDuringCreation: false,
+      uploadDataDuringCreation: true,
       onBeforeRequest: async (req) => {
         const nextAuthToken = await getFreshAuthToken();
         if (nextAuthToken) {
@@ -375,6 +384,7 @@ const uploadSignedStorageFileResumable = async (
         if (SUPABASE_ANON_KEY) {
           req.setHeader('apikey', SUPABASE_ANON_KEY);
         }
+        req.setHeader('x-signature', signedUploadToken);
         req.setHeader('x-upsert', 'false');
       },
       onShouldRetry: (error) => {
@@ -1225,6 +1235,7 @@ export const uploadMaterial = async (
       uploadInfo.bucket,
       uploadInfo.path,
       freshToken ?? token,
+      uploadInfo.token,
       uploadFile,
       onProgress,
     );
