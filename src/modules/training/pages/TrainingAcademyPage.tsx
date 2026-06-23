@@ -1358,6 +1358,7 @@ export const CreateCourseModal = ({initial, onClose, onSubmit, defaultContentTyp
   const removeMaterial = (i: number) => setMaterials(m => m.filter((_, idx) => idx !== i));
 
   const getUploadFileExtension = (fileName: string) => fileName.split('.').pop()?.toLowerCase() ?? '';
+  const getUploadDisplayName = (fileName: string) => fileName.replace(/\.[^.]+$/, '').trim();
   const isUploadVideoFile = (file: File) => (
     file.type.startsWith('video/')
     || ['mp4', 'm4v', 'mov', 'webm', 'avi', 'mkv'].includes(getUploadFileExtension(file.name))
@@ -1377,10 +1378,12 @@ export const CreateCourseModal = ({initial, onClose, onSubmit, defaultContentTyp
     try {
       const result = await uploadMaterial(file, setSectionUploadProgress);
       const isVideoFile = isUploadVideoFile(file);
+      const displayName = getUploadDisplayName(result.filename) || (isVideoFile ? '培训视频' : '培训资料');
+      setTitle(prev => (prev.trim() || isEdit ? prev : displayName));
       setSections(prev => prev.map((section, idx) => idx === index
         ? {
             ...section,
-            sectionTitle: section.sectionTitle.trim() || result.filename.replace(/\.[^.]+$/, '') || (isVideoFile ? '培训视频' : '培训资料'),
+            sectionTitle: section.sectionTitle.trim() || displayName,
             contentType: isVideoFile ? 'video' : 'link',
             contentUrl: result.url,
           }
@@ -1405,9 +1408,11 @@ export const CreateCourseModal = ({initial, onClose, onSubmit, defaultContentTyp
     setUploadError('');
     try {
       const result = await uploadMaterial(file, setMaterialUploadProgress);
+      const displayName = getUploadDisplayName(result.filename) || result.filename || '培训资料';
       updateMaterial(index, 'url', result.url);
       updateMaterial(index, 'type', inferMaterialType(file));
-      if (!materials[index]?.title.trim()) updateMaterial(index, 'title', result.filename);
+      if (!materials[index]?.title.trim()) updateMaterial(index, 'title', displayName);
+      setTitle(prev => (prev.trim() || isEdit ? prev : displayName));
       toast.success(isEdit ? '素材已上传，已替换当前资料地址，请点击保存修改后公开链接会使用新地址' : '素材已上传，已自动填入地址，请创建课程');
     } catch (err) {
       const message = err instanceof Error ? err.message : '上传失败';
