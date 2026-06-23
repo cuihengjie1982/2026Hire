@@ -351,19 +351,19 @@ const getSupabaseResumableUploadEndpoint = (signed = false): string => {
   }
 };
 
-const uploadSignedStorageFileResumable = async (
+const uploadAuthenticatedStorageFileResumable = async (
   bucket: string,
   path: string,
-  signedUploadToken: string,
+  authToken: string | null,
   file: File,
   onProgress?: (progress: number) => void,
 ): Promise<void> => {
-  const endpoint = getSupabaseResumableUploadEndpoint(true);
+  const endpoint = getSupabaseResumableUploadEndpoint(false);
   if (!endpoint) {
     throw new Error('无法识别 Supabase 项目地址，不能使用大文件续传上传');
   }
-  if (!signedUploadToken) {
-    throw new Error('上传凭证生成失败，请重新选择文件上传');
+  if (!authToken) {
+    throw new Error('登录凭证已过期，请重新登录后上传视频');
   }
 
   onProgress?.(1);
@@ -376,7 +376,7 @@ const uploadSignedStorageFileResumable = async (
       removeFingerprintOnSuccess: true,
       headers: {
         ...(SUPABASE_ANON_KEY ? {apikey: SUPABASE_ANON_KEY} : {}),
-        'x-signature': signedUploadToken,
+        Authorization: `Bearer ${authToken}`,
         'x-upsert': 'false',
       },
       uploadDataDuringCreation: true,
@@ -384,7 +384,7 @@ const uploadSignedStorageFileResumable = async (
         if (SUPABASE_ANON_KEY) {
           req.setHeader('apikey', SUPABASE_ANON_KEY);
         }
-        req.setHeader('x-signature', signedUploadToken);
+        req.setHeader('Authorization', `Bearer ${authToken}`);
         req.setHeader('x-upsert', 'false');
       },
       onShouldRetry: (error) => {
@@ -1235,10 +1235,10 @@ export const uploadMaterial = async (
       const activeToken = freshToken ?? token;
       const uploadInfo = await createSignedMaterialUploadInfo(uploadFile, activeToken);
       try {
-        await uploadSignedStorageFileResumable(
+        await uploadAuthenticatedStorageFileResumable(
           uploadInfo.bucket,
           uploadInfo.path,
-          uploadInfo.token,
+          activeToken,
           uploadFile,
           onProgress,
         );
