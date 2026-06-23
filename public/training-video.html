@@ -497,6 +497,7 @@
         }
 
         function findVideoUrl(course) {
+          if (targetUrl && isVideoUrl(targetUrl)) return targetUrl;
           var content = Array.isArray(course.content) ? course.content : [];
           for (var i = content.length - 1; i >= 0; i -= 1) {
             var contentUrl = content[i].contentUrl || content[i].content_url || '';
@@ -656,9 +657,29 @@
           return sections;
         }
 
-        function getActionCaptions(course) {
+        function getCaptionListFromConfig(config, rawVideoUrl) {
+          var captionsByUrl = config.actionCaptionsByUrl || config.action_captions_by_url || {};
+          if (captionsByUrl && typeof captionsByUrl === 'object' && !Array.isArray(captionsByUrl)) {
+            var candidates = [targetUrl, rawVideoUrl, toProxyUrl(targetUrl), toProxyUrl(rawVideoUrl)].filter(Boolean);
+            for (var i = 0; i < candidates.length; i += 1) {
+              if (Array.isArray(captionsByUrl[candidates[i]]) && captionsByUrl[candidates[i]].length) {
+                return captionsByUrl[candidates[i]];
+              }
+            }
+            var comparable = normalizeComparableUrl(targetUrl || rawVideoUrl);
+            var keys = Object.keys(captionsByUrl);
+            for (var j = 0; j < keys.length; j += 1) {
+              if (normalizeComparableUrl(keys[j]) === comparable && Array.isArray(captionsByUrl[keys[j]]) && captionsByUrl[keys[j]].length) {
+                return captionsByUrl[keys[j]];
+              }
+            }
+          }
+          return config.actionCaptions || config.action_captions || [];
+        }
+
+        function getActionCaptions(course, rawVideoUrl) {
           var config = course.assessmentConfig || course.assessment_config || {};
-          var captions = config.actionCaptions || config.action_captions || [];
+          var captions = getCaptionListFromConfig(config, rawVideoUrl);
           if (!Array.isArray(captions)) return [];
           return captions
             .map(function (item) {
@@ -719,8 +740,8 @@
           });
         }
 
-        function renderActionCaptions(course) {
-          actionCaptions = getActionCaptions(course);
+        function renderActionCaptions(course, rawVideoUrl) {
+          actionCaptions = getActionCaptions(course, rawVideoUrl);
           actionsContentEl.innerHTML = '';
           if (!actionCaptions.length) {
             actionsContentEl.innerHTML = '<p class="transcript-text">暂无动作流。管理员可在后台视频分享中生成。</p>';
@@ -954,7 +975,7 @@
             openVideoEl.href = videoUrl;
             playerEl.classList.remove('hidden');
             tabsEl.classList.remove('hidden');
-            renderActionCaptions(course);
+            renderActionCaptions(course, rawVideoUrl);
             renderTranscript(course);
             renderNotes();
             switchTab(actionCaptions.length ? 'actions' : 'transcript');

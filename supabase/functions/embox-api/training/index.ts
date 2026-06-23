@@ -1682,11 +1682,12 @@ const handleTrainingAi = async (req: Request): Promise<Response> => {
 
     // POST /training/ai/action-captions
     if (path.endsWith('/action-captions')) {
-      const { courseId, title, description, duration, frames } = body as {
+      const { courseId, title, description, duration, targetUrl, frames } = body as {
         courseId?: string;
         title?: string;
         description?: string;
         duration?: number;
+        targetUrl?: string;
         frames?: Array<{time?: number; image?: string; mediaType?: string}>;
       };
       if (!courseId) {
@@ -1751,11 +1752,23 @@ const handleTrainingAi = async (req: Request): Promise<Response> => {
 
       const assessmentConfig = ((course as Record<string, unknown>).assessment_config ?? {}) as Record<string, unknown>;
       const generatedAt = new Date().toISOString();
+      const existingByUrl = (
+        assessmentConfig.actionCaptionsByUrl
+        && typeof assessmentConfig.actionCaptionsByUrl === 'object'
+        && !Array.isArray(assessmentConfig.actionCaptionsByUrl)
+      )
+        ? assessmentConfig.actionCaptionsByUrl as Record<string, unknown>
+        : {};
+      const captionsByUrl = targetUrl
+        ? {...existingByUrl, [targetUrl]: captions}
+        : existingByUrl;
       const nextAssessmentConfig = {
         ...assessmentConfig,
         actionCaptions: captions,
+        actionCaptionsByUrl: captionsByUrl,
         actionCaptionGeneratedAt: generatedAt,
         actionCaptionSource: 'vision-frames',
+        ...(targetUrl ? {actionCaptionTargetUrl: targetUrl} : {}),
       };
       const { error: updateError } = await supabase
         .from('training_courses')

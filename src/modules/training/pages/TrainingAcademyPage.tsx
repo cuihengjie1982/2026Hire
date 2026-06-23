@@ -501,6 +501,26 @@ export const VideoShareTab = ({courses, onAddCourse, onPreview, onCaptionsGenera
     }
   };
   const isShareableVideoUrl = (url?: string) => ['mp4', 'm4v', 'mov', 'webm', 'avi', 'mkv'].includes(getShareUrlExtension(url));
+  const getComparableUrl = (url?: string) => {
+    if (!url) return '';
+    try {
+      const parsed = new URL(url, window.location.origin);
+      return decodeURIComponent(parsed.pathname).replace(/^\/training-media\//, '/storage/v1/object/public/training-materials/');
+    } catch {
+      return url.split('?')[0] ?? url;
+    }
+  };
+  const getActionCaptionsForUrl = (course: TrainingCourse, url?: string) => {
+    const config = course.assessmentConfig;
+    const byUrl = config.actionCaptionsByUrl ?? {};
+    if (url) {
+      if (byUrl[url]?.length) return byUrl[url];
+      const comparable = getComparableUrl(url);
+      const matchedKey = Object.keys(byUrl).find(key => getComparableUrl(key) === comparable);
+      if (matchedKey && byUrl[matchedKey]?.length) return byUrl[matchedKey];
+    }
+    return config.actionCaptions ?? [];
+  };
   const getDocumentLabel = (extension: string) => {
     if (extension === 'pdf') return 'PDF';
     if (['doc', 'docx'].includes(extension)) return 'Word';
@@ -546,7 +566,7 @@ export const VideoShareTab = ({courses, onAddCourse, onPreview, onCaptionsGenera
       kindLabel,
       sourceLabel: item.sourceLabel,
       extension,
-      captionsCount: course.assessmentConfig.actionCaptions?.length ?? 0,
+      captionsCount: item.kind === 'video' ? getActionCaptionsForUrl(course, item.url).length : 0,
       searchText: `${course.title} ${course.description} ${course.category} ${item.title} ${kindLabel} ${extension}`.toLowerCase(),
     };
   }));
@@ -627,12 +647,12 @@ export const VideoShareTab = ({courses, onAddCourse, onPreview, onCaptionsGenera
     if (url) window.open(url, '_blank', 'noopener,noreferrer');
   };
 
-  const handleGenerateCaptions = async (course: TrainingCourse) => {
+  const handleGenerateCaptions = async (course: TrainingCourse, targetUrl?: string) => {
     setCaptionLoadingId(course.id);
     setCaptionProgress(prev => ({...prev, [course.id]: 0}));
     setError('');
     try {
-      await generateTrainingActionCaptions(course, progress => {
+      await generateTrainingActionCaptions(course, targetUrl, progress => {
         setCaptionProgress(prev => ({...prev, [course.id]: progress}));
       });
       await onCaptionsGenerated();
@@ -833,7 +853,7 @@ export const VideoShareTab = ({courses, onAddCourse, onPreview, onCaptionsGenera
                           </button>
                           {asset.kind === 'video' && (
                             <button
-                              onClick={() => handleGenerateCaptions(asset.course)}
+                              onClick={() => handleGenerateCaptions(asset.course, asset.url)}
                               disabled={courseLoading || isCaptionLoading}
                               className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 text-gray-700 rounded-lg text-xs hover:bg-gray-50 disabled:opacity-60 transition-colors"
                             >
@@ -928,7 +948,7 @@ export const VideoShareTab = ({courses, onAddCourse, onPreview, onCaptionsGenera
                     </button>
                     {asset.kind === 'video' && (
                       <button
-                        onClick={() => handleGenerateCaptions(asset.course)}
+                        onClick={() => handleGenerateCaptions(asset.course, asset.url)}
                         disabled={isCaptionLoading}
                         className="flex items-center justify-center gap-1.5 px-3 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-xs hover:bg-gray-50 disabled:opacity-60"
                       >

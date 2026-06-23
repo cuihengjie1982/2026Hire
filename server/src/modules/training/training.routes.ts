@@ -1133,11 +1133,12 @@ router.delete('/notes/:id', requireRole('admin', 'recruiter'), async (req, res, 
 
 router.post('/ai/action-captions', requireRole('admin', 'recruiter'), async (req, res, next) => {
   try {
-    const {courseId, title, description, duration, frames} = req.body as {
+    const {courseId, title, description, duration, targetUrl, frames} = req.body as {
       courseId?: string;
       title?: string;
       description?: string;
       duration?: number;
+      targetUrl?: string;
       frames?: Array<{time?: number; image?: string; mediaType?: string}>;
     };
     if (!courseId) {
@@ -1206,11 +1207,23 @@ router.post('/ai/action-captions', requireRole('admin', 'recruiter'), async (req
 
     const assessmentConfig = (course.assessment_config ?? {}) as Record<string, unknown>;
     const generatedAt = new Date().toISOString();
+    const existingByUrl = (
+      assessmentConfig.actionCaptionsByUrl
+      && typeof assessmentConfig.actionCaptionsByUrl === 'object'
+      && !Array.isArray(assessmentConfig.actionCaptionsByUrl)
+    )
+      ? assessmentConfig.actionCaptionsByUrl as Record<string, unknown>
+      : {};
+    const captionsByUrl = targetUrl
+      ? {...existingByUrl, [targetUrl]: captions}
+      : existingByUrl;
     const nextAssessmentConfig = {
       ...assessmentConfig,
       actionCaptions: captions,
+      actionCaptionsByUrl: captionsByUrl,
       actionCaptionGeneratedAt: generatedAt,
       actionCaptionSource: 'vision-frames',
+      ...(targetUrl ? {actionCaptionTargetUrl: targetUrl} : {}),
     };
     await queryOne(
       `UPDATE training_courses SET assessment_config = $1, updated_at = now() WHERE id = $2 RETURNING id`,

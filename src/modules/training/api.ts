@@ -538,7 +538,8 @@ export const getPublicTrainingCourse = async (courseId: string, token: string): 
   return isLocalExpress ? course : mapPublicCourseMediaUrls(course);
 };
 
-const findCourseVideoUrl = (course: TrainingCourse): string => {
+const findCourseVideoUrl = (course: TrainingCourse, targetUrl?: string): string => {
+  if (targetUrl) return targetUrl;
   const sectionVideo = [...course.content].reverse().find(section => section.contentType === 'video' && section.contentUrl);
   if (sectionVideo?.contentUrl) return sectionVideo.contentUrl;
   const materialVideo = [...course.materials].reverse().find(material => material.type === 'video' && material.url);
@@ -575,8 +576,9 @@ const seekVideo = async (video: HTMLVideoElement, time: number): Promise<void> =
 const extractVideoFrames = async (
   course: TrainingCourse,
   onProgress?: (progress: number) => void,
+  targetUrl?: string,
 ): Promise<{frames: TrainingActionCaptionFrame[]; duration: number}> => {
-  const rawUrl = findCourseVideoUrl(course);
+  const rawUrl = findCourseVideoUrl(course, targetUrl);
   const videoUrl = proxyTrainingMaterialUrlForCurrentOrigin(rawUrl) ?? rawUrl;
   if (!videoUrl) throw new Error('课程还没有可分析的视频');
 
@@ -630,6 +632,7 @@ const extractVideoFrames = async (
 
 export const generateTrainingActionCaptions = async (
   course: TrainingCourse,
+  targetUrl?: string,
   onProgress?: (progress: number) => void,
 ): Promise<TrainingActionCaptionResult> => {
   if (USE_MOCK_API) {
@@ -669,13 +672,14 @@ export const generateTrainingActionCaptions = async (
     throw new Error('当前环境无法抽取视频画面');
   }
 
-  const {frames, duration} = await extractVideoFrames(course, onProgress);
+  const {frames, duration} = await extractVideoFrames(course, onProgress, targetUrl);
   onProgress?.(72);
   const result = await efetch<TrainingActionCaptionResult>('/training/ai/action-captions', 'POST', {
     courseId: course.id,
     title: course.title,
     description: course.description,
     duration,
+    targetUrl,
     frames: frames as unknown as Record<string, unknown>[],
   });
   onProgress?.(100);

@@ -34,8 +34,10 @@ export interface AssessmentConfig {
   passingScore: number;
   questions?: {text: string; options?: string[]; answer?: string}[];
   actionCaptions?: TrainingActionCaption[];
+  actionCaptionsByUrl?: Record<string, TrainingActionCaption[]>;
   actionCaptionGeneratedAt?: string;
   actionCaptionSource?: string;
+  actionCaptionTargetUrl?: string;
 }
 
 export interface TrainingActionCaption {
