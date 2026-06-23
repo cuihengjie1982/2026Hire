@@ -46,7 +46,7 @@ const scheduleCleanup = (jobId: string, delayMs = 60000) => {
     jobs.delete(jobId);
     cleanupTimers.delete(jobId);
     notify();
-  }, 12000);
+  }, delayMs);
   cleanupTimers.set(jobId, timer);
 };
 

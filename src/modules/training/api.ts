@@ -16,6 +16,7 @@ import {
   type BatchEnrollResult,
   type MaterialUploadResult,
   type TrainingActionCaptionFrame,
+  type TrainingActionCaptionJob,
   type TrainingActionCaptionResult,
 } from './types';
 
@@ -33,6 +34,7 @@ export type {
   BatchEnrollResult,
   MaterialUploadResult,
   TrainingActionCaptionFrame,
+  TrainingActionCaptionJob,
   TrainingActionCaptionResult,
 };
 
@@ -368,6 +370,21 @@ const mapCourse = (raw: Record<string, unknown>): TrainingCourse => {
   };
 };
 
+const mapActionCaptionJob = (raw: Record<string, unknown>): TrainingActionCaptionJob => ({
+  id: String(raw.id ?? ''),
+  courseId: String(raw.course_id ?? raw.courseId ?? ''),
+  targetUrl: raw.target_url || raw.targetUrl ? String(raw.target_url ?? raw.targetUrl) : undefined,
+  status: String(raw.status ?? 'queued') as TrainingActionCaptionJob['status'],
+  progress: Math.max(0, Math.min(100, Number(raw.progress ?? 0))),
+  error: raw.error ? String(raw.error) : undefined,
+  captions: (raw.captions ?? []) as TrainingActionCaptionJob['captions'],
+  generatedAt: raw.generated_at || raw.generatedAt ? String(raw.generated_at ?? raw.generatedAt) : undefined,
+  model: raw.model ? String(raw.model) : undefined,
+  createdAt: String(raw.created_at ?? raw.createdAt ?? ''),
+  updatedAt: String(raw.updated_at ?? raw.updatedAt ?? ''),
+  completedAt: raw.completed_at || raw.completedAt ? String(raw.completed_at ?? raw.completedAt) : undefined,
+});
+
 export interface TrainingShareLink {
   courseId: string;
   token: string;
@@ -689,8 +706,8 @@ export const generateTrainingActionCaptions = async (
   }
 
   const {frames, duration} = await extractVideoFrames(course, onProgress, targetUrl);
-  onProgress?.(72);
-  const result = await efetch<TrainingActionCaptionResult>('/training/ai/action-captions', 'POST', {
+  onProgress?.(68);
+  const job = await efetch<Record<string, unknown>>('/training/ai/action-captions/jobs', 'POST', {
     courseId: course.id,
     title: course.title,
     description: course.description,
@@ -698,8 +715,55 @@ export const generateTrainingActionCaptions = async (
     targetUrl,
     frames: frames as unknown as Record<string, unknown>[],
   });
+  const completed = await waitTrainingActionCaptionJob(mapActionCaptionJob(job), onProgress);
+  return {
+    captions: completed.captions,
+    generatedAt: completed.completedAt ?? completed.updatedAt ?? new Date().toISOString(),
+    model: completed.model,
+  };
+};
+
+export const getTrainingActionCaptionJob = async (jobId: string): Promise<TrainingActionCaptionJob> => {
+  if (USE_MOCK_API) {
+    await mockDelay();
+    return {
+      id: jobId,
+      courseId: '',
+      status: 'succeeded',
+      progress: 100,
+      captions: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      completedAt: new Date().toISOString(),
+    };
+  }
+
+  const raw = await efetch<Record<string, unknown>>(`/training/ai/action-captions/jobs/${encodeURIComponent(jobId)}`);
+  return mapActionCaptionJob(raw);
+};
+
+const waitTrainingActionCaptionJob = async (
+  initialJob: TrainingActionCaptionJob,
+  onProgress?: (progress: number) => void,
+): Promise<TrainingActionCaptionJob> => {
+  let job = initialJob;
+  onProgress?.(Math.max(70, job.progress));
+
+  const startedAt = Date.now();
+  while (job.status === 'queued' || job.status === 'running') {
+    if (Date.now() - startedAt > 12 * 60 * 1000) {
+      throw new Error('动作流生成仍在后台执行，请稍后刷新查看结果');
+    }
+    await new Promise(resolve => window.setTimeout(resolve, 2500));
+    job = await getTrainingActionCaptionJob(job.id);
+    onProgress?.(Math.max(70, Math.min(99, job.progress)));
+  }
+
+  if (job.status === 'failed') {
+    throw new Error(job.error || '生成动作流失败');
+  }
   onProgress?.(100);
-  return result;
+  return job;
 };
 
 // ─── Enrollments ────────────────────────────────────────────────────────

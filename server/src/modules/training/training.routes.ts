@@ -74,6 +74,21 @@ type TrainingActionCaption = {
   confidence?: number;
 };
 
+type TrainingActionCaptionFrame = {
+  time?: number;
+  image?: string;
+  mediaType?: string;
+};
+
+type TrainingActionCaptionPayload = {
+  courseId?: string;
+  title?: string;
+  description?: string;
+  duration?: number;
+  targetUrl?: string;
+  frames?: TrainingActionCaptionFrame[];
+};
+
 function parseJsonObject(raw: string): Record<string, unknown> {
   const cleaned = raw.replace(/```json|```/g, '').trim();
   try {
@@ -122,6 +137,133 @@ function normalizeActionCaptions(value: unknown, duration: number): TrainingActi
     .filter((item): item is TrainingActionCaption => Boolean(item))
     .sort((a, b) => a.start - b.start)
     .slice(0, 80);
+}
+
+const actionCaptionJobSelect = `
+  id, course_id, target_url, status, progress, error, captions, model,
+  created_at, updated_at, completed_at
+`;
+
+function safeActionCaptionFrames(frames: unknown): TrainingActionCaptionFrame[] {
+  return (Array.isArray(frames) ? frames : [])
+    .filter((frame): frame is TrainingActionCaptionFrame => {
+      const row = frame as TrainingActionCaptionFrame;
+      return typeof row.image === 'string' && row.image.length > 0;
+    })
+    .slice(0, 18);
+}
+
+function actionCaptionSystemPrompt(): string {
+  return `你是培训视频动作流分析助手。请根据连续视频截图，识别画面中手部动作、身体动作、鼠标/键盘/触控、工具/物品变化和业务操作结果，生成员工观看时可同步显示的中文动作流。
+
+要求：
+1. 只返回 JSON，不要解释。
+2. 输出 {"captions":[{"start":数字秒,"end":数字秒,"title":"动作标题","text":"短字幕","description":"画面动作说明","handAction":"手部或鼠标键盘动作","objects":["物品或界面元素"],"result":"动作结果","confidence":0到1}]}。
+3. title 用 4 到 10 个汉字，text 用 6 到 18 个汉字，适合播放时大字显示。
+4. description 说明画面中真实可见的动作和变化，handAction 专门描述手、鼠标、键盘、工具或身体动作。
+5. objects 只列画面中能看见或能明确判断的物品/界面元素，不要编造。
+6. result 写该动作造成的结果，例如“输入完成”“桌面变干净”“咖啡粉压实”“页面保存成功”。
+7. 如果看不清具体文字，可以描述可见动作，不要编造系统不存在的内容。
+8. 时间段必须覆盖相邻截图之间的主要动作，动作变化明显时拆成更细片段。`;
+}
+
+async function processActionCaptionJob(jobId: string): Promise<void> {
+  try {
+    await queryOne(
+      `UPDATE training_action_caption_jobs SET status = 'running', progress = 72, updated_at = now() WHERE id = $1 RETURNING id`,
+      [jobId],
+    );
+    const job = await queryOne<Record<string, unknown>>(
+      `SELECT id, course_id, target_url, input_payload FROM training_action_caption_jobs WHERE id = $1`,
+      [jobId],
+    );
+    if (!job) throw new Error('Action caption job not found');
+
+    const payload = (job.input_payload ?? {}) as TrainingActionCaptionPayload;
+    const courseId = String(job.course_id ?? payload.courseId ?? '');
+    const targetUrl = String(job.target_url ?? payload.targetUrl ?? '');
+    const safeFrames = safeActionCaptionFrames(payload.frames);
+    if (!courseId) throw new Error('courseId is required');
+    if (safeFrames.length === 0) throw new Error('valid frames are required');
+
+    const course = await queryOne<Record<string, unknown>>(
+      `SELECT id, title, description, assessment_config FROM training_courses WHERE id = $1`,
+      [courseId],
+    );
+    if (!course) throw new Error('Course not found');
+
+    const {callVisionLLM} = await import('../ai/llmClient.js');
+    const aiConfig = await resolveTrainingVisionLLMConfig();
+    if (!aiConfig) throw new Error('No active vision AI model configured');
+
+    const frameTimes = safeFrames.map(frame => Number(frame.time ?? 0));
+    const parts: ContentPart[] = [
+      {
+        type: 'text',
+        text: `课程标题：${payload.title ?? course.title ?? '培训视频'}\n课程描述：${payload.description ?? course.description ?? ''}\n视频时长：${payload.duration ?? '未知'} 秒\n截图时间点：${frameTimes.join(', ')} 秒\n请按时间点生成动作字幕。`,
+      },
+      ...safeFrames.map(frame => ({
+        type: 'image' as const,
+        image: {
+          media_type: frame.mediaType === 'image/png' ? 'image/png' : 'image/jpeg',
+          data: String(frame.image),
+        },
+      })),
+    ];
+
+    await queryOne(
+      `UPDATE training_action_caption_jobs SET progress = 86, updated_at = now() WHERE id = $1 RETURNING id`,
+      [jobId],
+    );
+
+    const raw = await callVisionLLM(aiConfig, actionCaptionSystemPrompt(), parts);
+    const parsed = parseJsonObject(raw);
+    const captions = normalizeActionCaptions(parsed.captions, Number(payload.duration ?? 0));
+    if (captions.length === 0) throw new Error('AI did not return valid action captions');
+
+    const assessmentConfig = (course.assessment_config ?? {}) as Record<string, unknown>;
+    const generatedAt = new Date().toISOString();
+    const existingByUrl = (
+      assessmentConfig.actionCaptionsByUrl
+      && typeof assessmentConfig.actionCaptionsByUrl === 'object'
+      && !Array.isArray(assessmentConfig.actionCaptionsByUrl)
+    )
+      ? assessmentConfig.actionCaptionsByUrl as Record<string, unknown>
+      : {};
+    const captionsByUrl = targetUrl
+      ? {...existingByUrl, [targetUrl]: captions}
+      : existingByUrl;
+    const nextAssessmentConfig = {
+      ...assessmentConfig,
+      actionCaptions: captions,
+      actionCaptionsByUrl: captionsByUrl,
+      actionCaptionGeneratedAt: generatedAt,
+      actionCaptionSource: 'vision-frames',
+      ...(targetUrl ? {actionCaptionTargetUrl: targetUrl} : {}),
+    };
+
+    await queryOne(
+      `UPDATE training_courses SET assessment_config = $1, updated_at = $2 WHERE id = $3 RETURNING id`,
+      [JSON.stringify(nextAssessmentConfig), generatedAt, courseId],
+    );
+    await queryOne(
+      `UPDATE training_action_caption_jobs
+       SET status = 'succeeded', progress = 100, captions = $1, model = $2, error = NULL,
+           input_payload = '{}', updated_at = $3, completed_at = $3
+       WHERE id = $4 RETURNING id`,
+      [JSON.stringify(captions), `${aiConfig.provider}/${aiConfig.model_name}`, generatedAt, jobId],
+    );
+  } catch (error) {
+    const message = error instanceof Error ? error.message : '生成动作流失败';
+    console.error('[training action caption job]', jobId, error);
+    await queryOne(
+      `UPDATE training_action_caption_jobs
+       SET status = 'failed', progress = 100, error = $1, input_payload = '{}',
+           updated_at = now(), completed_at = now()
+       WHERE id = $2 RETURNING id`,
+      [message, jobId],
+    );
+  }
 }
 
 function createTrainingVideoToken(courseId: string): string {
@@ -1130,6 +1272,65 @@ router.delete('/notes/:id', requireRole('admin', 'recruiter'), async (req, res, 
 // ═══════════════════════════════════════════════════════════════════
 // AI Summarize (POST /training/ai/summarize)
 // ═══════════════════════════════════════════════════════════════════
+
+router.get('/ai/action-captions/jobs/:id', requireRole('admin', 'recruiter'), async (req, res, next) => {
+  try {
+    const row = await queryOne<Record<string, unknown>>(
+      `SELECT ${actionCaptionJobSelect}
+       FROM training_action_caption_jobs
+       WHERE id = $1`,
+      [req.params.id],
+    );
+    if (!row) {
+      res.status(404).json({error: {code: 'NOT_FOUND', message: 'Action caption job not found'}});
+      return;
+    }
+    res.json(row);
+  } catch (e) { next(e); }
+});
+
+router.post('/ai/action-captions/jobs', requireRole('admin', 'recruiter'), async (req, res, next) => {
+  try {
+    const {courseId, title, description, duration, targetUrl, frames} = req.body as TrainingActionCaptionPayload;
+    if (!courseId) {
+      res.status(400).json({error: {code: 'VALIDATION_ERROR', message: 'courseId is required'}});
+      return;
+    }
+    const safeFrames = safeActionCaptionFrames(frames);
+    if (safeFrames.length === 0) {
+      res.status(400).json({error: {code: 'VALIDATION_ERROR', message: 'valid frames are required'}});
+      return;
+    }
+
+    const course = await queryOne<Record<string, unknown>>(
+      `SELECT id FROM training_courses WHERE id = $1`,
+      [courseId],
+    );
+    if (!course) {
+      res.status(404).json({error: {code: 'NOT_FOUND', message: 'Course not found'}});
+      return;
+    }
+
+    const row = await queryOne<Record<string, unknown>>(
+      `INSERT INTO training_action_caption_jobs
+        (course_id, target_url, status, progress, input_payload)
+       VALUES ($1, $2, 'running', 70, $3)
+       RETURNING ${actionCaptionJobSelect}`,
+      [
+        courseId,
+        targetUrl ?? null,
+        JSON.stringify({courseId, title, description, duration, targetUrl, frames: safeFrames}),
+      ],
+    );
+    if (!row) {
+      res.status(500).json({error: {code: 'INTERNAL_ERROR', message: 'Failed to create action caption job'}});
+      return;
+    }
+
+    void processActionCaptionJob(String(row.id));
+    res.status(202).json(row);
+  } catch (e) { next(e); }
+});
 
 router.post('/ai/action-captions', requireRole('admin', 'recruiter'), async (req, res, next) => {
   try {

@@ -15,9 +15,9 @@ export const ActionCaptionJobOverlay = () => {
 
   useEffect(() => {
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
-      if (listActionCaptionJobs().some(job => job.status === 'running')) {
+      if (listActionCaptionJobs().some(job => job.status === 'running' && job.progress < 70)) {
         event.preventDefault();
-        event.returnValue = '动作流还在生成中，刷新或关闭页面会中断任务。';
+        event.returnValue = '动作流正在抽取视频画面，刷新或关闭页面会中断提交。';
       }
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
@@ -48,7 +48,11 @@ export const ActionCaptionJobOverlay = () => {
                     <div className="h-1.5 rounded-full bg-gray-100 overflow-hidden">
                       <div className="h-full bg-indigo-600 transition-all" style={{width: `${Math.max(4, job.progress)}%`}} />
                     </div>
-                    <p className="text-[11px] text-gray-400 mt-1">{job.progress}% · 切换系统页面不会中断，请不要刷新或关闭浏览器标签页</p>
+                    <p className="text-[11px] text-gray-400 mt-1">
+                      {job.progress < 70
+                        ? `${job.progress}% · 正在抽取视频画面，请不要刷新或关闭浏览器标签页`
+                        : `${job.progress}% · 已提交后台，切换系统页面不会中断`}
+                    </p>
                   </div>
                 ) : (
                   <p className={`text-xs mt-1 ${isFailed ? 'text-red-600' : 'text-emerald-600'}`}>

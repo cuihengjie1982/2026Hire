@@ -184,3 +184,20 @@ export interface TrainingActionCaptionResult {
   generatedAt: string;
   model?: string;
 }
+
+export type TrainingActionCaptionJobStatus = 'queued' | 'running' | 'succeeded' | 'failed';
+
+export interface TrainingActionCaptionJob {
+  id: string;
+  courseId: string;
+  targetUrl?: string;
+  status: TrainingActionCaptionJobStatus;
+  progress: number;
+  error?: string;
+  captions: TrainingActionCaption[];
+  generatedAt?: string;
+  model?: string;
+  createdAt: string;
+  updatedAt: string;
+  completedAt?: string;
+}

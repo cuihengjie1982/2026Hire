@@ -1620,6 +1620,21 @@ type TrainingActionCaption = {
   confidence?: number;
 };
 
+type TrainingActionCaptionFrame = {
+  time?: number;
+  image?: string;
+  mediaType?: string;
+};
+
+type TrainingActionCaptionPayload = {
+  courseId?: string;
+  title?: string;
+  description?: string;
+  duration?: number;
+  targetUrl?: string;
+  frames?: TrainingActionCaptionFrame[];
+};
+
 function parseJsonObject(raw: string): Record<string, unknown> {
   const cleaned = raw.replace(/```json|```/g, '').trim();
   try {
@@ -1669,15 +1684,227 @@ function normalizeActionCaptions(value: unknown, duration: number): TrainingActi
     .slice(0, 80);
 }
 
+const ACTION_CAPTION_JOB_SELECT = 'id, course_id, target_url, status, progress, error, captions, model, created_at, updated_at, completed_at';
+
+function safeActionCaptionFrames(frames: unknown): TrainingActionCaptionFrame[] {
+  return (Array.isArray(frames) ? frames : [])
+    .filter((frame): frame is TrainingActionCaptionFrame => {
+      const row = frame as TrainingActionCaptionFrame;
+      return typeof row.image === 'string' && row.image.length > 0;
+    })
+    .slice(0, 18);
+}
+
+function actionCaptionSystemPrompt(): string {
+  return `你是培训视频动作流分析助手。请根据连续视频截图，识别画面中手部动作、身体动作、鼠标/键盘/触控、工具/物品变化和业务操作结果，生成员工观看时可同步显示的中文动作流。
+
+要求：
+1. 只返回 JSON，不要解释。
+2. 输出 {"captions":[{"start":数字秒,"end":数字秒,"title":"动作标题","text":"短字幕","description":"画面动作说明","handAction":"手部或鼠标键盘动作","objects":["物品或界面元素"],"result":"动作结果","confidence":0到1}]}。
+3. title 用 4 到 10 个汉字，text 用 6 到 18 个汉字，适合播放时大字显示。
+4. description 说明画面中真实可见的动作和变化，handAction 专门描述手、鼠标、键盘、工具或身体动作。
+5. objects 只列画面中能看见或能明确判断的物品/界面元素，不要编造。
+6. result 写该动作造成的结果，例如“输入完成”“桌面变干净”“咖啡粉压实”“页面保存成功”。
+7. 如果看不清具体文字，可以描述可见动作，不要编造系统不存在的内容。
+8. 时间段必须覆盖相邻截图之间的主要动作，动作变化明显时拆成更细片段。`;
+}
+
+async function processActionCaptionJob(
+  supabase: ReturnType<typeof createSupabaseAdmin>,
+  jobId: string,
+): Promise<void> {
+  try {
+    await supabase
+      .from('training_action_caption_jobs')
+      .update({status: 'running', progress: 72, updated_at: new Date().toISOString()})
+      .eq('id', jobId);
+
+    const {data: job, error: jobError} = await supabase
+      .from('training_action_caption_jobs')
+      .select('id, course_id, target_url, input_payload')
+      .eq('id', jobId)
+      .single();
+    if (jobError || !job) throw jobError ?? new Error('Action caption job not found');
+
+    const payload = ((job as Record<string, unknown>).input_payload ?? {}) as TrainingActionCaptionPayload;
+    const courseId = String((job as Record<string, unknown>).course_id ?? payload.courseId ?? '');
+    const targetUrl = String((job as Record<string, unknown>).target_url ?? payload.targetUrl ?? '');
+    const safeFrames = safeActionCaptionFrames(payload.frames);
+    if (!courseId) throw new Error('courseId is required');
+    if (safeFrames.length === 0) throw new Error('valid frames are required');
+
+    const { data: course, error: courseError } = await supabase
+      .from('training_courses')
+      .select('id, title, description, assessment_config')
+      .eq('id', courseId)
+      .single();
+    if (courseError || !course) throw courseError ?? new Error('Course not found');
+
+    const visionConfig = await resolveTrainingVisionLLMConfig(supabase);
+    if (!visionConfig) throw new Error('No active vision AI model configured');
+
+    const frameTimes = safeFrames.map(frame => Number(frame.time ?? 0));
+    const parts: ContentPart[] = [
+      {
+        type: 'text',
+        text: `课程标题：${payload.title ?? course.title ?? '培训视频'}\n课程描述：${payload.description ?? course.description ?? ''}\n视频时长：${payload.duration ?? '未知'} 秒\n截图时间点：${frameTimes.join(', ')} 秒\n请按时间点生成动作字幕。`,
+      },
+      ...safeFrames.map(frame => ({
+        type: 'image' as const,
+        image: {
+          media_type: frame.mediaType === 'image/png' ? 'image/png' : 'image/jpeg',
+          data: String(frame.image),
+        },
+      })),
+    ];
+
+    await supabase
+      .from('training_action_caption_jobs')
+      .update({progress: 86, updated_at: new Date().toISOString()})
+      .eq('id', jobId);
+
+    const raw = await callVisionLLM(visionConfig, actionCaptionSystemPrompt(), parts);
+    const parsed = parseJsonObject(raw);
+    const captions = normalizeActionCaptions(parsed.captions, Number(payload.duration ?? 0));
+    if (captions.length === 0) throw new Error('AI did not return valid action captions');
+
+    const assessmentConfig = ((course as Record<string, unknown>).assessment_config ?? {}) as Record<string, unknown>;
+    const generatedAt = new Date().toISOString();
+    const existingByUrl = (
+      assessmentConfig.actionCaptionsByUrl
+      && typeof assessmentConfig.actionCaptionsByUrl === 'object'
+      && !Array.isArray(assessmentConfig.actionCaptionsByUrl)
+    )
+      ? assessmentConfig.actionCaptionsByUrl as Record<string, unknown>
+      : {};
+    const captionsByUrl = targetUrl
+      ? {...existingByUrl, [targetUrl]: captions}
+      : existingByUrl;
+    const nextAssessmentConfig = {
+      ...assessmentConfig,
+      actionCaptions: captions,
+      actionCaptionsByUrl: captionsByUrl,
+      actionCaptionGeneratedAt: generatedAt,
+      actionCaptionSource: 'vision-frames',
+      ...(targetUrl ? {actionCaptionTargetUrl: targetUrl} : {}),
+    };
+
+    const { error: updateError } = await supabase
+      .from('training_courses')
+      .update({ assessment_config: nextAssessmentConfig, updated_at: generatedAt })
+      .eq('id', courseId);
+    if (updateError) throw updateError;
+
+    const { error: completeError } = await supabase
+      .from('training_action_caption_jobs')
+      .update({
+        status: 'succeeded',
+        progress: 100,
+        captions,
+        model: `${visionConfig.provider}/${visionConfig.model_name}`,
+        error: null,
+        input_payload: {},
+        updated_at: generatedAt,
+        completed_at: generatedAt,
+      })
+      .eq('id', jobId);
+    if (completeError) throw completeError;
+  } catch (error) {
+    const now = new Date().toISOString();
+    const message = error instanceof Error ? error.message : '生成动作流失败';
+    console.error('[training action caption job]', jobId, error);
+    await supabase
+      .from('training_action_caption_jobs')
+      .update({
+        status: 'failed',
+        progress: 100,
+        error: message,
+        input_payload: {},
+        updated_at: now,
+        completed_at: now,
+      })
+      .eq('id', jobId);
+  }
+}
+
+function runInBackground(promise: Promise<unknown>): void {
+  const runtime = (globalThis as unknown as {
+    EdgeRuntime?: { waitUntil?: (promise: Promise<unknown>) => void };
+  }).EdgeRuntime;
+  if (runtime?.waitUntil) {
+    runtime.waitUntil(promise);
+    return;
+  }
+  promise.catch(error => console.error('[background task]', error));
+}
+
 const handleTrainingAi = async (req: Request): Promise<Response> => {
   try {
     const supabase = createSupabaseAdmin(req);
-    const body = await req.json();
     const url = new URL(req.url);
     const path = url.pathname.replace(/^\/embox-api/, '') || '/';
-    const llmConfig = await resolveTrainingLLMConfig(supabase);
-    if (!llmConfig) {
-      return jsonRes({ error: { code: 'AI_CONFIG_MISSING', message: 'No active AI model configured' } }, 400);
+
+    // GET /training/ai/action-captions/jobs/:id
+    if (req.method === 'GET' && path.includes('/action-captions/jobs/')) {
+      const jobId = path.split('/action-captions/jobs/')[1]?.split('/')[0];
+      if (!jobId) {
+        return jsonRes({ error: { code: 'VALIDATION_ERROR', message: 'jobId is required' } }, 400);
+      }
+      const {data, error} = await supabase
+        .from('training_action_caption_jobs')
+        .select(ACTION_CAPTION_JOB_SELECT)
+        .eq('id', jobId)
+        .single();
+      if (error || !data) {
+        return jsonRes({ error: { code: 'NOT_FOUND', message: 'Action caption job not found' } }, 404);
+      }
+      return jsonRes(data);
+    }
+
+    const body = await req.json();
+
+    // POST /training/ai/action-captions/jobs
+    if (path.endsWith('/action-captions/jobs')) {
+      const { courseId, title, description, duration, targetUrl, frames } = body as TrainingActionCaptionPayload;
+      if (!courseId) {
+        return jsonRes({ error: { code: 'VALIDATION_ERROR', message: 'courseId is required' } }, 400);
+      }
+      const safeFrames = safeActionCaptionFrames(frames);
+      if (safeFrames.length === 0) {
+        return jsonRes({ error: { code: 'VALIDATION_ERROR', message: 'valid frames are required' } }, 400);
+      }
+
+      const { data: course, error: courseError } = await supabase
+        .from('training_courses')
+        .select('id')
+        .eq('id', courseId)
+        .single();
+      if (courseError || !course) {
+        return jsonRes({ error: { code: 'NOT_FOUND', message: 'Course not found' } }, 404);
+      }
+
+      const {data: job, error: insertError} = await supabase
+        .from('training_action_caption_jobs')
+        .insert({
+          course_id: courseId,
+          target_url: targetUrl ?? null,
+          status: 'running',
+          progress: 70,
+          input_payload: {
+            courseId,
+            title,
+            description,
+            duration,
+            targetUrl,
+            frames: safeFrames,
+          },
+        })
+        .select(ACTION_CAPTION_JOB_SELECT)
+        .single();
+      if (insertError || !job) throw insertError ?? new Error('Failed to create action caption job');
+
+      runInBackground(processActionCaptionJob(supabase, String(job.id)));
+      return jsonRes(job, 202);
     }
 
     // POST /training/ai/action-captions
@@ -1711,24 +1938,11 @@ const handleTrainingAi = async (req: Request): Promise<Response> => {
         return jsonRes({ error: { code: 'AI_CONFIG_MISSING', message: 'No active vision AI model configured' } }, 400);
       }
 
-      const safeFrames = frames
-        .filter(frame => typeof frame.image === 'string' && frame.image.length > 0)
-        .slice(0, 18);
+      const safeFrames = safeActionCaptionFrames(frames);
       if (safeFrames.length === 0) {
         return jsonRes({ error: { code: 'VALIDATION_ERROR', message: 'valid frames are required' } }, 400);
       }
       const frameTimes = safeFrames.map(frame => Number(frame.time ?? 0));
-      const systemPrompt = `你是培训视频动作流分析助手。请根据连续视频截图，识别画面中手部动作、身体动作、鼠标/键盘/触控、工具/物品变化和业务操作结果，生成员工观看时可同步显示的中文动作流。
-
-要求：
-1. 只返回 JSON，不要解释。
-2. 输出 {"captions":[{"start":数字秒,"end":数字秒,"title":"动作标题","text":"短字幕","description":"画面动作说明","handAction":"手部或鼠标键盘动作","objects":["物品或界面元素"],"result":"动作结果","confidence":0到1}]}。
-3. title 用 4 到 10 个汉字，text 用 6 到 18 个汉字，适合播放时大字显示。
-4. description 说明画面中真实可见的动作和变化，handAction 专门描述手、鼠标、键盘、工具或身体动作。
-5. objects 只列画面中能看见或能明确判断的物品/界面元素，不要编造。
-6. result 写该动作造成的结果，例如“输入完成”“桌面变干净”“咖啡粉压实”“页面保存成功”。
-7. 如果看不清具体文字，可以描述可见动作，不要编造系统不存在的内容。
-8. 时间段必须覆盖相邻截图之间的主要动作，动作变化明显时拆成更细片段。`;
       const parts: ContentPart[] = [
         {
           type: 'text',
@@ -1743,7 +1957,7 @@ const handleTrainingAi = async (req: Request): Promise<Response> => {
         })),
       ];
 
-      const raw = await callVisionLLM(visionConfig, systemPrompt, parts);
+      const raw = await callVisionLLM(visionConfig, actionCaptionSystemPrompt(), parts);
       const parsed = parseJsonObject(raw);
       const captions = normalizeActionCaptions(parsed.captions, Number(duration ?? 0));
       if (captions.length === 0) {
@@ -1781,6 +1995,11 @@ const handleTrainingAi = async (req: Request): Promise<Response> => {
         generatedAt,
         model: `${visionConfig.provider}/${visionConfig.model_name}`,
       });
+    }
+
+    const llmConfig = await resolveTrainingLLMConfig(supabase);
+    if (!llmConfig) {
+      return jsonRes({ error: { code: 'AI_CONFIG_MISSING', message: 'No active AI model configured' } }, 400);
     }
 
     // POST /training/ai/summarize
