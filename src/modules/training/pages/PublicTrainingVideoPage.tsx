@@ -1,5 +1,5 @@
 import {useEffect, useState} from 'react';
-import {useSearchParams} from 'react-router-dom';
+import {useParams, useSearchParams} from 'react-router-dom';
 import {AlertCircle, Download, ExternalLink, FileText, Loader2} from 'lucide-react';
 import {getPublicTrainingCourse} from '../api';
 import type {TrainingCourse} from '../types';
@@ -115,8 +115,9 @@ const PublicTrainingDocumentPage = ({course}: {course: TrainingCourse}) => {
 
 export const PublicTrainingVideoPage = () => {
   const [searchParams] = useSearchParams();
-  const courseId = searchParams.get('courseId') ?? '';
-  const token = searchParams.get('token') ?? '';
+  const params = useParams<{courseId?: string; token?: string}>();
+  const courseId = searchParams.get('courseId') ?? params.courseId ?? '';
+  const token = searchParams.get('token') ?? params.token ?? '';
   const [course, setCourse] = useState<TrainingCourse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');

@@ -85,4 +85,15 @@ describe('App', () => {
     });
     expect(screen.queryByText('mock-login')).not.toBeInTheDocument();
   });
+
+  it('allows public short training video route without login', async () => {
+    window.history.pushState({}, '', '/tv/c1/public-token');
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(screen.getByText('mock-router')).toBeInTheDocument();
+    });
+    expect(screen.queryByText('mock-login')).not.toBeInTheDocument();
+  });
 });

@@ -9,6 +9,7 @@ import {NotificationProvider} from './shared/components/NotificationProvider';
 import {ActionCaptionJobOverlay} from './modules/training/components/ActionCaptionJobOverlay';
 
 const PUBLIC_ROUTE_PREFIXES = [
+  '/tv/',
   '/training/videos/watch',
   '/training/docs/pdf',
 ];
