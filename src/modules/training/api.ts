@@ -625,7 +625,7 @@ const extractVideoFrames = async (
   await waitForVideoEvent(video, 'loadedmetadata', 45000);
   if (video.readyState < 2) await waitForVideoEvent(video, 'loadeddata', 45000);
   const duration = Number.isFinite(video.duration) && video.duration > 0 ? video.duration : course.durationMinutes * 60;
-  const sampleCount = Math.min(18, Math.max(6, Math.ceil(duration / 4)));
+  const sampleCount = Math.min(10, Math.max(5, Math.ceil(duration / 6)));
   const startOffset = duration > 2 ? 1 : 0;
   const times = Array.from({length: sampleCount}, (_, index) => {
     if (sampleCount === 1) return startOffset;
@@ -633,10 +633,10 @@ const extractVideoFrames = async (
   });
 
   const canvas = document.createElement('canvas');
-  const width = 560;
+  const width = 360;
   const ratio = video.videoWidth && video.videoHeight ? video.videoHeight / video.videoWidth : 9 / 16;
   canvas.width = width;
-  canvas.height = Math.max(240, Math.round(width * ratio));
+  canvas.height = Math.max(180, Math.round(width * ratio));
   const context = canvas.getContext('2d');
   if (!context) throw new Error('浏览器不支持视频抽帧');
 
@@ -646,7 +646,7 @@ const extractVideoFrames = async (
     context.drawImage(video, 0, 0, canvas.width, canvas.height);
     let dataUrl = '';
     try {
-      dataUrl = canvas.toDataURL('image/jpeg', 0.72);
+      dataUrl = canvas.toDataURL('image/jpeg', 0.5);
     } catch {
       throw new Error('当前视频地址不允许浏览器抽帧，请使用系统上传的视频文件');
     }

@@ -150,7 +150,7 @@ function safeActionCaptionFrames(frames: unknown): TrainingActionCaptionFrame[] 
       const row = frame as TrainingActionCaptionFrame;
       return typeof row.image === 'string' && row.image.length > 0;
     })
-    .slice(0, 18);
+    .slice(0, 10);
 }
 
 function actionCaptionSystemPrompt(): string {
