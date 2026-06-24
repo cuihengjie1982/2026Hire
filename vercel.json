@@ -5,6 +5,10 @@
       "destination": "/training-video.html?courseId=:courseId&token=:token"
     },
     {
+      "source": "/tv/:path*",
+      "destination": "/training-video.html?sharePath=:path*"
+    },
+    {
       "source": "/training-public-api/:path*",
       "destination": "https://eqdfyhqeqkbjvivscjau.supabase.co/functions/v1/training-public/:path*"
     },

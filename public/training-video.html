@@ -360,11 +360,32 @@
         var courseId = params.get('courseId') || '';
         var token = params.get('token') || '';
         var targetUrl = params.get('target') || hashParams.get('target') || '';
+        function extractTrainingShareFromText(value) {
+          if (!value) return null;
+          var decoded = value;
+          try {
+            decoded = decodeURIComponent(value);
+          } catch (_) {
+            decoded = value;
+          }
+          var matches = Array.from(decoded.matchAll(/\/tv\/([0-9a-f-]{36})\/([A-Za-z0-9_-]{20,})/g));
+          if (!matches.length) return null;
+          var match = matches[matches.length - 1];
+          return { courseId: match[1], token: match[2] };
+        }
         if (!courseId || !token) {
-          var pathMatch = window.location.pathname.match(/^\/tv\/([^/]+)\/([^/]+)/);
-          if (pathMatch) {
-            courseId = decodeURIComponent(pathMatch[1]);
-            token = decodeURIComponent(pathMatch[2]);
+          var pathShare = extractTrainingShareFromText(window.location.pathname);
+          var queryShare = extractTrainingShareFromText(params.get('sharePath') || '');
+          var recoveredShare = queryShare || pathShare;
+          if (recoveredShare) {
+            courseId = recoveredShare.courseId;
+            token = recoveredShare.token;
+          } else {
+            var pathMatch = window.location.pathname.match(/^\/tv\/([^/]+)\/([^/]+)/);
+            if (pathMatch) {
+              courseId = decodeURIComponent(pathMatch[1]);
+              token = decodeURIComponent(pathMatch[2]);
+            }
           }
         }
         var titleEl = document.getElementById('course-title');

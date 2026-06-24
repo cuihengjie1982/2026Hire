@@ -1,5 +1,5 @@
 import {useEffect, useState} from 'react';
-import {useParams, useSearchParams} from 'react-router-dom';
+import {useLocation, useParams, useSearchParams} from 'react-router-dom';
 import {AlertCircle, Download, ExternalLink, FileText, Loader2} from 'lucide-react';
 import {getPublicTrainingCourse} from '../api';
 import type {TrainingCourse} from '../types';
@@ -21,6 +21,19 @@ const getUrlExtension = (url?: string): string => {
 
 const isVideoUrl = (url?: string): boolean => VIDEO_EXTENSIONS.has(getUrlExtension(url));
 const isDocumentUrl = (url?: string): boolean => DOCUMENT_EXTENSIONS.has(getUrlExtension(url));
+
+const extractTrainingShareFromText = (value?: string | null): {courseId: string; token: string} | null => {
+  if (!value) return null;
+  let decoded = value;
+  try {
+    decoded = decodeURIComponent(value);
+  } catch {
+    decoded = value;
+  }
+  const matches = Array.from(decoded.matchAll(/\/tv\/([0-9a-f-]{36})\/([A-Za-z0-9_-]{20,})/g));
+  const match = matches.at(-1);
+  return match ? {courseId: match[1], token: match[2]} : null;
+};
 
 const getDocumentItems = (course: TrainingCourse) => {
   const sectionDocs = course.content
@@ -115,9 +128,11 @@ const PublicTrainingDocumentPage = ({course}: {course: TrainingCourse}) => {
 
 export const PublicTrainingVideoPage = () => {
   const [searchParams] = useSearchParams();
+  const location = useLocation();
   const params = useParams<{courseId?: string; token?: string}>();
-  const courseId = searchParams.get('courseId') ?? params.courseId ?? '';
-  const token = searchParams.get('token') ?? params.token ?? '';
+  const recoveredShare = extractTrainingShareFromText(location.pathname) ?? extractTrainingShareFromText(searchParams.get('sharePath'));
+  const courseId = searchParams.get('courseId') ?? params.courseId ?? recoveredShare?.courseId ?? '';
+  const token = searchParams.get('token') ?? params.token ?? recoveredShare?.token ?? '';
   const [course, setCourse] = useState<TrainingCourse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');

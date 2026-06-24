@@ -96,4 +96,15 @@ describe('App', () => {
     });
     expect(screen.queryByText('mock-login')).not.toBeInTheDocument();
   });
+
+  it('allows malformed public training video route without login', async () => {
+    window.history.pushState({}, '', '/tv/559906f6-1baf-4475-9603-ef0634195600/https://hire.cmbpo.com/tv/83da6999-06ef-4038-b0d7-7daf171b4e38/J_UfdMBBYhJeVtDHEfdXa1WkhGzZKYaZWTvWJn8_5gc');
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(screen.getByText('mock-router')).toBeInTheDocument();
+    });
+    expect(screen.queryByText('mock-login')).not.toBeInTheDocument();
+  });
 });
