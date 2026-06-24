@@ -421,6 +421,18 @@ export interface TrainingShareLink {
   url: string;
 }
 
+const isTrainingVideoShareTarget = (url?: string): boolean => {
+  if (!url) return false;
+  try {
+    const parsed = new URL(url, window.location.origin);
+    const extension = decodeURIComponent(parsed.pathname).split('.').pop()?.toLowerCase() ?? '';
+    return ['mp4', 'm4v', 'mov', 'webm', 'avi', 'mkv'].includes(extension);
+  } catch {
+    const extension = url.split('?')[0]?.split('.').pop()?.toLowerCase() ?? '';
+    return ['mp4', 'm4v', 'mov', 'webm', 'avi', 'mkv'].includes(extension);
+  }
+};
+
 const mapEnrollment = (raw: Record<string, unknown>): TrainingEnrollment => ({
   id: String(raw.id ?? ''),
   candidateId: String(raw.candidate_id ?? raw.candidateId ?? ''),
@@ -549,7 +561,7 @@ export const deleteCourse = async (id: string): Promise<void> => {
 export const createTrainingShareLink = async (courseId: string, targetUrl?: string): Promise<TrainingShareLink> => {
   const buildPublicPath = (id: string, token: string) => {
     const path = `/tv/${encodeURIComponent(id)}/${encodeURIComponent(token)}`;
-    if (!targetUrl) return path;
+    if (!targetUrl || isTrainingVideoShareTarget(targetUrl)) return path;
     return `${path}?target=${encodeURIComponent(targetUrl)}`;
   };
 
