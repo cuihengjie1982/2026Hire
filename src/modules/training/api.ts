@@ -333,6 +333,35 @@ const proxyTrainingMaterialUrlForCurrentOrigin = (url?: string): string | undefi
   return `${window.location.origin}/training-media/${url.slice(markerIndex + marker.length)}`;
 };
 
+const getDirectTrainingMaterialUrl = (url?: string): string | undefined => {
+  if (!url || typeof window === 'undefined') return url;
+  const canUseConfiguredStorageOrigin = !API_BASE_URL.includes('localhost') && !API_BASE_URL.includes('127.0.0.1');
+  try {
+    const parsed = new URL(url, window.location.origin);
+    const trainingMediaPrefix = '/training-media/';
+    if (parsed.pathname.startsWith(trainingMediaPrefix) && canUseConfiguredStorageOrigin) {
+      return `${API_BASE_URL}/storage/v1/object/public/training-materials/${parsed.pathname.slice(trainingMediaPrefix.length)}${parsed.search}`;
+    }
+    const marker = '/storage/v1/object/public/training-materials/';
+    const markerIndex = canUseConfiguredStorageOrigin ? url.indexOf(marker) : -1;
+    if (markerIndex !== -1) {
+      return `${API_BASE_URL}${url.slice(markerIndex)}`;
+    }
+  } catch {
+    return url;
+  }
+  return url;
+};
+
+const getTrainingVideoUrlCandidates = (url?: string): string[] => {
+  const candidates = [
+    getDirectTrainingMaterialUrl(url),
+    url,
+    proxyTrainingMaterialUrlForCurrentOrigin(url),
+  ].filter((candidate): candidate is string => Boolean(candidate));
+  return Array.from(new Set(candidates));
+};
+
 const mapPublicCourseMediaUrls = (course: TrainingCourse): TrainingCourse => ({
   ...course,
   content: course.content.map(section => ({
@@ -600,20 +629,16 @@ const waitForVideoEvent = (video: HTMLVideoElement, eventName: keyof HTMLMediaEl
 const seekVideo = async (video: HTMLVideoElement, time: number): Promise<void> => {
   const targetTime = Math.min(Math.max(time, 0), Math.max((video.duration || 0) - 0.1, 0));
   if (Math.abs((video.currentTime || 0) - targetTime) < 0.05 && video.readyState >= 2) return;
-  const seeked = waitForVideoEvent(video, 'seeked', 30000);
+  const seeked = waitForVideoEvent(video, 'seeked', 45000);
   video.currentTime = targetTime;
   await seeked;
 };
 
-const extractVideoFrames = async (
-  course: TrainingCourse,
+const extractVideoFramesFromUrl = async (
+  videoUrl: string,
+  durationMinutes: number,
   onProgress?: (progress: number) => void,
-  targetUrl?: string,
 ): Promise<{frames: TrainingActionCaptionFrame[]; duration: number}> => {
-  const rawUrl = findCourseVideoUrl(course, targetUrl);
-  const videoUrl = proxyTrainingMaterialUrlForCurrentOrigin(rawUrl) ?? rawUrl;
-  if (!videoUrl) throw new Error('课程还没有可分析的视频');
-
   const video = document.createElement('video');
   video.crossOrigin = 'anonymous';
   video.muted = true;
@@ -622,11 +647,10 @@ const extractVideoFrames = async (
   video.src = videoUrl;
   video.load();
 
-  await waitForVideoEvent(video, 'loadedmetadata', 45000);
-  if (video.readyState < 2) await waitForVideoEvent(video, 'loadeddata', 45000);
-  const duration = Number.isFinite(video.duration) && video.duration > 0 ? video.duration : course.durationMinutes * 60;
-  const sampleCount = Math.min(10, Math.max(5, Math.ceil(duration / 6)));
-  const startOffset = duration > 2 ? 1 : 0;
+  await waitForVideoEvent(video, 'loadedmetadata', 180000);
+  const duration = Number.isFinite(video.duration) && video.duration > 0 ? video.duration : durationMinutes * 60;
+  const sampleCount = Math.min(8, Math.max(4, Math.ceil(duration / 10)));
+  const startOffset = duration > 2 ? 0.5 : 0;
   const times = Array.from({length: sampleCount}, (_, index) => {
     if (sampleCount === 1) return startOffset;
     return startOffset + ((Math.max(duration - startOffset - 0.5, 0)) * index) / (sampleCount - 1);
@@ -641,26 +665,49 @@ const extractVideoFrames = async (
   if (!context) throw new Error('浏览器不支持视频抽帧');
 
   const frames: TrainingActionCaptionFrame[] = [];
-  for (let index = 0; index < times.length; index += 1) {
-    await seekVideo(video, times[index]);
-    context.drawImage(video, 0, 0, canvas.width, canvas.height);
-    let dataUrl = '';
-    try {
-      dataUrl = canvas.toDataURL('image/jpeg', 0.5);
-    } catch {
-      throw new Error('当前视频地址不允许浏览器抽帧，请使用系统上传的视频文件');
+  try {
+    for (let index = 0; index < times.length; index += 1) {
+      await seekVideo(video, times[index]);
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+      let dataUrl = '';
+      try {
+        dataUrl = canvas.toDataURL('image/jpeg', 0.5);
+      } catch {
+        throw new Error('当前视频地址不允许浏览器抽帧，请使用系统上传的视频文件');
+      }
+      frames.push({
+        time: Math.round(times[index] * 10) / 10,
+        image: dataUrl.replace(/^data:image\/jpeg;base64,/, ''),
+        mediaType: 'image/jpeg',
+      });
+      onProgress?.(Math.round(((index + 1) / times.length) * 65));
     }
-    frames.push({
-      time: Math.round(times[index] * 10) / 10,
-      image: dataUrl.replace(/^data:image\/jpeg;base64,/, ''),
-      mediaType: 'image/jpeg',
-    });
-    onProgress?.(Math.round(((index + 1) / times.length) * 65));
+  } finally {
+    video.removeAttribute('src');
+    video.load();
   }
 
-  video.removeAttribute('src');
-  video.load();
   return {frames, duration};
+};
+
+const extractVideoFrames = async (
+  course: TrainingCourse,
+  onProgress?: (progress: number) => void,
+  targetUrl?: string,
+): Promise<{frames: TrainingActionCaptionFrame[]; duration: number}> => {
+  const rawUrl = findCourseVideoUrl(course, targetUrl);
+  const videoUrls = getTrainingVideoUrlCandidates(rawUrl);
+  if (!videoUrls.length) throw new Error('课程还没有可分析的视频');
+
+  let lastError: unknown = null;
+  for (const videoUrl of videoUrls) {
+    try {
+      return await extractVideoFramesFromUrl(videoUrl, course.durationMinutes, onProgress);
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error('视频加载超时，无法抽取画面');
 };
 
 export const generateTrainingActionCaptions = async (
