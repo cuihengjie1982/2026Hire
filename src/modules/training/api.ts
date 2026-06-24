@@ -547,20 +547,21 @@ export const deleteCourse = async (id: string): Promise<void> => {
 };
 
 export const createTrainingShareLink = async (courseId: string, targetUrl?: string): Promise<TrainingShareLink> => {
-  const withTarget = (path: string) => {
-    if (!targetUrl) return path;
-    return `${path}#target=${encodeURIComponent(targetUrl)}`;
+  const buildPublicPath = (id: string, token: string) => {
+    const params = new URLSearchParams({courseId: id, token});
+    if (targetUrl) params.set('target', targetUrl);
+    return `/training-video.html?${params.toString()}`;
   };
 
   if (USE_MOCK_API) {
     await mockDelay();
     const token = `mock-${courseId}`;
-    const path = withTarget(`/tv/${encodeURIComponent(courseId)}/${encodeURIComponent(token)}`);
+    const path = buildPublicPath(courseId, token);
     return {courseId, token, path, url: `${window.location.origin}${path}`};
   }
 
   const raw = await efetch<{courseId: string; token: string; path: string}>('/training/share-links', 'POST', {courseId});
-  const path = withTarget(`/tv/${encodeURIComponent(raw.courseId)}/${encodeURIComponent(raw.token)}`);
+  const path = buildPublicPath(raw.courseId, raw.token);
   return {...raw, path, url: `${window.location.origin}${path}`};
 };
 
