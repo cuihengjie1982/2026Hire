@@ -548,9 +548,9 @@ export const deleteCourse = async (id: string): Promise<void> => {
 
 export const createTrainingShareLink = async (courseId: string, targetUrl?: string): Promise<TrainingShareLink> => {
   const buildPublicPath = (id: string, token: string) => {
-    const params = new URLSearchParams({courseId: id, token});
-    if (targetUrl) params.set('target', targetUrl);
-    return `/training-video.html?${params.toString()}`;
+    const path = `/tv/${encodeURIComponent(id)}/${encodeURIComponent(token)}`;
+    if (!targetUrl) return path;
+    return `${path}?target=${encodeURIComponent(targetUrl)}`;
   };
 
   if (USE_MOCK_API) {
