@@ -492,8 +492,16 @@
           return /iPhone|iPad|iPod/i.test(ua) || (/Macintosh/i.test(ua) && 'ontouchend' in document);
         }
 
+        function isWeChatBrowser() {
+          return /MicroMessenger/i.test(navigator.userAgent || '');
+        }
+
         function selectVideoUrl(rawUrl) {
           var proxyUrl = toProxyUrl(rawUrl);
+          if (isWeChatBrowser() && proxyUrl) {
+            fallbackVideoUrl = rawUrl && proxyUrl !== rawUrl ? rawUrl : '';
+            return proxyUrl;
+          }
           if (isIOSDevice()) {
             fallbackVideoUrl = proxyUrl && proxyUrl !== rawUrl ? proxyUrl : '';
             return rawUrl;
@@ -942,8 +950,10 @@
           playButtonEl.textContent = '正在缓冲...';
           setMessage('正在加载视频，如果网络较慢请稍候。');
           if (videoEl.readyState === 0) videoEl.load();
+          var startTime = videoEl.currentTime || 0;
           playTimeout = window.setTimeout(function () {
-            if (videoEl.paused) {
+            var hasStarted = !videoEl.ended && (videoEl.currentTime > startTime + 0.05 || videoEl.readyState >= 3);
+            if (!hasStarted) {
               if (switchToFallbackVideo('当前视频线路加载较慢。')) return;
               actionsEl.classList.remove('hidden');
               playButtonEl.textContent = '重新播放';
