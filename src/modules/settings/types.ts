@@ -1,5 +1,5 @@
 // User and Role types
-export type UserRole = 'admin' | 'recruiter' | 'hiring_manager' | 'viewer';
+export type UserRole = 'admin' | 'recruiter' | 'hiring_manager' | 'viewer' | 'video_viewer';
 
 export type User = {
   id: string;

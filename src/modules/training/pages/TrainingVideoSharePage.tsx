@@ -10,6 +10,7 @@ import {
   type TrainingCourse,
 } from '../api';
 import {CreateCourseModal, VideoShareTab} from './TrainingAcademyPage';
+import {getCurrentUser} from '../../settings/api';
 
 export const TrainingVideoSharePage = () => {
   const [courses, setCourses] = useState<TrainingCourse[]>([]);
@@ -17,7 +18,9 @@ export const TrainingVideoSharePage = () => {
   const [error, setError] = useState('');
   const [showCreateCourse, setShowCreateCourse] = useState(false);
   const [editingCourse, setEditingCourse] = useState<TrainingCourse | null>(null);
+  const [currentRole, setCurrentRole] = useState<string | null>(null);
   const navigate = useNavigate();
+  const canManage = currentRole !== 'video_viewer';
 
   const hasActionCaptions = (course: TrainingCourse) => {
     if ((course.assessmentConfig.actionCaptions?.length ?? 0) > 0) return true;
@@ -40,6 +43,24 @@ export const TrainingVideoSharePage = () => {
   useEffect(() => {
     void loadData();
   }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    getCurrentUser()
+      .then(user => {
+        if (mounted) setCurrentRole(user.role);
+      })
+      .catch(e => {
+        console.warn('[VideoShare] Failed to resolve current user role:', e);
+      });
+    return () => { mounted = false; };
+  }, []);
+
+  useEffect(() => {
+    if (canManage) return;
+    setShowCreateCourse(false);
+    setEditingCourse(null);
+  }, [canManage]);
 
   const handleCreateCourse = async (input: {
     title: string; category: string; difficulty: string; description: string;
@@ -114,12 +135,14 @@ export const TrainingVideoSharePage = () => {
             <p className="text-sm text-gray-500">面向已入职员工的公开培训视频，可微信转发、免登录观看、生成实时动作流。</p>
           </div>
         </div>
-        <button
-          onClick={() => setShowCreateCourse(true)}
-          className="flex items-center justify-center gap-2 px-4 py-2 bg-[#1a4bc4] text-white rounded-lg text-sm hover:bg-[#153da0] transition-colors"
-        >
-          <Upload className="w-4 h-4" /> 新建视频
-        </button>
+        {canManage && (
+          <button
+            onClick={() => setShowCreateCourse(true)}
+            className="flex items-center justify-center gap-2 px-4 py-2 bg-[#1a4bc4] text-white rounded-lg text-sm hover:bg-[#153da0] transition-colors"
+          >
+            <Upload className="w-4 h-4" /> 新建视频
+          </button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -161,11 +184,12 @@ export const TrainingVideoSharePage = () => {
 
       <VideoShareTab
         courses={courses}
-        onAddCourse={() => setShowCreateCourse(true)}
-        onEditCourse={setEditingCourse}
-        onDeleteCourse={handleDeleteCourse}
+        readonly={!canManage}
+        onAddCourse={canManage ? () => setShowCreateCourse(true) : undefined}
+        onEditCourse={canManage ? setEditingCourse : undefined}
+        onDeleteCourse={canManage ? handleDeleteCourse : undefined}
         onPreview={(courseId) => navigate(`/training/preview?courseId=${courseId}`)}
-        onCaptionsGenerated={loadData}
+        onCaptionsGenerated={canManage ? loadData : undefined}
       />
 
       {showCreateCourse && (

@@ -475,11 +475,12 @@ const CoursesTab = ({courses, onAdd, onBatchEnroll, onEdit, onDelete}: {
   );
 };
 
-export const VideoShareTab = ({courses, onAddCourse, onPreview, onCaptionsGenerated, onEditCourse, onDeleteCourse}: {
+export const VideoShareTab = ({courses, readonly = false, onAddCourse, onPreview, onCaptionsGenerated, onEditCourse, onDeleteCourse}: {
   courses: TrainingCourse[];
-  onAddCourse: () => void;
+  readonly?: boolean;
+  onAddCourse?: () => void;
   onPreview: (courseId: string) => void;
-  onCaptionsGenerated: () => Promise<void>;
+  onCaptionsGenerated?: () => Promise<void>;
   onEditCourse?: (course: TrainingCourse) => void;
   onDeleteCourse?: (course: TrainingCourse) => void;
 }) => {
@@ -652,7 +653,7 @@ export const VideoShareTab = ({courses, onAddCourse, onPreview, onCaptionsGenera
 
   useEffect(() => {
     const completedJobs = captionJobs.filter(job => job.status === 'succeeded' && !refreshedCaptionJobIdsRef.current.has(job.id));
-    if (!completedJobs.length) return;
+    if (!completedJobs.length || !onCaptionsGenerated) return;
     completedJobs.forEach(job => refreshedCaptionJobIdsRef.current.add(job.id));
     void onCaptionsGenerated();
   }, [captionJobs, onCaptionsGenerated]);
@@ -696,6 +697,7 @@ export const VideoShareTab = ({courses, onAddCourse, onPreview, onCaptionsGenera
   };
 
   const handleGenerateCaptions = async (course: TrainingCourse, targetUrl?: string) => {
+    if (readonly) return;
     setError('');
     startActionCaptionJob(course, targetUrl);
   };
@@ -721,10 +723,17 @@ export const VideoShareTab = ({courses, onAddCourse, onPreview, onCaptionsGenera
               按视频、PDF、Word 和课程分类管理公开资料链接，员工无需报名课程、无需登录后台即可观看或预览。
             </p>
           </div>
-          <button onClick={onAddCourse} className="flex items-center justify-center gap-2 px-4 py-2 bg-[#1a4bc4] text-white rounded-lg text-sm hover:bg-[#153da0] transition-colors">
-            <Plus className="w-4 h-4" /> 新建资料
-          </button>
+          {!readonly && onAddCourse && (
+            <button onClick={onAddCourse} className="flex items-center justify-center gap-2 px-4 py-2 bg-[#1a4bc4] text-white rounded-lg text-sm hover:bg-[#153da0] transition-colors">
+              <Plus className="w-4 h-4" /> 新建资料
+            </button>
+          )}
         </div>
+        {readonly && (
+          <div className="mt-4 rounded-lg border border-indigo-100 bg-indigo-50 px-3 py-2 text-sm text-indigo-700">
+            当前账号仅可查看和预览视频分享资料。
+          </div>
+        )}
       </div>
 
       {error && (
@@ -738,9 +747,11 @@ export const VideoShareTab = ({courses, onAddCourse, onPreview, onCaptionsGenera
           <PlayCircle className="w-12 h-12 text-gray-300 mx-auto mb-3" />
           <p className="text-gray-600 font-medium">暂无可分享的培训资料</p>
           <p className="text-sm text-gray-400 mt-1">请先新建课程，在章节或参考资料中上传文件并保存课程。</p>
-          <button onClick={onAddCourse} className="mt-4 px-4 py-2 bg-[#1a4bc4] text-white rounded-lg text-sm hover:bg-[#153da0]">
-            新建课程
-          </button>
+          {!readonly && onAddCourse && (
+            <button onClick={onAddCourse} className="mt-4 px-4 py-2 bg-[#1a4bc4] text-white rounded-lg text-sm hover:bg-[#153da0]">
+              新建课程
+            </button>
+          )}
         </div>
       ) : (
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
@@ -873,22 +884,26 @@ export const VideoShareTab = ({courses, onAddCourse, onPreview, onCaptionsGenera
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-end gap-2">
-                          <button
-                            onClick={() => handleCopy(asset.course.id, asset.url)}
-                            disabled={itemLoading || isCaptionLoading}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-900 text-white rounded-lg text-xs hover:bg-black disabled:opacity-60 transition-colors"
-                          >
-                            {itemLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Copy className="w-3.5 h-3.5" />}
-                            {itemCopied ? '已复制' : '复制链接'}
-                          </button>
-                          <button
-                            onClick={() => handleOpen(asset.course.id, asset.url)}
-                            disabled={itemLoading || isCaptionLoading}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 text-gray-700 rounded-lg text-xs hover:bg-gray-50 disabled:opacity-60 transition-colors"
-                          >
-                            <ExternalLink className="w-3.5 h-3.5" /> 打开
-                          </button>
-                          {asset.kind === 'video' && (
+                          {!readonly && (
+                            <>
+                              <button
+                                onClick={() => handleCopy(asset.course.id, asset.url)}
+                                disabled={itemLoading || isCaptionLoading}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-900 text-white rounded-lg text-xs hover:bg-black disabled:opacity-60 transition-colors"
+                              >
+                                {itemLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Copy className="w-3.5 h-3.5" />}
+                                {itemCopied ? '已复制' : '复制链接'}
+                              </button>
+                              <button
+                                onClick={() => handleOpen(asset.course.id, asset.url)}
+                                disabled={itemLoading || isCaptionLoading}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 text-gray-700 rounded-lg text-xs hover:bg-gray-50 disabled:opacity-60 transition-colors"
+                              >
+                                <ExternalLink className="w-3.5 h-3.5" /> 打开
+                              </button>
+                            </>
+                          )}
+                          {!readonly && asset.kind === 'video' && (
                             <button
                               onClick={() => handleGenerateCaptions(asset.course, asset.url)}
                               disabled={courseLoading || isCaptionLoading}
@@ -898,14 +913,16 @@ export const VideoShareTab = ({courses, onAddCourse, onPreview, onCaptionsGenera
                               {isCaptionLoading ? `${progress}%` : asset.captionsCount > 0 ? '重生成' : '动作流'}
                             </button>
                           )}
-                          <button
-                            onClick={() => handleCopy(asset.course.id)}
-                            disabled={courseLoading || isCaptionLoading}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 text-gray-700 rounded-lg text-xs hover:bg-gray-50 disabled:opacity-60 transition-colors"
-                          >
-                            {courseLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <BookOpen className="w-3.5 h-3.5" />}
-                            {courseCopied ? '已复制' : '整课'}
-                          </button>
+                          {!readonly && (
+                            <button
+                              onClick={() => handleCopy(asset.course.id)}
+                              disabled={courseLoading || isCaptionLoading}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 text-gray-700 rounded-lg text-xs hover:bg-gray-50 disabled:opacity-60 transition-colors"
+                            >
+                              {courseLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <BookOpen className="w-3.5 h-3.5" />}
+                              {courseCopied ? '已复制' : '整课'}
+                            </button>
+                          )}
                           <button
                             onClick={() => onPreview(asset.course.id)}
                             disabled={isCaptionLoading}
@@ -913,7 +930,7 @@ export const VideoShareTab = ({courses, onAddCourse, onPreview, onCaptionsGenera
                           >
                             <PlayCircle className="w-3.5 h-3.5" /> 预览
                           </button>
-                          {onEditCourse && (
+                          {!readonly && onEditCourse && (
                             <button
                               onClick={() => onEditCourse(asset.course)}
                               disabled={isCaptionLoading}
@@ -922,7 +939,7 @@ export const VideoShareTab = ({courses, onAddCourse, onPreview, onCaptionsGenera
                               <Edit3 className="w-3.5 h-3.5" /> 编辑
                             </button>
                           )}
-                          {onDeleteCourse && (
+                          {!readonly && onDeleteCourse && (
                             <button
                               onClick={() => onDeleteCourse(asset.course)}
                               disabled={courseLoading || isCaptionLoading}
@@ -969,23 +986,27 @@ export const VideoShareTab = ({courses, onAddCourse, onPreview, onCaptionsGenera
                       </div>
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      onClick={() => handleCopy(asset.course.id, asset.url)}
-                      disabled={itemLoading || isCaptionLoading}
-                      className="flex items-center justify-center gap-1.5 px-3 py-2 bg-gray-900 text-white rounded-lg text-xs hover:bg-black disabled:opacity-60"
-                    >
-                      {itemLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Copy className="w-3.5 h-3.5" />}
-                      {itemCopied ? '已复制' : '复制链接'}
-                    </button>
-                    <button
-                      onClick={() => handleOpen(asset.course.id, asset.url)}
-                      disabled={itemLoading || isCaptionLoading}
-                      className="flex items-center justify-center gap-1.5 px-3 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-xs hover:bg-gray-50 disabled:opacity-60"
-                    >
-                      <ExternalLink className="w-3.5 h-3.5" /> 打开
-                    </button>
-                    {asset.kind === 'video' && (
+                  <div className={`grid gap-2 ${readonly ? 'grid-cols-1' : 'grid-cols-2'}`}>
+                    {!readonly && (
+                      <>
+                        <button
+                          onClick={() => handleCopy(asset.course.id, asset.url)}
+                          disabled={itemLoading || isCaptionLoading}
+                          className="flex items-center justify-center gap-1.5 px-3 py-2 bg-gray-900 text-white rounded-lg text-xs hover:bg-black disabled:opacity-60"
+                        >
+                          {itemLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Copy className="w-3.5 h-3.5" />}
+                          {itemCopied ? '已复制' : '复制链接'}
+                        </button>
+                        <button
+                          onClick={() => handleOpen(asset.course.id, asset.url)}
+                          disabled={itemLoading || isCaptionLoading}
+                          className="flex items-center justify-center gap-1.5 px-3 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-xs hover:bg-gray-50 disabled:opacity-60"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" /> 打开
+                        </button>
+                      </>
+                    )}
+                    {!readonly && asset.kind === 'video' && (
                       <button
                         onClick={() => handleGenerateCaptions(asset.course, asset.url)}
                         disabled={isCaptionLoading}
@@ -995,13 +1016,15 @@ export const VideoShareTab = ({courses, onAddCourse, onPreview, onCaptionsGenera
                         {isCaptionLoading ? `${progress}%` : '动作流'}
                       </button>
                     )}
-                    <button
-                      onClick={() => handleCopy(asset.course.id)}
-                      disabled={loadingId === courseLinkKey || isCaptionLoading}
-                      className="flex items-center justify-center gap-1.5 px-3 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-xs hover:bg-gray-50 disabled:opacity-60"
-                    >
-                      <BookOpen className="w-3.5 h-3.5" /> 整课链接
-                    </button>
+                    {!readonly && (
+                      <button
+                        onClick={() => handleCopy(asset.course.id)}
+                        disabled={loadingId === courseLinkKey || isCaptionLoading}
+                        className="flex items-center justify-center gap-1.5 px-3 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-xs hover:bg-gray-50 disabled:opacity-60"
+                      >
+                        <BookOpen className="w-3.5 h-3.5" /> 整课链接
+                      </button>
+                    )}
                     <button
                       onClick={() => onPreview(asset.course.id)}
                       disabled={isCaptionLoading}
@@ -1009,7 +1032,7 @@ export const VideoShareTab = ({courses, onAddCourse, onPreview, onCaptionsGenera
                     >
                       <PlayCircle className="w-3.5 h-3.5" /> 预览
                     </button>
-                    {onEditCourse && (
+                    {!readonly && onEditCourse && (
                       <button
                         onClick={() => onEditCourse(asset.course)}
                         disabled={isCaptionLoading}
@@ -1018,7 +1041,7 @@ export const VideoShareTab = ({courses, onAddCourse, onPreview, onCaptionsGenera
                         <Edit3 className="w-3.5 h-3.5" /> 编辑
                       </button>
                     )}
-                    {onDeleteCourse && (
+                    {!readonly && onDeleteCourse && (
                       <button
                         onClick={() => onDeleteCourse(asset.course)}
                         disabled={isCaptionLoading}

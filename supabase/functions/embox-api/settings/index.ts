@@ -163,6 +163,7 @@ export const getPermissions = async (_req: Request, _userId: string, _userRole: 
     { id: 'integrations:manage', name: '管理集成', description: '管理外部系统集成', category: 'settings' },
     { id: 'training:view', name: '查看培训', description: '查看培训课程、路径和分析', category: 'training' },
     { id: 'training:manage', name: '管理培训', description: '创建课程、路径，管理报名和评估', category: 'training' },
+    { id: 'video-sharing:view', name: '查看视频分享', description: '仅查看视频分享资料库和后台预览', category: 'training' },
   ]);
 };
 
@@ -173,6 +174,7 @@ export const getRolePermissions = async (_req: Request, _userId: string, _userRo
     { role: 'hiring_manager', permissions: ['projects:view', 'positions:view', 'candidates:view', 'interviews:view', 'interviews:manage', 'approvals:view', 'approvals:decide', 'shortlist:view', 'outreach:view', 'agents:view', 'contacts:view', 'analytics:view', 'training:view'] },
     { role: 'recruiter', permissions: ['projects:view', 'positions:view', 'candidates:view', 'candidates:manage', 'interviews:view', 'interviews:manage', 'approvals:view', 'shortlist:view', 'shortlist:manage', 'outreach:view', 'outreach:manage', 'agents:view', 'contacts:view', 'contacts:manage', 'analytics:view', 'training:view', 'training:manage'] },
     { role: 'viewer', permissions: ['projects:view', 'positions:view', 'candidates:view', 'interviews:view', 'approvals:view', 'shortlist:view', 'outreach:view', 'agents:view', 'contacts:view', 'analytics:view', 'training:view'] },
+    { role: 'video_viewer', permissions: ['video-sharing:view'] },
   ]);
 };
 

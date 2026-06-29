@@ -278,6 +278,7 @@ export const SettingsPage = () => {
       case 'admin': return 'bg-purple-100 text-purple-700';
       case 'recruiter': return 'bg-blue-100 text-blue-700';
       case 'hiring_manager': return 'bg-emerald-100 text-emerald-700';
+      case 'video_viewer': return 'bg-indigo-100 text-indigo-700';
       case 'viewer': return 'bg-gray-100 text-gray-700';
       default: return 'bg-gray-100 text-gray-700';
     }
@@ -683,6 +684,7 @@ export const SettingsPage = () => {
                         <option value="admin">管理员</option>
                         <option value="recruiter">招聘运营</option>
                         <option value="hiring_manager">用人经理</option>
+                        <option value="video_viewer">视频分享查看员</option>
                         <option value="viewer">访客</option>
                       </select>
                     </div>
@@ -753,6 +755,7 @@ export const SettingsPage = () => {
                         <option value="admin">管理员</option>
                         <option value="recruiter">招聘运营</option>
                         <option value="hiring_manager">用人经理</option>
+                        <option value="video_viewer">视频分享查看员</option>
                         <option value="viewer">访客</option>
                       </select>
                     </div>
@@ -809,6 +812,7 @@ export const SettingsPage = () => {
                         <option value="admin">管理员</option>
                         <option value="recruiter">招聘运营</option>
                         <option value="hiring_manager">用人经理</option>
+                        <option value="video_viewer">视频分享查看员</option>
                         <option value="viewer">访客</option>
                       </select>
                     </div>

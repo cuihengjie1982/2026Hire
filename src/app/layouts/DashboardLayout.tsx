@@ -9,6 +9,7 @@ import {NotificationBell} from '../../shared/components/NotificationProvider';
 import {Breadcrumbs} from '../../shared/components/Breadcrumbs';
 import {useSidebarCounts} from '../hooks/useSidebarCounts';
 import {getUserName, USE_MOCK_API, API_BASE_URL, getAuthToken} from '../../shared/lib/runtime';
+import {getCurrentUser} from '../../modules/settings/api';
 
 // ---------------------------------------------------------------------------
 // Search types & helpers
@@ -54,6 +55,7 @@ export const DashboardLayout = ({onLogout}: {onLogout: () => void}) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchGroups, setSearchGroups] = useState<SearchGroup[]>([]);
+  const [currentRole, setCurrentRole] = useState<string | null>(null);
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     try { return (localStorage.getItem('em-box.theme') as 'light' | 'dark') || 'light'; } catch { return 'light'; }
   });
@@ -74,11 +76,33 @@ export const DashboardLayout = ({onLogout}: {onLogout: () => void}) => {
   const navigate = useNavigate();
   const {selectedProject, setSelectedProject, projects, loading} = useProject();
   const currentPageId = getPageFromPathname(location.pathname);
+  const isVideoShareOnly = currentRole === 'video_viewer';
+  const visibleNavigationItems = useMemo(
+    () => isVideoShareOnly ? navigationItems.filter((item) => item.id === 'videoShare') : navigationItems,
+    [isVideoShareOnly],
+  );
   const currentPage = useMemo(
-    () => navigationItems.find((item) => item.id === currentPageId) ?? navigationItems[0],
-    [currentPageId],
+    () => visibleNavigationItems.find((item) => item.id === currentPageId) ?? visibleNavigationItems[0] ?? navigationItems[0],
+    [currentPageId, visibleNavigationItems],
   );
   const isPreviewPage = false;
+
+  useEffect(() => {
+    let mounted = true;
+    getCurrentUser()
+      .then((user) => {
+        if (mounted) setCurrentRole(user.role);
+      })
+      .catch((e) => {
+        console.warn('[Layout] Failed to resolve current user role:', e);
+      });
+    return () => { mounted = false; };
+  }, []);
+
+  useEffect(() => {
+    if (!isVideoShareOnly || currentPageId === 'videoShare') return;
+    navigate('/video-sharing', {replace: true});
+  }, [currentPageId, isVideoShareOnly, navigate]);
 
   useEffect(() => {
     const handleNavigate = (event: Event) => {
@@ -130,7 +154,7 @@ export const DashboardLayout = ({onLogout}: {onLogout: () => void}) => {
                       </div>
 
           <div className="flex-1 overflow-y-auto py-2 px-3.5 space-y-1 custom-scrollbar-dark">
-            {navigationItems.map((page) => {
+            {visibleNavigationItems.map((page) => {
               const Icon = page.icon;
               const isActive = currentPage.id === page.id;
               return (
@@ -178,9 +202,14 @@ export const DashboardLayout = ({onLogout}: {onLogout: () => void}) => {
                   }
                   // Search pages locally (instant)
                   const lower = q.toLowerCase();
-                  const pages = navigationItems.filter(item =>
+                  const pages = visibleNavigationItems.filter(item =>
                     item.title.toLowerCase().includes(lower),
                   ).map(item => ({id: item.id, title: item.title, path: item.path}));
+
+                  if (isVideoShareOnly) {
+                    setSearchGroups(pages.length > 0 ? [{label: '页面', icon: Search, items: pages.slice(0, 3)}] : []);
+                    return;
+                  }
 
                   // Debounced server-side search for business data
                   if (searchTimer) clearTimeout(searchTimer);

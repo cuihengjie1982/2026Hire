@@ -192,6 +192,7 @@ permissionsRouter.get('/', async (_req, res, next) => {
       {key: 'integrations:manage', label: 'Manage Integrations'},
       {key: 'training:view', label: 'View Training'},
       {key: 'training:manage', label: 'Manage Training'},
+      {key: 'video-sharing:view', label: 'View Video Sharing'},
     ]);
   } catch (e) { next(e); }
 });
@@ -270,6 +271,13 @@ rolePermissionsRouter.get('/', async (_req, res, next) => {
           'contacts:view',
           'analytics:view',
           'training:view',
+        ],
+      },
+      {
+        role: 'video_viewer',
+        label: 'Video Sharing Viewer',
+        permissions: [
+          'video-sharing:view',
         ],
       },
     ]);
