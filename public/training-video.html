@@ -461,11 +461,23 @@
           var proxiedUrl = toProxyUrl(rawUrl);
           var ext = getUrlExtension(proxiedUrl);
           if (['doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx'].indexOf(ext) !== -1) {
+            if (isWeChatBrowser()) {
+              return {
+                type: 'fallback',
+                url: proxiedUrl,
+                openUrl: proxiedUrl,
+                openLabel: '打开文档',
+                downloadLabel: '下载文件',
+                note: '微信内置浏览器不稳定支持 Office 在线预览，请点击打开文档或下载后查看。'
+              };
+            }
             var absolute = getAbsoluteUrl(proxiedUrl);
             return {
               type: 'iframe',
               url: 'https://view.officeapps.live.com/op/embed.aspx?src=' + encodeURIComponent(absolute),
               openUrl: 'https://view.officeapps.live.com/op/view.aspx?src=' + encodeURIComponent(absolute),
+              openLabel: '在线预览',
+              downloadLabel: '下载文件',
               note: 'Word/Office 文件使用在线预览服务打开。'
             };
           }
@@ -643,7 +655,7 @@
             open.href = preview.openUrl || url;
             open.target = '_blank';
             open.rel = 'noreferrer';
-            open.textContent = preview.fallbackUrl ? '高清打开原文' : '新窗口预览';
+            open.textContent = preview.openLabel || (preview.fallbackUrl ? '高清打开原文' : '新窗口预览');
             if (preview.fallbackUrl) {
               var fallbackOpen = document.createElement('a');
               fallbackOpen.href = preview.fallbackUrl;
@@ -656,7 +668,7 @@
             download.href = url;
             download.setAttribute('download', '');
             download.className = 'secondary';
-            download.textContent = preview.fallbackUrl ? '下载原文' : '下载文件';
+            download.textContent = preview.downloadLabel || (preview.fallbackUrl ? '下载原文' : '下载文件');
             actionWrap.appendChild(open);
             if (fallbackOpen) actionWrap.appendChild(fallbackOpen);
             actionWrap.appendChild(download);

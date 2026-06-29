@@ -443,6 +443,18 @@ const isTrainingShareLinkTarget = (url?: string): boolean => {
   }
 };
 
+const isUploadedTrainingMaterialTarget = (url?: string): boolean => {
+  if (!url) return false;
+  try {
+    const parsed = new URL(url, window.location.origin);
+    return parsed.pathname.includes('/storage/v1/object/public/training-materials/')
+      || parsed.pathname.startsWith('/training-media/');
+  } catch {
+    return url.includes('/storage/v1/object/public/training-materials/')
+      || url.includes('/training-media/');
+  }
+};
+
 const mapEnrollment = (raw: Record<string, unknown>): TrainingEnrollment => ({
   id: String(raw.id ?? ''),
   candidateId: String(raw.candidate_id ?? raw.candidateId ?? ''),
@@ -571,7 +583,12 @@ export const deleteCourse = async (id: string): Promise<void> => {
 export const createTrainingShareLink = async (courseId: string, targetUrl?: string): Promise<TrainingShareLink> => {
   const buildPublicPath = (id: string, token: string) => {
     const path = `/tv/${encodeURIComponent(id)}/${encodeURIComponent(token)}`;
-    if (!targetUrl || isTrainingVideoShareTarget(targetUrl) || isTrainingShareLinkTarget(targetUrl)) return path;
+    if (
+      !targetUrl
+      || isTrainingVideoShareTarget(targetUrl)
+      || isTrainingShareLinkTarget(targetUrl)
+      || isUploadedTrainingMaterialTarget(targetUrl)
+    ) return path;
     return `${path}?target=${encodeURIComponent(targetUrl)}`;
   };
 
