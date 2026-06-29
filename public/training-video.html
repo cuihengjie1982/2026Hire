@@ -457,6 +457,14 @@
           }
         }
 
+        function getDocumentPreviewUrl(rawUrl, title) {
+          var proxiedUrl = toProxyUrl(rawUrl);
+          var ext = getUrlExtension(proxiedUrl);
+          return '/training/docs/pdf?file=' + encodeURIComponent(proxiedUrl)
+            + '&type=' + encodeURIComponent(ext || 'document')
+            + '&title=' + encodeURIComponent(title || '培训文档');
+        }
+
         function getPreviewInfo(rawUrl) {
           var proxiedUrl = toProxyUrl(rawUrl);
           var ext = getUrlExtension(proxiedUrl);
@@ -465,10 +473,10 @@
               return {
                 type: 'fallback',
                 url: proxiedUrl,
-                openUrl: proxiedUrl,
-                openLabel: '打开文档',
+                openUrl: getDocumentPreviewUrl(rawUrl),
+                openLabel: '预览文档',
                 downloadLabel: '下载文件',
-                note: '微信内置浏览器不稳定支持 Office 在线预览，请点击打开文档或下载后查看。'
+                note: '微信内置浏览器将使用兼容预览打开 Office 文档。'
               };
             }
             var absolute = getAbsoluteUrl(proxiedUrl);
@@ -486,7 +494,7 @@
               type: 'iframe',
               url: proxiedUrl,
               openUrl: proxiedUrl,
-              fallbackUrl: '/training/docs/pdf?file=' + encodeURIComponent(proxiedUrl),
+              fallbackUrl: getDocumentPreviewUrl(rawUrl),
               note: 'PDF 优先使用高清原文预览；如果微信内无法显示，请使用兼容预览。'
             };
           }

@@ -22,6 +22,30 @@ const getUrlExtension = (url?: string): string => {
 const isVideoUrl = (url?: string): boolean => VIDEO_EXTENSIONS.has(getUrlExtension(url));
 const isDocumentUrl = (url?: string): boolean => DOCUMENT_EXTENSIONS.has(getUrlExtension(url));
 
+const getComparableUrl = (url?: string): string => {
+  if (!url) return '';
+  try {
+    const parsed = new URL(url, window.location.origin);
+    const marker = '/storage/v1/object/public/training-materials/';
+    const markerIndex = parsed.pathname.indexOf(marker);
+    if (markerIndex !== -1) return decodeURIComponent(parsed.pathname.slice(markerIndex + marker.length));
+    const trainingMediaPrefix = '/training-media/';
+    if (parsed.pathname.startsWith(trainingMediaPrefix)) return decodeURIComponent(parsed.pathname.slice(trainingMediaPrefix.length));
+    return decodeURIComponent(parsed.pathname);
+  } catch {
+    const marker = '/storage/v1/object/public/training-materials/';
+    const markerIndex = url.indexOf(marker);
+    if (markerIndex !== -1) return decodeURIComponent(url.slice(markerIndex + marker.length).split('?')[0] ?? '');
+    return decodeURIComponent(url.split('?')[0] ?? '');
+  }
+};
+
+const urlsMatch = (a?: string, b?: string) => {
+  if (!a || !b) return false;
+  if (a === b) return true;
+  return getComparableUrl(a) === getComparableUrl(b);
+};
+
 const extractTrainingShareFromText = (value?: string | null): {courseId: string; token: string} | null => {
   if (!value) return null;
   let decoded = value;
@@ -35,7 +59,45 @@ const extractTrainingShareFromText = (value?: string | null): {courseId: string;
   return match ? {courseId: match[1], token: match[2]} : null;
 };
 
-const getDocumentItems = (course: TrainingCourse) => {
+const getActionCaptionsForTarget = (course: TrainingCourse, targetUrl?: string) => {
+  const byUrl = course.assessmentConfig.actionCaptionsByUrl ?? {};
+  if (targetUrl) {
+    if (byUrl[targetUrl]?.length) return byUrl[targetUrl];
+    const matchedKey = Object.keys(byUrl).find(key => urlsMatch(key, targetUrl));
+    if (matchedKey && byUrl[matchedKey]?.length) return byUrl[matchedKey];
+    if (urlsMatch(course.assessmentConfig.actionCaptionTargetUrl, targetUrl) && course.assessmentConfig.actionCaptions?.length) {
+      return course.assessmentConfig.actionCaptions;
+    }
+  }
+  return course.assessmentConfig.actionCaptions ?? [];
+};
+
+const getCourseForTargetVideo = (course: TrainingCourse, targetUrl: string): TrainingCourse => {
+  const sectionMatch = course.content.find(section => section.contentUrl && urlsMatch(section.contentUrl, targetUrl));
+  const materialMatch = course.materials.find(material => material.url && urlsMatch(material.url, targetUrl));
+  const selectedUrl = sectionMatch?.contentUrl ?? materialMatch?.url ?? targetUrl;
+  const selectedTitle = sectionMatch?.sectionTitle ?? materialMatch?.title ?? course.title;
+  const textSections = course.content.filter(section => section.contentType === 'text');
+
+  return {
+    ...course,
+    content: [
+      ...textSections,
+      {
+        sectionTitle: selectedTitle,
+        contentType: 'video',
+        contentUrl: selectedUrl,
+      },
+    ],
+    materials: course.materials.filter(material => !material.url || !urlsMatch(material.url, selectedUrl)),
+    assessmentConfig: {
+      ...course.assessmentConfig,
+      actionCaptions: getActionCaptionsForTarget(course, selectedUrl),
+    },
+  };
+};
+
+const getDocumentItems = (course: TrainingCourse, targetUrl?: string) => {
   const sectionDocs = course.content
     .filter(section => section.contentUrl && !isVideoUrl(section.contentUrl) && (section.contentType !== 'text' || isDocumentUrl(section.contentUrl)))
     .map(section => ({
@@ -51,7 +113,26 @@ const getDocumentItems = (course: TrainingCourse) => {
       type: getUrlExtension(material.url),
     }));
 
-  return [...sectionDocs, ...materialDocs];
+  const documents = [...sectionDocs, ...materialDocs];
+  if (!targetUrl) return documents;
+
+  const matched = documents.find(document => urlsMatch(document.url, targetUrl));
+  if (matched) return [matched];
+
+  return [{
+    title: course.title || '培训文档',
+    url: targetUrl,
+    type: getUrlExtension(targetUrl),
+  }];
+};
+
+const getDocumentPreviewPath = (document: {title: string; url: string; type: string}) => {
+  const params = new URLSearchParams({
+    file: document.url,
+    title: document.title,
+    type: document.type,
+  });
+  return `/training/docs/pdf?${params.toString()}`;
 };
 
 const courseHasPlayableVideo = (course: TrainingCourse): boolean => (
@@ -59,8 +140,8 @@ const courseHasPlayableVideo = (course: TrainingCourse): boolean => (
   || course.materials.some(material => material.url && material.type === 'video' && isVideoUrl(material.url))
 );
 
-const PublicTrainingDocumentPage = ({course}: {course: TrainingCourse}) => {
-  const documents = getDocumentItems(course);
+const PublicTrainingDocumentPage = ({course, targetUrl}: {course: TrainingCourse; targetUrl?: string}) => {
+  const documents = getDocumentItems(course, targetUrl);
   const textSections = course.content.filter(section => section.contentType === 'text' && section.text);
 
   return (
@@ -85,12 +166,12 @@ const PublicTrainingDocumentPage = ({course}: {course: TrainingCourse}) => {
                     <p className="mt-1 text-xs uppercase tracking-wide text-gray-400">{document.type || 'document'}</p>
                     <div className="mt-4 flex flex-col sm:flex-row gap-2">
                       <a
-                        href={document.url}
+                        href={getDocumentPreviewPath(document)}
                         target="_blank"
                         rel="noreferrer"
                         className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-[#111827] text-white text-sm font-medium hover:bg-black"
                       >
-                        <ExternalLink className="w-4 h-4" /> 打开文档
+                        <ExternalLink className="w-4 h-4" /> 预览文档
                       </a>
                       <a
                         href={document.url}
@@ -133,6 +214,7 @@ export const PublicTrainingVideoPage = () => {
   const recoveredShare = extractTrainingShareFromText(location.pathname) ?? extractTrainingShareFromText(searchParams.get('sharePath'));
   const courseId = searchParams.get('courseId') ?? params.courseId ?? recoveredShare?.courseId ?? '';
   const token = searchParams.get('token') ?? params.token ?? recoveredShare?.token ?? '';
+  const targetUrl = searchParams.get('target') ?? '';
   const [course, setCourse] = useState<TrainingCourse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -178,6 +260,14 @@ export const PublicTrainingVideoPage = () => {
         </div>
       </div>
     );
+  }
+
+  if (targetUrl && !isVideoUrl(targetUrl)) {
+    return <PublicTrainingDocumentPage course={course} targetUrl={targetUrl} />;
+  }
+
+  if (targetUrl && isVideoUrl(targetUrl)) {
+    return <VideoLearningAssistant course={getCourseForTargetVideo(course, targetUrl)} publicMode />;
   }
 
   if (!courseHasPlayableVideo(course)) {

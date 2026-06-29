@@ -421,18 +421,6 @@ export interface TrainingShareLink {
   url: string;
 }
 
-const isTrainingVideoShareTarget = (url?: string): boolean => {
-  if (!url) return false;
-  try {
-    const parsed = new URL(url, window.location.origin);
-    const extension = decodeURIComponent(parsed.pathname).split('.').pop()?.toLowerCase() ?? '';
-    return ['mp4', 'm4v', 'mov', 'webm', 'avi', 'mkv'].includes(extension);
-  } catch {
-    const extension = url.split('?')[0]?.split('.').pop()?.toLowerCase() ?? '';
-    return ['mp4', 'm4v', 'mov', 'webm', 'avi', 'mkv'].includes(extension);
-  }
-};
-
 const isTrainingShareLinkTarget = (url?: string): boolean => {
   if (!url) return false;
   try {
@@ -440,18 +428,6 @@ const isTrainingShareLinkTarget = (url?: string): boolean => {
     return parsed.pathname === '/tv' || parsed.pathname.startsWith('/tv/');
   } catch {
     return url.startsWith('/tv/') || url.includes('/tv/');
-  }
-};
-
-const isUploadedTrainingMaterialTarget = (url?: string): boolean => {
-  if (!url) return false;
-  try {
-    const parsed = new URL(url, window.location.origin);
-    return parsed.pathname.includes('/storage/v1/object/public/training-materials/')
-      || parsed.pathname.startsWith('/training-media/');
-  } catch {
-    return url.includes('/storage/v1/object/public/training-materials/')
-      || url.includes('/training-media/');
   }
 };
 
@@ -583,13 +559,9 @@ export const deleteCourse = async (id: string): Promise<void> => {
 export const createTrainingShareLink = async (courseId: string, targetUrl?: string): Promise<TrainingShareLink> => {
   const buildPublicPath = (id: string, token: string) => {
     const path = `/tv/${encodeURIComponent(id)}/${encodeURIComponent(token)}`;
-    if (
-      !targetUrl
-      || isTrainingVideoShareTarget(targetUrl)
-      || isTrainingShareLinkTarget(targetUrl)
-      || isUploadedTrainingMaterialTarget(targetUrl)
-    ) return path;
-    return `${path}?target=${encodeURIComponent(targetUrl)}`;
+    if (!targetUrl || isTrainingShareLinkTarget(targetUrl)) return path;
+    const encodedTarget = encodeURIComponent(targetUrl);
+    return `${path}?target=${encodedTarget}#target=${encodedTarget}`;
   };
 
   if (USE_MOCK_API) {

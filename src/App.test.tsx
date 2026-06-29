@@ -107,4 +107,15 @@ describe('App', () => {
     });
     expect(screen.queryByText('mock-login')).not.toBeInTheDocument();
   });
+
+  it('allows public training document preview route without login', async () => {
+    window.history.pushState({}, '', '/training/docs/pdf?file=https%3A%2F%2Fexample.com%2Fdoc.pdf&type=pdf');
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(screen.getByText('mock-router')).toBeInTheDocument();
+    });
+    expect(screen.queryByText('mock-login')).not.toBeInTheDocument();
+  });
 });
