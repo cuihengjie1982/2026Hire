@@ -1,5 +1,7 @@
 import { createSupabaseAdmin } from '../_shared/supabaseClient.ts';
 
+const ALLOWED_USER_ROLES = new Set(['admin', 'recruiter', 'hiring_manager', 'viewer', 'video_viewer']);
+
 function jsonRes(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 }
@@ -36,6 +38,7 @@ export const createUser = async (req: Request, _userId: string, _userRole: strin
     const supabase = createSupabaseAdmin(req);
     const body = await req.json() as Record<string, unknown>;
     const { name, email, password, role = 'viewer', department } = body;
+    const normalizedRole = ALLOWED_USER_ROLES.has(String(role)) ? String(role) : 'viewer';
 
     if (!name || !email || !password) return jsonRes({ error: { code: 'VALIDATION_ERROR', message: 'name, email, and password are required' } }, 400);
     if (String(password).length < 6) return jsonRes({ error: { code: 'VALIDATION_ERROR', message: 'Password must be at least 6 characters' } }, 400);
@@ -47,17 +50,32 @@ export const createUser = async (req: Request, _userId: string, _userRole: strin
       email: String(email),
       password: String(password),
       email_confirm: true,
+      user_metadata: {
+        name: String(name),
+        role: normalizedRole,
+      },
     });
 
     if (authError || !authData.user) return jsonRes({ error: { code: 'AUTH_ERROR', message: authError?.message ?? 'Failed to create user' } }, 400);
 
     const userId = authData.user.id;
 
-    const { data: profile } = await supabase.from('profiles').update({
+    const { data: profile, error: profileError } = await supabase.from('profiles').upsert({
+      id: userId,
+      email: String(email),
       name: String(name),
-      role: String(role),
+      role: normalizedRole,
       department: department ? String(department) : null,
-    }).eq('id', userId).select('*').single();
+      status: 'active',
+    }, { onConflict: 'id' }).select('*').single();
+
+    if (profileError || !profile) {
+      console.error('[settings] Failed to create profile:', profileError);
+      await supabase.auth.admin.deleteUser(userId).catch((deleteError) => {
+        console.error('[settings] Failed to rollback auth user after profile error:', deleteError);
+      });
+      return jsonRes({ error: { code: 'PROFILE_CREATE_FAILED', message: profileError?.message ?? 'Failed to create user profile' } }, 500);
+    }
 
     return jsonRes(profile, 201);
   } catch {

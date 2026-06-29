@@ -3,6 +3,8 @@ import {USE_MOCK_API, API_BASE_URL, getAuthToken} from '../../shared/lib/runtime
 import {permissionsFixture, rolePermissionsFixture, notificationSettingsFixture, currentUserFixture} from './fixtures';
 import {type User, type Permission, type RolePermission, type NotificationSetting, type TeamMemberInvite, type UserRole} from './types';
 
+const USER_ROLES: UserRole[] = ['admin', 'recruiter', 'hiring_manager', 'viewer', 'video_viewer'];
+
 const efetch = async <T>(path: string, method = 'GET', body?: Record<string, unknown>): Promise<T> => {
   const base = USE_MOCK_API ? '' : API_BASE_URL;
   const token = getAuthToken();
@@ -41,12 +43,36 @@ const saveToStorage = <T>(key: string, data: T[]) => {
 let mockUsers: User[] = loadFromStorage(STORAGE_KEYS.users, []);
 let mockInvites: TeamMemberInvite[] = loadFromStorage(STORAGE_KEYS.invites, []);
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+
+const normalizeRole = (value: unknown): UserRole =>
+  USER_ROLES.includes(value as UserRole) ? value as UserRole : 'viewer';
+
+const mapUser = (raw: unknown): User => {
+  if (!isRecord(raw)) throw new Error('Invalid user payload');
+  const email = String(raw.email ?? '');
+  const name = String(raw.name ?? '').trim() || email.split('@')[0] || '未命名账号';
+  return {
+    id: String(raw.id ?? ''),
+    name,
+    email,
+    role: normalizeRole(raw.role),
+    avatar: raw.avatar ? String(raw.avatar) : undefined,
+    department: raw.department ? String(raw.department) : undefined,
+    phone: raw.phone ? String(raw.phone) : undefined,
+    status: raw.status === 'inactive' ? 'inactive' : 'active',
+    lastLoginAt: raw.last_login_at || raw.lastLoginAt ? String(raw.last_login_at ?? raw.lastLoginAt) : undefined,
+    createdAt: String(raw.created_at ?? raw.createdAt ?? new Date().toISOString()),
+  };
+};
+
 export const getCurrentUser = async (): Promise<User> => {
   if (USE_MOCK_API) {
     await new Promise(r => setTimeout(r, 120));
     return currentUserFixture;
   }
-  return efetch<User>('/settings/users/me', 'GET');
+  return mapUser(await efetch<unknown>('/settings/users/me', 'GET'));
 };
 
 export const listUsers = async (): Promise<User[]> => {
@@ -54,7 +80,8 @@ export const listUsers = async (): Promise<User[]> => {
     await new Promise(r => setTimeout(r, 120));
     return [...mockUsers];
   }
-  return efetch<User[]>('/settings/users', 'GET');
+  const rows = await efetch<unknown[]>('/settings/users', 'GET');
+  return rows.filter(isRecord).map(mapUser).filter(user => user.id && user.email);
 };
 
 export const updateUser = async (userId: string, data: Partial<User>): Promise<User> => {
@@ -66,7 +93,7 @@ export const updateUser = async (userId: string, data: Partial<User>): Promise<U
     saveToStorage(STORAGE_KEYS.users, mockUsers);
     return user;
   }
-  return efetch<User>(`/settings/users/${userId}`, 'PATCH', data);
+  return mapUser(await efetch<unknown>(`/settings/users/${userId}`, 'PATCH', data));
 };
 
 export const createUser = async (data: {name: string; email: string; role: string; department?: string; password: string}): Promise<User> => {
@@ -85,7 +112,7 @@ export const createUser = async (data: {name: string; email: string; role: strin
     saveToStorage(STORAGE_KEYS.users, mockUsers);
     return user;
   }
-  return efetch<User>('/settings/users/', 'POST', data);
+  return mapUser(await efetch<unknown>('/settings/users/', 'POST', data));
 };
 
 export const deleteUser = async (userId: string): Promise<void> => {
