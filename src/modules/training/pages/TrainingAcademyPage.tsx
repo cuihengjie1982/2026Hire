@@ -569,6 +569,21 @@ export const VideoShareTab = ({courses, readonly = false, onAddCourse, onPreview
     if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(extension)) return '图片';
     return '文档';
   };
+  const getDocumentPreviewPath = (asset: ShareableAsset) => {
+    const params = new URLSearchParams({
+      file: asset.url,
+      title: asset.title,
+      type: asset.extension || asset.kindLabel,
+    });
+    return `/training/docs/pdf?${params.toString()}`;
+  };
+  const handlePreviewAsset = (asset: ShareableAsset) => {
+    if (asset.kind === 'document') {
+      window.open(getDocumentPreviewPath(asset), '_blank', 'noopener,noreferrer');
+      return;
+    }
+    onPreview(asset.course.id);
+  };
   const getShareableItems = (course: TrainingCourse) => {
     const sectionItems = course.content
       .filter(section => Boolean(section.contentUrl))
@@ -924,11 +939,12 @@ export const VideoShareTab = ({courses, readonly = false, onAddCourse, onPreview
                             </button>
                           )}
                           <button
-                            onClick={() => onPreview(asset.course.id)}
+                            onClick={() => handlePreviewAsset(asset)}
                             disabled={isCaptionLoading}
                             className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 text-gray-700 rounded-lg text-xs hover:bg-gray-50 disabled:opacity-60 transition-colors"
                           >
-                            <PlayCircle className="w-3.5 h-3.5" /> 预览
+                            {asset.kind === 'video' ? <PlayCircle className="w-3.5 h-3.5" /> : <FileText className="w-3.5 h-3.5" />}
+                            预览
                           </button>
                           {!readonly && onEditCourse && (
                             <button
@@ -1026,11 +1042,12 @@ export const VideoShareTab = ({courses, readonly = false, onAddCourse, onPreview
                       </button>
                     )}
                     <button
-                      onClick={() => onPreview(asset.course.id)}
+                      onClick={() => handlePreviewAsset(asset)}
                       disabled={isCaptionLoading}
                       className="flex items-center justify-center gap-1.5 px-3 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-xs hover:bg-gray-50 disabled:opacity-60"
                     >
-                      <PlayCircle className="w-3.5 h-3.5" /> 预览
+                      {asset.kind === 'video' ? <PlayCircle className="w-3.5 h-3.5" /> : <FileText className="w-3.5 h-3.5" />}
+                      预览
                     </button>
                     {!readonly && onEditCourse && (
                       <button
