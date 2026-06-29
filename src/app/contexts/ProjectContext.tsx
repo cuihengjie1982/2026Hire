@@ -1,7 +1,8 @@
 import {createContext, useContext, useState, useEffect, ReactNode} from 'react';
 import {listProjects} from '../../modules/projects/api';
 import {type Project} from '../../modules/projects/types';
-import {SELECTED_PROJECT_STORAGE_KEY} from '../../shared/lib/runtime';
+import {getCurrentUser} from '../../modules/settings/api';
+import {getAuthToken, SELECTED_PROJECT_STORAGE_KEY} from '../../shared/lib/runtime';
 
 interface ProjectContextValue {
   selectedProject: Project | null;
@@ -18,9 +19,26 @@ export const ProjectProvider = ({children}: {children: ReactNode}) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let mounted = true;
+
     const loadProjects = async () => {
       try {
+        if (!getAuthToken()) {
+          setProjects([]);
+          setSelectedProject(null);
+          return;
+        }
+
+        const user = await getCurrentUser();
+        if (!mounted) return;
+        if (user.role === 'video_viewer') {
+          setProjects([]);
+          setSelectedProject(null);
+          return;
+        }
+
         const data = await listProjects();
+        if (!mounted) return;
         setProjects(data);
         if (data.length > 0) {
           const savedProjectId =
@@ -35,6 +53,7 @@ export const ProjectProvider = ({children}: {children: ReactNode}) => {
           setSelectedProject(null);
         }
       } catch (e) {
+        if (!mounted) return;
         console.error('Failed to load projects:', e);
         // 非静默：通知用户加载失败
         const toast = document.querySelector('[data-toast-provider]') as HTMLElement | null;
@@ -42,10 +61,11 @@ export const ProjectProvider = ({children}: {children: ReactNode}) => {
           toast.dispatchEvent(new CustomEvent('toast', {bubbles: true, detail: {type: 'error', message: '项目列表加载失败，请刷新重试'}}));
         }
       } finally {
-        setLoading(false);
+        if (mounted) setLoading(false);
       }
     };
     loadProjects();
+    return () => { mounted = false; };
   }, []);
 
   useEffect(() => {
