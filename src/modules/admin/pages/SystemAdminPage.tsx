@@ -1,7 +1,8 @@
 import {motion} from 'motion/react';
-import {lazy, Suspense, useState} from 'react';
-import {useSearchParams} from 'react-router-dom';
+import {lazy, Suspense, useEffect, useState} from 'react';
+import {useNavigate, useSearchParams} from 'react-router-dom';
 import {Loader2, Bot, BarChart2, Settings, Plug, MessageSquare} from 'lucide-react';
+import {getCurrentUser} from '../../settings/api';
 
 const AgentsPage = lazy(() =>
   import('../../agents/pages/AgentsPage').then(m => ({default: m.AgentsPage})),
@@ -36,11 +37,34 @@ const TabFallback = () => (
 );
 
 export const SystemAdminPage = () => {
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const tabFromUrl = searchParams.get('tab') as TabId | null;
   const [activeTab, setActiveTab] = useState<TabId>(
     TABS.some(t => t.id === tabFromUrl) ? tabFromUrl! : 'agents',
   );
+  const [accessState, setAccessState] = useState<'checking' | 'allowed'>('checking');
+
+  useEffect(() => {
+    let mounted = true;
+    getCurrentUser()
+      .then(user => {
+        if (!mounted) return;
+        if (user.role === 'video_viewer') {
+          navigate('/video-sharing', {replace: true});
+          return;
+        }
+        if (user.role !== 'admin') {
+          navigate('/', {replace: true});
+          return;
+        }
+        setAccessState('allowed');
+      })
+      .catch(() => {
+        if (mounted) navigate('/', {replace: true});
+      });
+    return () => { mounted = false; };
+  }, [navigate]);
 
   const handleTabChange = (tab: TabId) => {
     setActiveTab(tab);
@@ -61,6 +85,10 @@ export const SystemAdminPage = () => {
         return <SmsTemplatePage />;
     }
   };
+
+  if (accessState === 'checking') {
+    return <TabFallback />;
+  }
 
   return (
     <div>

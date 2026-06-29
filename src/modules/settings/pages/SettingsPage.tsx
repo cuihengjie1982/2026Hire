@@ -72,26 +72,37 @@ export const SettingsPage = () => {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [user, userList, perms, roleP, notifs, inv] = await Promise.all([
-        getCurrentUser(),
-        listUsers(),
-        listPermissions(),
-        listRolePermissions(),
-        listNotificationSettings(),
-        listInvites(),
-      ]);
+      const user = await getCurrentUser();
       setCurrentUser(user);
-      setUsers(userList);
-      setPermissions(perms);
-      setRolePerms(roleP);
-      setNotifications(notifs);
-      setInvites(inv);
       setAccountForm({
         name: user.name,
         email: user.email,
         phone: user.phone || '',
         department: user.department || '',
       });
+
+      if (user.role !== 'admin') {
+        setUsers([user]);
+        setPermissions([]);
+        setRolePerms([]);
+        setNotifications([]);
+        setInvites([]);
+        setActiveTab('account');
+        return;
+      }
+
+      const [userList, perms, roleP, notifs, inv] = await Promise.all([
+        listUsers(),
+        listPermissions(),
+        listRolePermissions(),
+        listNotificationSettings(),
+        listInvites(),
+      ]);
+      setUsers(userList);
+      setPermissions(perms);
+      setRolePerms(roleP);
+      setNotifications(notifs);
+      setInvites(inv);
     } catch (e) {
       console.error('Failed to load settings:', e);
     } finally {
@@ -269,7 +280,7 @@ export const SettingsPage = () => {
     { id: 'permissions' as SettingsTab, label: '角色权限', icon: Shield },
     { id: 'notifications' as SettingsTab, label: '通知设置', icon: Bell },
     { id: 'team' as SettingsTab, label: '团队管理', icon: Users },
-  ];
+  ].filter(tab => currentUser?.role === 'admin' || tab.id === 'account');
 
   const formatRole = (role: UserRole) => roleLabels[role]?.label || role;
 
