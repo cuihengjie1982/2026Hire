@@ -118,4 +118,15 @@ describe('App', () => {
     });
     expect(screen.queryByText('mock-login')).not.toBeInTheDocument();
   });
+
+  it('allows video sharing module route without login', async () => {
+    window.history.pushState({}, '', '/video-sharing');
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(screen.getByText('mock-router')).toBeInTheDocument();
+    });
+    expect(screen.queryByText('mock-login')).not.toBeInTheDocument();
+  });
 });

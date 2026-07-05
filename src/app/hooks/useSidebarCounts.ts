@@ -47,9 +47,16 @@ export const useSidebarCounts = () => {
         cacheTimestamp = Date.now();
         setCounts(c);
       } else {
+        const token = getAuthToken();
+        if (!token) {
+          cachedCounts = EMPTY_COUNTS;
+          cacheTimestamp = Date.now();
+          setCounts(EMPTY_COUNTS);
+          return;
+        }
         const base = API_BASE_URL;
         const resp = await fetch(`${base}/functions/v1/embox-api/stats/sidebar`, {
-          headers: {'Authorization': `Bearer ${getAuthToken() ?? ''}`},
+          headers: {'Authorization': `Bearer ${token}`},
         });
         if (resp.ok) {
           const data = await resp.json() as SidebarCounts;

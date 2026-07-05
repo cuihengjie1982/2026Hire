@@ -5,12 +5,14 @@ import {Loader2, PlayCircle, Share2, Upload} from 'lucide-react';
 import {
   createCourse,
   deleteCourse,
+  listPublicVideoShareCourses,
   listCourses,
   updateCourse,
   type TrainingCourse,
 } from '../api';
 import {CreateCourseModal, VideoShareTab} from './TrainingAcademyPage';
 import {getCurrentUser} from '../../settings/api';
+import {getAuthToken} from '../../../shared/lib/runtime';
 
 export const TrainingVideoSharePage = () => {
   const [courses, setCourses] = useState<TrainingCourse[]>([]);
@@ -20,7 +22,9 @@ export const TrainingVideoSharePage = () => {
   const [editingCourse, setEditingCourse] = useState<TrainingCourse | null>(null);
   const [currentRole, setCurrentRole] = useState<string | null>(null);
   const navigate = useNavigate();
-  const canManage = currentRole !== 'video_viewer';
+  const hasAuthToken = Boolean(getAuthToken());
+  const isPublicAccess = !hasAuthToken;
+  const canManage = hasAuthToken && currentRole !== null && currentRole !== 'video_viewer';
 
   const hasActionCaptions = (course: TrainingCourse) => {
     if ((course.assessmentConfig.actionCaptions?.length ?? 0) > 0) return true;
@@ -31,7 +35,7 @@ export const TrainingVideoSharePage = () => {
     setLoading(true);
     setError('');
     try {
-      const result = await listCourses();
+      const result = isPublicAccess ? await listPublicVideoShareCourses() : await listCourses();
       setCourses(result.items);
     } catch (e) {
       setError(e instanceof Error ? e.message : '加载视频课程失败');
@@ -45,6 +49,10 @@ export const TrainingVideoSharePage = () => {
   }, []);
 
   useEffect(() => {
+    if (!hasAuthToken) {
+      setCurrentRole('public');
+      return;
+    }
     let mounted = true;
     getCurrentUser()
       .then(user => {
@@ -54,7 +62,7 @@ export const TrainingVideoSharePage = () => {
         console.warn('[VideoShare] Failed to resolve current user role:', e);
       });
     return () => { mounted = false; };
-  }, []);
+  }, [hasAuthToken]);
 
   useEffect(() => {
     if (canManage) return;
@@ -132,7 +140,11 @@ export const TrainingVideoSharePage = () => {
           </div>
           <div>
             <h1 className="text-xl font-bold text-gray-900">视频分享</h1>
-            <p className="text-sm text-gray-500">面向已入职员工的公开培训视频，可微信转发、免登录观看、生成实时动作流。</p>
+            <p className="text-sm text-gray-500">
+              {isPublicAccess
+                ? '公开培训资料库，无需登录即可打开视频和文档。'
+                : '面向已入职员工的公开培训视频，可微信转发、免登录观看、生成实时动作流。'}
+            </p>
           </div>
         </div>
         {canManage && (
@@ -190,6 +202,7 @@ export const TrainingVideoSharePage = () => {
         onDeleteCourse={canManage ? handleDeleteCourse : undefined}
         onPreview={(courseId) => navigate(`/training/preview?courseId=${courseId}`)}
         onCaptionsGenerated={canManage ? loadData : undefined}
+        publicAccess={isPublicAccess}
       />
 
       {showCreateCourse && (

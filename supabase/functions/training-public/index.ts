@@ -63,6 +63,12 @@ function getCourseId(req: Request): string {
   return segments[0] === 'course' ? (segments[1] ?? '') : '';
 }
 
+function getPathSegments(req: Request): string[] {
+  const url = new URL(req.url);
+  const path = url.pathname.replace(/^\/training-public/, '') || '/';
+  return path.split('/').filter(Boolean);
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return jsonRes({ ok: true });
   if (req.method !== 'GET') {
@@ -70,6 +76,33 @@ Deno.serve(async (req) => {
   }
 
   try {
+    const segments = getPathSegments(req);
+    if (segments[0] === 'courses') {
+      const supabase = createClient(
+        Deno.env.get('SUPABASE_URL') ?? '',
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      );
+      const { data, error } = await supabase
+        .from('training_courses')
+        .select('*, positions(name)')
+        .eq('is_active', true)
+        .order('created_at', { ascending: false })
+        .limit(200);
+
+      if (error) throw error;
+
+      const items = await Promise.all((data ?? []).map(async (course) => {
+        const token = await createTrainingVideoToken(String(course.id));
+        return {
+          ...course,
+          share_token: token,
+          share_path: `/tv/${encodeURIComponent(String(course.id))}/${encodeURIComponent(token)}`,
+        };
+      }));
+
+      return jsonRes({ items, total: items.length, page: 1, pageSize: items.length });
+    }
+
     const courseId = getCourseId(req);
     if (!courseId) {
       return jsonRes({ error: { code: 'VALIDATION_ERROR', message: 'Course ID required' } }, 400);

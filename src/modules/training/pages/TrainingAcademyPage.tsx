@@ -16,7 +16,7 @@ import {
   listPaths, createPath, updatePath, deletePath,
   getPathEnrollments, enrollCandidateInPath, updatePathEnrollment, deletePathEnrollment,
   uploadMaterial, batchEnroll,
-  createTrainingShareLink,
+  createTrainingShareLink, buildTrainingSharePath,
   type TrainingCourse, type TrainingEnrollment, type TrainingStats,
   type WeaknessAnalysis, type TrainingEffectiveness,
   type CourseRecommendation,
@@ -475,9 +475,10 @@ const CoursesTab = ({courses, onAdd, onBatchEnroll, onEdit, onDelete}: {
   );
 };
 
-export const VideoShareTab = ({courses, readonly = false, onAddCourse, onPreview, onCaptionsGenerated, onEditCourse, onDeleteCourse}: {
+export const VideoShareTab = ({courses, readonly = false, publicAccess = false, onAddCourse, onPreview, onCaptionsGenerated, onEditCourse, onDeleteCourse}: {
   courses: TrainingCourse[];
   readonly?: boolean;
+  publicAccess?: boolean;
   onAddCourse?: () => void;
   onPreview: (courseId: string) => void;
   onCaptionsGenerated?: () => Promise<void>;
@@ -582,6 +583,10 @@ export const VideoShareTab = ({courses, readonly = false, onAddCourse, onPreview
       window.open(getDocumentPreviewPath(asset), '_blank', 'noopener,noreferrer');
       return;
     }
+    if (publicAccess) {
+      void handleOpen(asset.course.id, asset.url);
+      return;
+    }
     onPreview(asset.course.id);
   };
   const getShareableItems = (course: TrainingCourse) => {
@@ -637,6 +642,7 @@ export const VideoShareTab = ({courses, readonly = false, onAddCourse, onPreview
   const [categoryFilter, setCategoryFilter] = useState('全部');
   const [page, setPage] = useState(1);
   const pageSize = 12;
+  const canUsePublicLinks = publicAccess || !readonly;
 
   const filteredAssets = assets.filter(asset => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -681,6 +687,14 @@ export const VideoShareTab = ({courses, readonly = false, onAddCourse, onPreview
     setLoadingId(key);
     setError('');
     try {
+      const course = courses.find(item => item.id === courseId);
+      if (publicAccess) {
+        if (!course?.publicShareToken) throw new Error('当前资料暂未生成公开访问令牌');
+        const path = buildTrainingSharePath(course.id, course.publicShareToken, targetUrl);
+        const url = `${window.location.origin}${path}`;
+        setLinks(prev => ({...prev, [key]: url}));
+        return url;
+      }
       const result = await createTrainingShareLink(courseId, targetUrl);
       setLinks(prev => ({...prev, [key]: result.url}));
       return result.url;
@@ -746,7 +760,7 @@ export const VideoShareTab = ({courses, readonly = false, onAddCourse, onPreview
         </div>
         {readonly && (
           <div className="mt-4 rounded-lg border border-indigo-100 bg-indigo-50 px-3 py-2 text-sm text-indigo-700">
-            当前账号仅可查看和预览视频分享资料。
+            {publicAccess ? '当前为公开访问模式，可直接打开和复制培训资料链接。' : '当前账号仅可查看和预览视频分享资料。'}
           </div>
         )}
       </div>
@@ -899,7 +913,7 @@ export const VideoShareTab = ({courses, readonly = false, onAddCourse, onPreview
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-end gap-2">
-                          {!readonly && (
+                          {canUsePublicLinks && (
                             <>
                               <button
                                 onClick={() => handleCopy(asset.course.id, asset.url)}
@@ -928,7 +942,7 @@ export const VideoShareTab = ({courses, readonly = false, onAddCourse, onPreview
                               {isCaptionLoading ? `${progress}%` : asset.captionsCount > 0 ? '重生成' : '动作流'}
                             </button>
                           )}
-                          {!readonly && (
+                          {canUsePublicLinks && (
                             <button
                               onClick={() => handleCopy(asset.course.id)}
                               disabled={courseLoading || isCaptionLoading}
@@ -1002,11 +1016,11 @@ export const VideoShareTab = ({courses, readonly = false, onAddCourse, onPreview
                       </div>
                     </div>
                   </div>
-                  <div className={`grid gap-2 ${readonly ? 'grid-cols-1' : 'grid-cols-2'}`}>
-                    {!readonly && (
-                      <>
-                        <button
-                          onClick={() => handleCopy(asset.course.id, asset.url)}
+                  <div className={`grid gap-2 ${canUsePublicLinks ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                    {canUsePublicLinks && (
+                            <>
+                              <button
+                                onClick={() => handleCopy(asset.course.id, asset.url)}
                           disabled={itemLoading || isCaptionLoading}
                           className="flex items-center justify-center gap-1.5 px-3 py-2 bg-gray-900 text-white rounded-lg text-xs hover:bg-black disabled:opacity-60"
                         >
@@ -1032,9 +1046,9 @@ export const VideoShareTab = ({courses, readonly = false, onAddCourse, onPreview
                         {isCaptionLoading ? `${progress}%` : '动作流'}
                       </button>
                     )}
-                    {!readonly && (
-                      <button
-                        onClick={() => handleCopy(asset.course.id)}
+                    {canUsePublicLinks && (
+                            <button
+                              onClick={() => handleCopy(asset.course.id)}
                         disabled={loadingId === courseLinkKey || isCaptionLoading}
                         className="flex items-center justify-center gap-1.5 px-3 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-xs hover:bg-gray-50 disabled:opacity-60"
                       >

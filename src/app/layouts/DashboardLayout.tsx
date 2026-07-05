@@ -76,6 +76,7 @@ export const DashboardLayout = ({onLogout}: {onLogout: () => void}) => {
   const navigate = useNavigate();
   const {selectedProject, setSelectedProject, projects, loading} = useProject();
   const currentPageId = getPageFromPathname(location.pathname);
+  const isPublicVideoSharing = !getAuthToken() && location.pathname.startsWith('/video-sharing');
   const isVideoShareOnly = currentRole === 'video_viewer';
   const visibleNavigationItems = useMemo(
     () => isVideoShareOnly ? navigationItems.filter((item) => item.id === 'videoShare') : navigationItems,
@@ -88,6 +89,7 @@ export const DashboardLayout = ({onLogout}: {onLogout: () => void}) => {
   const isPreviewPage = false;
 
   useEffect(() => {
+    if (isPublicVideoSharing) return;
     let mounted = true;
     getCurrentUser()
       .then((user) => {
@@ -95,9 +97,9 @@ export const DashboardLayout = ({onLogout}: {onLogout: () => void}) => {
       })
       .catch((e) => {
         console.warn('[Layout] Failed to resolve current user role:', e);
-      });
+    });
     return () => { mounted = false; };
-  }, []);
+  }, [isPublicVideoSharing]);
 
   useEffect(() => {
     if (!isVideoShareOnly || currentPageId === 'videoShare') return;
@@ -114,6 +116,14 @@ export const DashboardLayout = ({onLogout}: {onLogout: () => void}) => {
     window.addEventListener(NAVIGATE_EVENT, handleNavigate);
     return () => window.removeEventListener(NAVIGATE_EVENT, handleNavigate);
   }, [navigate]);
+
+  if (isPublicVideoSharing) {
+    return (
+      <main id="main-content" role="main" aria-label="公开视频分享" className="min-h-screen bg-[#f8fafc] text-[14px]">
+        <Outlet />
+      </main>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#f8fafc] dark:bg-[#0f172a] font-sans overflow-hidden flex">

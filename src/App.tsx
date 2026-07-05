@@ -12,6 +12,7 @@ const PUBLIC_ROUTE_PREFIXES = [
   '/tv/',
   '/training/videos/watch',
   '/training/docs/pdf',
+  '/video-sharing',
 ];
 
 const isPublicRoute = () => {
@@ -20,7 +21,7 @@ const isPublicRoute = () => {
 };
 
 export default function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(() => (isPublicRoute() ? false : null));
 
   useEffect(() => {
     supabase.auth.getSession().then(({data}) => {

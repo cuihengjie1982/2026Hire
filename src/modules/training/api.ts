@@ -431,6 +431,13 @@ const isTrainingShareLinkTarget = (url?: string): boolean => {
   }
 };
 
+export const buildTrainingSharePath = (courseId: string, token: string, targetUrl?: string): string => {
+  const path = `/tv/${encodeURIComponent(courseId)}/${encodeURIComponent(token)}`;
+  if (!targetUrl || isTrainingShareLinkTarget(targetUrl)) return path;
+  const encodedTarget = encodeURIComponent(targetUrl);
+  return `${path}?target=${encodedTarget}#target=${encodedTarget}`;
+};
+
 const mapEnrollment = (raw: Record<string, unknown>): TrainingEnrollment => ({
   id: String(raw.id ?? ''),
   candidateId: String(raw.candidate_id ?? raw.candidateId ?? ''),
@@ -505,6 +512,24 @@ export const listCourses = async (filters?: {
   };
 };
 
+export const listPublicVideoShareCourses = async (): Promise<{items: TrainingCourse[]; total: number; page: number; pageSize: number}> => {
+  const res = await fetch('/training-public-api/courses', {cache: 'no-store'});
+  const data = await res.json();
+  if (!res.ok) throw new Error(data?.error?.message || `API error ${res.status}`);
+  const rawItems = getItemsFromPayload<Record<string, unknown>>(data);
+  const items = rawItems.map(raw => ({
+    ...mapPublicCourseMediaUrls(mapCourse(raw)),
+    publicShareToken: raw.share_token || raw.shareToken ? String(raw.share_token ?? raw.shareToken) : undefined,
+    publicSharePath: raw.share_path || raw.sharePath ? String(raw.share_path ?? raw.sharePath) : undefined,
+  }));
+  return {
+    items,
+    total: (data.total as number) ?? items.length,
+    page: (data.page as number) ?? 1,
+    pageSize: (data.pageSize as number) ?? items.length,
+  };
+};
+
 export const getCourse = async (id: string): Promise<TrainingCourse> => {
   if (USE_MOCK_API) { await mockDelay(); const c = courses.find(x => x.id === id); if (!c) throw new Error('Course not found'); return c; }
   const raw = await efetch<Record<string, unknown>>(`/training/courses/${id}`);
@@ -557,22 +582,15 @@ export const deleteCourse = async (id: string): Promise<void> => {
 };
 
 export const createTrainingShareLink = async (courseId: string, targetUrl?: string): Promise<TrainingShareLink> => {
-  const buildPublicPath = (id: string, token: string) => {
-    const path = `/tv/${encodeURIComponent(id)}/${encodeURIComponent(token)}`;
-    if (!targetUrl || isTrainingShareLinkTarget(targetUrl)) return path;
-    const encodedTarget = encodeURIComponent(targetUrl);
-    return `${path}?target=${encodedTarget}#target=${encodedTarget}`;
-  };
-
   if (USE_MOCK_API) {
     await mockDelay();
     const token = `mock-${courseId}`;
-    const path = buildPublicPath(courseId, token);
+    const path = buildTrainingSharePath(courseId, token, targetUrl);
     return {courseId, token, path, url: `${window.location.origin}${path}`};
   }
 
   const raw = await efetch<{courseId: string; token: string; path: string}>('/training/share-links', 'POST', {courseId});
-  const path = buildPublicPath(raw.courseId, raw.token);
+  const path = buildTrainingSharePath(raw.courseId, raw.token, targetUrl);
   return {...raw, path, url: `${window.location.origin}${path}`};
 };
 

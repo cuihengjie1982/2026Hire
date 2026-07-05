@@ -11,6 +11,8 @@ export interface TrainingCourse {
   positionId?: string;
   positionName?: string;
   competencyDimension?: string;
+  publicShareToken?: string;
+  publicSharePath?: string;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
