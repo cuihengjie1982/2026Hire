@@ -232,12 +232,56 @@
           return buildSharePath(asset.courseId, asset.token);
         }
 
-        function copyText(text) {
+        function copyText(text, done) {
           if (navigator.clipboard && navigator.clipboard.writeText) {
-            return navigator.clipboard.writeText(text);
+            navigator.clipboard.writeText(text).then(function () {
+              done();
+            }).catch(function () {
+              window.prompt('复制下面的培训链接', text);
+              done();
+            });
+            return;
           }
           window.prompt('复制下面的培训链接', text);
-          return Promise.resolve();
+          done();
+        }
+
+        function requestJson(url, onSuccess, onError) {
+          if (window.fetch) {
+            fetch(url, { cache: 'no-store' })
+              .then(function (response) {
+                return response.json().then(function (data) {
+                  if (!response.ok) throw new Error((data.error && data.error.message) || '培训资料加载失败');
+                  return data;
+                });
+              })
+              .then(onSuccess)
+              .catch(onError);
+            return;
+          }
+
+          var xhr = new XMLHttpRequest();
+          xhr.open('GET', url, true);
+          xhr.setRequestHeader('Accept', 'application/json');
+          xhr.onreadystatechange = function () {
+            if (xhr.readyState !== 4) return;
+            var data = null;
+            try {
+              data = JSON.parse(xhr.responseText || '{}');
+            } catch (e) {
+              onError(new Error('培训资料加载失败'));
+              return;
+            }
+            if (xhr.status < 200 || xhr.status >= 300) {
+              onError(new Error((data.error && data.error.message) || '培训资料加载失败'));
+              return;
+            }
+            onSuccess(data);
+          };
+          xhr.onerror = function () {
+            onError(new Error('网络出错，请稍后重试。'));
+          };
+          xhr.send();
         }
 
         function getCourseItems(course) {
@@ -346,7 +390,7 @@
             links[1].href = courseUrl;
             (function (button, url) {
               button.addEventListener('click', function () {
-                copyText(window.location.origin + url).then(function () {
+                copyText(window.location.origin + url, function () {
                   button.textContent = '已复制';
                   window.setTimeout(function () { button.textContent = '复制'; }, 1500);
                 });
@@ -368,20 +412,14 @@
         searchEl.addEventListener('input', render);
         showAdminLinkIfLoggedIn();
 
-        fetch('/training-public-api/courses', { cache: 'no-store' })
-          .then(function (response) {
-            return response.json().then(function (data) {
-              if (!response.ok) throw new Error((data.error && data.error.message) || '培训资料加载失败');
-              return data;
-            });
-          })
-          .then(function (data) {
+        requestJson('/training-public-api/courses',
+          function (data) {
             assets = normalizeCourses(data);
             updateStats();
             messageEl.textContent = assets.length ? '请选择需要学习的资料。' : '暂无可打开的培训资料。';
             render();
-          })
-          .catch(function (error) {
+          },
+          function (error) {
             messageEl.textContent = error && error.message ? error.message : '网络出错，请稍后重试。';
           });
       })();
