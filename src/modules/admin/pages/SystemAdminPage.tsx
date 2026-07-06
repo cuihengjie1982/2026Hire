@@ -51,7 +51,7 @@ export const SystemAdminPage = () => {
       .then(user => {
         if (!mounted) return;
         if (user.role === 'video_viewer') {
-          navigate('/video-sharing', {replace: true});
+          navigate('/video-sharing/manage', {replace: true});
           return;
         }
         if (user.role !== 'admin') {

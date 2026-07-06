@@ -9,6 +9,14 @@
       "destination": "/training-video.html?sharePath=:path*"
     },
     {
+      "source": "/video-sharing",
+      "destination": "/video-sharing.html"
+    },
+    {
+      "source": "/video-sharing/",
+      "destination": "/video-sharing.html"
+    },
+    {
       "source": "/training-public-api/:path*",
       "destination": "https://eqdfyhqeqkbjvivscjau.supabase.co/functions/v1/training-public/:path*"
     },

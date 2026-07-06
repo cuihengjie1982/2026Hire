@@ -24,7 +24,7 @@ export const PAGE_ROUTE_BY_ID: Record<AppPageId, string> = {
   interviews: '/interviews',
   approvals: '/approvals',
   training: '/training',
-  videoShare: '/video-sharing',
+  videoShare: '/video-sharing/manage',
   employees: '/employees',
   admin: '/admin',
 };
@@ -66,7 +66,7 @@ export const getPageFromPathname = (pathname: string): AppPageId => {
   // Order matters: match more specific prefixes first
   const routes: {page: AppPageId; route: string}[] = [
     {page: 'dashboard', route: '/'},
-    {page: 'videoShare', route: '/video-sharing'},
+    {page: 'videoShare', route: '/video-sharing/manage'},
     {page: 'training', route: '/training'},
     {page: 'employees', route: '/employees'},
     {page: 'interviews', route: '/interviews'},

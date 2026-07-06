@@ -12,12 +12,13 @@ const PUBLIC_ROUTE_PREFIXES = [
   '/tv/',
   '/training/videos/watch',
   '/training/docs/pdf',
-  '/video-sharing',
 ];
 
 const isPublicRoute = () => {
   if (typeof window === 'undefined') return false;
-  return PUBLIC_ROUTE_PREFIXES.some((prefix) => window.location.pathname.startsWith(prefix));
+  return window.location.pathname === '/video-sharing'
+    || window.location.pathname === '/video-sharing/'
+    || PUBLIC_ROUTE_PREFIXES.some((prefix) => window.location.pathname.startsWith(prefix));
 };
 
 export default function App() {

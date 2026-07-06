@@ -124,6 +124,7 @@ export const AppRouter = ({onLogout}: {onLogout: () => void}) => (
           <Route path="/approvals" element={withPageGuard(<ApprovalsRoute />, '审批中心')} />
           <Route path="/training" element={withPageGuard(<TrainingAcademyPage />, '培训学堂')} />
           <Route path="/video-sharing" element={withPageGuard(<TrainingVideoSharePage />, '视频分享')} />
+          <Route path="/video-sharing/manage" element={withPageGuard(<TrainingVideoSharePage />, '视频分享')} />
           <Route path="/employees" element={withPageGuard(<EmployeeManagementPage />, '员工档案')} />
           <Route path="/admin" element={withPageGuard(<SystemAdminPage />, '系统管理')} />
         </Route>

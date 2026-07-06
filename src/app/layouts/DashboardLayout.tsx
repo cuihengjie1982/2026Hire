@@ -76,7 +76,7 @@ export const DashboardLayout = ({onLogout}: {onLogout: () => void}) => {
   const navigate = useNavigate();
   const {selectedProject, setSelectedProject, projects, loading} = useProject();
   const currentPageId = getPageFromPathname(location.pathname);
-  const isPublicVideoSharing = !getAuthToken() && location.pathname.startsWith('/video-sharing');
+  const isPublicVideoSharing = !getAuthToken() && (location.pathname === '/video-sharing' || location.pathname === '/video-sharing/');
   const isVideoShareOnly = currentRole === 'video_viewer';
   const visibleNavigationItems = useMemo(
     () => isVideoShareOnly ? navigationItems.filter((item) => item.id === 'videoShare') : navigationItems,
@@ -103,7 +103,7 @@ export const DashboardLayout = ({onLogout}: {onLogout: () => void}) => {
 
   useEffect(() => {
     if (!isVideoShareOnly || currentPageId === 'videoShare') return;
-    navigate('/video-sharing', {replace: true});
+    navigate('/video-sharing/manage', {replace: true});
   }, [currentPageId, isVideoShareOnly, navigate]);
 
   useEffect(() => {

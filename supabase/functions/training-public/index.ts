@@ -71,6 +71,16 @@ function getPathSegments(req: Request): string[] {
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return jsonRes({ ok: true });
+  if (req.method === 'HEAD') {
+    return new Response(null, {
+      status: 200,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+        'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+      },
+    });
+  }
   if (req.method !== 'GET') {
     return jsonRes({ error: { code: 'METHOD_NOT_ALLOWED', message: 'Method not allowed' } }, 405);
   }
