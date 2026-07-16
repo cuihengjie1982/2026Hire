@@ -1,5 +1,5 @@
 import {motion} from 'motion/react';
-import {lazy, Suspense, useEffect, useState} from 'react';
+import {lazy, Suspense, useMemo} from 'react';
 import {useSearchParams} from 'react-router-dom';
 import {Loader2, FileText, PlayCircle, BarChart2, ClipboardList, MessageCircle} from 'lucide-react';
 
@@ -39,23 +39,24 @@ const TabFallback = () => (
   </div>
 );
 
+const resolveTabFromParams = (tab: string | null): TabId =>
+  tab && TABS.some(t => t.id === tab) ? (tab as TabId) : 'templates';
+
 export const InterviewCenterPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const tabFromUrl = searchParams.get('tab') as TabId | null;
-  const [activeTab, setActiveTab] = useState<TabId>(
-    TABS.some(t => t.id === tabFromUrl) ? tabFromUrl! : 'templates',
+
+  // URL is the single source of truth — avoids effect ↔ handler race on tab clicks
+  const activeTab = useMemo(
+    () => resolveTabFromParams(searchParams.get('tab')),
+    [searchParams],
   );
 
-  useEffect(() => {
-    const tab = searchParams.get('tab') as TabId | null;
-    if (tab && TABS.some(t => t.id === tab)) {
-      setActiveTab(tab);
-    }
-  }, [searchParams]);
-
   const handleTabChange = (tab: TabId) => {
-    setActiveTab(tab);
-    setSearchParams({tab}, {replace: true});
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      next.set('tab', tab);
+      return next;
+    }, {replace: true});
   };
 
   const renderTab = () => {

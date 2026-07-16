@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Box, LogOut, Mic, Video, Volume2, Settings, CheckCircle2, Circle, ChevronRight, Clock, AlertCircle, PlayCircle, ShieldAlert, WifiOff, Loader2, RotateCcw, Send, ChevronDown, ArrowLeft } from 'lucide-react';
 import { navigateToPage } from './navigation';
@@ -206,6 +206,29 @@ export const AIVideoInterviewPage = () => {
     };
     loadQuestions();
   }, []);
+
+  /** Return to session management; fall back to in-app navigation if window.close is blocked */
+  const returnToSessionManagement = useCallback(() => {
+    const fallbackNavigate = () => navigate('/interviews?tab=management');
+
+    if (window.opener && !window.opener.closed) {
+      try {
+        window.opener.focus();
+      } catch {
+        fallbackNavigate();
+        return;
+      }
+      window.close();
+      // close() can fail silently when the opener context is stale — verify after a tick
+      window.setTimeout(() => {
+        if (!window.closed) {
+          fallbackNavigate();
+        }
+      }, 150);
+      return;
+    }
+    fallbackNavigate();
+  }, [navigate]);
 
   const currentQ = questions[currentQuestionIdx];
 
@@ -534,15 +557,6 @@ export const AIVideoInterviewPage = () => {
     stopWaveformAnimation();
     // End the entire interview
     setOverlayState('completed');
-  };
-
-  const returnToSessionManagement = () => {
-    if (window.opener && !window.opener.closed) {
-      window.opener.focus();
-      window.close();
-      return;
-    }
-    navigate('/interviews?tab=management');
   };
 
   const handleExit = () => {

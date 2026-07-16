@@ -1,5 +1,5 @@
-import {getItemsFromPayload} from '../../shared/lib/apiClient';
-import {USE_MOCK_API, API_BASE_URL, getAuthToken} from '../../shared/lib/runtime';
+import {buildApiUrl, getItemsFromPayload} from '../../shared/lib/apiClient';
+import {USE_MOCK_API, API_BASE_URL, SUPABASE_URL, getAuthToken} from '../../shared/lib/runtime';
 import {courseFixtures, enrollmentFixtures} from './fixtures';
 import {
   type TrainingCourse,
@@ -275,11 +275,15 @@ const uploadMaterialViaApi = async (
   });
 };
 
-// Helper to call embox-api Edge Function (production) or fall through to fetchJson (dev)
-const trainingEndpoint = (path: string) => {
-  const base = USE_MOCK_API ? '' : API_BASE_URL;
-  const isLocalExpress = base.includes('localhost') || base.includes('127.0.0.1');
-  return isLocalExpress ? `${base}/api${path}` : `${base}/functions/v1/embox-api${path}`;
+// Helper to call embox-api Edge Function (production) or Express /api (local-only dev)
+const trainingEndpoint = (path: string) => buildApiUrl(`/api${path}`);
+
+/** Public training catalog — separate Edge Function, no auth required */
+const publicTrainingEndpoint = (path: string) => {
+  if (!USE_MOCK_API && SUPABASE_URL) {
+    return `${SUPABASE_URL}/functions/v1/training-public${path}`;
+  }
+  return `/training-public-api${path}`;
 };
 
 const efetch = async <T>(path: string, method = 'GET', body?: Record<string, unknown>): Promise<T> => {
@@ -513,7 +517,7 @@ export const listCourses = async (filters?: {
 };
 
 export const listPublicVideoShareCourses = async (): Promise<{items: TrainingCourse[]; total: number; page: number; pageSize: number}> => {
-  const res = await fetch('/training-public-api/courses', {cache: 'no-store'});
+  const res = await fetch(publicTrainingEndpoint('/courses'), {cache: 'no-store'});
   const data = await res.json();
   if (!res.ok) throw new Error(data?.error?.message || `API error ${res.status}`);
   const rawItems = getItemsFromPayload<Record<string, unknown>>(data);
@@ -603,15 +607,12 @@ export const getPublicTrainingCourse = async (courseId: string, token: string): 
   }
 
   const params = new URLSearchParams({token});
-  const isLocalExpress = API_BASE_URL.includes('localhost') || API_BASE_URL.includes('127.0.0.1');
-  const url = isLocalExpress
-    ? trainingEndpoint(`/training/public/course/${encodeURIComponent(courseId)}?${params.toString()}`)
-    : `/training-public-api/course/${encodeURIComponent(courseId)}?${params.toString()}`;
+  const url = publicTrainingEndpoint(`/course/${encodeURIComponent(courseId)}?${params.toString()}`);
   const res = await fetch(url);
   const data = await res.json();
   if (!res.ok) throw new Error(data?.error?.message || `API error ${res.status}`);
   const course = mapCourse((data.course ?? data) as Record<string, unknown>);
-  return isLocalExpress ? course : mapPublicCourseMediaUrls(course);
+  return mapPublicCourseMediaUrls(course);
 };
 
 const findCourseVideoUrl = (course: TrainingCourse, targetUrl?: string): string => {

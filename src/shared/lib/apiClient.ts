@@ -1,4 +1,4 @@
-import {API_BASE_URL, AUTH_TOKEN_KEY, USE_MOCK_API, getAuthToken, setAuthToken} from './runtime';
+import {API_BASE_URL, AUTH_TOKEN_KEY, USE_MOCK_API, SUPABASE_URL, getAuthToken, setAuthToken} from './runtime';
 import {supabase} from './supabase';
 
 const REFRESH_TOKEN_KEY = 'em-box.refresh-token';
@@ -51,15 +51,39 @@ async function tryRefreshToken(): Promise<string | null> {
   return refreshPromise;
 }
 
+/**
+ * Maps Express /api/* paths to Edge Function paths where naming differs.
+ * Deployed embox-api uses /outreach, /contacts, /sms-gateway/* (no /api prefix),
+ * while shortlist/employees/insights keep /api/* on both sides.
+ */
+export const resolveEdgeFunctionPath = (apiPath: string): string => {
+  const aliases: [string, string][] = [
+    ['/api/outreach', '/outreach'],
+    ['/api/contacts', '/contacts'],
+    ['/api/sms-gateway', '/sms-gateway'],
+    ['/api/training', '/training'],
+  ];
+  for (const [expressPrefix, edgePrefix] of aliases) {
+    if (apiPath === expressPrefix || apiPath.startsWith(`${expressPrefix}?`) || apiPath.startsWith(`${expressPrefix}/`)) {
+      return edgePrefix + apiPath.slice(expressPrefix.length);
+    }
+  }
+  return apiPath;
+};
+
 export const buildApiUrl = (path: string) => {
   const base = API_BASE_URL;
   // Already an absolute URL or Edge Function path — don't transform
   if (path.startsWith('http') || path.startsWith('/functions/')) {
     return `${base}${path}`;
   }
-  // In production (non-localhost), route /api/* through Edge Function
-  if (!USE_MOCK_API && !base.includes('localhost') && path.startsWith('/api/')) {
-    return `${base}/functions/v1/embox-api${path}`;
+  // In real mode, route /api/* through Supabase Edge Function when cloud backend is configured.
+  // Login uses Supabase Auth JWT — Express localhost cannot verify those tokens.
+  if (!USE_MOCK_API && path.startsWith('/api/')) {
+    const cloudBase = base.includes('localhost') || !base ? SUPABASE_URL : base;
+    if (cloudBase && !cloudBase.includes('localhost')) {
+      return `${cloudBase}/functions/v1/embox-api${resolveEdgeFunctionPath(path)}`;
+    }
   }
   return `${base}${path}`;
 };

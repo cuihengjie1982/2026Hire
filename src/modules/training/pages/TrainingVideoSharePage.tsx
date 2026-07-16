@@ -35,8 +35,21 @@ export const TrainingVideoSharePage = () => {
     setLoading(true);
     setError('');
     try {
-      const result = isPublicAccess ? await listPublicVideoShareCourses() : await listCourses();
-      setCourses(result.items);
+      if (isPublicAccess) {
+        const result = await listPublicVideoShareCourses();
+        setCourses(result.items);
+        return;
+      }
+      try {
+        const result = await listCourses();
+        setCourses(result.items);
+      } catch (e) {
+        const message = e instanceof Error ? e.message : '';
+        const isAuthError = /token|unauthorized|401|expired|auth/i.test(message);
+        if (!isAuthError) throw e;
+        const result = await listPublicVideoShareCourses();
+        setCourses(result.items);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : '加载视频课程失败');
     } finally {

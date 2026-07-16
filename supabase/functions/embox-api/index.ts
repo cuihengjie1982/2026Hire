@@ -137,6 +137,9 @@ const loadHandlers = async (): Promise<RouteHandler[]> => {
     { pattern: '/notifications/', methods: ['DELETE'], auth: 'any', handler: dismissNotification },
     { pattern: '/notifications', methods: ['GET'], auth: 'any', handler: listNotifications },
     // SMS Gateway
+    { pattern: '/api/sms-gateway/send', methods: ['POST'], auth: 'recruiter+', handler: sendSmsHandler },
+    { pattern: '/api/sms-gateway/templates', methods: ['GET'], auth: 'any', handler: listTemplates },
+    { pattern: '/api/sms-gateway/templates', methods: ['POST'], auth: 'admin', handler: createTemplate },
     { pattern: '/sms-gateway/send', methods: ['POST'], auth: 'recruiter+', handler: sendSmsHandler },
     { pattern: '/sms-gateway/templates', methods: ['GET'], auth: 'any', handler: listTemplates },
     { pattern: '/sms-gateway/templates', methods: ['POST'], auth: 'admin', handler: createTemplate },
@@ -195,6 +198,7 @@ const loadHandlers = async (): Promise<RouteHandler[]> => {
     // Approvals — recruiter+
     { pattern: '/approvals', methods: ['GET', 'POST', 'PATCH'], auth: 'recruiter+', handler: handleApprovals },
     // Outreach — recruiter+
+    { pattern: '/api/outreach', methods: ['GET', 'POST', 'PATCH', 'DELETE'], auth: 'recruiter+', handler: handleOutreach },
     { pattern: '/outreach', methods: ['GET', 'POST', 'PATCH', 'DELETE'], auth: 'recruiter+', handler: handleOutreach },
     // Contacts — recruiter+
     { pattern: '/contacts', methods: ['GET', 'POST', 'PATCH', 'DELETE'], auth: 'recruiter+', handler: handleContacts },

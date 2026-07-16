@@ -1,36 +1,7 @@
-import {USE_MOCK_API, API_BASE_URL, getAuthToken} from '../../shared/lib/runtime';
+import {fetchJson, getItemsFromPayload} from '../../shared/lib/apiClient';
+import {USE_MOCK_API} from '../../shared/lib/runtime';
 import {outreachRecordsFixture, smsTemplatesFixture} from './fixtures';
 import {type OutreachRecord, type CreateOutreachRecordInput, type SmsTemplate, type SendSmsInput} from './types';
-
-const efetch = async <T>(path: string, method = 'GET', body?: Record<string, unknown>): Promise<T> => {
-  const base = USE_MOCK_API ? '' : API_BASE_URL;
-  const res = await fetch(`${base}/functions/v1/embox-api${path}`, {
-    method,
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${getAuthToken() ?? ''}`,
-    },
-    ...(body ? { body: JSON.stringify(body) } : {}),
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data?.error?.message || `API error ${res.status}`);
-  return data as T;
-};
-
-const EF_BASE = `${API_BASE_URL}/functions/v1/embox-api`;
-
-async function efFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const token = getAuthToken();
-  const headers = new Headers(init?.headers);
-  if (token) headers.set('Authorization', `Bearer ${token}`);
-  if (init?.body && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
-  const res = await fetch(`${EF_BASE}${path}`, {...init, headers});
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({error: {message: `HTTP ${res.status}`}}));
-    throw new Error(err?.error?.message ?? `SMS API error: ${res.status}`);
-  }
-  return res.json() as Promise<T>;
-}
 
 // localStorage-backed mock store
 let outreachData: OutreachRecord[] = (() => { try { const r = localStorage.getItem('em-box.mock.outreach'); return r ? JSON.parse(r) : [...outreachRecordsFixture]; } catch { return [...outreachRecordsFixture]; } })();
@@ -55,8 +26,9 @@ export const listOutreachRecords = async (): Promise<OutreachRecord[]> => {
     await new Promise(r => setTimeout(r, 120));
     return Array.from(new Map(outreachData.map(r => [r.id, r])).values());
   }
-  const data = await efetch<Record<string, unknown>[]>('/outreach', 'GET');
-  return Array.from(new Map((data ?? []).map(r => [r.id as string, r])).values()).map(mapRecord);
+  const payload = await fetchJson<unknown>('/api/outreach');
+  const items = getItemsFromPayload<Record<string, unknown>>(payload);
+  return Array.from(new Map(items.map(r => [r.id as string, r])).values()).map(mapRecord);
 };
 
 export const createOutreachRecord = async (input: CreateOutreachRecordInput): Promise<OutreachRecord> => {
@@ -72,13 +44,16 @@ export const createOutreachRecord = async (input: CreateOutreachRecordInput): Pr
     saveOutreach();
     return newRecord;
   }
-  const data = await efetch<Record<string, unknown>>('/outreach', 'POST', {
-    candidateId: input.candidateId,
-    candidateName: input.candidateName,
-    positionId: input.positionId,
-    positionName: input.positionName,
-    channel: input.channel,
-    content: input.content,
+  const data = await fetchJson<Record<string, unknown>>('/api/outreach', {
+    method: 'POST',
+    body: JSON.stringify({
+      candidateId: input.candidateId,
+      candidateName: input.candidateName,
+      positionId: input.positionId,
+      positionName: input.positionName,
+      channel: input.channel,
+      content: input.content,
+    }),
   });
   return mapRecord(data);
 };
@@ -88,8 +63,8 @@ export const listOutreachRecordsByCandidate = async (candidateId: string): Promi
     await new Promise(r => setTimeout(r, 120));
     return outreachData.filter(r => r.candidateId === candidateId);
   }
-  const data = await efetch<Record<string, unknown>[]>(`/outreach?candidate_id=${encodeURIComponent(candidateId)}`, 'GET');
-  return (data ?? []).map(mapRecord);
+  const payload = await fetchJson<unknown>(`/api/outreach?candidate_id=${encodeURIComponent(candidateId)}`);
+  return getItemsFromPayload<Record<string, unknown>>(payload).map(mapRecord);
 };
 
 export const updateOutreachRecordStatus = async (id: string, status: OutreachRecord['status']): Promise<OutreachRecord> => {
@@ -101,7 +76,10 @@ export const updateOutreachRecordStatus = async (id: string, status: OutreachRec
     saveOutreach();
     return outreachData[index];
   }
-  const data = await efetch<Record<string, unknown>>('/outreach', 'PATCH', { id, status });
+  const data = await fetchJson<Record<string, unknown>>('/api/outreach', {
+    method: 'PATCH',
+    body: JSON.stringify({id, status}),
+  });
   return mapRecord(data);
 };
 
@@ -114,7 +92,10 @@ export const deleteOutreachRecord = async (id: string): Promise<void> => {
     saveOutreach();
     return;
   }
-  await efetch('/outreach', 'DELETE', { id });
+  await fetchJson('/api/outreach', {
+    method: 'DELETE',
+    body: JSON.stringify({id}),
+  });
 };
 
 // ── SMS ──────────────────────────────────────────────────────────
@@ -139,12 +120,15 @@ export const sendSms = async (input: SendSmsInput): Promise<OutreachRecord> => {
     saveOutreach();
     return record;
   }
-  const raw = await efetch<Record<string, unknown>>('/sms-gateway/send', 'POST', {
-    candidateId: input.candidateId,
-    templateId: input.templateId,
-    templateParamSet: input.templateParamSet,
-    positionId: input.positionId,
-    positionName: input.positionName,
+  const raw = await fetchJson<Record<string, unknown>>('/api/sms-gateway/send', {
+    method: 'POST',
+    body: JSON.stringify({
+      candidateId: input.candidateId,
+      templateId: input.templateId,
+      templateParamSet: input.templateParamSet,
+      positionId: input.positionId,
+      positionName: input.positionName,
+    }),
   });
   return mapRecord(raw);
 };
@@ -154,7 +138,7 @@ export const listSmsTemplates = async (): Promise<SmsTemplate[]> => {
     await new Promise(r => setTimeout(r, 100));
     return smsTemplatesFixture;
   }
-  const raw = await efetch<Record<string, unknown>[]>('/sms-gateway/templates', 'GET');
+  const raw = await fetchJson<Record<string, unknown>[]>('/api/sms-gateway/templates');
   return raw.map(r => ({
     id: String(r.id ?? ''),
     name: String(r.name ?? ''),

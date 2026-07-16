@@ -580,15 +580,18 @@ export const updateSessionStatus = async (
 ): Promise<InterviewSession | null> => {
   if (USE_MOCK_API) {
     await new Promise(r => setTimeout(r, 120));
+    const index = mockSessionsData.findIndex(s => s.id === sessionId);
+    if (index < 0) return null;
+
     const managementStatus = mapManagementSessionStatus(status);
-    mockSessionsData = mockSessionsData.map(s =>
-      s.id === sessionId ? {...s, status: managementStatus} : s,
+    mockSessionsData = mockSessionsData.map((s, i) =>
+      i === index ? {...s, status: managementStatus} : s,
     );
-    const session = mockSessionsData.find(s => s.id === sessionId);
+    const updated = mockSessionsData[index];
     return {
-      id: sessionId,
-      candidateId: session?.candidateId ?? '',
-      templateId: session?.templateId ?? '',
+      id: updated.id,
+      candidateId: updated.candidateId,
+      templateId: updated.templateId,
       status,
     };
   }

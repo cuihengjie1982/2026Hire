@@ -9,6 +9,12 @@ export type InterviewCreateTemplateOption = {
   questionCount?: number;
 };
 
+/** Optional pre-loaded data to avoid duplicate fetches when opening a dialog */
+export type PrepareOpenOptions = {
+  candidateList?: CandidateCard[];
+  templateList?: InterviewCreateTemplateOption[];
+};
+
 type UseInterviewCreateFormOptions = {
   /** Whether the create dialog/modal is open — enables selection sync */
   open: boolean;
@@ -36,6 +42,7 @@ export const useInterviewCreateForm = ({
   const [selectedTemplateId, setSelectedTemplateId] = useState('');
   const [error, setError] = useState('');
   const [creating, setCreating] = useState(false);
+  const [isPreparing, setIsPreparing] = useState(false);
 
   /** Client-side filter — empty search shows all candidates */
   const filteredCandidates = useMemo(() => {
@@ -81,13 +88,26 @@ export const useInterviewCreateForm = ({
     }
   }, [templates, open, selectedTemplateId]);
 
-  /** Reset form fields when opening the create dialog */
-  const prepareOpen = useCallback(async () => {
+  /**
+   * Reset form fields before showing the create dialog.
+   * Await this before setting dialog `open` to avoid stale-selection flicker.
+   * Pass pre-loaded lists when the caller already fetched them in parallel.
+   */
+  const prepareOpen = useCallback(async (options?: PrepareOpenOptions) => {
+    setIsPreparing(true);
     setError('');
     setCandidateSearch('');
-    const list = await reloadCandidates();
-    setSelectedCandidateId(list[0]?.id ?? '');
-    setSelectedTemplateId(templates[0]?.id ?? '');
+    try {
+      const list = options?.candidateList ?? await reloadCandidates();
+      if (options?.candidateList) {
+        setAllCandidates(options.candidateList);
+      }
+      setSelectedCandidateId(list[0]?.id ?? '');
+      const tpls = options?.templateList ?? templates;
+      setSelectedTemplateId(tpls[0]?.id ?? '');
+    } finally {
+      setIsPreparing(false);
+    }
   }, [reloadCandidates, templates]);
 
   /** Human-readable reason when the create button stays disabled */
@@ -120,6 +140,7 @@ export const useInterviewCreateForm = ({
     setCreating,
     reloadCandidates,
     prepareOpen,
+    isPreparing,
     createDisabledReason,
     canCreate,
   };

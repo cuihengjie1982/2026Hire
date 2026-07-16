@@ -5,11 +5,13 @@ import {
   getValueFromPayload,
   fetchJson,
   mockDelay,
+  resolveEdgeFunctionPath,
 } from '../apiClient';
 
 // Mock runtime so we control API_BASE_URL, getAuthToken, USE_MOCK_API
 vi.mock('../runtime', () => ({
   API_BASE_URL: 'http://localhost:4000',
+  SUPABASE_URL: 'https://test.supabase.co',
   USE_MOCK_API: true,
   getAuthToken: vi.fn(() => null),
 }));
@@ -36,10 +38,25 @@ afterEach(() => {
 // ---------------------------------------------------------------------------
 
 describe('buildApiUrl', () => {
-  it('prepends API_BASE_URL to path', () => {
+  it('prepends API_BASE_URL to path in mock mode', () => {
     expect(buildApiUrl('/api/candidates')).toBe(
       'http://localhost:4000/api/candidates',
     );
+  });
+});
+
+describe('resolveEdgeFunctionPath', () => {
+  it('maps outreach and contacts to Edge Function paths without /api prefix', () => {
+    expect(resolveEdgeFunctionPath('/api/outreach')).toBe('/outreach');
+    expect(resolveEdgeFunctionPath('/api/outreach?candidate_id=abc')).toBe('/outreach?candidate_id=abc');
+    expect(resolveEdgeFunctionPath('/api/contacts')).toBe('/contacts');
+    expect(resolveEdgeFunctionPath('/api/sms-gateway/send')).toBe('/sms-gateway/send');
+    expect(resolveEdgeFunctionPath('/api/training/courses')).toBe('/training/courses');
+  });
+
+  it('keeps /api prefix for routes that use it on Edge Function', () => {
+    expect(resolveEdgeFunctionPath('/api/shortlist')).toBe('/api/shortlist');
+    expect(resolveEdgeFunctionPath('/api/employees')).toBe('/api/employees');
   });
 });
 

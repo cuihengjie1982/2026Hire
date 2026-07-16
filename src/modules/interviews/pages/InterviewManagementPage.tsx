@@ -220,9 +220,9 @@ export const InterviewManagementPage = ({ isEmbedded = false, onTabChange }: Int
     return date.toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
   };
 
-  const openCreateDialog = () => {
+  const openCreateDialog = async () => {
+    await prepareOpen();
     setShowCreateDialog(true);
-    void prepareOpen();
   };
 
   return (
@@ -304,7 +304,7 @@ export const InterviewManagementPage = ({ isEmbedded = false, onTabChange }: Int
               </div>
               <button
                 type="button"
-                onClick={openCreateDialog}
+                onClick={() => { void openCreateDialog(); }}
                 className="flex items-center gap-1.5 px-4 py-2.5 bg-[#22d3ee] hover:bg-[#06b6d4] text-white rounded-lg text-sm font-medium transition-colors"
               >
                 <Plus className="w-4 h-4" />

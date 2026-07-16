@@ -5,6 +5,8 @@ import type { InterviewManagementSession } from '../types';
 import { ModalPortal } from '../../../shared/components/ModalPortal';
 import { InterviewCandidatePicker } from '../components/InterviewCandidatePicker';
 import { useInterviewCreateForm, type InterviewCreateTemplateOption } from '../hooks/useInterviewCreateForm';
+import { listCandidates } from '../../candidates/api';
+import type { CandidateCard } from '../../candidates/types';
 
 // SMS templates fetch
 const fetchSmsTemplates = async () => {
@@ -69,30 +71,30 @@ const ConversationInterviewManagementPage = () => {
 
   useEffect(() => { loadSessions(); }, [loadSessions]);
 
-  const openModal = () => {
-    setShowModal(true);
+  const openModal = async () => {
     setStep('select');
     setSendSms(false);
     setSelectedSmsTemplate('');
-    void prepareOpen();
 
-    void (async () => {
-      try {
-        const tpls = await listInterviewTemplates();
-        const filtered = tpls
-          .filter((t) => CONVERSATIONAL_MODES.has(t.interviewMode))
-          .map((t) => ({ id: t.id, name: t.name }));
-        setConversationalTemplates(filtered);
-      } catch {
-        setConversationalTemplates([]);
-      }
-      try {
-        const smsTpls = await fetchSmsTemplates();
-        setSmsTemplates(smsTpls);
-      } catch {
-        setSmsTemplates([]);
-      }
-    })();
+    try {
+      const [candidateList, tpls, smsTpls] = await Promise.all([
+        listCandidates().catch(() => [] as CandidateCard[]),
+        listInterviewTemplates().catch(() => []),
+        fetchSmsTemplates(),
+      ]);
+      const filtered = tpls
+        .filter((t) => CONVERSATIONAL_MODES.has(t.interviewMode))
+        .map((t) => ({ id: t.id, name: t.name }));
+      setConversationalTemplates(filtered);
+      setSmsTemplates(smsTpls);
+      await prepareOpen({ candidateList, templateList: filtered });
+    } catch {
+      setConversationalTemplates([]);
+      setSmsTemplates([]);
+      await prepareOpen();
+    } finally {
+      setShowModal(true);
+    }
   };
 
   const handleCreate = async () => {
@@ -170,7 +172,7 @@ const ConversationInterviewManagementPage = () => {
         <h2 className="text-lg font-semibold text-gray-900">会话式面试管理</h2>
         <button
           type="button"
-          onClick={openModal}
+          onClick={() => { void openModal(); }}
           className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-white bg-[#1a4bc4] hover:bg-[#1e3a8a] transition-colors"
         >
           <Plus className="w-4 h-4" />
