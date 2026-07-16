@@ -4,8 +4,10 @@ import {Search, Plus, Box, X, Trash2, Edit2} from 'lucide-react';
 import {listPositions, createPosition, updatePosition, deletePosition, getPositionDetail, savePositionDetail} from './modules/positions/api';
 import {listProjects} from './modules/projects/api';
 import {type PositionSummary, type PositionCategory, type ProfileRule, type ScoringRule, type GradeRule, type BaseScoreConfig} from './modules/positions/types';
+import {createNextGradeRule, updateGradeRule} from './modules/positions/gradeRulesLink';
 import type {Project} from './modules/projects/types';
 import {ConfirmDialog} from './shared/components/ConfirmDialog';
+import {NumericScoreInput} from './shared/components/NumericScoreInput';
 
 const CATEGORY_OPTIONS = [
   {label: '全部', value: ''},
@@ -297,14 +299,11 @@ export const PositionConfigPage = () => {
 
   // Grade rule handlers
   const handleGradeChange = (index: number, field: keyof GradeRule, value: string | number) => {
-    setGradeRules(prev => prev.map((g, i) => {
-      if (i === index) return {...g, [field]: value};
-      return g;
-    }));
+    setGradeRules((prev) => updateGradeRule(prev, index, field, value));
   };
 
   const handleAddGrade = () => {
-    setGradeRules(prev => [...prev, {grade: '', minScore: 0, maxScore: 0, label: '', action: ''}]);
+    setGradeRules((prev) => [...prev, createNextGradeRule(prev)]);
   };
 
   const handleRemoveGrade = (index: number) => {
@@ -739,14 +738,13 @@ export const PositionConfigPage = () => {
                         <div className="flex items-center gap-4">
                           <div className="flex items-center gap-2">
                             <label className="text-sm text-gray-700 dark:text-gray-300">画像匹配分值：</label>
-                            <input
-                              type="number"
+                            <NumericScoreInput
                               value={baseScoreConfig?.baseScore ?? 50}
-                              onChange={(e) => handleBaseScoreChange(parseInt(e.target.value) || 0)}
+                              onChange={handleBaseScoreChange}
                               disabled={!isEditing}
                               className="w-20 px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#6366F1] disabled:bg-gray-50"
-                              min="0"
-                              max="100"
+                              min={0}
+                              max={100}
                             />
                             <span className="text-sm text-gray-500 dark:text-gray-400 ml-1">分</span>
                           </div>
@@ -790,15 +788,14 @@ export const PositionConfigPage = () => {
                                     />
                                   </div>
                                   <div className="col-span-2">
-                                    <input
-                                      type="number"
+                                    <NumericScoreInput
                                       value={rule.weight}
-                                      onChange={(e) => handleScoringRuleChange(idx, 'weight', parseFloat(e.target.value) || 0)}
+                                      onChange={(n) => handleScoringRuleChange(idx, 'weight', n)}
                                       disabled={!isEditing}
                                       className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#6366F1] disabled:bg-gray-50"
                                       placeholder="权重"
-                                      min="0"
-                                      max="100"
+                                      min={0}
+                                      max={100}
                                     />
                                   </div>
                                   <div className="col-span-4">
@@ -865,6 +862,9 @@ export const PositionConfigPage = () => {
                           </button>
                         )}
                       </div>
+                      <p className="text-xs text-gray-400 dark:text-gray-500 mb-3">
+                        自上而下为高分档→低分档。每一级默认设置10分梯度，请不要让分数区间重叠。
+                      </p>
                       {gradeRules.length === 0 ? (
                         <div className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">暂无档位配置</div>
                       ) : (
@@ -883,23 +883,25 @@ export const PositionConfigPage = () => {
                                   />
                                 </div>
                                 <div className="col-span-2">
-                                  <input
-                                    type="number"
+                                  <NumericScoreInput
                                     value={rule.minScore}
-                                    onChange={(e) => handleGradeChange(idx, 'minScore', parseInt(e.target.value) || 0)}
+                                    onChange={(n) => handleGradeChange(idx, 'minScore', n)}
                                     disabled={!isEditing}
                                     className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#6366F1] disabled:bg-gray-50"
                                     placeholder="最低分"
+                                    min={0}
+                                    max={100}
                                   />
                                 </div>
                                 <div className="col-span-2">
-                                  <input
-                                    type="number"
+                                  <NumericScoreInput
                                     value={rule.maxScore}
-                                    onChange={(e) => handleGradeChange(idx, 'maxScore', parseInt(e.target.value) || 0)}
+                                    onChange={(n) => handleGradeChange(idx, 'maxScore', n)}
                                     disabled={!isEditing}
                                     className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#6366F1] disabled:bg-gray-50"
                                     placeholder="最高分"
+                                    min={0}
+                                    max={100}
                                   />
                                 </div>
                                 <div className="col-span-5">
@@ -970,7 +972,7 @@ export const PositionConfigPage = () => {
                     <>
                       <button
                         onClick={() => {
-                          alert('保存按钮被点击了！');
+                          // alert('保存按钮被点击了！');
                           console.log('[DEBUG] Save button clicked, savingConfig:', savingConfig);
                           handleSaveConfig();
                         }}

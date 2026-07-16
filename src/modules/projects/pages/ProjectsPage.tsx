@@ -22,12 +22,21 @@ const TIME_RANGES: {label: string; value: TimeRange | 'custom'}[] = [
   {label: '自定义', value: 'custom'},
 ];
 
+const formatDateISO = (d: Date): string => {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+};
+
+const todayISO = () => formatDateISO(new Date());
+
 export const ProjectsPage = () => {
   const navigate = useNavigate();
   const [projects, setProjects] = useState<Project[]>([]);
-  const [timeRange, setTimeRange] = useState<TimeRange | 'custom'>('week');
-  const [customStartDate, setCustomStartDate] = useState('');
-  const [customEndDate, setCustomEndDate] = useState('');
+  const [timeRange, setTimeRange] = useState<TimeRange | 'custom'>('today');
+  const [customStartDate, setCustomStartDate] = useState(todayISO);
+  const [customEndDate, setCustomEndDate] = useState(todayISO);
   const [stats, setStats] = useState({activeProjects: 0, candidateReserve: 0, weeklyInterviews: 0});
   const [loading, setLoading] = useState(true);
   const [showProjectDialog, setShowProjectDialog] = useState(false);
@@ -72,9 +81,10 @@ export const ProjectsPage = () => {
 
   const handleTimeRangeChange = (value: TimeRange | 'custom') => {
     setTimeRange(value);
-    if (value !== 'custom') {
-      setCustomStartDate('');
-      setCustomEndDate('');
+    if (value === 'custom') {
+      const today = todayISO();
+      setCustomStartDate(today);
+      setCustomEndDate(today);
     }
   };
 
@@ -295,7 +305,7 @@ export const ProjectsPage = () => {
         <div className="divide-y divide-gray-100">
           {projects.map((project) => (
             <div key={project.id}>
-              <div className="px-6 py-5 grid grid-cols-1 xl:grid-cols-[1.4fr_0.8fr_0.8fr_0.8fr_0.9fr_0.6fr] gap-4 items-center">
+              <div className="px-6 py-5 grid grid-cols-1 xl:grid-cols-[minmax(0,1.4fr)_minmax(100px,0.6fr)_auto_minmax(300px,1.4fr)] gap-4 items-center">
                 <div>
                   <div className="font-bold text-gray-900 dark:text-white mb-1">{project.name}</div>
                   <div className="text-[12px] text-gray-500 dark:text-gray-400">{project.city}</div>
@@ -310,43 +320,43 @@ export const ProjectsPage = () => {
                   </div>
                 </div>
                 <div className="flex justify-start xl:justify-end">{renderStatusBadge(project.status)}</div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2 justify-start xl:justify-end">
                   <button
                     onClick={() => handleViewPositions(project.id)}
-                    className="px-3 py-1.5 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-[12px] font-medium hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors flex items-center gap-1"
+                    className="px-3.5 py-1.5 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-[12px] font-medium hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors inline-flex items-center gap-1 whitespace-nowrap shrink-0"
                   >
-                    <Briefcase className="w-3 h-3" />
+                    <Briefcase className="w-3 h-3 shrink-0" />
                     {expandedProjectId === project.id ? '收起' : '岗位'}
-                    <ChevronRight className={`w-3 h-3 transition-transform ${expandedProjectId === project.id ? 'rotate-90' : ''}`} />
+                    <ChevronRight className={`w-3 h-3 shrink-0 transition-transform ${expandedProjectId === project.id ? 'rotate-90' : ''}`} />
                   </button>
                   <button
                     onClick={() => handleEditProject(project)}
-                    className="px-3 py-1.5 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-[12px] font-medium hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors flex items-center gap-1"
+                    className="px-3.5 py-1.5 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-[12px] font-medium hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors inline-flex items-center gap-1 whitespace-nowrap shrink-0"
                   >
-                    <Pencil className="w-3 h-3" />
+                    <Pencil className="w-3 h-3 shrink-0" />
                     编辑
                   </button>
                   <button
                     onClick={() => setDeletingProjectId(project.id)}
-                    className="px-3 py-1.5 border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 rounded-lg text-[12px] font-medium hover:bg-red-50 hover:text-red-500 hover:border-red-300 transition-colors flex items-center gap-1"
+                    className="px-3.5 py-1.5 border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 rounded-lg text-[12px] font-medium hover:bg-red-50 hover:text-red-500 hover:border-red-300 transition-colors inline-flex items-center gap-1 whitespace-nowrap shrink-0"
                   >
-                    <Trash2 className="w-3 h-3" />
+                    <Trash2 className="w-3 h-3 shrink-0" />
                     删除
                   </button>
                   {project.status === '已关闭' ? (
                     <button
                       onClick={() => handleStatusChange(project.id, '进行中')}
-                      className="px-3 py-1.5 border border-emerald-500 text-emerald-600 rounded-lg text-[12px] font-medium hover:bg-emerald-50 transition-colors flex items-center gap-1"
+                      className="px-3.5 py-1.5 border border-emerald-500 text-emerald-600 rounded-lg text-[12px] font-medium hover:bg-emerald-50 transition-colors inline-flex items-center gap-1 whitespace-nowrap shrink-0"
                     >
-                      <Play className="w-3 h-3" />
+                      <Play className="w-3 h-3 shrink-0" />
                       启动
                     </button>
                   ) : (
                     <button
                       onClick={() => handleStatusChange(project.id, '已关闭')}
-                      className="px-3 py-1.5 border border-red-400 text-red-500 rounded-lg text-[12px] font-medium hover:bg-red-50 transition-colors flex items-center gap-1"
+                      className="px-3.5 py-1.5 border border-red-400 text-red-500 rounded-lg text-[12px] font-medium hover:bg-red-50 transition-colors inline-flex items-center gap-1 whitespace-nowrap shrink-0"
                     >
-                      <X className="w-3 h-3" />
+                      <X className="w-3 h-3 shrink-0" />
                       关闭
                     </button>
                   )}
@@ -358,7 +368,7 @@ export const ProjectsPage = () => {
                     <h4 className="text-[14px] font-medium text-gray-900 dark:text-white">岗位列表 ({projectPositions[project.id]?.length || 0})</h4>
                     <button
                       onClick={() => handleOpenPositionDialog(project.id)}
-                      className="px-3 py-1.5 bg-[#1a4bc4] text-white rounded-lg text-[12px] font-medium hover:bg-[#0c2b7a] transition-colors flex items-center gap-1"
+                      className="px-3.5 py-1.5 bg-[#1a4bc4] text-white rounded-lg text-[12px] font-medium hover:bg-[#0c2b7a] transition-colors inline-flex items-center gap-1 whitespace-nowrap shrink-0"
                     >
                       <Plus className="w-3 h-3" />
                       新建岗位
@@ -373,7 +383,7 @@ export const ProjectsPage = () => {
                             <th className="px-4 py-2">类型</th>
                             <th className="px-4 py-2">状态</th>
                             <th className="px-4 py-2">创建时间</th>
-                            <th className="px-4 py-2">操作</th>
+                            <th className="px-4 py-2 min-w-[130px]">操作</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
@@ -391,20 +401,20 @@ export const ProjectsPage = () => {
                                 </span>
                               </td>
                               <td className="px-4 py-2">{position.createdAt ? new Date(position.createdAt).toLocaleDateString() : '-'}</td>
-                              <td className="px-4 py-2">
-                                <div className="flex gap-1">
+                              <td className="px-4 py-2 min-w-[130px]">
+                                <div className="flex flex-wrap gap-1.5">
                                   <button
                                     onClick={() => handleEditPosition(position.id)}
-                                    className="px-2 py-1 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 rounded text-[10px] font-medium hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors flex items-center gap-1"
+                                    className="px-2.5 py-1 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 rounded text-[11px] font-medium hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors inline-flex items-center gap-1 whitespace-nowrap shrink-0"
                                   >
-                                    <Edit2 className="w-3 h-3" />
+                                    <Edit2 className="w-3 h-3 shrink-0" />
                                     编辑
                                   </button>
                                   <button
                                     onClick={() => setDeletingPositionId(position.id)}
-                                    className="px-2 py-1 border border-gray-200 dark:border-gray-700 text-red-500 rounded text-[10px] font-medium hover:bg-red-50 transition-colors flex items-center gap-1"
+                                    className="px-2.5 py-1 border border-gray-200 dark:border-gray-700 text-red-500 rounded text-[11px] font-medium hover:bg-red-50 transition-colors inline-flex items-center gap-1 whitespace-nowrap shrink-0"
                                   >
-                                    <Trash2 className="w-3 h-3" />
+                                    <Trash2 className="w-3 h-3 shrink-0" />
                                     删除
                                   </button>
                                 </div>

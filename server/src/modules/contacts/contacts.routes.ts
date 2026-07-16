@@ -49,6 +49,17 @@ router.post('/', async (req, res, next) => {
       return;
     }
 
+    if (candidateId && positionId) {
+      const existing = await queryOne(
+        `SELECT id FROM contacts WHERE candidate_id = $1 AND position_id = $2 LIMIT 1`,
+        [candidateId, positionId],
+      );
+      if (existing) {
+        res.status(409).json({error: {code: 'DUPLICATE', message: '该候选人已在此岗位的联系人列表中'}});
+        return;
+      }
+    }
+
     const row = await queryOne(
       `INSERT INTO contacts
          (candidate_id, candidate_name, position_id, position_name, project_id, project_name,
@@ -67,21 +78,47 @@ router.post('/', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-// PATCH / — update contact status (flat body: {id, status})
+// PATCH / — update contact fields (flat body: {id, status?, outreachPerson?, channel?, reason?})
 router.patch('/', async (req, res, next) => {
   try {
-    const {id, status} = req.body;
+    const {id, status, outreachPerson, channel, reason} = req.body;
     if (!id) {
       res.status(400).json({error: {code: 'VALIDATION_ERROR', message: 'Contact id is required'}});
       return;
     }
-    if (!status) {
-      res.status(400).json({error: {code: 'VALIDATION_ERROR', message: 'status is required'}});
+
+    const updates: string[] = [];
+    const params: unknown[] = [];
+    let paramIndex = 1;
+
+    if (status !== undefined) {
+      updates.push(`status = $${paramIndex++}`);
+      params.push(status);
+    }
+    if (outreachPerson !== undefined) {
+      updates.push(`outreach_person = $${paramIndex++}`);
+      params.push(outreachPerson);
+    }
+    if (channel !== undefined) {
+      updates.push(`channel = $${paramIndex++}`);
+      params.push(channel);
+    }
+    if (reason !== undefined) {
+      updates.push(`reason = $${paramIndex++}`);
+      params.push(reason);
+    }
+
+    if (updates.length === 0) {
+      res.status(400).json({error: {code: 'VALIDATION_ERROR', message: 'No fields to update'}});
       return;
     }
+
+    updates.push('updated_at = now()');
+    params.push(id);
+
     const row = await queryOne(
-      `UPDATE contacts SET status = $1, updated_at = now() WHERE id = $2 RETURNING *`,
-      [status, id],
+      `UPDATE contacts SET ${updates.join(', ')} WHERE id = $${paramIndex} RETURNING *`,
+      params,
     );
     if (!row) {
       res.status(404).json({error: {code: 'NOT_FOUND', message: `Contact (${id}) not found`}});

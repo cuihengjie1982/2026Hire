@@ -1,5 +1,5 @@
 import {motion} from 'motion/react';
-import {lazy, Suspense, useState} from 'react';
+import {lazy, Suspense, useEffect, useState} from 'react';
 import {useSearchParams} from 'react-router-dom';
 import {Loader2, Folder, FileText} from 'lucide-react';
 
@@ -29,6 +29,12 @@ export const ProjectManagePage = () => {
   const [activeTab, setActiveTab] = useState<TabId>(
     TABS.some(t => t.id === tabFromUrl) ? tabFromUrl! : 'projects',
   );
+
+  useEffect(() => {
+    if (tabFromUrl && TABS.some(t => t.id === tabFromUrl) && tabFromUrl !== activeTab) {
+      setActiveTab(tabFromUrl);
+    }
+  }, [tabFromUrl, activeTab]);
 
   const handleTabChange = (tab: TabId) => {
     setActiveTab(tab);

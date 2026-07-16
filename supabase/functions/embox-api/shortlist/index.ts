@@ -58,6 +58,19 @@ const addEntry = async (req: Request): Promise<Response> => {
       return jsonRes({ error: { code: 'VALIDATION_ERROR', message: 'candidateId and candidateName are required' } }, 400);
     }
 
+    if (positionId) {
+      const { data: existing } = await supabase
+        .from('shortlist_entries')
+        .select('id')
+        .eq('candidate_id', candidateId)
+        .eq('position_id', positionId)
+        .limit(1)
+        .maybeSingle();
+      if (existing) {
+        return jsonRes({ error: { code: 'DUPLICATE', message: '该候选人已在此岗位的入围名单中' } }, 409);
+      }
+    }
+
     const statusLog = JSON.stringify([{ status: nextStep ?? '待处理', at: new Date().toISOString() }]);
 
     const { data, error } = await supabase.from('shortlist_entries').insert({

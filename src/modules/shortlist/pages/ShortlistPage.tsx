@@ -1,7 +1,7 @@
 import {useEffect, useState} from 'react';
 import {motion, AnimatePresence} from 'motion/react';
-import {CheckCircle2, Mail, Star, X, Send, Link2} from 'lucide-react';
-import {listShortlist, promoteShortlistEntry, sendShortlistInterviewInvite} from '../api';
+import {CheckCircle2, Mail, Star, X, Send, Link2, Trash2} from 'lucide-react';
+import {listShortlist, promoteShortlistEntry, sendShortlistInterviewInvite, removeFromShortlist} from '../api';
 import {type ShortlistEntry} from '../types';
 import {type ContactChannel} from '../../contacts/types';
 import {createContact} from '../../contacts/api';
@@ -34,6 +34,7 @@ export const ShortlistPage = () => {
   const [inviteEmailError, setInviteEmailError] = useState('');
   const [inviteTemplates, setInviteTemplates] = useState<InterviewTemplateSummary[]>([]);
   const [inviteTemplateId, setInviteTemplateId] = useState('');
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
   // Cache candidate data to avoid repeated API calls
   const [candidatesCache, setCandidatesCache] = useState<Record<string, CandidateCard>>({});
 
@@ -160,8 +161,21 @@ export const ShortlistPage = () => {
       setTimeout(() => setPromoteSuccess(false), 5000);
     } catch (e) {
       console.error('Failed to promote:', e);
+      setToastMessage(e instanceof Error ? e.message : '推进失败，请重试');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleRemoveFromShortlist = async (item: ShortlistEntry) => {
+    if (!window.confirm(`确定将「${item.candidateName}」从入围名单中移除吗？`)) return;
+    try {
+      await removeFromShortlist(item.id);
+      await loadData();
+      setToastMessage(`已移除：${item.candidateName}`);
+    } catch (e) {
+      console.error('Failed to remove from shortlist:', e);
+      setToastMessage(e instanceof Error ? e.message : '移除失败，请重试');
     }
   };
 
@@ -176,6 +190,14 @@ export const ShortlistPage = () => {
       exit={{opacity: 0, y: -10}}
       className="max-w-[1500px] mx-auto w-full p-6 space-y-5"
     >
+      {toastMessage && (
+        <div className="fixed top-4 right-4 z-50 bg-gray-900 text-white px-4 py-3 rounded-lg shadow-lg text-[13px] font-medium flex items-center gap-2">
+          {toastMessage}
+          <button onClick={() => setToastMessage(null)} className="ml-2 text-gray-400 hover:text-white">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
       {/* Success banner */}
       {promoteSuccess && (
         <div className="flex items-center gap-3 px-4 py-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg">
@@ -312,6 +334,13 @@ export const ShortlistPage = () => {
                       className="px-3 py-2 bg-[#1a4bc4] hover:bg-[#0c2b7a] text-white rounded-lg text-[12px] font-medium transition-colors"
                     >
                       推进
+                    </button>
+                    <button
+                      onClick={() => handleRemoveFromShortlist(item)}
+                      className="px-2 py-2 border border-red-200 text-red-500 rounded-lg hover:bg-red-50 transition-colors"
+                      title="从入围名单移除"
+                    >
+                      <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
                 </div>

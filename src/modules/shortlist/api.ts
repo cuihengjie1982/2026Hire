@@ -1,12 +1,19 @@
-import {getItemsFromPayload, mockDelay} from '../../shared/lib/apiClient';
-import {API_BASE_URL, getAuthToken, USE_MOCK_API} from '../../shared/lib/runtime';
+import {getItemsFromPayload, mockDelay, buildApiUrl} from '../../shared/lib/apiClient';
+import {getAuthToken, USE_MOCK_API} from '../../shared/lib/runtime';
 import {shortlistFixture} from './fixtures';
 import {type CreateShortlistEntryInput, type ShortlistEntry} from './types';
 
-const SHORTLIST_EF_URL = `${API_BASE_URL}/functions/v1/embox-api/api/shortlist`;
+const loadShortlistFromStorage = (): ShortlistEntry[] => {
+  try {
+    const r = localStorage.getItem('em-box.mock.shortlist');
+    return r ? JSON.parse(r) : [...shortlistFixture];
+  } catch {
+    return [...shortlistFixture];
+  }
+};
 
 const efetch = async <T>(path: string, method = 'GET', body?: unknown): Promise<T> => {
-  const res = await fetch(`${SHORTLIST_EF_URL}${path}`, {
+  const res = await fetch(buildApiUrl(`/api/shortlist${path}`), {
     method,
     headers: {
       'Content-Type': 'application/json',
@@ -21,8 +28,9 @@ const efetch = async <T>(path: string, method = 'GET', body?: unknown): Promise<
   return res.json() as T;
 };
 
-let shortlistData: ShortlistEntry[] = (() => { try { const r = localStorage.getItem('em-box.mock.shortlist'); return r ? JSON.parse(r) : [...shortlistFixture]; } catch { return [...shortlistFixture]; } })();
+let shortlistData: ShortlistEntry[] = loadShortlistFromStorage();
 const saveShortlist = () => localStorage.setItem('em-box.mock.shortlist', JSON.stringify(shortlistData));
+const syncShortlistFromStorage = () => { shortlistData = loadShortlistFromStorage(); };
 
 const mapShortlistEntry = (raw: Record<string, unknown>): ShortlistEntry => ({
   id: String(raw.id ?? ''),
@@ -41,6 +49,7 @@ const mapShortlistEntry = (raw: Record<string, unknown>): ShortlistEntry => ({
 export const listShortlist = async (projectId?: string): Promise<ShortlistEntry[]> => {
   if (USE_MOCK_API) {
     await mockDelay();
+    syncShortlistFromStorage();
     const base = projectId ? shortlistData.filter(entry => entry.projectId === projectId) : shortlistData;
     return Array.from(new Map(base.map(e => [e.id, e])).values());
   }
@@ -65,6 +74,13 @@ export const listShortlistByPosition = async (positionId: string): Promise<Short
 export const addToShortlist = async (input: CreateShortlistEntryInput): Promise<ShortlistEntry> => {
   if (USE_MOCK_API) {
     await mockDelay();
+    syncShortlistFromStorage();
+    const duplicate = shortlistData.find(
+      (e) => e.candidateId === input.candidateId && e.positionId === input.positionId,
+    );
+    if (duplicate) {
+      throw new Error('该候选人已在此岗位的入围名单中');
+    }
     const newEntry: ShortlistEntry = {
       ...input,
       id: Date.now().toString(),
@@ -85,6 +101,7 @@ export const promoteShortlistEntry = async (
 ): Promise<ShortlistEntry> => {
   if (USE_MOCK_API) {
     await mockDelay();
+    syncShortlistFromStorage();
     const index = shortlistData.findIndex((entry) => entry.id === id);
     if (index === -1) throw new Error('Shortlist entry not found');
     shortlistData[index] = {...shortlistData[index], nextStep};
@@ -108,6 +125,7 @@ export const sendShortlistInterviewInvite = async (
 ): Promise<ShortlistEntry> => {
   if (USE_MOCK_API) {
     await mockDelay();
+    syncShortlistFromStorage();
     const index = shortlistData.findIndex((entry) => entry.id === id);
     if (index === -1) throw new Error('Shortlist entry not found');
     shortlistData[index] = {...shortlistData[index], nextStep: '已发面试邀请'};
@@ -149,12 +167,18 @@ export const batchRemoveFromShortlist = async (
 ): Promise<{removed: number; ids: string[]}> => {
   if (USE_MOCK_API) {
     await mockDelay();
-    shortlistData = shortlistData.filter(entry => !ids.includes(entry.id));
+    syncShortlistFromStorage();
+    const removed = shortlistData.filter((entry) => ids.includes(entry.id)).map((e) => e.id);
+    shortlistData = shortlistData.filter((entry) => !ids.includes(entry.id));
     saveShortlist();
-    return {removed: ids.length, ids};
+    return {removed: removed.length, ids: removed};
   }
 
   return efetch<{removed: number; ids: string[]}>('/batch', 'DELETE', {ids});
+};
+
+export const removeFromShortlist = async (id: string): Promise<void> => {
+  await batchRemoveFromShortlist([id]);
 };
 
 export const batchUpdateShortlistStatus = async (

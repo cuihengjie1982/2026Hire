@@ -241,6 +241,21 @@ export const deleteCandidate = async (id: string): Promise<void> => {
   candidatesData = candidatesData.filter((c) => c.id !== id);
 };
 
+/** Replace candidate tags (persists to candidate_tags table in real API / localStorage in mock). */
+export const updateCandidateTags = async (id: string, tags: string[]): Promise<string[]> => {
+  const normalized = [...new Set(tags.map((t) => t.trim()).filter(Boolean))];
+  if (USE_MOCK_API) {
+    await new Promise((r) => setTimeout(r, 120));
+    const idx = candidatesData.findIndex((c) => c.id === id);
+    if (idx >= 0) {
+      candidatesData[idx] = {...candidatesData[idx], tags: normalized};
+      saveCandidatesToStorage(candidatesData);
+    }
+    return normalized;
+  }
+  return efetch<string[]>(`/candidate-ops/${id}/tags`, 'POST', {tags: normalized});
+};
+
 // Check if a candidate is a duplicate by matching name + phone or name + email
 const findDuplicateIndex = (name: string, email?: string, phone?: string): number => {
   return candidatesData.findIndex((existing) => {

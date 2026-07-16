@@ -1,8 +1,8 @@
 import {useEffect, useState, useMemo} from 'react';
 import {motion} from 'motion/react';
-import {Loader2, MessageSquare, Search, UserCheck} from 'lucide-react';
-import {listContacts, updateContactStatus} from '../api';
-import {type Contact} from '../types';
+import {Loader2, MessageSquare, Pencil, Search, Trash2, UserCheck, X} from 'lucide-react';
+import {listContacts, updateContact, updateContactStatus, deleteContact} from '../api';
+import {type Contact, type ContactChannel} from '../types';
 import {useProject} from '../../../app/contexts/ProjectContext';
 import {CandidateDetailModal} from '../../../CandidateDetailModal';
 import type {CandidateCard} from '../../talent/types';
@@ -36,6 +36,10 @@ export const ContactsPage = () => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCandidate, setSelectedCandidate] = useState<CandidateCard | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [editingContact, setEditingContact] = useState<Contact | null>(null);
+  const [editForm, setEditForm] = useState({outreachPerson: '', channel: 'wechat' as ContactChannel, reason: ''});
+  const [submitting, setSubmitting] = useState(false);
   const {selectedProject, projects} = useProject();
   const loadContacts = async (projectId?: string) => {
     setLoading(true);
@@ -59,6 +63,48 @@ export const ContactsPage = () => {
       setContacts((prev) => prev.map((c) => (c.id === id ? updated : c)));
     } catch (e) {
       console.error('Failed to update status:', e);
+      setToastMessage('状态更新失败，请重试');
+    }
+  };
+
+  const handleDeleteContact = async (contact: Contact) => {
+    if (!window.confirm(`确定要删除联系人「${contact.candidateName}」吗？`)) return;
+    try {
+      await deleteContact(contact.id);
+      setContacts((prev) => prev.filter((c) => c.id !== contact.id));
+      setToastMessage(`已删除联系人：${contact.candidateName}`);
+    } catch (e) {
+      console.error('Failed to delete contact:', e);
+      setToastMessage(e instanceof Error ? e.message : '删除失败，请重试');
+    }
+  };
+
+  const openEditDialog = (contact: Contact) => {
+    setEditingContact(contact);
+    setEditForm({
+      outreachPerson: contact.outreachPerson,
+      channel: contact.channel,
+      reason: contact.reason,
+    });
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingContact || !editForm.reason.trim()) return;
+    setSubmitting(true);
+    try {
+      const updated = await updateContact(editingContact.id, {
+        outreachPerson: editForm.outreachPerson.trim(),
+        channel: editForm.channel,
+        reason: editForm.reason.trim(),
+      });
+      setContacts((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+      setEditingContact(null);
+      setToastMessage(`已更新联系人：${updated.candidateName}`);
+    } catch (e) {
+      console.error('Failed to update contact:', e);
+      setToastMessage(e instanceof Error ? e.message : '更新失败，请重试');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -110,6 +156,12 @@ export const ContactsPage = () => {
       exit={{opacity: 0, y: -10}}
       className="max-w-[1500px] mx-auto w-full p-6 space-y-5"
     >
+      {toastMessage && (
+        <div className="fixed top-4 right-4 z-50 bg-gray-900 text-white px-4 py-3 rounded-lg shadow-lg text-[13px] font-medium flex items-center gap-2">
+          {toastMessage}
+          <button onClick={() => setToastMessage(null)} className="ml-2 text-gray-400 hover:text-white">×</button>
+        </div>
+      )}
       <div className="flex items-end justify-between">
         <div>
           <h1 className="text-[26px] font-bold text-gray-900 dark:text-white mb-1">联系人管理</h1>
@@ -186,6 +238,7 @@ export const ContactsPage = () => {
                 <th className="px-6 py-3">推进理由</th>
                 <th className="px-6 py-3">状态</th>
                 <th className="px-6 py-3">时间</th>
+                <th className="px-6 py-3 text-right">操作</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-gray-700/50">
@@ -228,10 +281,117 @@ export const ContactsPage = () => {
                   <td className="px-6 py-4 text-[12px] text-gray-500 dark:text-gray-400">
                     {new Date(contact.createdAt).toLocaleDateString()}
                   </td>
+                  <td className="px-6 py-4 text-right">
+                    <div className="flex items-center justify-end gap-2">
+                      <button
+                        onClick={() => openEditDialog(contact)}
+                        className="px-2 py-1.5 border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                        title="编辑推进信息"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteContact(contact)}
+                        className="px-2 py-1.5 border border-red-200 text-red-500 rounded-lg hover:bg-red-50 transition-colors"
+                        title="删除联系人"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* Edit Contact Dialog */}
+      {editingContact && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <motion.div
+            initial={{opacity: 0, scale: 0.95}}
+            animate={{opacity: 1, scale: 1}}
+            className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md p-6"
+          >
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white">编辑推进信息</h3>
+              <button
+                onClick={() => setEditingContact(null)}
+                className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-[13px] font-medium text-gray-700 dark:text-gray-300 mb-1">候选人</label>
+                <div className="px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg text-[13px] bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white">
+                  {editingContact.candidateName}
+                </div>
+              </div>
+              <div>
+                <label className="block text-[13px] font-medium text-gray-700 dark:text-gray-300 mb-1">岗位</label>
+                <div className="px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg text-[13px] bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white">
+                  {editingContact.positionName} · {editingContact.projectName}
+                </div>
+              </div>
+              <div>
+                <label className="block text-[13px] font-medium text-gray-700 dark:text-gray-300 mb-1">推进人</label>
+                <input
+                  type="text"
+                  value={editForm.outreachPerson}
+                  onChange={(e) => setEditForm({...editForm, outreachPerson: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4] bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  placeholder="请输入推进人"
+                />
+              </div>
+              <div>
+                <label className="block text-[13px] font-medium text-gray-700 dark:text-gray-300 mb-1">联系渠道</label>
+                <div className="flex gap-2">
+                  {(['wechat', 'email', 'phone'] as const).map((ch) => (
+                    <button
+                      key={ch}
+                      type="button"
+                      onClick={() => setEditForm({...editForm, channel: ch})}
+                      className={`px-4 py-2 rounded-lg text-[13px] font-medium transition-colors ${
+                        editForm.channel === ch
+                          ? 'bg-[#1a4bc4] text-white'
+                          : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                      }`}
+                    >
+                      {CHANNEL_LABELS[ch]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="block text-[13px] font-medium text-gray-700 dark:text-gray-300 mb-1">推进理由</label>
+                <textarea
+                  value={editForm.reason}
+                  onChange={(e) => setEditForm({...editForm, reason: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4] resize-none bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  rows={3}
+                  placeholder="请输入推进理由..."
+                />
+              </div>
+            </div>
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => setEditingContact(null)}
+                className="flex-1 px-4 py-2 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-[13px] font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleSaveEdit}
+                disabled={submitting || !editForm.reason.trim()}
+                className="flex-1 px-4 py-2 bg-[#1a4bc4] text-white rounded-lg text-[13px] font-medium hover:bg-[#0c2b7a] transition-colors disabled:opacity-50"
+              >
+                {submitting ? '保存中...' : '保存'}
+              </button>
+            </div>
+          </motion.div>
         </div>
       )}
 

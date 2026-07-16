@@ -52,6 +52,17 @@ router.post('/', async (req, res, next) => {
       return;
     }
 
+    if (positionId) {
+      const existing = await queryOne(
+        `SELECT id FROM shortlist_entries WHERE candidate_id = $1 AND position_id = $2 LIMIT 1`,
+        [candidateId, positionId],
+      );
+      if (existing) {
+        res.status(409).json({error: {code: 'DUPLICATE', message: '该候选人已在此岗位的入围名单中'}});
+        return;
+      }
+    }
+
     const row = await queryOne(
       `INSERT INTO shortlist_entries
          (candidate_id, candidate_name, role, position_id, position_name, project_id, project_name, fit_score, grade, next_step, status_log)

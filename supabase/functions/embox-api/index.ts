@@ -197,7 +197,7 @@ const loadHandlers = async (): Promise<RouteHandler[]> => {
     // Outreach — recruiter+
     { pattern: '/outreach', methods: ['GET', 'POST', 'PATCH', 'DELETE'], auth: 'recruiter+', handler: handleOutreach },
     // Contacts — recruiter+
-    { pattern: '/contacts', methods: ['GET', 'POST', 'PATCH'], auth: 'recruiter+', handler: handleContacts },
+    { pattern: '/contacts', methods: ['GET', 'POST', 'PATCH', 'DELETE'], auth: 'recruiter+', handler: handleContacts },
     // Conversational Interview — recruiter+
     { pattern: '/conversational-interview/sessions', methods: ['POST'], auth: 'recruiter+', handler: createConvSession },
     { pattern: '/conversational-interview/messages/stream', methods: ['GET'], auth: 'recruiter+', handler: streamMessages },

@@ -7,6 +7,28 @@ import {importResumes} from '../../talent/api';
 import {type Project} from '../../projects/types';
 import {type PositionSummary} from '../../positions/types';
 
+const ACCEPTED_RESUME_EXTENSIONS = new Set(['pdf', 'doc', 'docx', 'png', 'jpg', 'jpeg']);
+const MAX_RESUME_FILES = 100;
+const MAX_TOTAL_BYTES = 500 * 1024 * 1024;
+
+const isAcceptedResumeFile = (file: File) => {
+  const ext = file.name.split('.').pop()?.toLowerCase() ?? '';
+  return ACCEPTED_RESUME_EXTENSIONS.has(ext);
+};
+
+const normalizeResumeFiles = (files: File[]) => {
+  const accepted = files.filter(isAcceptedResumeFile);
+  const withinCount = accepted.slice(0, MAX_RESUME_FILES);
+  let totalBytes = 0;
+  const withinSize: File[] = [];
+  for (const file of withinCount) {
+    if (totalBytes + file.size > MAX_TOTAL_BYTES) break;
+    withinSize.push(file);
+    totalBytes += file.size;
+  }
+  return withinSize;
+};
+
 export const ResumeImportModal = ({
   isOpen,
   onClose,
@@ -29,7 +51,9 @@ export const ResumeImportModal = ({
   const [loadingProjects, setLoadingProjects] = useState(true);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [importResult, setImportResult] = useState<{imported: number; failed: number; duplicates: number} | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const dragDepthRef = useRef(0);
 
   // Get selected project and position names
   const selectedProjectName = projects.find(p => p.id === selectedProjectId)?.name || '';
@@ -43,17 +67,54 @@ export const ResumeImportModal = ({
     setSelectedPositionId('');
     setSelectedFiles([]);
     setImportResult(null);
+    setIsDragging(false);
+    dragDepthRef.current = 0;
+  };
+
+  const applySelectedFiles = (files: File[]) => {
+    const normalized = normalizeResumeFiles(files);
+    if (normalized.length > 0) {
+      setSelectedFiles(normalized);
+    }
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    if (files.length > 0) {
-      setSelectedFiles(files);
-    }
+    applySelectedFiles(Array.from(e.target.files || []));
+    e.target.value = '';
   };
 
   const handleClickSelectFiles = () => {
     fileInputRef.current?.click();
+  };
+
+  const handleDragEnter = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragDepthRef.current += 1;
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragDepthRef.current = Math.max(0, dragDepthRef.current - 1);
+    if (dragDepthRef.current === 0) {
+      setIsDragging(false);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = 'copy';
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragDepthRef.current = 0;
+    setIsDragging(false);
+    applySelectedFiles(Array.from(e.dataTransfer.files || []));
   };
 
   // Load projects and positions when modal opens
@@ -175,7 +236,15 @@ export const ResumeImportModal = ({
 
           {step === 1 ? (
             <div className="space-y-6">
-              <div className="border border-dashed border-[#1a4bc4] rounded-xl bg-white p-10 flex flex-col items-center justify-center text-center">
+              <div
+                className={`border border-dashed rounded-xl p-10 flex flex-col items-center justify-center text-center transition-colors ${
+                  isDragging ? 'border-[#1a4bc4] bg-[#EEF2FF]' : 'border-[#1a4bc4] bg-white'
+                }`}
+                onDragEnter={handleDragEnter}
+                onDragLeave={handleDragLeave}
+                onDragOver={handleDragOver}
+                onDrop={handleDrop}
+              >
                 <Upload className="w-12 h-12 text-[#1a4bc4] mb-4" strokeWidth={1.5} />
                 <div className="text-lg font-bold text-gray-900 mb-1">拖拽 PDF / Word 简历到这里</div>
                 <div className="text-gray-500 mb-6 font-normal">
@@ -206,11 +275,11 @@ export const ResumeImportModal = ({
                   </thead>
                   <tbody className="divide-y divide-gray-100 bg-white">
                     {selectedFiles.length > 0 ? (
-                      selectedFiles.map((file) => {
+                      selectedFiles.map((file, index) => {
                         const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
                         
                         return (
-                          <tr key={file.name}>
+                          <tr key={`${file.name}-${file.size}-${index}`}>
                             <td className="px-6 py-4 text-gray-900 font-medium">{file.name}</td>
                             <td className="px-6 py-4 text-gray-900">{sizeMB}MB</td>
                             <td className="px-6 py-4">

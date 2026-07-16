@@ -1,7 +1,7 @@
 import {motion, AnimatePresence} from 'motion/react';
 import {useEffect, useState, useMemo} from 'react';
-import {Search, Users, UserPlus, Clock, Star, ChevronRight, LayoutGrid, List, ChevronLeft, ChevronLast, ChevronsLeft, ChevronsRight, X, MapPin, Briefcase, Mail, Phone, GraduationCap, Banknote, UserCheck, Award, Building2, Trash2, Tag} from 'lucide-react';
-import {getTalentStats, listCandidates, deleteCandidate} from '../api';
+import {Search, Users, UserPlus, Clock, Star, ChevronRight, LayoutGrid, List, ChevronLeft, ChevronLast, ChevronsLeft, ChevronsRight, X, MapPin, Briefcase, Mail, Phone, GraduationCap, Banknote, UserCheck, Award, Building2, Trash2, Tag, CheckSquare} from 'lucide-react';
+import {getTalentStats, listCandidates, deleteCandidate, updateCandidateTags} from '../api';
 import {ResumeImportModal} from '../components/ResumeImportModal';
 import {CandidateDetailModal} from '../../../CandidateDetailModal';
 import {navigateToPage} from '../../../navigation';
@@ -34,6 +34,12 @@ export const TalentPoolPage = () => {
   const [pageSize, setPageSize] = useState<PageSize>(30);
   const [currentPage, setCurrentPage] = useState(1);
 
+  // Batch processing
+  const [batchMode, setBatchMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [tagsModalBatch, setTagsModalBatch] = useState(false);
+  const [savingTags, setSavingTags] = useState(false);
+
   useEffect(() => {
     loadData();
   }, []);
@@ -57,9 +63,71 @@ export const TalentPoolPage = () => {
 
   const handleOpenTagsModal = (candidate: CandidateCard) => {
     setTagsModalCandidate(candidate);
+    setTagsModalBatch(false);
     setCustomTags([...candidate.tags]);
     setNewTagInput('');
     setShowTagsModal(true);
+  };
+
+  const handleOpenBatchTagsModal = () => {
+    if (selectedIds.size === 0) return;
+    setTagsModalCandidate(null);
+    setTagsModalBatch(true);
+    setCustomTags([]);
+    setNewTagInput('');
+    setShowTagsModal(true);
+  };
+
+  const toggleBatchMode = () => {
+    if (batchMode) {
+      setBatchMode(false);
+      setSelectedIds(new Set());
+    } else {
+      setBatchMode(true);
+      setViewMode('list');
+      setSelectedIds(new Set());
+    }
+  };
+
+  const toggleCandidateSelection = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleBatchDelete = async () => {
+    if (selectedIds.size === 0) return;
+    if (!window.confirm(`确定要删除选中的 ${selectedIds.size} 位候选人吗？此操作不可撤销。`)) return;
+    const toDelete = candidates.filter((c) => selectedIds.has(c.id));
+    const deletedIds: string[] = [];
+    let failed = 0;
+    for (const candidate of toDelete) {
+      try {
+        await deleteCandidate(candidate.id);
+        deletedIds.push(candidate.id);
+      } catch (e) {
+        console.error('Failed to delete candidate:', e);
+        failed += 1;
+      }
+    }
+    if (deletedIds.length > 0) {
+      setCandidates((prev) => prev.filter((c) => !deletedIds.includes(c.id)));
+      try { setStats(await getTalentStats()); } catch { /* ignore */ }
+    }
+    setSelectedIds(new Set());
+    if (deletedIds.length > 0) setToastMessage(`已删除 ${deletedIds.length} 位候选人`);
+    if (failed > 0) setToastMessage(`删除完成：成功 ${deletedIds.length} 位，失败 ${failed} 位`);
+  };
+
+  const closeTagsModal = () => {
+    setShowTagsModal(false);
+    setTagsModalCandidate(null);
+    setTagsModalBatch(false);
+    setCustomTags([]);
+    setNewTagInput('');
   };
 
   const handleAddTag = () => {
@@ -74,18 +142,37 @@ export const TalentPoolPage = () => {
     setCustomTags(customTags.filter((t) => t !== tagToRemove));
   };
 
-  const handleSaveTags = () => {
-    if (tagsModalCandidate) {
-      setCandidates((prev) =>
-        prev.map((c) =>
-          c.id === tagsModalCandidate.id ? {...c, tags: customTags} : c,
-        ),
-      );
+  const handleSaveTags = async () => {
+    setSavingTags(true);
+    try {
+      if (tagsModalBatch) {
+        const targets = candidates.filter((c) => selectedIds.has(c.id));
+        const updates = targets.map((c) => ({
+          id: c.id,
+          tags: [...new Set([...c.tags, ...customTags])],
+        }));
+        await Promise.all(updates.map(({id, tags}) => updateCandidateTags(id, tags)));
+        const updateMap = new Map(updates.map((u) => [u.id, u.tags]));
+        setCandidates((prev) =>
+          prev.map((c) => (updateMap.has(c.id) ? {...c, tags: updateMap.get(c.id)!} : c)),
+        );
+        setToastMessage(`已为 ${targets.length} 位候选人添加标签`);
+      } else if (tagsModalCandidate) {
+        const saved = await updateCandidateTags(tagsModalCandidate.id, customTags);
+        setCandidates((prev) =>
+          prev.map((c) =>
+            c.id === tagsModalCandidate.id ? {...c, tags: saved} : c,
+          ),
+        );
+        setToastMessage(`已保存 ${tagsModalCandidate.name} 的标签`);
+      }
+      closeTagsModal();
+    } catch (e) {
+      console.error('Failed to save tags:', e);
+      setToastMessage('标签保存失败，请重试');
+    } finally {
+      setSavingTags(false);
     }
-    setShowTagsModal(false);
-    setTagsModalCandidate(null);
-    setCustomTags([]);
-    setNewTagInput('');
   };
 
   const handleDeleteCandidate = async (candidate: CandidateCard) => {
@@ -239,7 +326,9 @@ export const TalentPoolPage = () => {
     // Extract last job from rawText (more reliable)
     const {company: lastCompany, role: lastRole} = extractLastJob(p?.rawText);
     // Extract clean skill keywords
-    const skillTags = extractSkillTags(p?.rawText, candidate.tags?.length ? candidate.tags : p?.skills);
+    // 专业技能：仅从简历解析，不含用户标签
+    const skillTags = extractSkillTags(p?.rawText, p?.skills);
+    const candidateTags = candidate.tags ?? [];
 
     const v = (val: string | undefined) => val || '—';
 
@@ -343,13 +432,13 @@ export const TalentPoolPage = () => {
                 <span className="text-gray-700 dark:text-gray-300 truncate block">{v(lastCompany)}{lastRole ? ` · ${lastRole}` : ''}</span>
               </div>
             </div>
-            {/* Skill tags */}
+            {/* 专业技能 */}
             {skillTags.length > 0 && (
               <div className="flex flex-wrap gap-1">
-                <Tag className="w-3 h-3 text-gray-400 dark:text-gray-500 flex-shrink-0 mt-0.5" />
+                <Briefcase className="w-3 h-3 text-gray-400 dark:text-gray-500 flex-shrink-0 mt-0.5" />
                 <div className="flex flex-wrap gap-1">
                   {skillTags.map((tag) => (
-                    <span key={tag} className="px-1.5 py-0.5 bg-blue-50 text-[#1a4bc4] rounded text-[10px]">{tag}</span>
+                    <span key={tag} className="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded text-[10px]">{tag}</span>
                   ))}
                 </div>
               </div>
@@ -369,6 +458,22 @@ export const TalentPoolPage = () => {
               )}
             </div>
           </div>
+        </div>
+
+        <div className="border-t border-gray-100 dark:border-gray-700" />
+
+        {/* ===== 模块4: 标签 ===== */}
+        <div className="px-4 py-3">
+          <div className="text-[10px] text-gray-400 dark:text-gray-500 font-medium mb-2 tracking-wider">标签</div>
+          {candidateTags.length > 0 ? (
+            <div className="flex flex-wrap gap-1">
+              {candidateTags.map((tag) => (
+                <span key={tag} className="px-1.5 py-0.5 bg-blue-50 dark:bg-blue-900/30 text-[#1a4bc4] rounded text-[10px]">{tag}</span>
+              ))}
+            </div>
+          ) : (
+            <span className="text-[11px] text-gray-400 dark:text-gray-500">暂无标签</span>
+          )}
         </div>
 
         <div className="border-t border-gray-100 dark:border-gray-700" />
@@ -401,16 +506,26 @@ export const TalentPoolPage = () => {
     // Extract last job from rawText
     const {company: lastCompany, role: lastRole} = extractLastJob(p?.rawText);
     const lastWorkDisplay = [lastCompany, lastRole].filter(Boolean).join(' · ') || '—';
-    const skillTags = extractSkillTags(p?.rawText, candidate.tags?.length ? candidate.tags : p?.skills);
+    // 专业技能：仅从简历解析，不含用户标签
+    const skillTags = extractSkillTags(p?.rawText, p?.skills);
+    const candidateTags = candidate.tags ?? [];
 
     const v = (val: string | undefined) => val || '—';
 
     return (
       <div key={candidate.id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-3 hover:shadow-md transition-shadow">
         <div className="flex items-center gap-3">
-          {/* Photo thumbnail */}
+          {/* Photo thumbnail or batch checkbox */}
           <div className="flex-shrink-0">
-            {photoUrl ? (
+            {batchMode ? (
+              <input
+                type="checkbox"
+                checked={selectedIds.has(candidate.id)}
+                onChange={() => toggleCandidateSelection(candidate.id)}
+                className="w-4 h-4 rounded border-gray-300 text-[#1a4bc4] focus:ring-[#1a4bc4] cursor-pointer"
+                aria-label={`选择 ${candidate.name}`}
+              />
+            ) : photoUrl ? (
               <img src={photoUrl} alt="" className="w-9 h-11 rounded object-cover border border-gray-200 dark:border-gray-700" />
             ) : (
               <div className="w-9 h-11 rounded bg-[#1a4bc4]/10 flex items-center justify-center border border-gray-200 dark:border-gray-700">
@@ -467,24 +582,36 @@ export const TalentPoolPage = () => {
             {p?.currentlyEmployed && (
               <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${statusColor}`}>{p.currentlyEmployed}</span>
             )}
+
+            {/* === 标签 === */}
+            {candidateTags.length > 0 && (
+              <span className="flex items-center gap-1 flex-wrap">
+                <Tag className="w-3 h-3 text-gray-400 dark:text-gray-500 flex-shrink-0" />
+                {candidateTags.map((tag) => (
+                  <span key={tag} className="px-1.5 py-0.5 bg-blue-50 dark:bg-blue-900/30 text-[#1a4bc4] rounded text-[10px] whitespace-nowrap">{tag}</span>
+                ))}
+              </span>
+            )}
           </div>
 
           {/* Actions */}
-          <div className="flex-shrink-0 flex items-center gap-2">
-            <button onClick={() => setSelectedCandidate(candidate)} className="px-3 py-1.5 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-[12px] font-medium hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
-              查看详情
-            </button>
-            <button onClick={() => handleOpenTagsModal(candidate)} className="px-3 py-1.5 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-[12px] font-medium hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
-              增加标签
-            </button>
-            <button
-              onClick={() => handleDeleteCandidate(candidate)}
-              className="px-2 py-1.5 border border-red-200 text-red-500 rounded-lg text-[12px] font-medium hover:bg-red-50 transition-colors"
-              title="删除"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
-          </div>
+          {!batchMode && (
+            <div className="flex-shrink-0 flex items-center gap-2">
+              <button onClick={() => setSelectedCandidate(candidate)} className="px-3 py-1.5 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-[12px] font-medium hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
+                查看详情
+              </button>
+              <button onClick={() => handleOpenTagsModal(candidate)} className="px-3 py-1.5 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-[12px] font-medium hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
+                增加标签
+              </button>
+              <button
+                onClick={() => handleDeleteCandidate(candidate)}
+                className="px-2 py-1.5 border border-red-200 text-red-500 rounded-lg text-[12px] font-medium hover:bg-red-50 transition-colors"
+                title="删除"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -593,8 +720,8 @@ export const TalentPoolPage = () => {
       </div>
 
       {/* Search and View Controls */}
-      <div className="flex items-center gap-4">
-        <div className="relative flex-1">
+      <div className="flex items-center gap-3">
+        <div className="relative flex-1 min-w-0">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-gray-500" />
           <input
             type="text"
@@ -604,18 +731,52 @@ export const TalentPoolPage = () => {
             className="w-full pl-10 pr-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
           />
         </div>
+        {batchMode && (
+          <>
+            <button
+              onClick={handleOpenBatchTagsModal}
+              disabled={selectedIds.size === 0}
+              className="flex-shrink-0 px-3 py-2 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-[13px] font-medium hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              增加标签
+            </button>
+            <button
+              onClick={handleBatchDelete}
+              disabled={selectedIds.size === 0}
+              className="flex-shrink-0 px-2 py-2 border border-red-200 text-red-500 rounded-lg text-[13px] font-medium hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              title="删除"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </>
+        )}
+        <button
+          onClick={toggleBatchMode}
+          className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-2 border rounded-lg text-[13px] font-medium transition-colors ${
+            batchMode
+              ? 'border-[#1a4bc4] bg-[#1a4bc4]/10 text-[#1a4bc4]'
+              : 'border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/30'
+          }`}
+        >
+          <CheckSquare className="w-4 h-4" />
+          批量处理
+          {batchMode && selectedIds.size > 0 && (
+            <span className="text-[11px] opacity-80">({selectedIds.size})</span>
+          )}
+        </button>
         {/* View Toggle */}
-        <div className="flex items-center border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+        <div className="flex-shrink-0 flex items-center border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
           <button
-            onClick={() => setViewMode('grid')}
-            className={`p-2 transition-colors ${viewMode === 'grid' ? 'bg-[#1a4bc4] text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}
+            onClick={() => !batchMode && setViewMode('grid')}
+            disabled={batchMode}
+            className={`p-2 transition-colors ${viewMode === 'grid' && !batchMode ? 'bg-[#1a4bc4] text-white' : 'bg-white text-gray-500 hover:bg-gray-50'} disabled:opacity-50 disabled:cursor-not-allowed`}
             title="网格视图"
           >
             <LayoutGrid className="w-4 h-4" />
           </button>
           <button
             onClick={() => setViewMode('list')}
-            className={`p-2 transition-colors ${viewMode === 'list' ? 'bg-[#1a4bc4] text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}
+            className={`p-2 transition-colors ${viewMode === 'list' || batchMode ? 'bg-[#1a4bc4] text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}
             title="列表视图"
           >
             <List className="w-4 h-4" />
@@ -625,7 +786,7 @@ export const TalentPoolPage = () => {
 
       {/* Content */}
       {activeTab === '全部' ? (
-        viewMode === 'grid' ? (
+        viewMode === 'grid' && !batchMode ? (
           // Grid view
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -656,7 +817,7 @@ export const TalentPoolPage = () => {
                 />
               </button>
               {expandedGroups.has(group.key) && (
-                viewMode === 'grid' ? (
+                viewMode === 'grid' && !batchMode ? (
                   <div className="px-6 pb-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {group.candidates.map((candidate) => renderCandidateCard(candidate))}
                   </div>
@@ -760,13 +921,13 @@ export const TalentPoolPage = () => {
       <ResumeImportModal isOpen={showImportModal} onClose={() => setShowImportModal(false)} onComplete={loadData} />
 
       {/* Tags Management Modal */}
-      {showTagsModal && tagsModalCandidate && (
+      {showTagsModal && (tagsModalCandidate || tagsModalBatch) && (
         <motion.div
           initial={{opacity: 0}}
           animate={{opacity: 1}}
           exit={{opacity: 0}}
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
-          onClick={() => setShowTagsModal(false)}
+          onClick={closeTagsModal}
         >
           <motion.div
             initial={{scale: 0.95, opacity: 0}}
@@ -777,10 +938,16 @@ export const TalentPoolPage = () => {
           >
             <div className="flex justify-between items-center mb-6">
               <div>
-                <h3 className="text-xl font-bold text-gray-900 dark:text-white">管理技能标签</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{tagsModalCandidate.name}</p>
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+                  {tagsModalBatch ? '批量增加标签' : '管理技能标签'}
+                </h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                  {tagsModalBatch
+                    ? `已选 ${selectedIds.size} 位候选人`
+                    : tagsModalCandidate?.name}
+                </p>
               </div>
-              <button onClick={() => setShowTagsModal(false)} className="p-2 text-gray-400 dark:text-gray-500 hover:text-gray-600 hover:bg-gray-100 rounded-lg">
+              <button onClick={closeTagsModal} className="p-2 text-gray-400 dark:text-gray-500 hover:text-gray-600 hover:bg-gray-100 rounded-lg">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -826,12 +993,13 @@ export const TalentPoolPage = () => {
             <div className="flex gap-3">
               <button
                 onClick={handleSaveTags}
-                className="flex-1 px-4 py-2 bg-[#1a4bc4] text-white rounded-lg text-sm font-medium hover:bg-[#0c2b7a]"
+                disabled={savingTags}
+                className="flex-1 px-4 py-2 bg-[#1a4bc4] text-white rounded-lg text-sm font-medium hover:bg-[#0c2b7a] disabled:opacity-50"
               >
-                保存
+                {savingTags ? '保存中...' : '保存'}
               </button>
               <button
-                onClick={() => setShowTagsModal(false)}
+                onClick={closeTagsModal}
                 className="px-4 py-2 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700/30"
               >
                 取消

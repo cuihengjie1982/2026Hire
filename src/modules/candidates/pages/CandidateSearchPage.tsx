@@ -309,7 +309,7 @@ export const CandidateSearchPage = () => {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [selectedGrades, setSelectedGrades] = useState<Set<string>>(new Set());
   const {data: candidatesData, setData, error, isLoading, refresh} = useCandidates();
-  const {projects} = useProject();
+  const {projects, selectedProject} = useProject();
   // When true, smart match scoring skips recalculation (viewing history preserves scores)
   const [suppressSmartMatchEffect, setSuppressSmartMatchEffect] = useState(false);
 
@@ -327,7 +327,7 @@ export const CandidateSearchPage = () => {
 
   // Position selection state
   const [positions, setPositions] = useState<PositionSummary[]>([]);
-  const [selectedProjectId, setSelectedProjectId] = useState<string>('');
+  const [selectedProjectId, setSelectedProjectId] = useState<string>(selectedProject?.id ?? '');
   const [selectedPositionId, setSelectedPositionId] = useState<string>('');
   const [positionDetail, setPositionDetail] = useState<PositionDetail | null>(null);
   const [computedScores, setComputedScores] = useState<Record<string, {fitScore: number[]; grade: string; scoreColor: string; gradeColor: string; scoreResult: ScoreResult}>>({});
@@ -659,6 +659,12 @@ export const CandidateSearchPage = () => {
   };
 
   useEffect(() => {
+    if (selectedProject?.id && !selectedProjectId) {
+      setSelectedProjectId(selectedProject.id);
+    }
+  }, [selectedProject?.id, selectedProjectId]);
+
+  useEffect(() => {
     setPositions([]);
     setSelectedPositionId('');
     setPositionDetail(null);
@@ -728,20 +734,23 @@ export const CandidateSearchPage = () => {
       showToast('请先选择岗位');
       return;
     }
-    if (!selectedProjectId) {
-      showToast('请先选择项目');
-      return;
-    }
 
     const position = positions.find((p) => p.id === selectedPositionId);
-    const project = projects.find((p) => p.id === selectedProjectId);
-
     if (!position) {
       showToast('岗位信息有误，请重新选择');
       return;
     }
-    if (!project) {
-      showToast('项目信息有误，请重新选择');
+
+    const resolvedProjectId = selectedProjectId || selectedProject?.id || position.projectId || '';
+    if (!resolvedProjectId) {
+      showToast('请先选择项目');
+      return;
+    }
+
+    const project = projects.find((p) => p.id === resolvedProjectId);
+    const projectName = project?.name || selectedProject?.name || '';
+    if (!projectName) {
+      showToast('项目信息有误，请先在「项目管理」中创建项目');
       return;
     }
 
@@ -752,15 +761,15 @@ export const CandidateSearchPage = () => {
         role: candidate.roles.join(' / '),
         positionId: position.id,
         positionName: position.name,
-        projectId: project.id,
-        projectName: project.name,
+        projectId: resolvedProjectId,
+        projectName,
         fitScore: candidate.fitScore[0] || 0,
         grade: candidate.grade,
       });
       showToast(`已加入「${candidate.name}」至入围名单`);
     } catch (e) {
       console.error('Failed to add to shortlist:', e);
-      showToast('添加失败，请重试');
+      showToast(e instanceof Error ? e.message : '添加失败，请重试');
     }
   };
 

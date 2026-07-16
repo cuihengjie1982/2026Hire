@@ -16,6 +16,11 @@ const ProjectManagePage = lazy(() =>
     default: module.ProjectManagePage,
   })),
 );
+const PositionConfigRoute = lazy(() =>
+  import('../../modules/positions/pages/PositionConfigRoute').then((module) => ({
+    default: module.PositionConfigRoute,
+  })),
+);
 const CandidateCenterPage = lazy(() =>
   import('../../modules/candidates/pages/CandidateCenterPage').then((module) => ({
     default: module.CandidateCenterPage,
@@ -118,6 +123,7 @@ export const AppRouter = ({onLogout}: {onLogout: () => void}) => (
         <Route element={<DashboardLayout onLogout={onLogout} />}>
           <Route path="/" element={withPageGuard(<DashboardPage />, '工作台')} />
           <Route path="/projects" element={withPageGuard(<ProjectManagePage />, '项目管理')} />
+          <Route path="/positions/config" element={withPageGuard(<PositionConfigRoute />, '岗位配置')} />
           <Route path="/candidates" element={withPageGuard(<CandidateCenterPage />, '候选人中心')} />
           <Route path="/pipeline" element={withPageGuard(<PipelinePage />, '招聘推进')} />
           <Route path="/interviews" element={withPageGuard(<InterviewCenterPage />, 'AI 面试中心')} />

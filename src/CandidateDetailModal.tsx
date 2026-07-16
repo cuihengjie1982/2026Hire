@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { motion } from 'motion/react';
-import { X, MapPin, Mail, Phone, Calendar, Download, MoreHorizontal, AlertCircle, Eye } from 'lucide-react';
+import { X, MapPin, Mail, Phone, Calendar, Download, MoreHorizontal, AlertCircle, Eye, Tag } from 'lucide-react';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, ResponsiveContainer } from 'recharts';
 import { jsPDF } from 'jspdf';
 import type { CandidateCard } from './modules/talent/types';
@@ -668,27 +668,29 @@ export const CandidateDetailModal = ({ isOpen, onClose, candidate, positionDetai
   const displayLocation = parsedInfo?.location || candidate?.location || '未设置';
   const displayEducation = parsedInfo?.education || '';
 
-  // Extract clean skill keywords from rawText
+  // 专业技能：仅从简历解析，不含用户标签
   const rawText = parsedInfo?.rawText || '';
+  const resumeSkills = parsedInfo?.skills?.filter((s) => s.length > 1 && !/^\d/.test(s) && !/%/.test(s)) || [];
   const displaySkills = (() => {
-    if (!rawText) return candidate?.tags?.length ? candidate.tags : parsedInfo?.skills?.filter(s => s.length > 1 && !/^\d/.test(s) && !/%/.test(s)) || [];
+    if (!rawText) return resumeSkills;
     const skillsSection = rawText.match(/(?:专业技能|技能特长|职业技能)[：:\s]*([\s\S]*?)(?=(?:语言|工作经历|教育|项目|实习|自我评价|荣誉|\f|$))/i);
-    if (!skillsSection) return candidate?.tags?.length ? candidate.tags : parsedInfo?.skills?.filter(s => s.length > 1 && !/^\d/.test(s) && !/%/.test(s)) || [];
+    if (!skillsSection) return resumeSkills;
     const text = skillsSection[1];
     const keywords: string[] = [];
     const toolMatches = text.matchAll(/(?:精通|熟练[使用掌握]*|熟悉|了解|掌握)\s*([A-Za-z0-9\u4e00-\u9fa5、,，\s]+?)(?:[，,。；;等]|\n|$)/g);
     for (const m of toolMatches) {
-      const items = m[1].split(/[、,，\s]+/).filter(s => s.length >= 2 && s.length <= 15);
+      const items = m[1].split(/[、,，\s]+/).filter((s) => s.length >= 2 && s.length <= 15);
       keywords.push(...items);
     }
     const labelMatches = text.matchAll(/([\u4e00-\u9fa5]{2,8}(?:能力|处理|操作|分析|设计|开发|管理|编程|技术))/g);
     for (const m of labelMatches) {
       if (m[1].length <= 10) keywords.push(m[1]);
     }
-    const clean = [...new Set(keywords)].filter(k => k.length >= 2 && !/^\d+$/.test(k) && !/%/.test(k) && !/[：:]/.test(k));
+    const clean = [...new Set(keywords)].filter((k) => k.length >= 2 && !/^\d+$/.test(k) && !/%/.test(k) && !/[：:]/.test(k));
     if (clean.length > 0) return clean.slice(0, 10);
-    return candidate?.tags?.length ? candidate.tags : parsedInfo?.skills?.filter(s => s.length > 1 && !/^\d/.test(s) && !/%/.test(s)) || [];
+    return resumeSkills;
   })();
+  const displayTags = candidate?.tags ?? [];
 
   // Extract work experience from rawText: company + role + period
   const displayExperience = (() => {
@@ -961,12 +963,30 @@ export const CandidateDetailModal = ({ isOpen, onClose, candidate, positionDetai
                   <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-3">专业技能</h3>
                   <div className="flex flex-wrap gap-2">
                     {displaySkills.map((skill, i) => (
-                      <span key={i} className="px-3 py-1.5 bg-[#1a4bc4] text-white rounded-full text-xs font-medium">
+                      <span key={i} className="px-3 py-1.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full text-xs font-medium">
                         {skill}
                       </span>
                     ))}
                     {displaySkills.length === 0 && (
                       <span className="text-gray-500 dark:text-gray-400 text-sm">暂无技能信息</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Tags */}
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
+                    <Tag className="w-4 h-4 text-[#1a4bc4]" />
+                    标签
+                  </h3>
+                  <div className="flex flex-wrap gap-2">
+                    {displayTags.map((tag, i) => (
+                      <span key={i} className="px-3 py-1.5 bg-blue-50 dark:bg-blue-900/30 text-[#1a4bc4] rounded-full text-xs font-medium">
+                        {tag}
+                      </span>
+                    ))}
+                    {displayTags.length === 0 && (
+                      <span className="text-gray-500 dark:text-gray-400 text-sm">暂无标签</span>
                     )}
                   </div>
                 </div>
