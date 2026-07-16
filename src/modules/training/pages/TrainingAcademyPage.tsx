@@ -9,7 +9,8 @@ import {
 } from 'lucide-react';
 import {useToast} from '../../../shared/components/ToastProvider';
 import {NumericScoreInput} from '../../../shared/components/NumericScoreInput';
-import {getAuthToken, API_BASE_URL} from '../../../shared/lib/runtime';
+import {getAuthToken} from '../../../shared/lib/runtime';
+import {buildEdgeFunctionUrl} from '../../../shared/lib/apiClient';
 import {
   listCourses, listEnrollments, createCourse, updateCourse, deleteCourse, updateEnrollment, submitAssessment,
   getTrainingStats, getWeaknessAnalysis, getTrainingEffectiveness, exportEnrollmentsCSV,
@@ -2167,8 +2168,7 @@ const PathEnrollmentModal = ({pathId, onClose}: {pathId: string; onClose: () => 
     setSearching(true);
     try {
       const token = getAuthToken?.() ?? '';
-      const base = (typeof API_BASE_URL !== 'undefined' ? API_BASE_URL : '') as string;
-      const url = `${base}/functions/v1/embox-api/candidate-ops?search=${encodeURIComponent(searchQuery)}&pageSize=20`;
+      const url = `${buildEdgeFunctionUrl('/candidate-ops')}?search=${encodeURIComponent(searchQuery)}&pageSize=20`;
       const res = await fetch(url, {headers: {'Content-Type': 'application/json', ...(token ? {Authorization: `Bearer ${token}`} : {})}});
       const data = await res.json();
       const items = (data.items ?? data.data ?? []) as Record<string, unknown>[];
@@ -2359,8 +2359,7 @@ const BatchEnrollModal = ({courses, paths, onClose, onDone}: {
     setSearching(true);
     try {
       const token = getAuthToken?.() ?? '';
-      const base = (typeof API_BASE_URL !== 'undefined' ? API_BASE_URL : '') as string;
-      const url = `${base}/functions/v1/embox-api/candidate-ops?search=${encodeURIComponent(searchQuery)}&pageSize=20`;
+      const url = `${buildEdgeFunctionUrl('/candidate-ops')}?search=${encodeURIComponent(searchQuery)}&pageSize=20`;
       const res = await fetch(url, {headers: {'Content-Type': 'application/json', ...(token ? {Authorization: `Bearer ${token}`} : {})}});
       const data = await res.json();
       const items = (data.items ?? data.data ?? []) as Record<string, unknown>[];

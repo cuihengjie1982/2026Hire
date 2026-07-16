@@ -20,14 +20,12 @@ import {
   type ReactNode,
 } from 'react';
 import {useNavigate} from 'react-router-dom';
-import {fetchJson} from '../lib/apiClient';
-import {USE_MOCK_API, API_BASE_URL, getAuthToken} from '../lib/runtime';
+import {buildEdgeFunctionUrl} from '../lib/apiClient';
+import {USE_MOCK_API, getAuthToken} from '../lib/runtime';
 
 // ---------------------------------------------------------------------------
 // Edge Function notification API (production)
 // ---------------------------------------------------------------------------
-
-const EF_BASE = `${API_BASE_URL}/functions/v1/embox-api`;
 
 async function efFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const token = getAuthToken();
@@ -35,7 +33,7 @@ async function efFetch<T>(path: string, init?: RequestInit): Promise<T> {
   if (token) headers.set('Authorization', `Bearer ${token}`);
   if (init?.body && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
 
-  const res = await fetch(`${EF_BASE}${path}`, {...init, headers});
+  const res = await fetch(buildEdgeFunctionUrl(path), {...init, headers});
   if (res.status === 401) {
     // Token expired — dispatch a custom event so the auth layer can redirect to login
     window.dispatchEvent(new CustomEvent('auth:token-expired'));

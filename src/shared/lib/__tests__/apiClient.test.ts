@@ -1,19 +1,35 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import {
   buildApiUrl,
+  buildEdgeFunctionUrl,
   getItemsFromPayload,
   getValueFromPayload,
   fetchJson,
   mockDelay,
+  resolveCloudBackendUrl,
   resolveEdgeFunctionPath,
 } from '../apiClient';
 
-// Mock runtime so we control API_BASE_URL, getAuthToken, USE_MOCK_API
-vi.mock('../runtime', () => ({
+const runtimeState = vi.hoisted(() => ({
   API_BASE_URL: 'http://localhost:4000',
   SUPABASE_URL: 'https://test.supabase.co',
   USE_MOCK_API: true,
+}));
+
+// Mock runtime so we control API_BASE_URL, getAuthToken, USE_MOCK_API
+vi.mock('../runtime', () => ({
+  get API_BASE_URL() {
+    return runtimeState.API_BASE_URL;
+  },
+  get SUPABASE_URL() {
+    return runtimeState.SUPABASE_URL;
+  },
+  get USE_MOCK_API() {
+    return runtimeState.USE_MOCK_API;
+  },
   getAuthToken: vi.fn(() => null),
+  setAuthToken: vi.fn(),
+  AUTH_TOKEN_KEY: 'em-box.auth-token',
 }));
 
 import {getAuthToken} from '../runtime';
@@ -27,6 +43,9 @@ const originalFetch = globalThis.fetch;
 beforeEach(() => {
   vi.restoreAllMocks();
   globalThis.fetch = vi.fn();
+  runtimeState.API_BASE_URL = 'http://localhost:4000';
+  runtimeState.SUPABASE_URL = 'https://test.supabase.co';
+  runtimeState.USE_MOCK_API = true;
 });
 
 afterEach(() => {
@@ -41,6 +60,62 @@ describe('buildApiUrl', () => {
   it('prepends API_BASE_URL to path in mock mode', () => {
     expect(buildApiUrl('/api/candidates')).toBe(
       'http://localhost:4000/api/candidates',
+    );
+  });
+
+  it('remounts /functions/* onto Supabase when API_BASE_URL is localhost', () => {
+    expect(buildApiUrl('/functions/v1/embox-api/analytics/project-stats')).toBe(
+      'https://test.supabase.co/functions/v1/embox-api/analytics/project-stats',
+    );
+  });
+
+  it('returns absolute http URLs unchanged', () => {
+    expect(buildApiUrl('https://cdn.example.com/file')).toBe(
+      'https://cdn.example.com/file',
+    );
+  });
+});
+
+describe('resolveCloudBackendUrl', () => {
+  it('returns SUPABASE_URL when API_BASE_URL is localhost', () => {
+    expect(resolveCloudBackendUrl()).toBe('https://test.supabase.co');
+  });
+
+  it('returns SUPABASE_URL when API_BASE_URL is 127.0.0.1', () => {
+    runtimeState.API_BASE_URL = 'http://127.0.0.1:4000';
+    expect(resolveCloudBackendUrl()).toBe('https://test.supabase.co');
+  });
+
+  it('returns production API_BASE_URL when not local', () => {
+    runtimeState.API_BASE_URL = 'https://prod.supabase.co';
+    expect(resolveCloudBackendUrl()).toBe('https://prod.supabase.co');
+  });
+});
+
+describe('buildEdgeFunctionUrl', () => {
+  it('routes to Supabase Edge Function when API_BASE_URL is localhost', () => {
+    expect(buildEdgeFunctionUrl('/settings/users/me')).toBe(
+      'https://test.supabase.co/functions/v1/embox-api/settings/users/me',
+    );
+  });
+
+  it('routes to Supabase when API_BASE_URL is 127.0.0.1', () => {
+    runtimeState.API_BASE_URL = 'http://127.0.0.1:4000';
+    expect(buildEdgeFunctionUrl('/agents')).toBe(
+      'https://test.supabase.co/functions/v1/embox-api/agents',
+    );
+  });
+
+  it('uses production API_BASE_URL when not local', () => {
+    runtimeState.API_BASE_URL = 'https://prod.supabase.co';
+    expect(buildEdgeFunctionUrl('/settings/users/me')).toBe(
+      'https://prod.supabase.co/functions/v1/embox-api/settings/users/me',
+    );
+  });
+
+  it('normalizes paths without a leading slash', () => {
+    expect(buildEdgeFunctionUrl('stats/sidebar')).toBe(
+      'https://test.supabase.co/functions/v1/embox-api/stats/sidebar',
     );
   });
 });

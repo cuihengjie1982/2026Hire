@@ -71,17 +71,54 @@ export const resolveEdgeFunctionPath = (apiPath: string): string => {
   return apiPath;
 };
 
+/** True when URL points at local Express (cannot verify Supabase Auth JWT). */
+const isLocalBackendUrl = (url: string): boolean =>
+  !url || url.includes('localhost') || url.includes('127.0.0.1');
+
+/**
+ * Supabase project URL when API_BASE_URL is local Express; otherwise API_BASE_URL.
+ * See docs/LOCAL_DEV_API_ROUTING.md — Express JWT_SECRET ≠ Supabase Auth JWT.
+ */
+export const resolveCloudBackendUrl = (): string => {
+  const base = API_BASE_URL;
+  const cloudBase = isLocalBackendUrl(base) ? SUPABASE_URL : base;
+  return cloudBase && !isLocalBackendUrl(cloudBase) ? cloudBase : base;
+};
+
+/**
+ * Build embox-api Edge Function URL for paths that are already Edge-shaped
+ * (e.g. `/settings/users/me`, `/agents`, `/stats/sidebar` — no `/api` prefix).
+ *
+ * Prefer this over `${API_BASE_URL}/functions/v1/embox-api...` so localhost
+ * correctly remounts to Supabase. For Express-style `/api/*` paths, use
+ * `buildApiUrl` / `fetchJson` instead.
+ */
+export const buildEdgeFunctionUrl = (path: string): string => {
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  return `${resolveCloudBackendUrl()}/functions/v1/embox-api${normalizedPath}`;
+};
+
+/**
+ * Resolve a request URL for `fetchJson`.
+ * - Absolute `http(s)://...` — returned as-is (base ignored for absolute paths starting with http)
+ * - `/functions/...` — prepend cloud backend (localhost → Supabase)
+ * - `/api/*` in real mode — rewrite through embox-api when cloud backend is available
+ * - otherwise — `${API_BASE_URL}${path}` (Vite proxy / Express local-only)
+ */
 export const buildApiUrl = (path: string) => {
   const base = API_BASE_URL;
-  // Already an absolute URL or Edge Function path — don't transform
-  if (path.startsWith('http') || path.startsWith('/functions/')) {
-    return `${base}${path}`;
+  if (path.startsWith('http')) {
+    return path;
+  }
+  // Already an Edge Function absolute path — remount onto cloud backend when local
+  if (path.startsWith('/functions/')) {
+    return `${resolveCloudBackendUrl()}${path}`;
   }
   // In real mode, route /api/* through Supabase Edge Function when cloud backend is configured.
   // Login uses Supabase Auth JWT — Express localhost cannot verify those tokens.
   if (!USE_MOCK_API && path.startsWith('/api/')) {
-    const cloudBase = base.includes('localhost') || !base ? SUPABASE_URL : base;
-    if (cloudBase && !cloudBase.includes('localhost')) {
+    const cloudBase = resolveCloudBackendUrl();
+    if (cloudBase && !isLocalBackendUrl(cloudBase)) {
       return `${cloudBase}/functions/v1/embox-api${resolveEdgeFunctionPath(path)}`;
     }
   }

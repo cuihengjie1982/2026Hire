@@ -1,4 +1,4 @@
-import {fetchJson, getItemsFromPayload, mockDelay} from '../../shared/lib/apiClient';
+import {buildEdgeFunctionUrl, mockDelay} from '../../shared/lib/apiClient';
 import {USE_MOCK_API, API_BASE_URL} from '../../shared/lib/runtime';
 import {getAuthToken} from '../../shared/lib/runtime';
 import {type CandidateCard} from './types';
@@ -29,10 +29,10 @@ export const exportCandidatesCsv = async (): Promise<void> => {
     throw new Error('导出功能需要连接后端服务');
   }
   const token = getAuthToken();
-  const isLocalDev = API_BASE_URL.includes('localhost');
+  const isLocalDev = API_BASE_URL.includes('localhost') || API_BASE_URL.includes('127.0.0.1');
   const csvUrl = isLocalDev
     ? `${API_BASE_URL}/api/candidates/export/csv`
-    : `${API_BASE_URL}/functions/v1/embox-api/candidate-ops/export/csv`;
+    : buildEdgeFunctionUrl('/candidate-ops/export/csv');
   const res = await fetch(csvUrl, {
     headers: {Authorization: `Bearer ${token}`},
   });

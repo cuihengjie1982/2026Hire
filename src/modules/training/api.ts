@@ -1,4 +1,4 @@
-import {buildApiUrl, getItemsFromPayload} from '../../shared/lib/apiClient';
+import {buildApiUrl, buildEdgeFunctionUrl, getItemsFromPayload} from '../../shared/lib/apiClient';
 import {USE_MOCK_API, API_BASE_URL, SUPABASE_URL, getAuthToken} from '../../shared/lib/runtime';
 import {courseFixtures, enrollmentFixtures} from './fixtures';
 import {
@@ -157,7 +157,7 @@ type SignedMaterialUploadInfo = {
 };
 
 const createSignedMaterialUploadInfo = async (file: File, token: string | null): Promise<SignedMaterialUploadInfo> => {
-  const prepareRes = await fetch(`${API_BASE_URL}/functions/v1/embox-api/training/materials/signed-upload`, {
+  const prepareRes = await fetch(buildEdgeFunctionUrl('/training/materials/signed-upload'), {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -1040,8 +1040,7 @@ export const exportEnrollmentsCSV = async (filters?: {status?: string; courseId?
   const qs = params.toString();
 
   const token = getAuthToken() ?? '';
-  const base = USE_MOCK_API ? '' : API_BASE_URL;
-  const url = `${base}/functions/v1/embox-api/training/export/enrollments${qs ? `?${qs}` : ''}`;
+  const url = `${buildEdgeFunctionUrl('/training/export/enrollments')}${qs ? `?${qs}` : ''}`;
 
   const resp = await fetch(url, {
     headers: {Authorization: `Bearer ${token}`},

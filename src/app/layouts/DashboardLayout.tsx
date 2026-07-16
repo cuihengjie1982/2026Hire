@@ -8,7 +8,8 @@ import {useProject} from '../contexts/ProjectContext';
 import {NotificationBell} from '../../shared/components/NotificationProvider';
 import {Breadcrumbs} from '../../shared/components/Breadcrumbs';
 import {useSidebarCounts} from '../hooks/useSidebarCounts';
-import {getUserName, USE_MOCK_API, API_BASE_URL, getAuthToken} from '../../shared/lib/runtime';
+import {getUserName, USE_MOCK_API, getAuthToken} from '../../shared/lib/runtime';
+import {buildEdgeFunctionUrl} from '../../shared/lib/apiClient';
 import {getCurrentUser} from '../../modules/settings/api';
 
 // ---------------------------------------------------------------------------
@@ -37,7 +38,7 @@ async function searchBackend(q: string): Promise<SearchResult | null> {
     return {candidates: [], positions: [], projects: [], agents: []};
   }
   try {
-    const resp = await fetch(`${API_BASE_URL}/functions/v1/embox-api/stats/search?q=${encodeURIComponent(q)}`, {
+    const resp = await fetch(`${buildEdgeFunctionUrl('/stats/search')}?q=${encodeURIComponent(q)}`, {
       headers: {'Authorization': `Bearer ${getAuthToken() ?? ''}`},
     });
     if (resp.ok) return await resp.json() as SearchResult;

@@ -1,6 +1,6 @@
 import {useCallback, useEffect, useState} from 'react';
-import {fetchJson} from '../../shared/lib/apiClient';
-import {USE_MOCK_API, API_BASE_URL, getAuthToken} from '../../shared/lib/runtime';
+import {buildEdgeFunctionUrl} from '../../shared/lib/apiClient';
+import {USE_MOCK_API, getAuthToken} from '../../shared/lib/runtime';
 
 export interface SidebarCounts {
   runningAgents: number;
@@ -54,8 +54,7 @@ export const useSidebarCounts = () => {
           setCounts(EMPTY_COUNTS);
           return;
         }
-        const base = API_BASE_URL;
-        const resp = await fetch(`${base}/functions/v1/embox-api/stats/sidebar`, {
+        const resp = await fetch(buildEdgeFunctionUrl('/stats/sidebar'), {
           headers: {'Authorization': `Bearer ${token}`},
         });
         if (resp.ok) {

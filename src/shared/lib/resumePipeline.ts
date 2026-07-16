@@ -16,7 +16,8 @@ import {
   renderPdfPagesAsImages,
   textToMarkdown,
 } from './mineruClient';
-import {USE_MOCK_API, API_BASE_URL, getAuthToken} from './runtime';
+import {USE_MOCK_API, getAuthToken} from './runtime';
+import {buildEdgeFunctionUrl} from './apiClient';
 
 const RESUME_PARSE_DEBUG = import.meta.env.DEV && import.meta.env.VITE_RESUME_PARSE_DEBUG === 'true';
 const debugResumeParse = (...args: unknown[]) => {
@@ -479,7 +480,7 @@ async function aiTextParse(
   try {
     const edgeUrl = USE_MOCK_API
       ? '/api/ai/parse-resume'
-      : `${API_BASE_URL}/functions/v1/embox-api/ai-proxy`;
+      : buildEdgeFunctionUrl('/ai-proxy');
 
     const resp = await fetch(edgeUrl, {
       method: 'POST',
@@ -538,7 +539,7 @@ async function visionParseBatch(
 ): Promise<VisionParseResult | null> {
   const edgeUrl = USE_MOCK_API
     ? '/api/ai/vision-parse'
-    : `${API_BASE_URL}/functions/v1/embox-api/ai-proxy`;
+    : buildEdgeFunctionUrl('/ai-proxy');
 
   const tryBatch = async (chunk: string[]): Promise<VisionParseResult | null> => {
     const controller = new AbortController();
@@ -618,7 +619,7 @@ async function visionParseSingle(
 ): Promise<VisionParseResult | null> {
   const edgeUrl = USE_MOCK_API
     ? '/api/ai/vision-parse'
-    : `${API_BASE_URL}/functions/v1/embox-api/ai-proxy`;
+    : buildEdgeFunctionUrl('/ai-proxy');
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 120000);

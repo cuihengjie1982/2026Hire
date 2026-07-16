@@ -52,13 +52,18 @@
 | 数据库 | Supabase Managed Postgres | SSL + Transaction pooler |
 | 外部 AI | 直连 | LLM + Whisper + MinerU |
 
-### 1.3 本地开发架构（保持不变）
+### 1.3 本地开发架构
 
 ```
-Frontend (Vite :3000) ──proxy──> Backend (Express :4000) ──> Local PostgreSQL
+Frontend (Vite :3000)
+  ├─ /api/mineru 等 ──proxy──> Express (:4000)     # PDF 解析等本地-only 能力
+  └─ 业务 API（Supabase Auth 登录时）────────────> Supabase Edge Function (embox-api)
 ```
 
-本地开发不受影响，使用 `npm run dev` 继续可用。
+> **说明**：当 `VITE_USE_MOCK_API=false` 且使用 Supabase 登录时，大部分鉴权 API 应走 Edge Function（Express 无法验证 Supabase JWT）。  
+> 本地 `/admin` 跳转等问题排查见 [`docs/LOCAL_DEV_API_ROUTING.md`](./LOCAL_DEV_API_ROUTING.md)。
+
+本地开发：`npm run dev`（前端）+ 可选 `cd server && npm run dev`（Express）。
 
 ---
 

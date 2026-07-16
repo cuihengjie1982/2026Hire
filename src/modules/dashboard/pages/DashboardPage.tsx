@@ -21,8 +21,8 @@ import {
 import {useNavigate} from 'react-router-dom';
 import {useEffect, useMemo, useState, useCallback} from 'react';
 import {listInterviewResults} from '../../interviews/api';
-import {getUserName} from '../../../shared/lib/runtime';
-import {USE_MOCK_API, API_BASE_URL, getAuthToken} from '../../../shared/lib/runtime';
+import {getUserName, USE_MOCK_API, getAuthToken} from '../../../shared/lib/runtime';
+import {buildEdgeFunctionUrl} from '../../../shared/lib/apiClient';
 import type {InterviewResult} from '../../interviews/types';
 
 // ---------------------------------------------------------------------------
@@ -205,11 +205,11 @@ export const DashboardPage = () => {
         const [dashboardStats, results] = await Promise.all([
           USE_MOCK_API
             ? null
-            : fetch(`${API_BASE_URL}/functions/v1/embox-api/stats/dashboard`, {
+            : fetch(buildEdgeFunctionUrl('/stats/dashboard'), {
                 headers: {'Authorization': `Bearer ${getAuthToken() ?? ''}`},
               }).then(r => r.json() as Promise<{
                 sidebar: {runningAgents: number; shortlistCount: number; pendingApprovals: number; totalCandidates: number};
-                talentStats: {totalCount: number; monthlyNew: number; gradeDistribution: Record<string, number>};
+                talentStats: {totalCount: number; monthlyNew: number; pendingReview: number; gradeDistribution: Record<string, number>};
                 weeklyInterviews: number;
                 pendingOutreach: number;
               }>).catch(() => null),

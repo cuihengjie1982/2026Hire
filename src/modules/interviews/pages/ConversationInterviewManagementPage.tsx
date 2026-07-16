@@ -11,8 +11,9 @@ import type { CandidateCard } from '../../candidates/types';
 // SMS templates fetch
 const fetchSmsTemplates = async () => {
   try {
-    const { API_BASE_URL, getAuthToken } = await import('../../../shared/lib/runtime');
-    const res = await fetch(`${API_BASE_URL}/functions/v1/embox-api/sms-gateway/templates`, {
+    const { getAuthToken } = await import('../../../shared/lib/runtime');
+    const { buildEdgeFunctionUrl } = await import('../../../shared/lib/apiClient');
+    const res = await fetch(buildEdgeFunctionUrl('/sms-gateway/templates'), {
       headers: { Authorization: `Bearer ${getAuthToken() ?? ''}` },
     });
     if (!res.ok) return [];

@@ -1,9 +1,9 @@
-import {USE_MOCK_API, API_BASE_URL, getAuthToken} from '../../shared/lib/runtime';
+import {buildEdgeFunctionUrl} from '../../shared/lib/apiClient';
+import {USE_MOCK_API, getAuthToken} from '../../shared/lib/runtime';
 
 const isFormData = (v: unknown): v is FormData => typeof FormData !== 'undefined' && v instanceof FormData;
 
 const efetch = async <T>(path: string, method = 'GET', body?: unknown): Promise<T> => {
-  const base = USE_MOCK_API ? '' : API_BASE_URL;
   const headers: Record<string, string> = {
     'Authorization': `Bearer ${getAuthToken() ?? ''}`,
   };
@@ -11,7 +11,7 @@ const efetch = async <T>(path: string, method = 'GET', body?: unknown): Promise<
   if (!isFormData(body)) {
     headers['Content-Type'] = 'application/json';
   }
-  const res = await fetch(`${base}/functions/v1/embox-api${path}`, {
+  const res = await fetch(buildEdgeFunctionUrl(path), {
     method,
     headers,
     ...(body ? { body: isFormData(body) ? body : JSON.stringify(body) } : {}),
@@ -1015,9 +1015,8 @@ export const streamConversationMessage = (
   onDone: (data: { messageId: string | null; conversationState: { currentTopic: string | null; shouldClose: boolean } }) => void,
   onError: (error: string) => void,
 ): () => void => {
-  const base = USE_MOCK_API ? '' : API_BASE_URL;
   const params = new URLSearchParams({ convSessionId, content });
-  const url = `${base}/functions/v1/embox-api/conversational-interview/messages/stream?${params}`;
+  const url = `${buildEdgeFunctionUrl('/conversational-interview/messages/stream')}?${params}`;
 
   const controller = new AbortController();
 
@@ -1134,11 +1133,10 @@ export const askCandidateQuestion = async (
 // ============================================================================
 
 const publicFetch = async <T>(path: string, method = 'GET', body?: unknown): Promise<T> => {
-  const base = USE_MOCK_API ? '' : API_BASE_URL;
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
-  const res = await fetch(`${base}/functions/v1/embox-api${path}`, {
+  const res = await fetch(buildEdgeFunctionUrl(path), {
     method,
     headers,
     ...(body ? { body: JSON.stringify(body) } : {}),
@@ -1215,8 +1213,7 @@ export const streamPublicConversationMessage = (
   onDone: (data: { messageId: string | null; conversationState: { currentTopic: string | null; shouldClose: boolean } }) => void,
   onError: (error: string) => void,
 ): () => void => {
-  const base = USE_MOCK_API ? '' : API_BASE_URL;
-  const url = `${base}/functions/v1/embox-api/public/conversation/messages/stream`;
+  const url = buildEdgeFunctionUrl('/public/conversation/messages/stream');
 
   const controller = new AbortController();
 

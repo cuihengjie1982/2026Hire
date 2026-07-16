@@ -1,8 +1,8 @@
+import {buildEdgeFunctionUrl} from '../../shared/lib/apiClient';
 import {USE_MOCK_API, API_BASE_URL, getAuthToken} from '../../shared/lib/runtime';
 
 const efetch = async <T>(path: string, method = 'GET', body?: unknown): Promise<T> => {
-  const base = USE_MOCK_API ? '' : API_BASE_URL;
-  const res = await fetch(`${base}/functions/v1/embox-api${path}`, {
+  const res = await fetch(buildEdgeFunctionUrl(path), {
     method,
     headers: {
       'Content-Type': 'application/json',
@@ -282,12 +282,12 @@ const aiParseResume = async (resumeText: string, fallback: ParsedResumeInfo): Pr
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
 	      const token = getAuthToken() || '';
-	      // Dev: Vite proxy → Express. Prod: Edge Function → /ai-proxy
+	      // Local Express for /api/ai/parse-resume; otherwise embox-api /ai-proxy
 	      const base = USE_MOCK_API ? '' : API_BASE_URL;
 	      const isLocalDev = base.includes('localhost') || base.includes('127.0.0.1');
 	      const aiUrl = isLocalDev
 	        ? `${base}/api/ai/parse-resume`
-	        : `${base}/functions/v1/embox-api/ai-proxy`;
+	        : buildEdgeFunctionUrl('/ai-proxy');
       const resp = await fetch(aiUrl, {
         method: 'POST',
         headers: {
