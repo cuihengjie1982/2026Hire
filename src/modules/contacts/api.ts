@@ -124,6 +124,10 @@ export const createContact = async (input: CreateContactInput): Promise<Contact>
 };
 
 export const updateContact = async (id: string, input: UpdateContactInput): Promise<Contact> => {
+  // #region agent log
+  const patchBody = {id, ...input};
+  fetch('http://127.0.0.1:7854/ingest/be9f27ce-5c59-41c9-a632-43d870814038',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'a35f32'},body:JSON.stringify({sessionId:'a35f32',location:'contacts/api.ts:updateContact',message:'updateContact PATCH body',data:{id,input,patchBody,url:buildApiUrl('/api/contacts')},timestamp:Date.now(),hypothesisId:'H1-H3-H5'})}).catch(()=>{});
+  // #endregion
   if (USE_MOCK_API) {
     await new Promise((r) => setTimeout(r, 120));
     syncContactsFromStorage();
@@ -137,7 +141,10 @@ export const updateContact = async (id: string, input: UpdateContactInput): Prom
     saveContacts();
     return contactsData[index];
   }
-  const data = await efetch<Record<string, unknown>>('', 'PATCH', {id, ...input});
+  const data = await efetch<Record<string, unknown>>('', 'PATCH', patchBody);
+  // #region agent log
+  fetch('http://127.0.0.1:7854/ingest/be9f27ce-5c59-41c9-a632-43d870814038',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'a35f32'},body:JSON.stringify({sessionId:'a35f32',location:'contacts/api.ts:updateContact:success',message:'updateContact succeeded',data:{id,returnedStatus:data?.status},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
+  // #endregion
   return mapContact(data);
 };
 

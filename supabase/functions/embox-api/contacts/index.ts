@@ -1,5 +1,16 @@
 import { createSupabaseAdmin } from '../_shared/supabaseClient.ts';
 
+const ALLOWED_STATUSES = new Set([
+  'pending',
+  'contacted',
+  'responded',
+  'interview_scheduled',
+  'hired',
+  'rejected',
+]);
+
+const ALLOWED_CHANNELS = new Set(['wechat', 'email', 'phone']);
+
 function jsonRes(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 }
@@ -58,12 +69,27 @@ export const handleContacts = async (req: Request, _userId: string, _userRole: s
     if (method === 'PATCH') {
       const body = await req.json() as Record<string, unknown>;
       const { id, status, outreachPerson, channel, reason } = body;
+      // #region agent log
+      console.log('[debug-a35f32] PATCH contacts body:', JSON.stringify({ id, status, outreachPerson, channel, reason, statusType: typeof status }));
+      // #endregion
       if (!id) return jsonRes({ error: { code: 'VALIDATION_ERROR', message: 'id is required' } }, 400);
 
       const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
-      if (status !== undefined) updates.status = String(status);
+      if (status !== undefined && status !== null) {
+        const statusStr = String(status);
+        if (!ALLOWED_STATUSES.has(statusStr)) {
+          return jsonRes({ error: { code: 'VALIDATION_ERROR', message: `Invalid status: ${statusStr}` } }, 400);
+        }
+        updates.status = statusStr;
+      }
       if (outreachPerson !== undefined) updates.outreach_person = String(outreachPerson);
-      if (channel !== undefined) updates.channel = String(channel);
+      if (channel !== undefined) {
+        const channelStr = String(channel);
+        if (!ALLOWED_CHANNELS.has(channelStr)) {
+          return jsonRes({ error: { code: 'VALIDATION_ERROR', message: `Invalid channel: ${channelStr}` } }, 400);
+        }
+        updates.channel = channelStr;
+      }
       if (reason !== undefined) updates.reason = String(reason);
 
       if (Object.keys(updates).length === 1) {

@@ -58,6 +58,9 @@ export const ContactsPage = () => {
   }, [selectedProject]);
 
   const handleStatusChange = async (id: string, newStatus: Contact['status']) => {
+    // #region agent log
+    fetch('http://127.0.0.1:7854/ingest/be9f27ce-5c59-41c9-a632-43d870814038',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'a35f32'},body:JSON.stringify({sessionId:'a35f32',location:'ContactsPage.tsx:handleStatusChange',message:'status dropdown change',data:{id,newStatus},timestamp:Date.now(),hypothesisId:'H4'})}).catch(()=>{});
+    // #endregion
     try {
       const updated = await updateContactStatus(id, newStatus);
       setContacts((prev) => prev.map((c) => (c.id === id ? updated : c)));
@@ -80,6 +83,9 @@ export const ContactsPage = () => {
   };
 
   const openEditDialog = (contact: Contact) => {
+    // #region agent log
+    fetch('http://127.0.0.1:7854/ingest/be9f27ce-5c59-41c9-a632-43d870814038',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'a35f32'},body:JSON.stringify({sessionId:'a35f32',location:'ContactsPage.tsx:openEditDialog',message:'open edit dialog',data:{contactId:contact.id,status:contact.status,channel:contact.channel},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
+    // #endregion
     setEditingContact(contact);
     setEditForm({
       outreachPerson: contact.outreachPerson,
@@ -91,6 +97,9 @@ export const ContactsPage = () => {
   const handleSaveEdit = async () => {
     if (!editingContact || !editForm.reason.trim()) return;
     setSubmitting(true);
+    // #region agent log
+    fetch('http://127.0.0.1:7854/ingest/be9f27ce-5c59-41c9-a632-43d870814038',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'a35f32'},body:JSON.stringify({sessionId:'a35f32',location:'ContactsPage.tsx:handleSaveEdit',message:'save edit clicked',data:{contactId:editingContact.id,contactStatus:editingContact.status,editForm},timestamp:Date.now(),hypothesisId:'H1-H4-H5'})}).catch(()=>{});
+    // #endregion
     try {
       const updated = await updateContact(editingContact.id, {
         outreachPerson: editForm.outreachPerson.trim(),
@@ -101,6 +110,9 @@ export const ContactsPage = () => {
       setEditingContact(null);
       setToastMessage(`已更新联系人：${updated.candidateName}`);
     } catch (e) {
+      // #region agent log
+      fetch('http://127.0.0.1:7854/ingest/be9f27ce-5c59-41c9-a632-43d870814038',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'a35f32'},body:JSON.stringify({sessionId:'a35f32',location:'ContactsPage.tsx:handleSaveEdit:error',message:'save edit failed',data:{error:e instanceof Error?e.message:String(e)},timestamp:Date.now(),hypothesisId:'H1-H2'})}).catch(()=>{});
+      // #endregion
       console.error('Failed to update contact:', e);
       setToastMessage(e instanceof Error ? e.message : '更新失败，请重试');
     } finally {

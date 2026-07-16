@@ -82,6 +82,9 @@ router.post('/', async (req, res, next) => {
 router.patch('/', async (req, res, next) => {
   try {
     const {id, status, outreachPerson, channel, reason} = req.body;
+    // #region agent log
+    fetch('http://127.0.0.1:7854/ingest/be9f27ce-5c59-41c9-a632-43d870814038',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'a35f32'},body:JSON.stringify({sessionId:'a35f32',location:'contacts.routes.ts:PATCH',message:'Express PATCH contacts',data:{body:req.body},timestamp:Date.now(),hypothesisId:'H3'})}).catch(()=>{});
+    // #endregion
     if (!id) {
       res.status(400).json({error: {code: 'VALIDATION_ERROR', message: 'Contact id is required'}});
       return;
@@ -91,15 +94,26 @@ router.patch('/', async (req, res, next) => {
     const params: unknown[] = [];
     let paramIndex = 1;
 
-    if (status !== undefined) {
+    if (status !== undefined && status !== null) {
+      const statusStr = String(status);
+      const allowed = ['pending', 'contacted', 'responded', 'interview_scheduled', 'hired', 'rejected'];
+      if (!allowed.includes(statusStr)) {
+        res.status(400).json({error: {code: 'VALIDATION_ERROR', message: `Invalid status: ${statusStr}`}});
+        return;
+      }
       updates.push(`status = $${paramIndex++}`);
-      params.push(status);
+      params.push(statusStr);
     }
     if (outreachPerson !== undefined) {
       updates.push(`outreach_person = $${paramIndex++}`);
       params.push(outreachPerson);
     }
     if (channel !== undefined) {
+      const allowedChannels = ['wechat', 'email', 'phone'];
+      if (!allowedChannels.includes(String(channel))) {
+        res.status(400).json({error: {code: 'VALIDATION_ERROR', message: `Invalid channel: ${channel}`}});
+        return;
+      }
       updates.push(`channel = $${paramIndex++}`);
       params.push(channel);
     }
