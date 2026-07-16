@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Box, LogOut, Mic, Video, Volume2, Settings, CheckCircle2, Circle, ChevronRight, Clock, AlertCircle, PlayCircle, ShieldAlert, WifiOff, Loader2, RotateCcw, Send, ChevronDown, ArrowLeft } from 'lucide-react';
 import { navigateToPage } from './navigation';
 import {listInterviewTemplates, getInterviewTemplateDetail, updateSessionStatus, submitAnswerAudio, aggregateInterviewResults, createInterviewResult} from './modules/interviews/api';
@@ -22,6 +23,7 @@ type OverlayState = 'none' | 'countdown' | 'recording' | 'review' | 'saved' | 'c
 type ScoringStatus = 'idle' | 'uploading' | 'transcribing' | 'scoring' | 'completed' | 'failed';
 
 export const AIVideoInterviewPage = () => {
+  const navigate = useNavigate();
   const [questions, setQuestions] = useState<QuestionItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [templateName, setTemplateName] = useState('');
@@ -227,7 +229,7 @@ export const AIVideoInterviewPage = () => {
           <h2 className="text-2xl font-bold text-white mb-2">暂无面试题目</h2>
           <p className="text-gray-400 mb-6">请先在 AI 面试中心配置面试模板并添加题目</p>
           <button
-            onClick={() => navigateToPage('ai-interview')}
+            onClick={returnToSessionManagement}
             className="bg-[#6366F1] hover:bg-[#4F46E5] text-white px-6 py-2.5 rounded-lg font-medium transition-colors"
           >
             前往 AI 面试中心
@@ -534,8 +536,17 @@ export const AIVideoInterviewPage = () => {
     setOverlayState('completed');
   };
 
+  const returnToSessionManagement = () => {
+    if (window.opener && !window.opener.closed) {
+      window.opener.focus();
+      window.close();
+      return;
+    }
+    navigate('/interviews?tab=management');
+  };
+
   const handleExit = () => {
-    navigateToPage('ai-interview');
+    returnToSessionManagement();
   };
 
   const computeGradeFromRules = (score: number): { grade: 'excellent' | 'good' | 'qualified' | 'pending' | 'rejected'; label: string } => {
@@ -662,9 +673,9 @@ export const AIVideoInterviewPage = () => {
       <div className="h-14 bg-[#151225] flex items-center justify-between px-5 border-b border-white/5 flex-shrink-0">
         <div className="flex items-center">
           <button
-            onClick={() => navigateToPage('ai-interview')}
+            onClick={returnToSessionManagement}
             className="p-1.5 rounded-lg hover:bg-white/10 transition-colors text-white/40 hover:text-white/70 mr-2"
-            title="返回面试中心"
+            title="返回会话管理"
           >
             <ArrowLeft className="w-4 h-4" />
           </button>
@@ -913,7 +924,7 @@ export const AIVideoInterviewPage = () => {
                     onClick={handleExit}
                     className="w-full bg-[#6366F1] hover:bg-[#4F46E5] text-white py-2.5 rounded-lg font-medium transition-colors"
                   >
-                    返回面试中心
+                    返回会话管理
                   </button>
                   <button
                     onClick={handleRestart}

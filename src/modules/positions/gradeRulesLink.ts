@@ -1,10 +1,16 @@
-import type {GradeRule} from './types';
+export type GradeScoreRange = {
+  grade: string;
+  minScore: number;
+  maxScore: number;
+  label: string;
+  action?: string;
+};
 
 const SCORE_MIN = 0;
 const SCORE_MAX = 100;
 
 /** 列表自上而下 = 分数从高到低（index 0 为最高档） */
-export const clampGradeRule = (rule: GradeRule): GradeRule => {
+export const clampGradeRule = <T extends GradeScoreRange>(rule: T): T => {
   const minScore = Math.max(SCORE_MIN, Math.min(SCORE_MAX, rule.minScore));
   const maxScore = Math.max(SCORE_MIN, Math.min(SCORE_MAX, rule.maxScore));
   return {
@@ -15,7 +21,7 @@ export const clampGradeRule = (rule: GradeRule): GradeRule => {
 };
 
 /** 修改最低分后向下联动：低一档最高分 = 本档最低分 - 1，并保证 min ≤ max */
-export const linkGradesDown = (rules: GradeRule[], fromIndex: number): GradeRule[] => {
+export const linkGradesDown = <T extends GradeScoreRange>(rules: T[], fromIndex: number): T[] => {
   const next = rules.map(clampGradeRule);
   for (let j = fromIndex + 1; j < next.length; j++) {
     const higher = next[j - 1];
@@ -27,7 +33,7 @@ export const linkGradesDown = (rules: GradeRule[], fromIndex: number): GradeRule
 };
 
 /** 修改最高分后向上联动：高一档最低分 = 本档最高分 + 1，并保证 min ≤ max */
-export const linkGradesUp = (rules: GradeRule[], fromIndex: number): GradeRule[] => {
+export const linkGradesUp = <T extends GradeScoreRange>(rules: T[], fromIndex: number): T[] => {
   const next = rules.map(clampGradeRule);
   for (let j = fromIndex - 1; j >= 0; j--) {
     const lower = next[j + 1];
@@ -39,22 +45,25 @@ export const linkGradesUp = (rules: GradeRule[], fromIndex: number): GradeRule[]
 };
 
 /** 新建档位：最高分继承上一档最低分；首档默认 90–100 */
-export const createNextGradeRule = (rules: GradeRule[]): GradeRule => {
+export const createNextGradeRule = <T extends GradeScoreRange>(rules: T[]): T => {
+  const hasAction = rules.some((r) => 'action' in r);
   const last = rules[rules.length - 1];
   if (!last) {
-    return clampGradeRule({grade: '', minScore: 90, maxScore: 100, label: '', action: ''});
+    const base = {grade: '', minScore: 90, maxScore: 100, label: ''};
+    return (hasAction ? {...base, action: ''} : base) as T;
   }
   const maxScore = last.minScore;
   const minScore = Math.max(SCORE_MIN, maxScore - 10);
-  return clampGradeRule({grade: '', minScore, maxScore, label: '', action: ''});
+  const base = {grade: '', minScore, maxScore, label: ''};
+  return (hasAction ? {...base, action: ''} : base) as T;
 };
 
-export const updateGradeRule = (
-  rules: GradeRule[],
+export const updateGradeRule = <T extends GradeScoreRange>(
+  rules: T[],
   index: number,
-  field: keyof GradeRule,
+  field: keyof GradeScoreRange,
   value: string | number,
-): GradeRule[] => {
+): T[] => {
   let next = rules.map((g, i) => (i === index ? {...g, [field]: value} : g));
   next[index] = clampGradeRule(next[index]);
   if (field === 'minScore') {

@@ -1,5 +1,5 @@
 import {motion} from 'motion/react';
-import {lazy, Suspense, useState} from 'react';
+import {lazy, Suspense, useEffect, useState} from 'react';
 import {useSearchParams} from 'react-router-dom';
 import {Loader2, FileText, PlayCircle, BarChart2, ClipboardList, MessageCircle} from 'lucide-react';
 
@@ -45,6 +45,13 @@ export const InterviewCenterPage = () => {
   const [activeTab, setActiveTab] = useState<TabId>(
     TABS.some(t => t.id === tabFromUrl) ? tabFromUrl! : 'templates',
   );
+
+  useEffect(() => {
+    const tab = searchParams.get('tab') as TabId | null;
+    if (tab && TABS.some(t => t.id === tab)) {
+      setActiveTab(tab);
+    }
+  }, [searchParams]);
 
   const handleTabChange = (tab: TabId) => {
     setActiveTab(tab);

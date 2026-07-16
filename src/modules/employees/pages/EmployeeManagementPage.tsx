@@ -17,6 +17,7 @@ import {
   type CustomFieldDef,
 } from '../api';
 import VersionTimeline from '../components/VersionTimeline';
+import {NumericScoreInput} from '../../../shared/components/NumericScoreInput';
 import CustomFieldManager from '../components/CustomFieldManager';
 import CustomFieldValues from '../components/CustomFieldValues';
 import ExcelImportDialog from '../components/ExcelImportDialog';
@@ -554,8 +555,13 @@ export const EmployeeManagementPage = () => {
                                     </div>
                                     <div>
                                       <label className="block text-[12px] text-gray-500 mb-1">分数 (0-100) *</label>
-                                      <input type="number" value={perfForm.score} onChange={e => setPerfForm({...perfForm, score: e.target.value})}
-                                        min={0} max={100} className="w-full px-3 py-1.5 border border-gray-200 rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]" />
+                                      <NumericScoreInput
+                                        value={perfForm.score === '' ? 0 : Number(perfForm.score) || 0}
+                                        onChange={(n) => setPerfForm({...perfForm, score: String(n)})}
+                                        className="w-full px-3 py-1.5 border border-gray-200 rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
+                                        min={0}
+                                        max={100}
+                                      />
                                     </div>
                                     <div>
                                       <label className="block text-[12px] text-gray-500 mb-1">评级</label>
@@ -998,11 +1004,18 @@ export const EmployeeManagementPage = () => {
                         next[i] = {...next[i], name: e.target.value};
                         setModelForm({...modelForm, dimensions: next});
                       }} placeholder="维度名" className="flex-1 px-3 py-1.5 border border-gray-200 rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]" />
-                      <input type="number" value={dim.weight || ''} onChange={e => {
-                        const next = [...modelForm.dimensions];
-                        next[i] = {...next[i], weight: Number(e.target.value)};
-                        setModelForm({...modelForm, dimensions: next});
-                      }} placeholder="权重%" className="w-16 px-3 py-1.5 border border-gray-200 rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]" />
+                      <NumericScoreInput
+                        value={dim.weight || 0}
+                        onChange={(n) => {
+                          const next = [...modelForm.dimensions];
+                          next[i] = {...next[i], weight: n};
+                          setModelForm({...modelForm, dimensions: next});
+                        }}
+                        placeholder="权重%"
+                        className="w-16 px-3 py-1.5 border border-gray-200 rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
+                        min={0}
+                        max={100}
+                      />
                       <input value={dim.description} onChange={e => {
                         const next = [...modelForm.dimensions];
                         next[i] = {...next[i], description: e.target.value};

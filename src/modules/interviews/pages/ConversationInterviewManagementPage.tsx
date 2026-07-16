@@ -1,24 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
-import { MessageCircle, Plus, Play, Eye, Trash2, Copy, Check, X, Link, Search } from 'lucide-react';
+import { MessageCircle, Plus, Play, Eye, Trash2, Copy, Check, X, Link } from 'lucide-react';
 import { listManagementSessions, createInterviewSession, deleteInterviewSession, listInterviewTemplates } from '../api';
 import type { InterviewManagementSession } from '../types';
-
-// Simple candidate search from candidates API
-const searchCandidates = async (query: string) => {
-  try {
-    const { API_BASE_URL, getAuthToken } = await import('../../../shared/lib/runtime');
-    const res = await fetch(`${API_BASE_URL}/functions/v1/embox-api/candidate-ops?search=${encodeURIComponent(query)}&limit=20`, {
-      headers: { Authorization: `Bearer ${getAuthToken() ?? ''}` },
-    });
-    if (!res.ok) return [];
-    const data = await res.json();
-    return (Array.isArray(data) ? data : data?.data ?? []).map((c: Record<string, unknown>) => ({
-      id: String(c.id ?? ''), name: String(c.name ?? ''), email: String(c.email ?? ''), phone: String(c.phone ?? ''),
-    }));
-  } catch {
-    return [];
-  }
-};
+import { ModalPortal } from '../../../shared/components/ModalPortal';
+import { InterviewCandidatePicker } from '../components/InterviewCandidatePicker';
+import { useInterviewCreateForm, type InterviewCreateTemplateOption } from '../hooks/useInterviewCreateForm';
 
 // SMS templates fetch
 const fetchSmsTemplates = async () => {
@@ -34,6 +20,8 @@ const fetchSmsTemplates = async () => {
   }
 };
 
+const CONVERSATIONAL_MODES = new Set(['text_chat_conversational', 'video_conversational']);
+
 const ConversationInterviewManagementPage = () => {
   const [sessions, setSessions] = useState<InterviewManagementSession[]>([]);
   const [loading, setLoading] = useState(true);
@@ -41,19 +29,33 @@ const ConversationInterviewManagementPage = () => {
   // Modal state
   const [showModal, setShowModal] = useState(false);
   const [step, setStep] = useState<'select' | 'created'>('select');
-  const [candidates, setCandidates] = useState<Array<{ id: string; name: string; email: string; phone: string }>>([]);
-  const [candidateSearch, setCandidateSearch] = useState('');
-  const [selectedCandidate, setSelectedCandidate] = useState<string>('');
-  const [templates, setTemplates] = useState<Array<{ id: string; name: string; interviewMode: string }>>([]);
-  const [selectedTemplate, setSelectedTemplate] = useState('');
+  const [conversationalTemplates, setConversationalTemplates] = useState<InterviewCreateTemplateOption[]>([]);
   const [sendSms, setSendSms] = useState(false);
   const [smsTemplates, setSmsTemplates] = useState<Array<{ id: string; name: string }>>([]);
   const [selectedSmsTemplate, setSelectedSmsTemplate] = useState('');
-  const [creating, setCreating] = useState(false);
   const [createdLink, setCreatedLink] = useState('');
-  const [createdToken, setCreatedToken] = useState('');
   const [copied, setCopied] = useState(false);
-  const [modalError, setModalError] = useState('');
+
+  const {
+    filteredCandidates,
+    candidateSearch,
+    setCandidateSearch,
+    selectedCandidateId,
+    setSelectedCandidateId,
+    selectedTemplateId,
+    setSelectedTemplateId,
+    error: modalError,
+    setError: setModalError,
+    creating,
+    setCreating,
+    prepareOpen,
+    createDisabledReason: baseDisabledReason,
+    canCreate: baseCanCreate,
+  } = useInterviewCreateForm({
+    open: showModal && step === 'select',
+    templates: conversationalTemplates,
+    emptyTemplatesHint: '暂无对话式面试模板，请先在模板管理中创建',
+  });
 
   const loadSessions = useCallback(async () => {
     setLoading(true);
@@ -67,46 +69,45 @@ const ConversationInterviewManagementPage = () => {
 
   useEffect(() => { loadSessions(); }, [loadSessions]);
 
-  // Load candidates on search
-  useEffect(() => {
-    if (candidateSearch.length < 1) { setCandidates([]); return; }
-    const timer = setTimeout(async () => {
-      const results = await searchCandidates(candidateSearch);
-      setCandidates(results);
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [candidateSearch]);
-
-  // Load templates when modal opens
-  const openModal = async () => {
+  const openModal = () => {
     setShowModal(true);
     setStep('select');
-    setModalError('');
-    setSelectedCandidate('');
-    setSelectedTemplate('');
-    setCandidateSearch('');
-    setCandidates([]);
     setSendSms(false);
     setSelectedSmsTemplate('');
-    try {
-      const tpls = await listInterviewTemplates();
-      setTemplates(tpls.filter((t) => (t as Record<string, unknown>).interviewMode === 'text_chat_conversational' || (t as Record<string, unknown>).interviewMode === 'video_conversational'));
-    } catch { setTemplates([]); }
-    try {
-      const smsTpls = await fetchSmsTemplates();
-      setSmsTemplates(smsTpls);
-    } catch { setSmsTemplates([]); }
+    void prepareOpen();
+
+    void (async () => {
+      try {
+        const tpls = await listInterviewTemplates();
+        const filtered = tpls
+          .filter((t) => CONVERSATIONAL_MODES.has(t.interviewMode))
+          .map((t) => ({ id: t.id, name: t.name }));
+        setConversationalTemplates(filtered);
+      } catch {
+        setConversationalTemplates([]);
+      }
+      try {
+        const smsTpls = await fetchSmsTemplates();
+        setSmsTemplates(smsTpls);
+      } catch {
+        setSmsTemplates([]);
+      }
+    })();
   };
 
   const handleCreate = async () => {
-    if (!selectedCandidate || !selectedTemplate) {
-      setModalError('请选择候选人和面试模板');
+    if (!baseCanCreate) {
+      setModalError(baseDisabledReason || '请选择候选人和面试模板');
+      return;
+    }
+    if (sendSms && !selectedSmsTemplate) {
+      setModalError('请选择短信模板');
       return;
     }
     setCreating(true);
     setModalError('');
     try {
-      const result = await createInterviewSession(selectedCandidate, selectedTemplate, {
+      const result = await createInterviewSession(selectedCandidateId, selectedTemplateId, {
         sendSms,
         smsTemplateId: sendSms ? selectedSmsTemplate : undefined,
       });
@@ -114,9 +115,8 @@ const ConversationInterviewManagementPage = () => {
       const origin = window.location.origin;
       const link = `${origin}/interview/${token}`;
       setCreatedLink(link);
-      setCreatedToken(token);
       setStep('created');
-      loadSessions(); // refresh list
+      loadSessions();
     } catch (e) {
       setModalError(e instanceof Error ? e.message : '创建失败');
     } finally {
@@ -143,7 +143,8 @@ const ConversationInterviewManagementPage = () => {
       candidateName: session.candidateName,
       candidateEmail: session.candidateEmail,
     });
-    window.location.href = `/interviews/conversational?${params.toString()}`;
+    const url = `${window.location.origin}/interviews/conversational?${params.toString()}`;
+    window.open(url, '_blank', 'noopener,noreferrer');
   };
 
   const handleDelete = async (sessionId: string) => {
@@ -154,6 +155,11 @@ const ConversationInterviewManagementPage = () => {
     } catch { /* silently handle */ }
   };
 
+  const createDisabledReason = baseDisabledReason
+    || (sendSms && !selectedSmsTemplate ? '请选择短信模板' : '');
+
+  const canCreate = baseCanCreate && (!sendSms || Boolean(selectedSmsTemplate));
+
   if (loading) {
     return <div className="p-6 text-sm text-gray-500">加载中...</div>;
   }
@@ -163,6 +169,7 @@ const ConversationInterviewManagementPage = () => {
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold text-gray-900">会话式面试管理</h2>
         <button
+          type="button"
           onClick={openModal}
           className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-white bg-[#1a4bc4] hover:bg-[#1e3a8a] transition-colors"
         >
@@ -240,10 +247,9 @@ const ConversationInterviewManagementPage = () => {
       )}
 
       {/* ── Create Session Modal ── */}
-      {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full mx-4 p-6 space-y-5">
-            {/* Header */}
+      <ModalPortal open={showModal}>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6 space-y-5">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold text-gray-900">
                 {step === 'select' ? '发起会话式面试' : '面试已创建'}
@@ -255,50 +261,27 @@ const ConversationInterviewManagementPage = () => {
 
             {step === 'select' ? (
               <>
-                {/* Candidate search */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">候选人</label>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
-                    <input
-                      type="text" value={candidateSearch} onChange={(e) => setCandidateSearch(e.target.value)}
-                      placeholder="搜索候选人姓名或邮箱..."
-                      className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]/20"
-                    />
-                  </div>
-                  {candidates.length > 0 && (
-                    <div className="mt-2 max-h-40 overflow-y-auto border border-gray-200 rounded-xl divide-y divide-gray-100">
-                      {candidates.map(c => (
-                        <button key={c.id}
-                          onClick={() => {
-                            setSelectedCandidate(c.id);
-                            setCandidateSearch(c.name);
-                            setCandidates([]);
-                          }}
-                          className={`w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 ${selectedCandidate === c.id ? 'bg-blue-50' : ''}`}
-                        >
-                          <span className="font-medium text-gray-900">{c.name}</span>
-                          <span className="ml-2 text-xs text-gray-400">{c.email}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                  {selectedCandidate && !candidates.length && (
-                    <p className="mt-1 text-xs text-green-600">已选择候选人</p>
-                  )}
-                </div>
+                <InterviewCandidatePicker
+                  candidates={filteredCandidates}
+                  search={candidateSearch}
+                  onSearchChange={setCandidateSearch}
+                  selectedId={selectedCandidateId}
+                  onSelectedIdChange={setSelectedCandidateId}
+                  label="候选人 *"
+                  theme="conversation"
+                />
 
-                {/* Template selection */}
+                {/* Template selection — conversational templates only */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">面试模板（仅显示对话式模板）</label>
-                  <select value={selectedTemplate} onChange={(e) => setSelectedTemplate(e.target.value)}
+                  <select value={selectedTemplateId} onChange={(e) => setSelectedTemplateId(e.target.value)}
                     className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]/20">
                     <option value="">请选择面试模板</option>
-                    {templates.map(t => (
+                    {conversationalTemplates.map(t => (
                       <option key={t.id} value={t.id}>{t.name}</option>
                     ))}
                   </select>
-                  {templates.length === 0 && (
+                  {conversationalTemplates.length === 0 && (
                     <p className="mt-1 text-xs text-gray-400">暂无对话式面试模板，请先在「模板管理」中创建</p>
                   )}
                 </div>
@@ -327,15 +310,19 @@ const ConversationInterviewManagementPage = () => {
 
                 {modalError && <p className="text-sm text-red-500">{modalError}</p>}
 
-                {/* Create button */}
-                <button onClick={handleCreate} disabled={creating || !selectedCandidate || !selectedTemplate}
-                  className="w-full py-2.5 rounded-xl text-sm font-medium text-white bg-[#1a4bc4] hover:bg-[#1e3a8a] disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                <button
+                  onClick={handleCreate}
+                  disabled={!canCreate}
+                  className="w-full py-2.5 rounded-xl text-sm font-medium text-white bg-[#1a4bc4] hover:bg-[#1e3a8a] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
                   {creating ? '创建中...' : '创建面试'}
                 </button>
+                {createDisabledReason && (
+                  <p className="text-xs text-gray-400 text-center -mt-3">{createDisabledReason}</p>
+                )}
               </>
             ) : (
               <>
-                {/* Created state — show interview link */}
                 <div className="bg-gray-50 rounded-xl p-4 space-y-3">
                   <div className="flex items-center gap-2 text-sm">
                     <Link className="w-4 h-4 text-[#1a4bc4]" />
@@ -362,7 +349,7 @@ const ConversationInterviewManagementPage = () => {
             )}
           </div>
         </div>
-      )}
+      </ModalPortal>
     </div>
   );
 };

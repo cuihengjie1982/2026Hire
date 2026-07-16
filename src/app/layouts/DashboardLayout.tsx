@@ -86,7 +86,7 @@ export const DashboardLayout = ({onLogout}: {onLogout: () => void}) => {
     () => visibleNavigationItems.find((item) => item.id === currentPageId) ?? visibleNavigationItems[0] ?? navigationItems[0],
     [currentPageId, visibleNavigationItems],
   );
-  const isPreviewPage = false;
+  const isPreviewPage = location.pathname === '/interviews/preview';
 
   useEffect(() => {
     if (isPublicVideoSharing) return;
@@ -109,7 +109,9 @@ export const DashboardLayout = ({onLogout}: {onLogout: () => void}) => {
   useEffect(() => {
     const handleNavigate = (event: Event) => {
       if (!isNavigationEvent(event)) return;
-      navigate(getRouteForPage(event.detail.page));
+      const route = getRouteForPage(event.detail.page);
+      const search = event.detail.search;
+      navigate(search ? `${route}?${search}` : route);
       setIsSidebarOpen(false);
     };
 

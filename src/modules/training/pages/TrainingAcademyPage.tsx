@@ -8,6 +8,7 @@ import {
   Upload, Search, X, Copy, Link2, ExternalLink, Sparkles, FileText,
 } from 'lucide-react';
 import {useToast} from '../../../shared/components/ToastProvider';
+import {NumericScoreInput} from '../../../shared/components/NumericScoreInput';
 import {getAuthToken, API_BASE_URL} from '../../../shared/lib/runtime';
 import {
   listCourses, listEnrollments, createCourse, updateCourse, deleteCourse, updateEnrollment, submitAssessment,
@@ -1196,10 +1197,14 @@ const EnrollmentsTab = ({enrollments, onScore, onExport}: {enrollments: Training
                     )}
                     {isScoring && (
                       <div className="flex items-center gap-2 justify-center">
-                        <input type="number" min="0" max="100" value={scoreInput}
-                          onChange={e => setScoreInput(e.target.value)}
+                        <NumericScoreInput
+                          value={scoreInput === '' ? 0 : Number(scoreInput) || 0}
+                          onChange={(n) => setScoreInput(String(n))}
                           className="w-16 px-2 py-1 border rounded text-center text-sm"
-                          placeholder="分数" />
+                          placeholder="分数"
+                          min={0}
+                          max={100}
+                        />
                         <button onClick={() => {
                           const s = parseFloat(scoreInput);
                           if (!isNaN(s) && s >= 0 && s <= 100) { onScore(enrollment.id, s); setScoringId(null); }
@@ -1590,8 +1595,13 @@ export const CreateCourseModal = ({initial, onClose, onSubmit, defaultContentTyp
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">时长 (分钟)</label>
-              <input type="number" value={duration} onChange={e => setDuration(Number(e.target.value))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]" />
+              <NumericScoreInput
+                value={duration}
+                onChange={setDuration}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
+                min={1}
+                max={9999}
+              />
             </div>
           </div>
           <div className="grid grid-cols-3 gap-4">
@@ -1798,8 +1808,13 @@ export const CreateCourseModal = ({initial, onClose, onSubmit, defaultContentTyp
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">及格分数</label>
-                <input type="number" min="0" max="100" value={passingScore} onChange={e => setPassingScore(Number(e.target.value))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]" />
+                <NumericScoreInput
+                  value={passingScore}
+                  onChange={setPassingScore}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
+                  min={0}
+                  max={100}
+                />
               </div>
             </div>
           </div>

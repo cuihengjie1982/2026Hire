@@ -3,6 +3,7 @@ import {Cpu, Plus, X, Edit2, Trash2, Check, Loader2, ExternalLink, ChevronDown, 
 import {useEffect, useState, useRef} from 'react';
 import {listAIModelConfigs, createAIModelConfig, updateAIModelConfig, deleteAIModelConfig, switchActiveModel, getActiveModelConfig, healthCheckConfig} from '../api';
 import {type AIModelConfig, type AIProvider, type ConfigHealthStatus} from '../types';
+import {NumericScoreInput} from '../../../shared/components/NumericScoreInput';
 import {ConfirmDialog} from '../../../shared/components/ConfirmDialog';
 import {PROVIDER_PRESETS, PROVIDER_BRAND, getProviderBrand, type ProviderPreset} from '../providerPresets';
 
@@ -728,14 +729,13 @@ export const AIModelConfigPage = () => {
                 </div>
                 <div>
                   <label className="block text-[13px] font-medium text-gray-700 mb-1.5">Max Tokens</label>
-                  <input
-                    type="number"
+                  <NumericScoreInput
                     value={form.max_tokens}
-                    onChange={(e) => setForm(prev => ({...prev, max_tokens: parseInt(e.target.value) || 4096}))}
+                    onChange={(n) => setForm(prev => ({...prev, max_tokens: n}))}
+                    className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-[14px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4] focus:border-[#1a4bc4]"
                     min={256}
                     max={128000}
-                    step={256}
-                    className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-[14px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4] focus:border-[#1a4bc4]"
+                    wheelStep={256}
                   />
                 </div>
               </div>

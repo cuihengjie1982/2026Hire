@@ -213,7 +213,7 @@ router.patch('/sessions/:sessionId', async (req, res, next) => {
   try {
     const {sessionId} = req.params;
     const {status} = req.body;
-    const validStatuses = ['created', 'in_progress', 'submitted', 'scored', 'closed'];
+    const validStatuses = ['created', 'in_progress', 'paused', 'submitted', 'scored', 'closed', 'cancelled'];
     if (!status || !validStatuses.includes(status)) {
       res.status(400).json({error: {code: 'VALIDATION_ERROR', message: `status must be one of: ${validStatuses.join(', ')}`}});
       return;
@@ -226,8 +226,8 @@ router.patch('/sessions/:sessionId', async (req, res, next) => {
     params.push(status);
 
     if (status === 'in_progress') {
-      sets.push(`started_at = now()`);
-    } else if (status === 'submitted' || status === 'closed') {
+      sets.push(`started_at = COALESCE(started_at, now())`);
+    } else if (status === 'submitted' || status === 'scored' || status === 'cancelled' || status === 'closed') {
       sets.push(`submitted_at = now()`);
     }
 

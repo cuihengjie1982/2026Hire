@@ -1,10 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { motion } from 'motion/react';
 import { Search, PlayCircle, Pause, XCircle, Clock, Filter, ChevronDown, MoreVertical, User, Mail, FileText, CheckCircle, Eye, Plus, Loader2, Trash2, Download } from 'lucide-react';
+import { ModalPortal } from '../../../shared/components/ModalPortal';
+import { InterviewCandidatePicker } from '../components/InterviewCandidatePicker';
+import { useInterviewCreateForm } from '../hooks/useInterviewCreateForm';
 import {type InterviewManagementSession, type InterviewTemplateSummary} from '../types';
 import { listManagementSessions, createInterviewSession, updateSessionStatus, deleteInterviewSession, listInterviewTemplates, exportInterviewResultsCsv } from '../api';
-import { listCandidates } from '../../candidates/api';
-import type { CandidateCard } from '../../candidates/types';
 import { listPositions } from '../../positions/api';
 import type { PositionSummary } from '../../positions/types';
 
@@ -32,13 +33,30 @@ export const InterviewManagementPage = ({ isEmbedded = false, onTabChange }: Int
   // Dynamic data for filters + create dialog
   const [positions, setPositions] = useState<PositionSummary[]>([]);
   const [templates, setTemplates] = useState<InterviewTemplateSummary[]>([]);
-  const [candidates, setCandidates] = useState<CandidateCard[]>([]);
 
   // Create session dialog
   const [showCreateDialog, setShowCreateDialog] = useState(false);
-  const [createCandidateId, setCreateCandidateId] = useState('');
-  const [createTemplateId, setCreateTemplateId] = useState('');
-  const [creating, setCreating] = useState(false);
+
+  const {
+    filteredCandidates,
+    candidateSearch,
+    setCandidateSearch,
+    selectedCandidateId,
+    setSelectedCandidateId,
+    selectedTemplateId,
+    setSelectedTemplateId,
+    error: createError,
+    setError: setCreateError,
+    creating,
+    setCreating,
+    prepareOpen,
+    createDisabledReason,
+    canCreate,
+  } = useInterviewCreateForm({
+    open: showCreateDialog,
+    templates,
+    emptyTemplatesHint: '暂无面试模板，请先创建模板',
+  });
 
   // Delete confirmation
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
@@ -47,7 +65,20 @@ export const InterviewManagementPage = ({ isEmbedded = false, onTabChange }: Int
     loadData();
     listPositions().then(setPositions).catch(() => {});
     listInterviewTemplates().then(setTemplates).catch(() => {});
-    listCandidates().then(setCandidates).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    const refreshOnFocus = () => {
+      if (document.visibilityState === 'visible') {
+        void loadData();
+      }
+    };
+    window.addEventListener('focus', refreshOnFocus);
+    document.addEventListener('visibilitychange', refreshOnFocus);
+    return () => {
+      window.removeEventListener('focus', refreshOnFocus);
+      document.removeEventListener('visibilitychange', refreshOnFocus);
+    };
   }, []);
 
   const loadData = async () => {
@@ -91,16 +122,25 @@ export const InterviewManagementPage = ({ isEmbedded = false, onTabChange }: Int
   const handlePause = async (id: string) => {
     setOperating(id);
     try {
-      await updateSessionStatus(id, 'closed');
+      await updateSessionStatus(id, 'paused');
       setSessions(prev => prev.map(s => s.id === id ? { ...s, status: 'paused' as const } : s));
     } catch (e) { console.error('Failed to pause session:', e); }
+    finally { setOperating(null); }
+  };
+
+  const handleResume = async (id: string) => {
+    setOperating(id);
+    try {
+      await updateSessionStatus(id, 'in_progress');
+      setSessions(prev => prev.map(s => s.id === id ? { ...s, status: 'in_progress' as const } : s));
+    } catch (e) { console.error('Failed to resume session:', e); }
     finally { setOperating(null); }
   };
 
   const handleCancel = async (id: string) => {
     setOperating(id);
     try {
-      await updateSessionStatus(id, 'closed');
+      await updateSessionStatus(id, 'cancelled');
       setSessions(prev => prev.map(s => s.id === id ? { ...s, status: 'cancelled' as const } : s));
     } catch (e) { console.error('Failed to cancel session:', e); }
     finally { setOperating(null); }
@@ -115,26 +155,28 @@ export const InterviewManagementPage = ({ isEmbedded = false, onTabChange }: Int
   };
 
   const handleCreate = async () => {
-    if (!createCandidateId || !createTemplateId) return;
+    if (!canCreate) {
+      setCreateError(createDisabledReason || '请先选择候选人和面试模板');
+      return;
+    }
     setCreating(true);
+    setCreateError('');
     try {
-      await createInterviewSession(createCandidateId, createTemplateId);
+      await createInterviewSession(selectedCandidateId, selectedTemplateId);
       setShowCreateDialog(false);
-      setCreateCandidateId('');
-      setCreateTemplateId('');
       await loadData();
     } catch (e) {
       console.error('Failed to create session:', e);
-      alert('创建面试失败: ' + (e instanceof Error ? e.message : '未知错误'));
+      setCreateError(e instanceof Error ? e.message : '创建面试失败，请稍后重试');
     } finally {
       setCreating(false);
     }
   };
 
   const handleEnterInterview = async (session: InterviewManagementSession) => {
-    // Update session status to in_progress
     try {
       await updateSessionStatus(session.id, 'in_progress');
+      setSessions(prev => prev.map(s => s.id === session.id ? { ...s, status: 'in_progress' as const } : s));
     } catch (e) {
       console.warn('Failed to update session to in_progress:', e);
     }
@@ -146,9 +188,8 @@ export const InterviewManagementPage = ({ isEmbedded = false, onTabChange }: Int
       candidateName: session.candidateName ?? '',
       candidateEmail: session.candidateEmail ?? '',
     });
-    const route = `/interviews/preview?${params.toString()}`;
-    window.history.pushState({}, '', route);
-    window.dispatchEvent(new PopStateEvent('popstate'));
+    const url = `${window.location.origin}/interviews/preview?${params.toString()}`;
+    window.open(url, '_blank', 'noopener,noreferrer');
   };
 
   const getStatusColor = (status: string) => {
@@ -179,12 +220,10 @@ export const InterviewManagementPage = ({ isEmbedded = false, onTabChange }: Int
     return date.toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
   };
 
-  // Candidate search for create dialog
-  const [candidateSearch, setCandidateSearch] = useState('');
-  const filteredCandidates = candidates.filter(c =>
-    c.name.toLowerCase().includes(candidateSearch.toLowerCase()) ||
-    (c.resumeParsedInfo?.email ?? '').toLowerCase().includes(candidateSearch.toLowerCase())
-  );
+  const openCreateDialog = () => {
+    setShowCreateDialog(true);
+    void prepareOpen();
+  };
 
   return (
     <div className={`${isEmbedded ? '' : 'min-h-screen bg-gradient-to-br from-[#F5F3FF] to-[#EBE0FF] dark:from-gray-900 dark:to-gray-800'} flex flex-col font-sans`}>
@@ -264,7 +303,8 @@ export const InterviewManagementPage = ({ isEmbedded = false, onTabChange }: Int
                 <ChevronDown className="w-4 h-4 text-gray-400 absolute right-3 top-3 pointer-events-none" />
               </div>
               <button
-                onClick={() => setShowCreateDialog(true)}
+                type="button"
+                onClick={openCreateDialog}
                 className="flex items-center gap-1.5 px-4 py-2.5 bg-[#22d3ee] hover:bg-[#06b6d4] text-white rounded-lg text-sm font-medium transition-colors"
               >
                 <Plus className="w-4 h-4" />
@@ -358,13 +398,23 @@ export const InterviewManagementPage = ({ isEmbedded = false, onTabChange }: Int
                           开始
                         </button>
                       )}
-                      {(session.status === 'pending' || session.status === 'in_progress') && (
+                      {(session.status === 'pending' || session.status === 'in_progress' || session.status === 'paused') && (
                         <button
                           onClick={() => handleEnterInterview(session)}
                           className="flex items-center gap-1.5 px-4 py-2 border border-[#22d3ee] text-[#22d3ee] hover:bg-[#cffafe] rounded-lg text-sm font-medium transition-colors"
                         >
                           <Eye className="w-4 h-4" />
                           进入面试
+                        </button>
+                      )}
+                      {session.status === 'paused' && (
+                        <button
+                          onClick={() => handleResume(session.id)}
+                          disabled={operating === session.id}
+                          className="flex items-center gap-1.5 px-4 py-2 bg-[#22d3ee] hover:bg-[#06b6d4] text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                        >
+                          {operating === session.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <PlayCircle className="w-4 h-4" />}
+                          继续
                         </button>
                       )}
                       {session.status === 'in_progress' && (
@@ -441,12 +491,12 @@ export const InterviewManagementPage = ({ isEmbedded = false, onTabChange }: Int
       </div>
 
       {/* Create Session Dialog */}
-      {showCreateDialog && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <ModalPortal open={showCreateDialog}>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100]">
           <motion.div
             initial={{opacity: 0, scale: 0.95}}
             animate={{opacity: 1, scale: 1}}
-            className="bg-white rounded-xl shadow-xl w-full max-w-lg p-6"
+            className="bg-white rounded-xl shadow-xl w-full max-w-lg p-6 mx-4"
           >
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-bold text-gray-900">发起新面试</h3>
@@ -455,39 +505,21 @@ export const InterviewManagementPage = ({ isEmbedded = false, onTabChange }: Int
               </button>
             </div>
             <div className="space-y-4">
-              {/* Candidate Selection */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">选择候选人 *</label>
-                <input
-                  type="text"
-                  placeholder="搜索候选人姓名或邮箱..."
-                  value={candidateSearch}
-                  onChange={(e) => setCandidateSearch(e.target.value)}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm mb-2 focus:outline-none focus:ring-2 focus:ring-[#22d3ee]"
-                />
-                <select
-                  value={createCandidateId}
-                  onChange={(e) => setCreateCandidateId(e.target.value)}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#22d3ee] bg-white"
-                  size={5}
-                >
-                  {filteredCandidates.map(c => (
-                    <option key={c.id} value={c.id}>
-                      {c.name} ({c.resumeParsedInfo?.email || '无邮箱'})
-                    </option>
-                  ))}
-                  {filteredCandidates.length === 0 && (
-                    <option disabled>无匹配候选人</option>
-                  )}
-                </select>
-              </div>
+              <InterviewCandidatePicker
+                candidates={filteredCandidates}
+                search={candidateSearch}
+                onSearchChange={setCandidateSearch}
+                selectedId={selectedCandidateId}
+                onSelectedIdChange={setSelectedCandidateId}
+                theme="management"
+              />
 
               {/* Template Selection */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">选择面试模板 *</label>
                 <select
-                  value={createTemplateId}
-                  onChange={(e) => setCreateTemplateId(e.target.value)}
+                  value={selectedTemplateId}
+                  onChange={(e) => setSelectedTemplateId(e.target.value)}
                   className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#22d3ee] bg-white"
                 >
                   <option value="">请选择面试模板</option>
@@ -497,6 +529,7 @@ export const InterviewManagementPage = ({ isEmbedded = false, onTabChange }: Int
                 </select>
               </div>
             </div>
+            {createError && <p className="text-sm text-red-500">{createError}</p>}
             <div className="flex gap-3 mt-6">
               <button
                 onClick={() => setShowCreateDialog(false)}
@@ -504,22 +537,27 @@ export const InterviewManagementPage = ({ isEmbedded = false, onTabChange }: Int
               >
                 取消
               </button>
-              <button
-                onClick={handleCreate}
-                disabled={creating || !createCandidateId || !createTemplateId}
-                className="flex-1 px-4 py-2 bg-[#22d3ee] text-white rounded-lg text-sm font-medium hover:bg-[#06b6d4] transition-colors disabled:opacity-50"
-              >
-                {creating ? '创建中...' : '创建面试'}
-              </button>
+              <div className="flex-1 flex flex-col gap-1">
+                <button
+                  onClick={handleCreate}
+                  disabled={!canCreate}
+                  className="w-full px-4 py-2 bg-[#22d3ee] text-white rounded-lg text-sm font-medium hover:bg-[#06b6d4] transition-colors disabled:opacity-50"
+                >
+                  {creating ? '创建中...' : '创建面试'}
+                </button>
+                {createDisabledReason && (
+                  <p className="text-xs text-gray-400 text-center">{createDisabledReason}</p>
+                )}
+              </div>
             </div>
           </motion.div>
         </div>
-      )}
+      </ModalPortal>
 
       {/* Delete Confirmation */}
-      {deleteConfirmId && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6">
+      <ModalPortal open={!!deleteConfirmId}>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100]">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6 mx-4">
             <h3 className="text-lg font-bold text-gray-900 mb-2">删除面试会话</h3>
             <p className="text-sm text-gray-500 mb-6">确定要删除此面试会话吗？此操作不可撤销。</p>
             <div className="flex gap-3">
@@ -530,7 +568,7 @@ export const InterviewManagementPage = ({ isEmbedded = false, onTabChange }: Int
                 取消
               </button>
               <button
-                onClick={() => handleDelete(deleteConfirmId)}
+                onClick={() => { if (deleteConfirmId) void handleDelete(deleteConfirmId); }}
                 className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg text-sm font-medium hover:bg-red-600"
               >
                 删除
@@ -538,7 +576,7 @@ export const InterviewManagementPage = ({ isEmbedded = false, onTabChange }: Int
             </div>
           </div>
         </div>
-      )}
+      </ModalPortal>
     </div>
   );
 };

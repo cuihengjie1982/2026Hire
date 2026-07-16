@@ -170,9 +170,11 @@ export type InterviewTemplateDetail = {
 export type InterviewSessionStatus =
   | 'created'
   | 'in_progress'
+  | 'paused'
   | 'submitted'
   | 'scored'
-  | 'closed';
+  | 'closed'
+  | 'cancelled';
 
 export type InterviewSession = {
   id: string;

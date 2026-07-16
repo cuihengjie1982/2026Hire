@@ -1089,24 +1089,24 @@ export const PositionConfigPage = () => {
               </div>
               <div>
                 <label className="block text-[13px] font-medium text-gray-700 dark:text-gray-300 mb-1">需求人数</label>
-                <input
-                  type="number"
-                  value={formData.requiredCount}
-                  onChange={(e) => setFormData({...formData, requiredCount: e.target.value})}
+                <NumericScoreInput
+                  value={formData.requiredCount === '' ? 0 : Number(formData.requiredCount) || 0}
+                  onChange={(n) => setFormData({...formData, requiredCount: n > 0 ? String(n) : ''})}
                   className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#6366F1]"
                   placeholder="如：5"
-                  min="0"
+                  min={0}
+                  max={9999}
                 />
               </div>
               <div>
                 <label className="block text-[13px] font-medium text-gray-700 dark:text-gray-300 mb-1">交付周期（天）</label>
-                <input
-                  type="number"
-                  value={formData.deliveryDays}
-                  onChange={(e) => setFormData({...formData, deliveryDays: e.target.value})}
+                <NumericScoreInput
+                  value={formData.deliveryDays === '' ? 0 : Number(formData.deliveryDays) || 0}
+                  onChange={(n) => setFormData({...formData, deliveryDays: n > 0 ? String(n) : ''})}
                   className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#6366F1]"
                   placeholder="如：30"
-                  min="0"
+                  min={0}
+                  max={9999}
                 />
               </div>
               <div>

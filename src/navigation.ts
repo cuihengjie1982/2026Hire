@@ -14,6 +14,7 @@ export type AppPageId =
 
 export type AppNavigationDetail = {
   page: AppPageId;
+  search?: string;
 };
 
 export const PAGE_ROUTE_BY_ID: Record<AppPageId, string> = {
@@ -29,12 +30,21 @@ export const PAGE_ROUTE_BY_ID: Record<AppPageId, string> = {
   admin: '/admin',
 };
 
+export const getRouteForPage = (page: AppPageId) => PAGE_ROUTE_BY_ID[page];
+
+/** Navigate to AI 面试中心 with a specific tab selected. */
+export const navigateToInterviewTab = (
+  tab: 'templates' | 'management' | 'results' | 'analytics' | 'preview' | 'conversational',
+): void => {
+  window.dispatchEvent(new CustomEvent(NAVIGATE_EVENT, {
+    detail: {page: 'interviews', search: `tab=${tab}`},
+  }));
+};
+
 export const isNavigationEvent = (
   event: Event,
 ): event is CustomEvent<AppNavigationDetail> =>
   event instanceof CustomEvent && typeof event.detail?.page === 'string';
-
-export const getRouteForPage = (page: AppPageId) => PAGE_ROUTE_BY_ID[page];
 
 /**
  * Navigate to a page by dispatching a NAVIGATE_EVENT.
@@ -58,8 +68,16 @@ export const navigateToPage = (to: string): void => {
     integrations: 'admin',
     settings: 'admin',
   };
+  const LEGACY_TAB_MAP: Record<string, string> = {
+    'ai-interview': 'tab=management',
+    'ai-interview-management': 'tab=management',
+    'ai-interview-results': 'tab=results',
+    'ai-interview-analytics': 'tab=analytics',
+    'ai-interview-preview': 'tab=preview',
+  };
   const page = LEGACY_MAP[to] ?? (to as AppPageId);
-  window.dispatchEvent(new CustomEvent(NAVIGATE_EVENT, {detail: {page}}));
+  const search = LEGACY_TAB_MAP[to];
+  window.dispatchEvent(new CustomEvent(NAVIGATE_EVENT, {detail: {page, search}}));
 };
 
 export const getPageFromPathname = (pathname: string): AppPageId => {

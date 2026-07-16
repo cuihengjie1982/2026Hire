@@ -109,6 +109,16 @@ const mapGrade = (grade: string): InterviewResult['grade'] => {
   return 'rejected';
 };
 
+const mapManagementSessionStatus = (rawStatus: unknown): InterviewManagementSession['status'] => {
+  const status = String(rawStatus ?? 'created');
+  if (status === 'created') return 'pending';
+  if (status === 'in_progress') return 'in_progress';
+  if (status === 'paused') return 'paused';
+  if (status === 'submitted' || status === 'scored') return 'completed';
+  if (status === 'cancelled' || status === 'closed') return 'cancelled';
+  return 'pending';
+};
+
 const mapManagementSession = (raw: Record<string, unknown>): InterviewManagementSession => ({
   id: raw.id as string,
   candidateId: (raw.candidate_id ?? raw.candidateId ?? '') as string,
@@ -119,7 +129,7 @@ const mapManagementSession = (raw: Record<string, unknown>): InterviewManagement
   templateId: (raw.template_id ?? raw.templateId ?? '') as string,
   templateName: (raw.templateName ?? raw.template_name ?? '') as string,
   startTime: (raw.start_time ?? raw.startTime ?? raw.created_at ?? new Date().toISOString()) as string,
-  status: (raw.status === 'created' ? 'pending' : raw.status === 'submitted' || raw.status === 'scored' ? 'completed' : raw.status === 'in_progress' ? 'in_progress' : raw.status ?? 'pending') as InterviewManagementSession['status'],
+  status: mapManagementSessionStatus(raw.status),
   progress: {
     current: (raw.progress_current ?? 0) as number,
     total: (raw.progress_total ?? raw.question_count ?? raw.questionCount ?? 0) as number,
@@ -524,12 +534,26 @@ export const createInterviewSession = async (
 ): Promise<InterviewSession & { accessToken?: string; smsResult?: { sent: boolean; error?: string } }> => {
   if (USE_MOCK_API) {
     await new Promise(r => setTimeout(r, 120));
-    return {
+    const accessToken = `mock-token-${Date.now()}`;
+    const session: InterviewManagementSession = {
       id: `sess-${Date.now()}`,
+      candidateId,
+      candidateName: candidateId,
+      candidateEmail: '',
+      position: '',
+      templateId,
+      templateName: templateId,
+      startTime: new Date().toISOString(),
+      status: 'pending',
+      progress: { current: 0, total: 0 },
+    };
+    mockSessionsData = [session, ...mockSessionsData];
+    return {
+      id: session.id,
       candidateId,
       templateId,
       status: 'created',
-      accessToken: `mock-token-${Date.now()}`,
+      accessToken,
     };
   }
   const data = await efetch<Record<string, unknown>>('/interviews/sessions', 'POST', {
@@ -556,7 +580,17 @@ export const updateSessionStatus = async (
 ): Promise<InterviewSession | null> => {
   if (USE_MOCK_API) {
     await new Promise(r => setTimeout(r, 120));
-    return {id: sessionId, candidateId: '', templateId: '', status};
+    const managementStatus = mapManagementSessionStatus(status);
+    mockSessionsData = mockSessionsData.map(s =>
+      s.id === sessionId ? {...s, status: managementStatus} : s,
+    );
+    const session = mockSessionsData.find(s => s.id === sessionId);
+    return {
+      id: sessionId,
+      candidateId: session?.candidateId ?? '',
+      templateId: session?.templateId ?? '',
+      status,
+    };
   }
   const data = await efetch<Record<string, unknown>>('/interviews/sessions', 'PATCH', { id: sessionId, status });
   if (!data || !data.id) return null;
@@ -573,6 +607,7 @@ export const updateSessionStatus = async (
 export const deleteInterviewSession = async (sessionId: string): Promise<void> => {
   if (USE_MOCK_API) {
     await new Promise(r => setTimeout(r, 120));
+    mockSessionsData = mockSessionsData.filter(s => s.id !== sessionId);
     return;
   }
   await efetch('/interviews/sessions', 'DELETE', { id: sessionId });
@@ -594,6 +629,7 @@ export const updateInterviewResultStatus = async (
 
 // Mock data for sessions (empty for production — populated by real API)
 const MOCK_SESSIONS: InterviewManagementSession[] = [];
+let mockSessionsData: InterviewManagementSession[] = [...MOCK_SESSIONS];
 
 // Mock data for results (empty for production — populated by real API)
 const MOCK_RESULTS: InterviewResult[] = [];
@@ -618,7 +654,7 @@ const MOCK_POSITION_ANALYTICS: PositionAnalytics[] = [];
 export const listManagementSessions = async (): Promise<InterviewManagementSession[]> => {
   if (USE_MOCK_API) {
     await new Promise(r => setTimeout(r, 120));
-    return MOCK_SESSIONS;
+    return [...mockSessionsData];
   }
   const data = await efetch<Record<string, unknown>[]>('/interviews/sessions');
   return Array.from(new Map((data ?? []).map(r => [r.id as string, r])).values()).map(mapManagementSession);

@@ -90,6 +90,9 @@ const CandidateInterviewEntry = lazy(() =>
 const PublicConversationInterviewPage = lazy(() =>
   import('../../modules/interviews/pages/PublicConversationInterviewPage').then(m => ({default: m.default})),
 );
+const InterviewPreviewPage = lazy(() =>
+  import('../../modules/interviews/pages/InterviewPreviewPage').then(m => ({default: m.InterviewPreviewPage})),
+);
 
 const RouteLoadingFallback = () => (
   <motion.div
@@ -127,6 +130,7 @@ export const AppRouter = ({onLogout}: {onLogout: () => void}) => (
           <Route path="/candidates" element={withPageGuard(<CandidateCenterPage />, '候选人中心')} />
           <Route path="/pipeline" element={withPageGuard(<PipelinePage />, '招聘推进')} />
           <Route path="/interviews" element={withPageGuard(<InterviewCenterPage />, 'AI 面试中心')} />
+          <Route path="/interviews/preview" element={withPageGuard(<InterviewPreviewPage />, '面试预览')} />
           <Route path="/approvals" element={withPageGuard(<ApprovalsRoute />, '审批中心')} />
           <Route path="/training" element={withPageGuard(<TrainingAcademyPage />, '培训学堂')} />
           <Route path="/video-sharing" element={withPageGuard(<TrainingVideoSharePage />, '视频分享')} />
