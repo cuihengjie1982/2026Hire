@@ -52,21 +52,11 @@ router.post('/', async (req, res, next) => {
       return;
     }
 
-    if (positionId) {
-      const existing = await queryOne(
-        `SELECT id FROM shortlist_entries WHERE candidate_id = $1 AND position_id = $2 LIMIT 1`,
-        [candidateId, positionId],
-      );
-      if (existing) {
-        res.status(409).json({error: {code: 'DUPLICATE', message: '该候选人已在此岗位的入围名单中'}});
-        return;
-      }
-    }
-
     const row = await queryOne(
       `INSERT INTO shortlist_entries
          (candidate_id, candidate_name, role, position_id, position_name, project_id, project_name, fit_score, grade, next_step, status_log)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+       ON CONFLICT (candidate_id, position_id) DO NOTHING
        RETURNING *`,
       [
         candidateId, candidateName, role ?? null,
@@ -76,6 +66,10 @@ router.post('/', async (req, res, next) => {
         JSON.stringify([{status: nextStep ?? '待处理', at: new Date().toISOString()}]),
       ],
     );
+    if (!row) {
+      res.status(409).json({error: {code: 'DUPLICATE', message: '该候选人已在此岗位的入围名单中'}});
+      return;
+    }
     res.status(201).json(row);
   } catch (e) { next(e); }
 });
@@ -89,30 +83,46 @@ router.post('/batch', async (req, res, next) => {
       return;
     }
 
-    const results: Record<string, unknown>[] = [];
+    const added: Record<string, unknown>[] = [];
+    const skipped: {candidateId: string; reason: string}[] = [];
+
     for (const entry of entries) {
       const {candidateId, candidateName, role, positionId, positionName, projectId, projectName, fitScore, grade, nextStep} = entry;
       if (!candidateId || !candidateName) {
-        res.status(400).json({error: {code: 'VALIDATION_ERROR', message: 'Each entry requires candidateId and candidateName'}});
-        return;
+        skipped.push({candidateId: candidateId ?? '', reason: 'candidateId and candidateName are required'});
+        continue;
       }
-      const row = await queryOne(
-        `INSERT INTO shortlist_entries
-           (candidate_id, candidate_name, role, position_id, position_name, project_id, project_name, fit_score, grade, next_step, status_log)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-         RETURNING *`,
-        [
-          candidateId, candidateName, role ?? null,
-          positionId ?? null, positionName ?? null,
-          projectId ?? null, projectName ?? null,
-          fitScore ?? 0, grade ?? null, nextStep ?? '待处理',
-          JSON.stringify([{status: nextStep ?? '待处理', at: new Date().toISOString()}]),
-        ],
-      );
-      if (row) results.push(row);
+      try {
+        const row = await queryOne(
+          `INSERT INTO shortlist_entries
+             (candidate_id, candidate_name, role, position_id, position_name, project_id, project_name, fit_score, grade, next_step, status_log)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+           ON CONFLICT (candidate_id, position_id) DO NOTHING
+           RETURNING *`,
+          [
+            candidateId, candidateName, role ?? null,
+            positionId ?? null, positionName ?? null,
+            projectId ?? null, projectName ?? null,
+            fitScore ?? 0, grade ?? null, nextStep ?? '待处理',
+            JSON.stringify([{status: nextStep ?? '待处理', at: new Date().toISOString()}]),
+          ],
+        );
+        if (row) {
+          added.push(row);
+        } else {
+          skipped.push({candidateId, reason: '已在此岗位的入围名单中'});
+        }
+      } catch (err) {
+        const code = (err as Record<string, string>)?.code;
+        if (code === '23505') {
+          skipped.push({candidateId, reason: '已在此岗位的入围名单中'});
+        } else {
+          skipped.push({candidateId, reason: (err as Error).message});
+        }
+      }
     }
 
-    res.status(201).json({added: results.length, entries: results});
+    res.status(201).json({added: added.length, skipped, entries: added});
   } catch (e) { next(e); }
 });
 

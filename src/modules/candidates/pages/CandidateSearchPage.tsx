@@ -8,7 +8,8 @@ import {useProject} from '../../../app/contexts/ProjectContext';
 import {listPositions, getPositionDetail} from '../../positions/api';
 import {listCandidates, deleteCandidate, exportCandidatesCsv} from '../api';
 import {reparseCandidate} from '../../talent/api';
-import {addToShortlist} from '../../shortlist/api';
+import {addToShortlist, listShortlistByPosition} from '../../shortlist/api';
+import {type ShortlistEntry} from '../../shortlist/types';
 import {navigateToPage} from '../../../navigation';
 import {type PositionSummary} from '../../positions/types';
 import {type CandidateCard} from '../types';
@@ -329,6 +330,7 @@ export const CandidateSearchPage = () => {
   const [positions, setPositions] = useState<PositionSummary[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState<string>(selectedProject?.id ?? '');
   const [selectedPositionId, setSelectedPositionId] = useState<string>('');
+  const [shortlistEntries, setShortlistEntries] = useState<ShortlistEntry[]>([]);
   const [positionDetail, setPositionDetail] = useState<PositionDetail | null>(null);
   const [computedScores, setComputedScores] = useState<Record<string, {fitScore: number[]; grade: string; scoreColor: string; gradeColor: string; scoreResult: ScoreResult}>>({});
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -694,6 +696,19 @@ export const CandidateSearchPage = () => {
       });
   }, [selectedPositionId]);
 
+  useEffect(() => {
+    if (!selectedPositionId) {
+      setShortlistEntries([]);
+      return;
+    }
+    listShortlistByPosition(selectedPositionId)
+      .then((entries) => setShortlistEntries(entries))
+      .catch((err) => {
+        console.error('Failed to load shortlist:', err);
+        setShortlistEntries([]);
+      });
+  }, [selectedPositionId]);
+
   // Recalculate scores when smart match is activated
   useEffect(() => {
     if (!smartMatchActive) return;
@@ -729,9 +744,16 @@ export const CandidateSearchPage = () => {
     setSelectedGrades(newGrades);
   };
 
+  const isInShortlist = (candidateId: string): boolean =>
+    shortlistEntries.some((entry) => entry.candidateId === candidateId);
+
   const handleAddToShortlist = async (candidate: {id: string; name: string; roles: string[]; fitScore: number[]; grade: string}) => {
     if (!selectedPositionId) {
       showToast('请先选择岗位');
+      return;
+    }
+    if (isInShortlist(candidate.id)) {
+      showToast(`「${candidate.name}」已在入围名单中`);
       return;
     }
 
@@ -755,7 +777,7 @@ export const CandidateSearchPage = () => {
     }
 
     try {
-      await addToShortlist({
+      const entry = await addToShortlist({
         candidateId: candidate.id,
         candidateName: candidate.name,
         role: candidate.roles.join(' / '),
@@ -766,6 +788,7 @@ export const CandidateSearchPage = () => {
         fitScore: candidate.fitScore[0] || 0,
         grade: candidate.grade,
       });
+      setShortlistEntries((prev) => [...prev, entry]);
       showToast(`已加入「${candidate.name}」至入围名单`);
     } catch (e) {
       console.error('Failed to add to shortlist:', e);
@@ -1539,9 +1562,14 @@ export const CandidateSearchPage = () => {
                             <div className="flex gap-2 mt-auto">
                               <button
                                 onClick={() => handleAddToShortlist(candidate)}
-                                className="flex-1 bg-[#1a4bc4] hover:bg-[#0c2b7a] text-white py-2 rounded-lg text-[12px] font-medium transition-colors"
+                                disabled={isInShortlist(candidate.id)}
+                                className={`flex-1 py-2 rounded-lg text-[12px] font-medium transition-colors ${
+                                  isInShortlist(candidate.id)
+                                    ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                                    : 'bg-[#1a4bc4] hover:bg-[#0c2b7a] text-white'
+                                }`}
                               >
-                                加入名单
+                                {isInShortlist(candidate.id) ? '已加入' : '加入名单'}
                               </button>
                               <button
                                 onClick={() => setSelectedCandidate(candidate)}
@@ -1638,7 +1666,17 @@ export const CandidateSearchPage = () => {
                                 </td>
                                 <td className="px-4 py-3 text-right">
                                   <div className="flex items-center justify-end gap-2">
-                                    <button onClick={() => handleAddToShortlist(candidate)} className="px-3 py-1.5 bg-[#1a4bc4] hover:bg-[#0c2b7a] text-white rounded-lg text-[12px] font-medium transition-colors">加入名单</button>
+                                    <button
+                                      onClick={() => handleAddToShortlist(candidate)}
+                                      disabled={isInShortlist(candidate.id)}
+                                      className={`px-3 py-1.5 rounded-lg text-[12px] font-medium transition-colors ${
+                                        isInShortlist(candidate.id)
+                                          ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                                          : 'bg-[#1a4bc4] hover:bg-[#0c2b7a] text-white'
+                                      }`}
+                                    >
+                                      {isInShortlist(candidate.id) ? '已加入' : '加入名单'}
+                                    </button>
                                     <button onClick={() => setSelectedCandidate(candidate)} className="px-3 py-1.5 border border-border hover:bg-surface-muted text-fg-secondary rounded-lg text-[12px] font-medium transition-colors">详情</button>
                                     <button
                                       onClick={() => handleReparseCandidate(candidate)}

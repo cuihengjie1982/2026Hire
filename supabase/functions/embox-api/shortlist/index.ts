@@ -58,19 +58,6 @@ const addEntry = async (req: Request): Promise<Response> => {
       return jsonRes({ error: { code: 'VALIDATION_ERROR', message: 'candidateId and candidateName are required' } }, 400);
     }
 
-    if (positionId) {
-      const { data: existing } = await supabase
-        .from('shortlist_entries')
-        .select('id')
-        .eq('candidate_id', candidateId)
-        .eq('position_id', positionId)
-        .limit(1)
-        .maybeSingle();
-      if (existing) {
-        return jsonRes({ error: { code: 'DUPLICATE', message: '该候选人已在此岗位的入围名单中' } }, 409);
-      }
-    }
-
     const statusLog = JSON.stringify([{ status: nextStep ?? '待处理', at: new Date().toISOString() }]);
 
     const { data, error } = await supabase.from('shortlist_entries').insert({
@@ -87,7 +74,12 @@ const addEntry = async (req: Request): Promise<Response> => {
       status_log: statusLog,
     }).select().single();
 
-    if (error) throw error;
+    if (error) {
+      if (error.code === '23505') {
+        return jsonRes({ error: { code: 'DUPLICATE', message: '该候选人已在此岗位的入围名单中' } }, 409);
+      }
+      throw error;
+    }
     return jsonRes(data, 201);
   } catch (e) {
     console.error('[shortlist add]', e);
@@ -106,11 +98,15 @@ const batchAdd = async (req: Request): Promise<Response> => {
       return jsonRes({ error: { code: 'VALIDATION_ERROR', message: 'entries must be a non-empty array' } }, 400);
     }
 
-    const rows = entries.map((e: Record<string, unknown>) => {
+    const added: Record<string, unknown>[] = [];
+    const skipped: { candidateId: string; reason: string }[] = [];
+
+    for (const e of entries) {
       if (!e.candidateId || !e.candidateName) {
-        throw new Error('Each entry requires candidateId and candidateName');
+        skipped.push({ candidateId: e.candidateId ?? '', reason: 'candidateId and candidateName are required' });
+        continue;
       }
-      return {
+      const { data, error } = await supabase.from('shortlist_entries').insert({
         candidate_id: e.candidateId,
         candidate_name: e.candidateName,
         role: e.role ?? null,
@@ -122,13 +118,20 @@ const batchAdd = async (req: Request): Promise<Response> => {
         grade: e.grade ?? null,
         next_step: e.nextStep ?? '待处理',
         status_log: JSON.stringify([{ status: e.nextStep ?? '待处理', at: new Date().toISOString() }]),
-      };
-    });
+      }).select().single();
 
-    const { data, error } = await supabase.from('shortlist_entries').insert(rows).select();
-    if (error) throw error;
+      if (error) {
+        if (error.code === '23505') {
+          skipped.push({ candidateId: e.candidateId, reason: '已在此岗位的入围名单中' });
+        } else {
+          skipped.push({ candidateId: e.candidateId, reason: error.message });
+        }
+      } else if (data) {
+        added.push(data);
+      }
+    }
 
-    return jsonRes({ added: (data ?? []).length, entries: data ?? [] }, 201);
+    return jsonRes({ added: added.length, skipped, entries: added }, 201);
   } catch (e) {
     if (e instanceof Error && e.message.includes('requires')) {
       return jsonRes({ error: { code: 'VALIDATION_ERROR', message: e.message } }, 400);

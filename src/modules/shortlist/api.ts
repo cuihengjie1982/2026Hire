@@ -1,7 +1,7 @@
 import {getItemsFromPayload, mockDelay, buildApiUrl} from '../../shared/lib/apiClient';
 import {getAuthToken, USE_MOCK_API} from '../../shared/lib/runtime';
 import {shortlistFixture} from './fixtures';
-import {type CreateShortlistEntryInput, type ShortlistEntry} from './types';
+import {type CreateShortlistEntryInput, type ShortlistEntry, type BatchAddShortlistResult} from './types';
 
 const loadShortlistFromStorage = (): ShortlistEntry[] => {
   try {
@@ -141,11 +141,20 @@ export const sendShortlistInterviewInvite = async (
 
 export const batchAddToShortlist = async (
   entries: CreateShortlistEntryInput[],
-): Promise<{added: number; entries: ShortlistEntry[]}> => {
+): Promise<BatchAddShortlistResult> => {
   if (USE_MOCK_API) {
     await mockDelay();
+    syncShortlistFromStorage();
     const results: ShortlistEntry[] = [];
+    const skipped: {candidateId: string; reason: string}[] = [];
     for (const input of entries) {
+      const duplicate = shortlistData.find(
+        (e) => e.candidateId === input.candidateId && e.positionId === input.positionId,
+      );
+      if (duplicate) {
+        skipped.push({candidateId: input.candidateId, reason: '已在此岗位的入围名单中'});
+        continue;
+      }
       const newEntry: ShortlistEntry = {
         ...input,
         id: Date.now().toString() + Math.random().toString(36).slice(2),
@@ -155,11 +164,15 @@ export const batchAddToShortlist = async (
       results.push(newEntry);
     }
     saveShortlist();
-    return {added: results.length, entries: results};
+    return {added: results.length, skipped, entries: results};
   }
 
-  const result = await efetch<{added: number; entries: Record<string, unknown>[]}>('/batch', 'POST', {entries});
-  return {added: result.added, entries: result.entries.map(mapShortlistEntry)};
+  const result = await efetch<BatchAddShortlistResult & {entries: Record<string, unknown>[]}>('/batch', 'POST', {entries});
+  return {
+    added: result.added,
+    skipped: result.skipped ?? [],
+    entries: result.entries.map(mapShortlistEntry),
+  };
 };
 
 export const batchRemoveFromShortlist = async (

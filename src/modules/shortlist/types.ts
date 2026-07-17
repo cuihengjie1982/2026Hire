@@ -23,3 +23,9 @@ export interface CreateShortlistEntryInput {
   fitScore: number;
   grade: string;
 }
+
+export interface BatchAddShortlistResult {
+  added: number;
+  skipped: {candidateId: string; reason: string}[];
+  entries: ShortlistEntry[];
+}
