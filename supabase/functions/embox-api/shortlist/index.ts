@@ -1,4 +1,9 @@
 import { createSupabaseAdmin } from '../_shared/supabaseClient.ts';
+import {
+  appendToLog,
+  createInitialLog,
+  isOutreachPromote,
+} from '../_shared/shortlistStatusLog.ts';
 
 function jsonRes(body: unknown, status = 200, extraHeaders: Record<string, string> = {}) {
   return new Response(JSON.stringify(body), {
@@ -16,6 +21,38 @@ function getSegments(req: Request): string[] {
   const url = new URL(req.url);
   const path = url.pathname.replace(/^\/embox-api\/api\/shortlist\/?/, '');
   return path.split('/').filter(Boolean);
+}
+
+async function findDuplicateContact(
+  supabase: ReturnType<typeof createSupabaseAdmin>,
+  candidateId: string,
+  positionId: string | null,
+): Promise<boolean> {
+  if (!positionId) return false;
+  const { data } = await supabase
+    .from('contacts')
+    .select('id')
+    .eq('candidate_id', candidateId)
+    .eq('position_id', positionId)
+    .limit(1)
+    .maybeSingle();
+  return !!data;
+}
+
+async function updateShortlistStep(
+  supabase: ReturnType<typeof createSupabaseAdmin>,
+  id: string,
+  nextStep: string,
+  existingLog: unknown,
+): Promise<{ data: Record<string, unknown> | null; error: Error | null }> {
+  const statusLog = appendToLog(existingLog, nextStep);
+  const { data, error } = await supabase
+    .from('shortlist_entries')
+    .update({ next_step: nextStep, status_log: statusLog })
+    .eq('id', id)
+    .select()
+    .single();
+  return { data: data as Record<string, unknown> | null, error: error as Error | null };
 }
 
 // GET /api/shortlist — list entries with pagination and filters
@@ -58,7 +95,7 @@ const addEntry = async (req: Request): Promise<Response> => {
       return jsonRes({ error: { code: 'VALIDATION_ERROR', message: 'candidateId and candidateName are required' } }, 400);
     }
 
-    const statusLog = JSON.stringify([{ status: nextStep ?? '待处理', at: new Date().toISOString() }]);
+    const step = nextStep ?? '待处理';
 
     const { data, error } = await supabase.from('shortlist_entries').insert({
       candidate_id: candidateId,
@@ -70,8 +107,8 @@ const addEntry = async (req: Request): Promise<Response> => {
       project_name: projectName ?? null,
       fit_score: fitScore ?? 0,
       grade: grade ?? null,
-      next_step: nextStep ?? '待处理',
-      status_log: statusLog,
+      next_step: step,
+      status_log: createInitialLog(step),
     }).select().single();
 
     if (error) {
@@ -106,6 +143,7 @@ const batchAdd = async (req: Request): Promise<Response> => {
         skipped.push({ candidateId: e.candidateId ?? '', reason: 'candidateId and candidateName are required' });
         continue;
       }
+      const step = e.nextStep ?? '待处理';
       const { data, error } = await supabase.from('shortlist_entries').insert({
         candidate_id: e.candidateId,
         candidate_name: e.candidateName,
@@ -116,8 +154,8 @@ const batchAdd = async (req: Request): Promise<Response> => {
         project_name: e.projectName ?? null,
         fit_score: e.fitScore ?? 0,
         grade: e.grade ?? null,
-        next_step: e.nextStep ?? '待处理',
-        status_log: JSON.stringify([{ status: e.nextStep ?? '待处理', at: new Date().toISOString() }]),
+        next_step: step,
+        status_log: createInitialLog(step),
       }).select().single();
 
       if (error) {
@@ -176,15 +214,13 @@ const batchUpdateStatus = async (req: Request): Promise<Response> => {
       return jsonRes({ error: { code: 'VALIDATION_ERROR', message: 'nextStep is required' } }, 400);
     }
 
-    // For each ID, fetch current status_log, append, and update
     const results: Record<string, unknown>[] = [];
     for (const id of ids) {
       const { data: entry } = await supabase.from('shortlist_entries').select('status_log').eq('id', id).single();
-      const currentLog = (entry?.status_log ?? []) as unknown[];
-      currentLog.push({ status: nextStep, at: new Date().toISOString() });
+      if (!entry) continue;
 
       const { data: updated, error } = await supabase.from('shortlist_entries')
-        .update({ next_step: nextStep, status_log: currentLog })
+        .update({ next_step: nextStep, status_log: appendToLog(entry.status_log, nextStep) })
         .eq('id', id).select().single();
       if (error) throw error;
       if (updated) results.push(updated);
@@ -218,7 +254,7 @@ const getHistory = async (req: Request): Promise<Response> => {
   }
 };
 
-// POST /api/shortlist/:id/promote — update next_step
+// POST /api/shortlist/:id/promote — update next_step; optional atomic outreach → contact
 const promoteEntry = async (req: Request): Promise<Response> => {
   try {
     const supabase = createSupabaseAdmin(req);
@@ -226,28 +262,82 @@ const promoteEntry = async (req: Request): Promise<Response> => {
     const id = segments[0];
     if (!id) return jsonRes({ error: { code: 'VALIDATION_ERROR', message: 'id required' } }, 400);
 
-    const body = await req.json();
+    const body = await req.json() as Record<string, unknown>;
     const { nextStep } = body;
     if (!nextStep) {
       return jsonRes({ error: { code: 'VALIDATION_ERROR', message: 'nextStep is required' } }, 400);
     }
 
-    const { data: entry } = await supabase.from('shortlist_entries').select('status_log').eq('id', id).single();
-    if (!entry) {
+    const { data: entry, error: entryErr } = await supabase
+      .from('shortlist_entries')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (entryErr || !entry) {
       return jsonRes({ error: { code: 'NOT_FOUND', message: `Shortlist entry (${id}) not found` } }, 404);
     }
 
-    const currentLog = (entry.status_log ?? []) as unknown[];
-    currentLog.push({ status: nextStep, at: new Date().toISOString() });
+    const e = entry as Record<string, unknown>;
 
-    const { data, error } = await supabase.from('shortlist_entries')
-      .update({ next_step: nextStep, status_log: currentLog })
-      .eq('id', id).select().single();
+    if (isOutreachPromote(body)) {
+      const candidateId = String(e.candidate_id ?? '');
+      const positionId = e.position_id ? String(e.position_id) : null;
+
+      if (await findDuplicateContact(supabase, candidateId, positionId)) {
+        return jsonRes(
+          { error: { code: 'DUPLICATE', message: '该候选人已在此岗位的联系人列表中' } },
+          409,
+        );
+      }
+
+      const { data: contact, error: contactErr } = await supabase.from('contacts').insert({
+        candidate_id: candidateId,
+        candidate_name: String(e.candidate_name ?? ''),
+        position_id: positionId,
+        position_name: e.position_name ? String(e.position_name) : null,
+        project_id: e.project_id ? String(e.project_id) : null,
+        project_name: e.project_name ? String(e.project_name) : null,
+        outreach_person: String(body.outreachPerson).trim(),
+        channel: String(body.channel),
+        reason: String(body.reason).trim(),
+        status: 'pending',
+      }).select('*').single();
+
+      if (contactErr) {
+        if (contactErr.code === '23505') {
+          return jsonRes(
+            { error: { code: 'DUPLICATE', message: '该候选人已在此岗位的联系人列表中' } },
+            409,
+          );
+        }
+        return jsonRes({ error: { code: 'DB_ERROR', message: contactErr.message } }, 500);
+      }
+
+      const contactId = (contact as Record<string, unknown>).id;
+      const { data: updated, error: updateErr } = await updateShortlistStep(
+        supabase,
+        id,
+        String(nextStep),
+        e.status_log,
+      );
+
+      if (updateErr || !updated) {
+        if (contactId) {
+          await supabase.from('contacts').delete().eq('id', String(contactId));
+        }
+        return jsonRes({ error: { code: 'INTERNAL_ERROR', message: 'Failed to promote entry' } }, 500);
+      }
+
+      return jsonRes({ entry: updated, contact });
+    }
+
+    const { data, error } = await updateShortlistStep(supabase, id, String(nextStep), e.status_log);
 
     if (error || !data) {
       return jsonRes({ error: { code: 'NOT_FOUND', message: `Shortlist entry (${id}) not found` } }, 404);
     }
-    return jsonRes(data);
+    return jsonRes({ entry: data });
   } catch (e) {
     console.error('[shortlist promote]', e);
     return jsonRes({ error: { code: 'INTERNAL_ERROR', message: 'Failed to promote entry' } }, 500);
@@ -265,19 +355,19 @@ const interviewInvite = async (req: Request): Promise<Response> => {
     const body = await req.json();
     const { type, subject, content, candidateEmail } = body;
 
-    // Get the entry
     const { data: entry, error: entryErr } = await supabase.from('shortlist_entries').select('*').eq('id', id).single();
     if (entryErr || !entry) {
       return jsonRes({ error: { code: 'NOT_FOUND', message: `Shortlist entry (${id}) not found` } }, 404);
     }
 
-    // Create outreach record
+    const e = entry as Record<string, unknown>;
+
     const { error: outreachErr } = await supabase.from('outreach_records').insert({
-      candidate_id: entry.candidate_id,
-      candidate_name: entry.candidate_name,
+      candidate_id: e.candidate_id,
+      candidate_name: e.candidate_name,
       candidate_email: candidateEmail ?? null,
-      position_id: entry.position_id,
-      position_name: entry.position_name,
+      position_id: e.position_id,
+      position_name: e.position_name,
       type: type ?? 'interview_invite',
       subject: subject ?? null,
       content: content ?? null,
@@ -287,12 +377,12 @@ const interviewInvite = async (req: Request): Promise<Response> => {
       console.error('[shortlist invite outreach]', outreachErr);
     }
 
-    // Update shortlist status
-    const currentLog = (entry.status_log ?? []) as unknown[];
-    currentLog.push({ status: '已发面试邀请', at: new Date().toISOString() });
-
+    const inviteStep = '已发面试邀请';
     const { data: updated, error } = await supabase.from('shortlist_entries')
-      .update({ next_step: '已发面试邀请', status_log: currentLog })
+      .update({
+        next_step: inviteStep,
+        status_log: appendToLog(e.status_log, inviteStep),
+      })
       .eq('id', id).select().single();
 
     if (error || !updated) {
@@ -333,7 +423,6 @@ export const handleShortlist = async (req: Request): Promise<Response> => {
     return jsonRes({ error: { code: 'METHOD_NOT_ALLOWED' } }, 405);
   }
 
-  // /api/shortlist (no sub-path or just /api/shortlist/)
   if (method === 'GET') return listEntries(req);
   if (method === 'POST') return addEntry(req);
 

@@ -4,7 +4,6 @@ import {CheckCircle2, Mail, Star, X, Send, Link2, Trash2} from 'lucide-react';
 import {listShortlist, promoteShortlistEntry, sendShortlistInterviewInvite, removeFromShortlist} from '../api';
 import {type ShortlistEntry} from '../types';
 import {type ContactChannel} from '../../contacts/types';
-import {createContact} from '../../contacts/api';
 import {CandidateDetailModal} from '../../../CandidateDetailModal';
 import type {CandidateCard} from '../../talent/types';
 import type {PositionDetail} from '../../positions/types';
@@ -141,18 +140,12 @@ export const ShortlistPage = () => {
     if (!selectedEntry || !promoteForm.reason.trim()) return;
     setSubmitting(true);
     try {
-      await createContact({
-        candidateId: selectedEntry.candidateId,
-        candidateName: selectedEntry.candidateName,
-        positionId: selectedEntry.positionId,
-        positionName: selectedEntry.positionName,
-        projectId: selectedEntry.projectId,
-        projectName: selectedEntry.projectName,
+      await promoteShortlistEntry(selectedEntry.id, {
+        nextStep: '发起外联',
         outreachPerson: getUserName() ?? '未知用户',
         channel: promoteForm.channel,
         reason: promoteForm.reason,
       });
-      await promoteShortlistEntry(selectedEntry.id, '发起外联');
       await loadData();
       setShowPromoteDialog(false);
       setSelectedEntry(null);

@@ -77,7 +77,7 @@ supabase/functions/embox-api/
 | `DELETE /api/shortlist/batch` | DELETE | 批量移除（`{ids: [...]}`） |
 | `PATCH /api/shortlist/batch/status` | PATCH | 批量更新阶段（带 history） |
 | `GET /api/shortlist/:id/history` | GET | 状态变更历史 |
-| `POST /api/shortlist/:id/promote` | POST | 推进 pipeline 阶段 |
+| `POST /api/shortlist/:id/promote` | POST | 推进 pipeline 阶段；含 outreach 字段时原子创建联系人 |
 | `POST /api/shortlist/:id/interview-invite` | POST | 发送面试邀请（创建外联+面试场次+access_token） |
 
 ### 外联
@@ -93,8 +93,9 @@ supabase/functions/embox-api/
 
 ### 联系人
 | `GET /api/contacts?project_id=&candidate_id=` | GET | 联系人列表 |
-| `POST /api/contacts` | POST | 创建联系人 |
-| `PATCH /api/contacts/:id/status` | PATCH | 更新状态 |
+| `POST /api/contacts` | POST | 创建联系人（应用层查重） |
+| `PATCH /api/contacts` | PATCH | 更新联系人字段（outreachPerson/channel/reason/status） |
+| `DELETE /api/contacts/:id` | DELETE | 删除联系人 |
 
 路由别名：短名单 `/api/shortlist` + `/api/v1/shortlist`；外联 `/api/outreach-records` + `/api/outreach` 双前缀
 
@@ -122,10 +123,13 @@ ContactStatus = 'pending' | 'contacted' | 'responded' | 'interview_scheduled' | 
 
 ### status_log 追加审计（JSONB）
 `shortlist_entries.status_log` 是仅追加的审计轨迹。每次 `next_step` 变更时追加 `{status, at: ISO timestamp}`：
+
+**Express（SQL）：**
 ```sql
 status_log = COALESCE(status_log, '[]'::jsonb) || $2::jsonb
 ```
-写入前需 `JSON.stringify([{status: nextStep, at: new Date().toISOString()}])`。
+
+**Edge Function：** 使用 `_shared/shortlistStatusLog.ts` 的 `createInitialLog()` / `appendToLog()`。**禁止**对 JSONB 列 insert 时使用 `JSON.stringify([...])` 字符串；应传 JS 数组。`appendToLog()` 会规范化 legacy 字符串数据。
 
 ### 面试邀请自动创建流程
 1. 获取短名单条目 → 创建 outreach_records（type=interview_invite）
@@ -135,7 +139,9 @@ status_log = COALESCE(status_log, '[]'::jsonb) || $2::jsonb
 5. 返回 `{interviewUrl: '/interview/{token}'}` → 前端跳转
 
 ### 推进到联系人
-点击「推进」→ 弹窗收集 channel + reason → `createContact()` → `promoteShortlistEntry(id, '发起外联')` → 成功横幅（含联系人页链接）
+点击「推进」→ 弹窗收集 channel + reason → 单次 `promoteShortlistEntry(id, { nextStep: '发起外联', outreachPerson, channel, reason })` → 后端原子创建 contact + 更新 shortlist → 成功横幅（含联系人页链接）。
+
+详见 [docs/PIPELINE_OUTREACH_FIX.md](../../../docs/PIPELINE_OUTREACH_FIX.md)。
 
 ### 短信发送（腾讯云）
 1. 校验候选人手机号 → 获取模板（is_active=true）
@@ -159,5 +165,5 @@ Edge Function 的 interview-invite handler 引用旧列名（`type`, `subject`, 
 - **approvals**: cross-table-ops hire-candidate 更新审批状态并级联到联系人/短名单
 - **employees**: hire-candidate 创建 employee_profiles，关闭录用循环
 - **sms-gateway**: 腾讯云短信发送子模块
-- **cross-table-ops**: 多表原子操作（shortlistInterviewInvite, shortlistPromote, hireCandidate）
+- **cross-table-ops**: 多表原子操作（shortlistInterviewInvite, ~~shortlistPromote 已废弃~~, hireCandidate）
 - **navigation**: navigateToPage() 用于面试邀请和推进后的页面跳转

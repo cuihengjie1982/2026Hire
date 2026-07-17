@@ -36,6 +36,19 @@ export const handleContacts = async (req: Request, _userId: string, _userRole: s
       const { candidateId, candidateName, positionId, positionName, projectId, projectName, outreachPerson, channel, reason } = body;
       if (!candidateId) return jsonRes({ error: { code: 'VALIDATION_ERROR', message: 'candidateId is required' } }, 400);
 
+      if (positionId) {
+        const { data: existing } = await supabase
+          .from('contacts')
+          .select('id')
+          .eq('candidate_id', String(candidateId))
+          .eq('position_id', String(positionId))
+          .limit(1)
+          .maybeSingle();
+        if (existing) {
+          return jsonRes({ error: { code: 'DUPLICATE', message: '该候选人已在此岗位的联系人列表中' } }, 409);
+        }
+      }
+
       const { data, error } = await supabase.from('contacts').insert({
         candidate_id: String(candidateId),
         candidate_name: candidateName ? String(candidateName) : '',

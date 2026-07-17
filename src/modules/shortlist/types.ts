@@ -1,3 +1,5 @@
+import {type Contact} from '../contacts/types';
+
 export interface ShortlistEntry {
   id: string;
   candidateId: string;
@@ -29,3 +31,15 @@ export interface BatchAddShortlistResult {
   skipped: {candidateId: string; reason: string}[];
   entries: ShortlistEntry[];
 }
+
+export type PromoteShortlistInput = {
+  nextStep: string;
+  outreachPerson?: string;
+  channel?: 'wechat' | 'email' | 'phone';
+  reason?: string;
+};
+
+export type PromoteShortlistResult = {
+  entry: ShortlistEntry;
+  contact?: Contact;
+};
