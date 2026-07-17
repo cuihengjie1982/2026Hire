@@ -33,12 +33,12 @@ export const NotFoundPage = () => {
           </h1>
 
           {/* Title */}
-          <p className="text-2xl font-bold text-gray-900 dark:text-white">
+          <p className="text-2xl font-bold text-fg">
             页面未找到
           </p>
 
           {/* Description */}
-          <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
+          <p className="text-sm text-fg-muted leading-relaxed">
             您访问的页面不存在或已被移除
           </p>
 
@@ -57,10 +57,9 @@ export const NotFoundPage = () => {
             <button
               onClick={handleGoBack}
               className="
-                px-5 py-2.5 rounded-xl text-sm font-medium text-gray-700
-                bg-white hover:bg-gray-50 transition-colors
-                border border-gray-200 shadow-sm
-                dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300
+                px-5 py-2.5 rounded-xl text-sm font-medium text-fg-secondary
+                bg-surface hover:bg-surface-muted transition-colors
+                border border-border shadow-sm
               "
             >
               返回上一页

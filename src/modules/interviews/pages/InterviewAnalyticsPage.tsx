@@ -78,13 +78,13 @@ export const InterviewAnalyticsPage = ({ isEmbedded = false, onTabChange }: Inte
             <div className="w-8 h-8 bg-gradient-to-br from-[#1a4bc4] to-[#6366F1] rounded flex items-center justify-center mr-3">
               <FileText className="w-5 h-5 text-white" />
             </div>
-            <span className="text-xl font-bold text-gray-900 dark:text-white">EM-BOX recruiting platform</span>
+            <span className="text-xl font-bold text-fg">EM-BOX recruiting platform</span>
           </div>
 
           {/* Page Header */}
           <div className="text-center mb-8">
-            <h1 className="text-[44px] font-extrabold text-gray-900 dark:text-white tracking-tight mb-4">数据分析</h1>
-            <p className="text-[20px] text-gray-700 dark:text-gray-300">AI面试数据统计与分析</p>
+            <h1 className="text-[44px] font-extrabold text-fg tracking-tight mb-4">数据分析</h1>
+            <p className="text-[20px] text-fg-secondary">AI面试数据统计与分析</p>
           </div>
 
           {/* Main Navigation Tabs */}
@@ -101,7 +101,7 @@ export const InterviewAnalyticsPage = ({ isEmbedded = false, onTabChange }: Inte
                 className={`px-6 py-2.5 rounded-lg text-lg font-bold transition-colors ${
                   tab.key === 'analytics'
                     ? 'bg-[#22d3ee] text-white shadow-md'
-                    : 'bg-transparent text-gray-700 dark:text-gray-300 hover:bg-white/50 dark:hover:bg-gray-700/50 border border-transparent'
+                    : 'bg-transparent text-fg-secondary hover:bg-surface-muted/50 border border-transparent'
                 }`}
               >
                 {tab.label}
@@ -112,7 +112,7 @@ export const InterviewAnalyticsPage = ({ isEmbedded = false, onTabChange }: Inte
       )}
 
       {/* Main Content Area */}
-      <div className={`${isEmbedded ? 'flex-1' : 'max-w-[1600px] w-full mx-auto bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl flex flex-1 mb-8 overflow-hidden border border-white'}`}>
+      <div className={`${isEmbedded ? 'flex-1' : 'max-w-[1600px] w-full mx-auto bg-surface/90 backdrop-blur-sm rounded-2xl shadow-xl flex flex-1 mb-8 overflow-hidden border border-border'}`}>
         <div className="flex-1 p-6">
           {/* Time Range Filter */}
           <div className="flex justify-end mb-6">
@@ -120,13 +120,13 @@ export const InterviewAnalyticsPage = ({ isEmbedded = false, onTabChange }: Inte
               <select
                 value={timeRange}
                 onChange={(e) => setTimeRange(e.target.value)}
-                className="appearance-none bg-white border border-gray-200 rounded-lg pl-4 pr-10 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#22d3ee]/20 focus:border-[#22d3ee] transition-all cursor-pointer"
+                className="appearance-none bg-surface border border-border rounded-lg pl-4 pr-10 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#22d3ee]/20 focus:border-[#22d3ee] transition-all cursor-pointer"
               >
                 {timeRanges.map(t => (
                   <option key={t.value} value={t.value}>{t.label}</option>
                 ))}
               </select>
-              <ChevronDown className="w-4 h-4 text-gray-400 absolute right-3 top-3 pointer-events-none" />
+              <ChevronDown className="w-4 h-4 text-fg-faint absolute right-3 top-3 pointer-events-none" />
             </div>
           </div>
 
@@ -144,37 +144,37 @@ export const InterviewAnalyticsPage = ({ isEmbedded = false, onTabChange }: Inte
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.05 }}
-              className="bg-white rounded-xl border border-gray-100 p-5"
+              className="bg-surface rounded-xl border border-border-subtle p-5"
             >
-              <div className="text-3xl font-bold text-gray-900">{summary.completedInterviews}</div>
-              <div className="text-sm text-gray-500 mt-1">完成面试</div>
+              <div className="text-3xl font-bold text-fg">{summary.completedInterviews}</div>
+              <div className="text-sm text-fg-muted mt-1">完成面试</div>
             </motion.div>
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
-              className="bg-white rounded-xl border border-gray-100 p-5"
+              className="bg-surface rounded-xl border border-border-subtle p-5"
             >
               <div className="text-3xl font-bold text-emerald-600">{summary.passRate}%</div>
-              <div className="text-sm text-gray-500 mt-1">通过率</div>
+              <div className="text-sm text-fg-muted mt-1">通过率</div>
             </motion.div>
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.15 }}
-              className="bg-white rounded-xl border border-gray-100 p-5"
+              className="bg-surface rounded-xl border border-border-subtle p-5"
             >
-              <div className="text-3xl font-bold text-gray-900">{summary.averageScore}</div>
-              <div className="text-sm text-gray-500 mt-1">平均分</div>
+              <div className="text-3xl font-bold text-fg">{summary.averageScore}</div>
+              <div className="text-sm text-fg-muted mt-1">平均分</div>
             </motion.div>
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
-              className="bg-white rounded-xl border border-gray-100 p-5"
+              className="bg-surface rounded-xl border border-border-subtle p-5"
             >
               <div className="text-3xl font-bold text-[#22d3ee]">{summary.thisWeekCount}</div>
-              <div className="text-sm text-gray-500 mt-1">本周面试</div>
+              <div className="text-sm text-fg-muted mt-1">本周面试</div>
             </motion.div>
           </div>
 
@@ -185,11 +185,11 @@ export const InterviewAnalyticsPage = ({ isEmbedded = false, onTabChange }: Inte
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
-              className="bg-white rounded-xl border border-gray-100 p-6"
+              className="bg-surface rounded-xl border border-border-subtle p-6"
             >
               <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-bold text-gray-900">分数分布</h3>
-                <div className="flex items-center gap-2 text-sm text-gray-500">
+                <h3 className="text-lg font-bold text-fg">分数分布</h3>
+                <div className="flex items-center gap-2 text-sm text-fg-muted">
                   <BarChart3 className="w-4 h-4" />
                   人数统计
                 </div>
@@ -197,8 +197,8 @@ export const InterviewAnalyticsPage = ({ isEmbedded = false, onTabChange }: Inte
               <div className="space-y-4">
                 {scoreDistribution.map((dist, i) => (
                   <div key={i} className="flex items-center gap-3">
-                    <div className="w-16 text-sm text-gray-600">{dist.range}</div>
-                    <div className="flex-1 h-6 bg-gray-100 rounded-lg overflow-hidden">
+                    <div className="w-16 text-sm text-fg-secondary">{dist.range}</div>
+                    <div className="flex-1 h-6 bg-surface-muted rounded-lg overflow-hidden">
                       <motion.div
                         initial={{ width: 0 }}
                         animate={{ width: `${(dist.count / maxDistCount) * 100}%` }}
@@ -206,7 +206,7 @@ export const InterviewAnalyticsPage = ({ isEmbedded = false, onTabChange }: Inte
                         className="h-full bg-gradient-to-r from-[#22d3ee] to-[#06b6d4] rounded-lg"
                       />
                     </div>
-                    <div className="w-10 text-sm font-medium text-gray-900 text-right">{dist.count}</div>
+                    <div className="w-10 text-sm font-medium text-fg text-right">{dist.count}</div>
                   </div>
                 ))}
               </div>
@@ -217,11 +217,11 @@ export const InterviewAnalyticsPage = ({ isEmbedded = false, onTabChange }: Inte
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.15 }}
-              className="bg-white rounded-xl border border-gray-100 p-6"
+              className="bg-surface rounded-xl border border-border-subtle p-6"
             >
               <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-bold text-gray-900">通过率趋势</h3>
-                <div className="flex items-center gap-2 text-sm text-gray-500">
+                <h3 className="text-lg font-bold text-fg">通过率趋势</h3>
+                <div className="flex items-center gap-2 text-sm text-fg-muted">
                   <TrendingUp className="w-4 h-4" />
                   月度数据
                 </div>
@@ -245,7 +245,7 @@ export const InterviewAnalyticsPage = ({ isEmbedded = false, onTabChange }: Inte
               </div>
               <div className="flex justify-between mt-2">
                 {passRateTrend.map((trend, i) => (
-                  <div key={i} className="text-xs text-gray-500">{formatMonth(trend.month)}</div>
+                  <div key={i} className="text-xs text-fg-muted">{formatMonth(trend.month)}</div>
                 ))}
               </div>
             </motion.div>
@@ -256,10 +256,10 @@ export const InterviewAnalyticsPage = ({ isEmbedded = false, onTabChange }: Inte
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="bg-white rounded-xl border border-gray-100 p-6"
+            className="bg-surface rounded-xl border border-border-subtle p-6"
           >
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-bold text-gray-900">岗位数据分析</h3>
+              <h3 className="text-lg font-bold text-fg">岗位数据分析</h3>
               <button
                 onClick={() => {
                   const csvContent = [
@@ -281,41 +281,41 @@ export const InterviewAnalyticsPage = ({ isEmbedded = false, onTabChange }: Inte
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-gray-200">
-                    <th className="px-4 py-3 text-left text-sm font-bold text-gray-700">岗位</th>
-                    <th className="px-4 py-3 text-left text-sm font-bold text-gray-700">面试总数</th>
-                    <th className="px-4 py-3 text-left text-sm font-bold text-gray-700">通过率</th>
-                    <th className="px-4 py-3 text-left text-sm font-bold text-gray-700">平均分</th>
-                    <th className="px-4 py-3 text-left text-sm font-bold text-gray-700">趋势</th>
+                  <tr className="border-b border-border">
+                    <th className="px-4 py-3 text-left text-sm font-bold text-fg-secondary">岗位</th>
+                    <th className="px-4 py-3 text-left text-sm font-bold text-fg-secondary">面试总数</th>
+                    <th className="px-4 py-3 text-left text-sm font-bold text-fg-secondary">通过率</th>
+                    <th className="px-4 py-3 text-left text-sm font-bold text-fg-secondary">平均分</th>
+                    <th className="px-4 py-3 text-left text-sm font-bold text-fg-secondary">趋势</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
+                <tbody className="divide-y divide-border-subtle">
                   {positionAnalytics.map((pos, i) => (
                     <motion.tr
                       key={i}
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       transition={{ delay: 0.25 + i * 0.05 }}
-                      className="hover:bg-gray-50"
+                      className="hover:bg-surface-muted"
                     >
                       <td className="px-4 py-4">
                         <div className="flex items-center gap-2">
                           <div className="w-8 h-8 bg-gradient-to-br from-[#22d3ee] to-[#06b6d4] rounded-lg flex items-center justify-center">
                             <Users className="w-4 h-4 text-white" />
                           </div>
-                          <span className="font-medium text-gray-900">{pos.position}</span>
+                          <span className="font-medium text-fg">{pos.position}</span>
                         </div>
                       </td>
-                      <td className="px-4 py-4 text-gray-700">{pos.total}</td>
+                      <td className="px-4 py-4 text-fg-secondary">{pos.total}</td>
                       <td className="px-4 py-4">
                         <div className="flex items-center gap-2">
-                          <div className="w-24 h-2 bg-gray-100 rounded-full overflow-hidden">
+                          <div className="w-24 h-2 bg-surface-muted rounded-full overflow-hidden">
                             <div
                               className="h-full bg-gradient-to-r from-[#22d3ee] to-[#06b6d4] rounded-full"
                               style={{ width: `${pos.passRate}%` }}
                             />
                           </div>
-                          <span className="text-sm font-medium text-gray-900">{pos.passRate.toFixed(1)}%</span>
+                          <span className="text-sm font-medium text-fg">{pos.passRate.toFixed(1)}%</span>
                         </div>
                       </td>
                       <td className="px-4 py-4">
@@ -347,10 +347,10 @@ export const InterviewAnalyticsPage = ({ isEmbedded = false, onTabChange }: Inte
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.25 }}
-              className="bg-white rounded-xl border border-gray-100 p-6 mt-6"
+              className="bg-surface rounded-xl border border-border-subtle p-6 mt-6"
             >
               <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-bold text-gray-900">维度得分分析</h3>
+                <h3 className="text-lg font-bold text-fg">维度得分分析</h3>
                 {dimensionAnalysis.weakestDimension && (
                   <div className="flex items-center gap-2 text-sm">
                     <AlertCircle className="w-4 h-4 text-amber-500" />
@@ -360,8 +360,8 @@ export const InterviewAnalyticsPage = ({ isEmbedded = false, onTabChange }: Inte
               </div>
               <div className="space-y-4">
                 {(dimensionAnalysis.dimensions ?? []).map((dim, i) => (
-                  <div key={i} className={`flex items-center gap-4 p-3 rounded-lg ${dim.name === dimensionAnalysis.weakestDimension ? 'bg-red-50 border border-red-200' : 'bg-gray-50'}`}>
-                    <div className="w-24 text-sm font-medium text-gray-700 shrink-0">{dim.name}</div>
+                  <div key={i} className={`flex items-center gap-4 p-3 rounded-lg ${dim.name === dimensionAnalysis.weakestDimension ? 'bg-red-50 border border-red-200' : 'bg-surface-muted'}`}>
+                    <div className="w-24 text-sm font-medium text-fg-secondary shrink-0">{dim.name}</div>
                     <div className="flex-1">
                       <div className="h-6 bg-gray-200 rounded-lg overflow-hidden">
                         <motion.div
@@ -378,10 +378,10 @@ export const InterviewAnalyticsPage = ({ isEmbedded = false, onTabChange }: Inte
                         </motion.div>
                       </div>
                     </div>
-                    <div className="w-20 text-right text-sm text-gray-600">
+                    <div className="w-20 text-right text-sm text-fg-secondary">
                       {dim.avgScore}/{dim.maxScore}
                     </div>
-                    <div className="w-16 text-right text-xs text-gray-400">
+                    <div className="w-16 text-right text-xs text-fg-faint">
                       {dim.count}人
                     </div>
                   </div>
@@ -396,10 +396,10 @@ export const InterviewAnalyticsPage = ({ isEmbedded = false, onTabChange }: Inte
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3 }}
-              className="bg-white rounded-xl border border-gray-100 p-6 mt-6"
+              className="bg-surface rounded-xl border border-border-subtle p-6 mt-6"
             >
               <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-bold text-gray-900">题目难度排行</h3>
+                <h3 className="text-lg font-bold text-fg">题目难度排行</h3>
                 {dimensionAnalysis.hardestQuestion && (
                   <div className="flex items-center gap-2 text-sm">
                     <AlertCircle className="w-4 h-4 text-amber-500" />
@@ -410,23 +410,23 @@ export const InterviewAnalyticsPage = ({ isEmbedded = false, onTabChange }: Inte
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
-                    <tr className="border-b border-gray-200">
-                      <th className="px-4 py-3 text-left text-sm font-bold text-gray-700">题目</th>
-                      <th className="px-4 py-3 text-left text-sm font-bold text-gray-700">平均得分</th>
-                      <th className="px-4 py-3 text-left text-sm font-bold text-gray-700">淘汰比例</th>
-                      <th className="px-4 py-3 text-left text-sm font-bold text-gray-700">作答人数</th>
+                    <tr className="border-b border-border">
+                      <th className="px-4 py-3 text-left text-sm font-bold text-fg-secondary">题目</th>
+                      <th className="px-4 py-3 text-left text-sm font-bold text-fg-secondary">平均得分</th>
+                      <th className="px-4 py-3 text-left text-sm font-bold text-fg-secondary">淘汰比例</th>
+                      <th className="px-4 py-3 text-left text-sm font-bold text-fg-secondary">作答人数</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100">
+                  <tbody className="divide-y divide-border-subtle">
                     {(dimensionAnalysis.questions ?? []).map((q, i) => {
                       const failRate = q.totalCount > 0 ? Math.round((q.belowThresholdCount / q.totalCount) * 100) : 0;
                       const isHardest = q.questionTitle === dimensionAnalysis.hardestQuestion;
                       return (
-                        <tr key={i} className={isHardest ? 'bg-red-50' : 'hover:bg-gray-50'}>
+                        <tr key={i} className={isHardest ? 'bg-red-50' : 'hover:bg-surface-muted'}>
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-2">
                               {isHardest && <AlertCircle className="w-4 h-4 text-red-500 shrink-0" />}
-                              <span className="text-sm text-gray-900 font-medium">{q.questionTitle}</span>
+                              <span className="text-sm text-fg font-medium">{q.questionTitle}</span>
                             </div>
                           </td>
                           <td className="px-4 py-3">
@@ -434,21 +434,21 @@ export const InterviewAnalyticsPage = ({ isEmbedded = false, onTabChange }: Inte
                               <span className={`font-bold ${q.avgScore >= q.maxScore * 0.7 ? 'text-emerald-600' : 'text-red-500'}`}>
                                 {q.avgScore}
                               </span>
-                              <span className="text-xs text-gray-400">/{q.maxScore}</span>
+                              <span className="text-xs text-fg-faint">/{q.maxScore}</span>
                             </div>
                           </td>
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-2">
-                              <div className="w-20 h-2 bg-gray-100 rounded-full overflow-hidden">
+                              <div className="w-20 h-2 bg-surface-muted rounded-full overflow-hidden">
                                 <div
                                   className={`h-full rounded-full ${failRate >= 40 ? 'bg-red-400' : failRate >= 20 ? 'bg-amber-400' : 'bg-emerald-400'}`}
                                   style={{ width: `${failRate}%` }}
                                 />
                               </div>
-                              <span className="text-sm font-medium text-gray-700">{failRate}%</span>
+                              <span className="text-sm font-medium text-fg-secondary">{failRate}%</span>
                             </div>
                           </td>
-                          <td className="px-4 py-3 text-sm text-gray-600">{q.totalCount}</td>
+                          <td className="px-4 py-3 text-sm text-fg-secondary">{q.totalCount}</td>
                         </tr>
                       );
                     })}
@@ -463,55 +463,55 @@ export const InterviewAnalyticsPage = ({ isEmbedded = false, onTabChange }: Inte
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
-            className="bg-white rounded-xl border border-gray-100 p-6 mt-6"
+            className="bg-surface rounded-xl border border-border-subtle p-6 mt-6"
           >
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-bold text-gray-900">候选人分析</h3>
-              <div className="flex items-center gap-2 text-sm text-gray-500">
+              <h3 className="text-lg font-bold text-fg">候选人分析</h3>
+              <div className="flex items-center gap-2 text-sm text-fg-muted">
                 <Users className="w-4 h-4" />
                 详细数据
               </div>
             </div>
             <div className="grid grid-cols-3 gap-6">
-              <div className="bg-gray-50 rounded-xl p-5">
+              <div className="bg-surface-muted rounded-xl p-5">
                 <div className="flex items-center gap-3 mb-3">
                   <div className="w-10 h-10 bg-[#cffafe] rounded-lg flex items-center justify-center">
                     <Users className="w-5 h-5 text-[#22d3ee]" />
                   </div>
                   <div>
-                    <div className="text-2xl font-bold text-gray-900">{summary.totalInterviews}</div>
-                    <div className="text-sm text-gray-500">候选人总数</div>
+                    <div className="text-2xl font-bold text-fg">{summary.totalInterviews}</div>
+                    <div className="text-sm text-fg-muted">候选人总数</div>
                   </div>
                 </div>
-                <div className="text-sm text-gray-600">
+                <div className="text-sm text-fg-secondary">
                   较上月 {renderTrend(summary.momTrend.totalChange)}
                 </div>
               </div>
-              <div className="bg-gray-50 rounded-xl p-5">
+              <div className="bg-surface-muted rounded-xl p-5">
                 <div className="flex items-center gap-3 mb-3">
                   <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center">
                     <CheckCircle className="w-5 h-5 text-emerald-600" />
                   </div>
                   <div>
-                    <div className="text-2xl font-bold text-gray-900">{summary.completedInterviews}</div>
-                    <div className="text-sm text-gray-500">面试通过数</div>
+                    <div className="text-2xl font-bold text-fg">{summary.completedInterviews}</div>
+                    <div className="text-sm text-fg-muted">面试通过数</div>
                   </div>
                 </div>
-                <div className="text-sm text-gray-600">
+                <div className="text-sm text-fg-secondary">
                   较上月 {renderTrend(summary.momTrend.completedChange)}
                 </div>
               </div>
-              <div className="bg-gray-50 rounded-xl p-5">
+              <div className="bg-surface-muted rounded-xl p-5">
                 <div className="flex items-center gap-3 mb-3">
                   <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center">
                     <Calendar className="w-5 h-5 text-amber-600" />
                   </div>
                   <div>
-                    <div className="text-2xl font-bold text-gray-900">{summary.averageScore > 0 ? Math.round(summary.averageScore * 10) / 10 : 0}</div>
-                    <div className="text-sm text-gray-500">平均面试得分</div>
+                    <div className="text-2xl font-bold text-fg">{summary.averageScore > 0 ? Math.round(summary.averageScore * 10) / 10 : 0}</div>
+                    <div className="text-sm text-fg-muted">平均面试得分</div>
                   </div>
                 </div>
-                <div className="text-sm text-gray-600">
+                <div className="text-sm text-fg-secondary">
                   较上月 {renderTrend(summary.momTrend.avgScoreChange)}
                 </div>
               </div>

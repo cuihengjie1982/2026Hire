@@ -100,14 +100,14 @@ const RouteLoadingFallback = () => (
     animate={{opacity: 1, y: 0}}
     className="max-w-[1500px] mx-auto w-full p-6"
   >
-    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-4">
-      <div className="h-7 w-44 rounded-lg bg-gray-100 animate-pulse" />
+    <div className="bg-surface rounded-2xl border border-border shadow-sm p-6 space-y-4">
+      <div className="h-7 w-44 rounded-lg bg-surface-muted animate-pulse" />
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="h-28 rounded-xl bg-gray-100 animate-pulse" />
-        <div className="h-28 rounded-xl bg-gray-100 animate-pulse delay-75" />
-        <div className="h-28 rounded-xl bg-gray-100 animate-pulse delay-150" />
+        <div className="h-28 rounded-xl bg-surface-muted animate-pulse" />
+        <div className="h-28 rounded-xl bg-surface-muted animate-pulse delay-75" />
+        <div className="h-28 rounded-xl bg-surface-muted animate-pulse delay-150" />
       </div>
-      <div className="h-72 rounded-2xl bg-gray-100 animate-pulse" />
+      <div className="h-72 rounded-2xl bg-surface-muted animate-pulse" />
     </div>
   </motion.div>
 );

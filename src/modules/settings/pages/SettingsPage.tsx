@@ -290,15 +290,15 @@ export const SettingsPage = () => {
       case 'recruiter': return 'bg-blue-100 text-blue-700';
       case 'hiring_manager': return 'bg-emerald-100 text-emerald-700';
       case 'video_viewer': return 'bg-indigo-100 text-indigo-700';
-      case 'viewer': return 'bg-gray-100 text-gray-700';
-      default: return 'bg-gray-100 text-gray-700';
+      case 'viewer': return 'bg-surface-muted text-fg-secondary';
+      default: return 'bg-surface-muted text-fg-secondary';
     }
   };
 
   if (loading) {
     return (
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-center h-full">
-        <div className="text-gray-500 dark:text-gray-400">加载中...</div>
+        <div className="text-fg-muted">加载中...</div>
       </motion.div>
     );
   }
@@ -307,12 +307,12 @@ export const SettingsPage = () => {
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col h-full">
       <div className="max-w-6xl mx-auto w-full p-8">
         <div className="mb-8">
-          <h1 className="text-[32px] font-bold text-gray-900 dark:text-white tracking-tight mb-2">设置中心</h1>
-          <p className="text-gray-500 dark:text-gray-400 text-base">管理账号信息、权限和通知设置</p>
+          <h1 className="text-[32px] font-bold text-fg tracking-tight mb-2">设置中心</h1>
+          <p className="text-fg-muted text-base">管理账号信息、权限和通知设置</p>
         </div>
 
         {/* Tab Navigation */}
-        <div className="flex space-x-1 border-b border-gray-200 dark:border-gray-700 mb-8">
+        <div className="flex space-x-1 border-b border-border mb-8">
           {tabs.map(tab => {
             const Icon = tab.icon;
             return (
@@ -322,7 +322,7 @@ export const SettingsPage = () => {
                 className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
                   activeTab === tab.id
                     ? 'border-[#1a4bc4] text-[#1a4bc4]'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                    : 'border-transparent text-fg-muted hover:text-fg-secondary'
                 }`}
               >
                 <Icon className="w-4 h-4" />
@@ -335,9 +335,9 @@ export const SettingsPage = () => {
         {/* Account Settings Tab */}
         {activeTab === 'account' && currentUser && (
           <div className="space-y-6">
-            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+            <div className="bg-surface rounded-xl border border-border p-6">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-lg font-bold text-gray-900 dark:text-white">基本信息</h2>
+                <h2 className="text-lg font-bold text-fg">基本信息</h2>
                 <button
                   onClick={() => setEditingAccount(!editingAccount)}
                   className="text-sm text-[#1a4bc4] hover:text-[#0c2b7a] font-medium"
@@ -348,56 +348,56 @@ export const SettingsPage = () => {
 
               <div className="grid grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">姓名</label>
+                  <label className="block text-sm font-medium text-fg-secondary mb-2">姓名</label>
                   {editingAccount ? (
                     <input
                       type="text"
                       value={accountForm.name}
                       onChange={(e) => setAccountForm({...accountForm, name: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
+                      className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
                     />
                   ) : (
-                    <div className="px-3 py-2 bg-gray-50 dark:bg-gray-800 rounded-lg text-sm text-gray-900 dark:text-white">{currentUser.name}</div>
+                    <div className="px-3 py-2 bg-surface-muted rounded-lg text-sm text-fg">{currentUser.name}</div>
                   )}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">邮箱</label>
+                  <label className="block text-sm font-medium text-fg-secondary mb-2">邮箱</label>
                   {editingAccount ? (
                     <input
                       type="email"
                       value={accountForm.email}
                       onChange={(e) => setAccountForm({...accountForm, email: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
+                      className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
                     />
                   ) : (
-                    <div className="px-3 py-2 bg-gray-50 dark:bg-gray-800 rounded-lg text-sm text-gray-900 dark:text-white">{currentUser.email}</div>
+                    <div className="px-3 py-2 bg-surface-muted rounded-lg text-sm text-fg">{currentUser.email}</div>
                   )}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">手机号</label>
+                  <label className="block text-sm font-medium text-fg-secondary mb-2">手机号</label>
                   {editingAccount ? (
                     <input
                       type="text"
                       value={accountForm.phone}
                       onChange={(e) => setAccountForm({...accountForm, phone: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
+                      className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
                       placeholder="138****1234"
                     />
                   ) : (
-                    <div className="px-3 py-2 bg-gray-50 dark:bg-gray-800 rounded-lg text-sm text-gray-900 dark:text-white">{currentUser.phone || '-'}</div>
+                    <div className="px-3 py-2 bg-surface-muted rounded-lg text-sm text-fg">{currentUser.phone || '-'}</div>
                   )}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">部门</label>
+                  <label className="block text-sm font-medium text-fg-secondary mb-2">部门</label>
                   {editingAccount ? (
                     <input
                       type="text"
                       value={accountForm.department}
                       onChange={(e) => setAccountForm({...accountForm, department: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
+                      className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
                     />
                   ) : (
-                    <div className="px-3 py-2 bg-gray-50 dark:bg-gray-800 rounded-lg text-sm text-gray-900 dark:text-white">{currentUser.department || '-'}</div>
+                    <div className="px-3 py-2 bg-surface-muted rounded-lg text-sm text-fg">{currentUser.department || '-'}</div>
                   )}
                 </div>
               </div>
@@ -415,11 +415,11 @@ export const SettingsPage = () => {
             </div>
 
             {/* Password Change */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+            <div className="bg-surface rounded-xl border border-border p-6">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
-                  <Key className="w-5 h-5 text-gray-500 dark:text-gray-400" />
-                  <h2 className="text-lg font-bold text-gray-900 dark:text-white">账号密码设置</h2>
+                  <Key className="w-5 h-5 text-fg-muted" />
+                  <h2 className="text-lg font-bold text-fg">账号密码设置</h2>
                 </div>
                 <button
                   onClick={() => {
@@ -436,57 +436,57 @@ export const SettingsPage = () => {
               {showPasswordForm && (
                 <div className="space-y-4 max-w-md">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">当前密码</label>
+                    <label className="block text-sm font-medium text-fg-secondary mb-2">当前密码</label>
                     <div className="relative">
                       <input
                         type={showCurrentPassword ? 'text' : 'password'}
                         value={passwordForm.current}
                         onChange={(e) => setPasswordForm({...passwordForm, current: e.target.value})}
-                        className="w-full px-3 py-2 pr-10 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
+                        className="w-full px-3 py-2 pr-10 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
                         placeholder="请输入当前密码"
                       />
                       <button
                         type="button"
                         onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 hover:text-gray-600"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-fg-faint hover:text-fg-secondary"
                       >
                         {showCurrentPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </button>
                     </div>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">新密码</label>
+                    <label className="block text-sm font-medium text-fg-secondary mb-2">新密码</label>
                     <div className="relative">
                       <input
                         type={showNewPassword ? 'text' : 'password'}
                         value={passwordForm.new}
                         onChange={(e) => setPasswordForm({...passwordForm, new: e.target.value})}
-                        className="w-full px-3 py-2 pr-10 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
+                        className="w-full px-3 py-2 pr-10 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
                         placeholder="至少8位"
                       />
                       <button
                         type="button"
                         onClick={() => setShowNewPassword(!showNewPassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 hover:text-gray-600"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-fg-faint hover:text-fg-secondary"
                       >
                         {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </button>
                     </div>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">确认新密码</label>
+                    <label className="block text-sm font-medium text-fg-secondary mb-2">确认新密码</label>
                     <div className="relative">
                       <input
                         type={showConfirmPassword ? 'text' : 'password'}
                         value={passwordForm.confirm}
                         onChange={(e) => setPasswordForm({...passwordForm, confirm: e.target.value})}
-                        className="w-full px-3 py-2 pr-10 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
+                        className="w-full px-3 py-2 pr-10 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
                         placeholder="再次输入新密码"
                       />
                       <button
                         type="button"
                         onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 hover:text-gray-600"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-fg-faint hover:text-fg-secondary"
                       >
                         {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </button>
@@ -510,7 +510,7 @@ export const SettingsPage = () => {
                         setPasswordError('');
                         setPasswordForm({ current: '', new: '', confirm: '' });
                       }}
-                      className="px-4 py-2 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700/30"
+                      className="px-4 py-2 border border-border text-fg-secondary rounded-lg text-sm font-medium hover:bg-surface-muted"
                     >
                       取消
                     </button>
@@ -524,9 +524,9 @@ export const SettingsPage = () => {
         {/* Permissions Tab */}
         {activeTab === 'permissions' && (
           <div className="space-y-6">
-            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
-              <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-6">角色权限配置</h2>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">点击权限项可快速切换角色的权限状态</p>
+            <div className="bg-surface rounded-xl border border-border p-6">
+              <h2 className="text-lg font-bold text-fg mb-6">角色权限配置</h2>
+              <p className="text-sm text-fg-muted mb-6">点击权限项可快速切换角色的权限状态</p>
 
               {rolePerms.map(rolePerm => {
                 const roleInfo = roleLabels[rolePerm.role];
@@ -538,25 +538,25 @@ export const SettingsPage = () => {
                 }, {} as Record<string, Permission[]>);
 
                 return (
-                  <div key={rolePerm.role} className="mb-4 last:mb-0 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
+                  <div key={rolePerm.role} className="mb-4 last:mb-0 border border-border rounded-xl overflow-hidden">
                     <button
                       onClick={() => toggleRoleCollapsed(rolePerm.role)}
-                      className="w-full flex items-center justify-between px-5 py-4 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 transition-colors"
+                      className="w-full flex items-center justify-between px-5 py-4 bg-surface-muted hover:bg-surface-muted transition-colors"
                     >
                       <div className="flex items-center gap-3">
                         <span className={`px-3 py-1.5 rounded-lg text-sm font-bold ${getRoleBadgeStyle(rolePerm.role)}`}>
                           {roleInfo?.label}
                         </span>
-                        <span className="text-sm text-gray-500 dark:text-gray-400">{roleInfo?.description}</span>
+                        <span className="text-sm text-fg-muted">{roleInfo?.description}</span>
                       </div>
-                      <ChevronDown className={`w-5 h-5 text-gray-400 transition-transform ${isCollapsed ? '-rotate-90' : ''}`} />
+                      <ChevronDown className={`w-5 h-5 text-fg-faint transition-transform ${isCollapsed ? '-rotate-90' : ''}`} />
                     </button>
 
                     {!isCollapsed && (
                       <div className="p-5 space-y-4">
                         {Object.entries(groupedPerms).map(([category, perms]) => (
-                          <div key={category} className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
-                            <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3 uppercase">
+                          <div key={category} className="bg-surface-muted rounded-lg p-4">
+                            <div className="text-sm font-medium text-fg-secondary mb-3 uppercase">
                               {category === 'position' ? '岗位' :
                                category === 'candidate' ? '候选人' :
                                category === 'interview' ? '面试' :
@@ -574,8 +574,8 @@ export const SettingsPage = () => {
                                     onClick={() => handleTogglePermission(rolePerm.role, perm.id, hasPerm)}
                                     className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-left transition-colors ${
                                       hasPerm
-                                        ? 'bg-white text-gray-900 hover:bg-red-50'
-                                        : 'bg-white text-gray-400 hover:bg-gray-100'
+                                        ? 'bg-surface text-fg hover:bg-red-50'
+                                        : 'bg-surface text-fg-faint hover:bg-surface-muted'
                                     }`}
                                   >
                                     {hasPerm ? (
@@ -602,27 +602,27 @@ export const SettingsPage = () => {
         {/* Notifications Tab */}
         {activeTab === 'notifications' && (
           <div className="space-y-6">
-            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
-              <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-6">通知偏好设置</h2>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">选择您希望接收的通知方式和类型</p>
+            <div className="bg-surface rounded-xl border border-border p-6">
+              <h2 className="text-lg font-bold text-fg mb-6">通知偏好设置</h2>
+              <p className="text-sm text-fg-muted mb-6">选择您希望接收的通知方式和类型</p>
 
               {['email', 'in_app'].map(type => (
                 <div key={type} className="mb-6 last:mb-0">
-                  <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
+                  <div className="text-sm font-medium text-fg-secondary mb-3 flex items-center gap-2">
                     <Mail className="w-4 h-4" />
                     {type === 'email' ? '邮件通知' : '应用内通知'}
                   </div>
                   <div className="space-y-2">
                     {notifications.filter(n => n.type === type).map(notif => (
-                      <div key={notif.id} className="flex items-center justify-between py-2 px-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                        <span className="text-sm text-gray-900 dark:text-white">{notif.category}</span>
+                      <div key={notif.id} className="flex items-center justify-between py-2 px-3 bg-surface-muted rounded-lg">
+                        <span className="text-sm text-fg">{notif.category}</span>
                         <button
                           onClick={() => handleToggleNotification(notif.id, !notif.enabled)}
                           className={`relative w-10 h-6 rounded-full transition-colors ${
                             notif.enabled ? 'bg-[#1a4bc4]' : 'bg-gray-300'
                           }`}
                         >
-                          <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${
+                          <div className={`absolute top-1 w-4 h-4 bg-surface rounded-full transition-transform ${
                             notif.enabled ? 'translate-x-5' : 'translate-x-1'
                           }`} />
                         </button>
@@ -639,13 +639,13 @@ export const SettingsPage = () => {
         {activeTab === 'team' && (
           <div className="space-y-6">
             {/* Team Members */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+            <div className="bg-surface rounded-xl border border-border p-6">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-lg font-bold text-gray-900 dark:text-white">团队成员</h2>
+                <h2 className="text-lg font-bold text-fg">团队成员</h2>
                 <div className="flex gap-3">
                   <button
                     onClick={() => setShowAddUserForm(true)}
-                    className="px-4 py-2 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700/30 flex items-center gap-2"
+                    className="px-4 py-2 border border-border text-fg-secondary rounded-lg text-sm font-medium hover:bg-surface-muted flex items-center gap-2"
                   >
                     <UserCog className="w-4 h-4" />
                     添加账号
@@ -662,35 +662,35 @@ export const SettingsPage = () => {
 
               {/* Add User Form */}
               {showAddUserForm && (
-                <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-4 mb-6 border border-gray-200 dark:border-gray-700">
-                  <h3 className="font-bold text-gray-900 dark:text-white mb-4">添加账号</h3>
+                <div className="bg-surface-muted rounded-xl p-4 mb-6 border border-border">
+                  <h3 className="font-bold text-fg mb-4">添加账号</h3>
                   <div className="grid grid-cols-2 gap-4 mb-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">姓名</label>
+                      <label className="block text-sm font-medium text-fg-secondary mb-2">姓名</label>
                       <input
                         type="text"
                         value={addUserForm.name}
                         onChange={(e) => setAddUserForm({...addUserForm, name: e.target.value})}
                         placeholder="请输入姓名"
-                        className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
+                        className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">邮箱</label>
+                      <label className="block text-sm font-medium text-fg-secondary mb-2">邮箱</label>
                       <input
                         type="email"
                         value={addUserForm.email}
                         onChange={(e) => setAddUserForm({...addUserForm, email: e.target.value})}
                         placeholder="user@company.com"
-                        className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
+                        className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">角色</label>
+                      <label className="block text-sm font-medium text-fg-secondary mb-2">角色</label>
                       <select
                         value={addUserForm.role}
                         onChange={(e) => setAddUserForm({...addUserForm, role: e.target.value as UserRole})}
-                        className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4] bg-white dark:bg-gray-800"
+                        className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4] bg-surface"
                       >
                         <option value="admin">管理员</option>
                         <option value="recruiter">招聘运营</option>
@@ -700,29 +700,29 @@ export const SettingsPage = () => {
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">部门</label>
+                      <label className="block text-sm font-medium text-fg-secondary mb-2">部门</label>
                       <input
                         type="text"
                         value={addUserForm.department}
                         onChange={(e) => setAddUserForm({...addUserForm, department: e.target.value})}
                         placeholder="请输入部门"
-                        className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
+                        className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">密码</label>
+                      <label className="block text-sm font-medium text-fg-secondary mb-2">密码</label>
                       <div className="relative">
                         <input
                           type={showAddPassword ? 'text' : 'password'}
                           value={addUserForm.password}
                           onChange={(e) => setAddUserForm({...addUserForm, password: e.target.value})}
                           placeholder="请设置密码（至少8位）"
-                          className="w-full px-3 py-2 pr-10 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
+                          className="w-full px-3 py-2 pr-10 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
                         />
                         <button
                           type="button"
                           onClick={() => setShowAddPassword(!showAddPassword)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 hover:text-gray-600"
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-fg-faint hover:text-fg-secondary"
                         >
                           {showAddPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                         </button>
@@ -743,7 +743,7 @@ export const SettingsPage = () => {
                         setAddUserForm({ name: '', email: '', role: 'recruiter', department: '', password: '' });
                         setShowAddPassword(false);
                       }}
-                      className="px-4 py-2 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700/30"
+                      className="px-4 py-2 border border-border text-fg-secondary rounded-lg text-sm font-medium hover:bg-surface-muted"
                     >
                       取消
                     </button>
@@ -753,15 +753,15 @@ export const SettingsPage = () => {
 
               {/* Edit User Form */}
               {editingUser && (
-                <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-4 mb-6 border border-gray-200 dark:border-gray-700">
-                  <h3 className="font-bold text-gray-900 dark:text-white mb-4">编辑账号 - {editingUser.name}</h3>
+                <div className="bg-surface-muted rounded-xl p-4 mb-6 border border-border">
+                  <h3 className="font-bold text-fg mb-4">编辑账号 - {editingUser.name}</h3>
                   <div className="grid grid-cols-2 gap-4 mb-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">角色</label>
+                      <label className="block text-sm font-medium text-fg-secondary mb-2">角色</label>
                       <select
                         value={editingUser.role}
                         onChange={(e) => setEditingUser({...editingUser, role: e.target.value as UserRole})}
-                        className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4] bg-white dark:bg-gray-800"
+                        className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4] bg-surface"
                       >
                         <option value="admin">管理员</option>
                         <option value="recruiter">招聘运营</option>
@@ -771,11 +771,11 @@ export const SettingsPage = () => {
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">状态</label>
+                      <label className="block text-sm font-medium text-fg-secondary mb-2">状态</label>
                       <select
                         value={editingUser.status}
                         onChange={(e) => setEditingUser({...editingUser, status: e.target.value as 'active' | 'inactive'})}
-                        className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4] bg-white dark:bg-gray-800"
+                        className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4] bg-surface"
                       >
                         <option value="active">启用</option>
                         <option value="inactive">禁用</option>
@@ -791,7 +791,7 @@ export const SettingsPage = () => {
                     </button>
                     <button
                       onClick={() => setEditingUser(null)}
-                      className="px-4 py-2 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700/30"
+                      className="px-4 py-2 border border-border text-fg-secondary rounded-lg text-sm font-medium hover:bg-surface-muted"
                     >
                       取消
                     </button>
@@ -801,24 +801,24 @@ export const SettingsPage = () => {
 
               {/* Invite Form */}
               {showInviteForm && (
-                <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-4 mb-6">
+                <div className="bg-surface-muted rounded-xl p-4 mb-6">
                   <div className="grid grid-cols-2 gap-4 mb-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">邮箱地址</label>
+                      <label className="block text-sm font-medium text-fg-secondary mb-2">邮箱地址</label>
                       <input
                         type="email"
                         value={inviteForm.email}
                         onChange={(e) => setInviteForm({...inviteForm, email: e.target.value})}
                         placeholder="user@company.com"
-                        className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
+                        className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">角色</label>
+                      <label className="block text-sm font-medium text-fg-secondary mb-2">角色</label>
                       <select
                         value={inviteForm.role}
                         onChange={(e) => setInviteForm({...inviteForm, role: e.target.value as UserRole})}
-                        className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4] bg-white dark:bg-gray-800"
+                        className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4] bg-surface"
                       >
                         <option value="admin">管理员</option>
                         <option value="recruiter">招聘运营</option>
@@ -841,7 +841,7 @@ export const SettingsPage = () => {
                         setShowInviteForm(false);
                         setInviteForm({ email: '', role: 'recruiter' });
                       }}
-                      className="px-4 py-2 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700/30"
+                      className="px-4 py-2 border border-border text-fg-secondary rounded-lg text-sm font-medium hover:bg-surface-muted"
                     >
                       取消
                     </button>
@@ -852,13 +852,13 @@ export const SettingsPage = () => {
               {/* Pending Invites */}
               {invites.filter(i => i.status === 'pending').length > 0 && (
                 <div className="mb-6">
-                  <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">待接受邀请</h3>
+                  <h3 className="text-sm font-medium text-fg-secondary mb-3">待接受邀请</h3>
                   <div className="space-y-2">
                     {invites.filter(i => i.status === 'pending').map(invite => (
                       <div key={invite.email} className="flex items-center justify-between py-2 px-3 bg-amber-50 rounded-lg">
                         <div>
-                          <div className="text-sm font-medium text-gray-900 dark:text-white">{invite.email}</div>
-                          <div className="text-xs text-gray-500 dark:text-gray-400">
+                          <div className="text-sm font-medium text-fg">{invite.email}</div>
+                          <div className="text-xs text-fg-muted">
                             邀请于 {new Date(invite.invitedAt).toLocaleDateString()} · {roleLabels[invite.role]?.label}
                           </div>
                         </div>
@@ -877,19 +877,19 @@ export const SettingsPage = () => {
               {/* User List */}
               <div className="space-y-3">
                 {users.map(user => (
-                  <div key={user.id} className="flex items-center justify-between py-3 px-3 hover:bg-gray-50 dark:hover:bg-gray-700/30 rounded-lg">
+                  <div key={user.id} className="flex items-center justify-between py-3 px-3 hover:bg-surface-muted rounded-lg">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 bg-gradient-to-br from-[#1a4bc4] to-[#6366F1] rounded-full flex items-center justify-center">
                         <span className="text-white font-medium">{user.name[0]}</span>
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
-                          <span className="font-medium text-gray-900 dark:text-white">{user.name}</span>
+                          <span className="font-medium text-fg">{user.name}</span>
                           {user.id === currentUser?.id && (
                             <span className="text-xs text-[#1a4bc4] bg-[#1a4bc4]/10 px-2 py-0.5 rounded">当前账号</span>
                           )}
                         </div>
-                        <div className="text-sm text-gray-500 dark:text-gray-400">{user.email}</div>
+                        <div className="text-sm text-fg-muted">{user.email}</div>
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
@@ -901,21 +901,21 @@ export const SettingsPage = () => {
                         <div className="flex items-center gap-1">
                           <button
                             onClick={() => { setResetPasswordUser(user); setResetPasswordValue(''); }}
-                            className="p-2 text-gray-500 dark:text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg"
+                            className="p-2 text-fg-muted hover:text-amber-600 hover:bg-amber-50 rounded-lg"
                             title="重置密码"
                           >
                             <Key className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => setEditingUser(user)}
-                            className="p-2 text-gray-500 dark:text-gray-400 hover:text-[#1a4bc4] hover:bg-gray-100 rounded-lg"
+                            className="p-2 text-fg-muted hover:text-[#1a4bc4] hover:bg-surface-muted rounded-lg"
                             title="编辑"
                           >
                             <UserCog className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => setShowDeleteConfirm(user.id)}
-                            className="p-2 text-gray-500 dark:text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg"
+                            className="p-2 text-fg-muted hover:text-red-500 hover:bg-red-50 rounded-lg"
                             title="删除"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -927,15 +927,15 @@ export const SettingsPage = () => {
                     {/* Delete Confirmation */}
                     {showDeleteConfirm === user.id && (
                       <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-                        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-sm p-6">
-                          <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">确认删除</h3>
-                          <p className="text-sm text-gray-600 dark:text-gray-300 mb-6">
+                        <div className="bg-surface rounded-xl shadow-xl w-full max-w-sm p-6">
+                          <h3 className="text-lg font-bold text-fg mb-4">确认删除</h3>
+                          <p className="text-sm text-fg-secondary mb-6">
                             确定要删除账号 <strong>{user.name}</strong> 吗？此操作不可撤销。
                           </p>
                           <div className="flex gap-3">
                             <button
                               onClick={() => setShowDeleteConfirm(null)}
-                              className="flex-1 px-4 py-2 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700/30"
+                              className="flex-1 px-4 py-2 border border-border text-fg-secondary rounded-lg text-sm font-medium hover:bg-surface-muted"
                             >
                               取消
                             </button>
@@ -960,25 +960,25 @@ export const SettingsPage = () => {
       {/* Reset Password Dialog */}
       {resetPasswordUser && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-sm p-6">
-            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">重置密码</h3>
-            <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
+          <div className="bg-surface rounded-xl shadow-xl w-full max-w-sm p-6">
+            <h3 className="text-lg font-bold text-fg mb-4">重置密码</h3>
+            <p className="text-sm text-fg-secondary mb-4">
               为 <strong>{resetPasswordUser.name}</strong>（{resetPasswordUser.email}）设置新密码
             </p>
             <div className="mb-5">
-              <label className="block text-[13px] font-medium text-gray-700 dark:text-gray-300 mb-1.5">新密码</label>
+              <label className="block text-[13px] font-medium text-fg-secondary mb-1.5">新密码</label>
               <input
                 type="password"
                 value={resetPasswordValue}
                 onChange={(e) => setResetPasswordValue(e.target.value)}
                 placeholder="至少 6 位"
-                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-[14px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4] placeholder:text-gray-400"
+                className="w-full px-3 py-2.5 border border-border rounded-lg text-[14px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4] placeholder:text-fg-faint bg-surface text-fg"
               />
             </div>
             <div className="flex gap-3">
               <button
                 onClick={() => { setResetPasswordUser(null); setResetPasswordValue(''); }}
-                className="flex-1 px-4 py-2 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700/30"
+                className="flex-1 px-4 py-2 border border-border text-fg-secondary rounded-lg text-sm font-medium hover:bg-surface-muted"
               >
                 取消
               </button>

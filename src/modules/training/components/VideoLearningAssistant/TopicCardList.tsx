@@ -30,7 +30,7 @@ export const TopicCardList: React.FC<TopicCardListProps> = ({topics, currentVide
             key={topic.id}
             onClick={() => onSeek(topic.startTime)}
             className={`flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-all ${
-              isActive ? 'bg-gray-50 ring-1' : 'hover:bg-gray-50'
+              isActive ? 'bg-surface-muted ring-1' : 'hover:bg-surface-muted'
             }`}
             style={isActive ? {ringColor: topic.color} : {}}
           >
@@ -45,10 +45,10 @@ export const TopicCardList: React.FC<TopicCardListProps> = ({topics, currentVide
             {/* Title + time range */}
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between">
-                <span className={`text-xs font-medium truncate ${isActive ? '' : 'text-gray-700'}`} style={isActive ? {color: topic.color} : {}}>
+                <span className={`text-xs font-medium truncate ${isActive ? '' : 'text-fg-secondary'}`} style={isActive ? {color: topic.color} : {}}>
                   {topic.title}
                 </span>
-                <span className="text-[10px] text-gray-400 shrink-0 ml-2">
+                <span className="text-[10px] text-fg-faint shrink-0 ml-2">
                   {formatTime(topic.startTime)} - {formatTime(topic.endTime)}
                 </span>
               </div>
@@ -65,7 +65,7 @@ export const TopicCardList: React.FC<TopicCardListProps> = ({topics, currentVide
             </div>
 
             {/* Progress percentage */}
-            <span className="text-[10px] text-gray-400 w-8 text-right shrink-0">
+            <span className="text-[10px] text-fg-faint w-8 text-right shrink-0">
               {Math.round(progressInTopic * 100)}%
             </span>
           </div>

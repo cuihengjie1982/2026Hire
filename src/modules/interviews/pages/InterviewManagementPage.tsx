@@ -194,12 +194,12 @@ export const InterviewManagementPage = ({ isEmbedded = false, onTabChange }: Int
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'pending': return 'bg-gray-100 text-gray-600';
+      case 'pending': return 'bg-surface-muted text-fg-secondary';
       case 'in_progress': return 'bg-[#cffafe] text-[#22d3ee]';
       case 'paused': return 'bg-amber-100 text-amber-600';
       case 'completed': return 'bg-emerald-100 text-emerald-600';
       case 'cancelled': return 'bg-red-100 text-red-600';
-      default: return 'bg-gray-100 text-gray-600';
+      default: return 'bg-surface-muted text-fg-secondary';
     }
   };
 
@@ -233,11 +233,11 @@ export const InterviewManagementPage = ({ isEmbedded = false, onTabChange }: Int
             <div className="w-8 h-8 bg-gradient-to-br from-[#1a4bc4] to-[#6366F1] rounded flex items-center justify-center mr-3">
               <FileText className="w-5 h-5 text-white" />
             </div>
-            <span className="text-xl font-bold text-gray-900 dark:text-white">EM-BOX recruiting platform</span>
+            <span className="text-xl font-bold text-fg">EM-BOX recruiting platform</span>
           </div>
           <div className="text-center mb-8">
-            <h1 className="text-[44px] font-extrabold text-gray-900 dark:text-white tracking-tight mb-4">面试管理</h1>
-            <p className="text-[20px] text-gray-700 dark:text-gray-300">管理进行中的AI面试会话</p>
+            <h1 className="text-[44px] font-extrabold text-fg tracking-tight mb-4">面试管理</h1>
+            <p className="text-[20px] text-fg-secondary">管理进行中的AI面试会话</p>
           </div>
           <div className="flex justify-center space-x-4 mb-8">
             {[
@@ -252,7 +252,7 @@ export const InterviewManagementPage = ({ isEmbedded = false, onTabChange }: Int
                 className={`px-6 py-2.5 rounded-lg text-lg font-bold transition-colors ${
                   tab.key === 'management'
                     ? 'bg-[#22d3ee] text-white shadow-md'
-                    : 'bg-transparent text-gray-700 dark:text-gray-300 hover:bg-white/50 dark:hover:bg-gray-700/50 border border-transparent'
+                    : 'bg-transparent text-fg-secondary hover:bg-surface-muted/50 border border-transparent'
                 }`}
               >
                 {tab.label}
@@ -262,45 +262,45 @@ export const InterviewManagementPage = ({ isEmbedded = false, onTabChange }: Int
         </>
       )}
 
-      <div className={`${isEmbedded ? 'flex-1' : 'max-w-[1600px] w-full mx-auto bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-2xl shadow-xl flex flex-1 mb-8 overflow-hidden border border-white dark:border-gray-700'}`}>
+      <div className={`${isEmbedded ? 'flex-1' : 'max-w-[1600px] w-full mx-auto bg-surface/90 backdrop-blur-sm rounded-2xl shadow-xl flex flex-1 mb-8 overflow-hidden border border-border'}`}>
         <div className="flex-1 p-6">
           {/* Filters + Create Button */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-4 mb-6">
+          <div className="bg-surface rounded-xl border border-border-subtle p-4 mb-6">
             <div className="flex flex-wrap items-center gap-4">
               <div className="relative flex-1 min-w-[240px]">
-                <Search className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
+                <Search className="w-4 h-4 text-fg-faint absolute left-3 top-3" />
                 <input
                   type="text"
                   placeholder="搜索候选人姓名或邮箱..."
                   value={searchQuery}
                   onChange={(e) => handleSearchChange(e.target.value)}
-                  className="w-full bg-gray-50 border border-gray-200 rounded-lg pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#22d3ee]/20 focus:border-[#22d3ee] transition-all placeholder-gray-400"
+                  className="w-full bg-surface-muted border border-border rounded-lg pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#22d3ee]/20 focus:border-[#22d3ee] transition-all placeholder-fg-faint"
                 />
               </div>
               <div className="relative">
                 <select
                   value={positionFilter}
                   onChange={(e) => setPositionFilter(e.target.value)}
-                  className="appearance-none bg-white border border-gray-200 rounded-lg pl-4 pr-10 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#22d3ee]/20 focus:border-[#22d3ee] transition-all cursor-pointer"
+                  className="appearance-none bg-surface border border-border rounded-lg pl-4 pr-10 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#22d3ee]/20 focus:border-[#22d3ee] transition-all cursor-pointer"
                 >
                   <option value="all">全部岗位</option>
                   {positions.map(pos => (
                     <option key={pos.id} value={pos.name}>{pos.code ? `${pos.code} - ` : ''}{pos.name}</option>
                   ))}
                 </select>
-                <ChevronDown className="w-4 h-4 text-gray-400 absolute right-3 top-3 pointer-events-none" />
+                <ChevronDown className="w-4 h-4 text-fg-faint absolute right-3 top-3 pointer-events-none" />
               </div>
               <div className="relative">
                 <select
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
-                  className="appearance-none bg-white border border-gray-200 rounded-lg pl-4 pr-10 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#22d3ee]/20 focus:border-[#22d3ee] transition-all cursor-pointer"
+                  className="appearance-none bg-surface border border-border rounded-lg pl-4 pr-10 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#22d3ee]/20 focus:border-[#22d3ee] transition-all cursor-pointer"
                 >
                   {statuses.map(s => (
                     <option key={s.value} value={s.value}>{s.label}</option>
                   ))}
                 </select>
-                <ChevronDown className="w-4 h-4 text-gray-400 absolute right-3 top-3 pointer-events-none" />
+                <ChevronDown className="w-4 h-4 text-fg-faint absolute right-3 top-3 pointer-events-none" />
               </div>
               <button
                 type="button"
@@ -318,15 +318,15 @@ export const InterviewManagementPage = ({ isEmbedded = false, onTabChange }: Int
             {loading ? (
               <div className="text-center py-16">
                 <Loader2 className="w-8 h-8 text-[#22d3ee] animate-spin mx-auto mb-4" />
-                <p className="text-gray-500">加载中...</p>
+                <p className="text-fg-muted">加载中...</p>
               </div>
             ) : filteredSessions.length === 0 ? (
               <div className="text-center py-16">
-                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Search className="w-8 h-8 text-gray-400" />
+                <div className="w-16 h-16 bg-surface-muted rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Search className="w-8 h-8 text-fg-faint" />
                 </div>
-                <p className="text-gray-500 font-medium">暂无面试会话</p>
-                <p className="text-gray-400 text-sm mt-1">点击上方「发起面试」按钮创建</p>
+                <p className="text-fg-muted font-medium">暂无面试会话</p>
+                <p className="text-fg-faint text-sm mt-1">点击上方「发起面试」按钮创建</p>
               </div>
             ) : (
               filteredSessions.map((session, index) => (
@@ -335,7 +335,7 @@ export const InterviewManagementPage = ({ isEmbedded = false, onTabChange }: Int
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.05 }}
-                  className="bg-white rounded-xl border border-gray-100 p-5 hover:border-[#22d3ee]/30 transition-colors"
+                  className="bg-surface rounded-xl border border-border-subtle p-5 hover:border-[#22d3ee]/30 transition-colors"
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4 flex-1">
@@ -343,8 +343,8 @@ export const InterviewManagementPage = ({ isEmbedded = false, onTabChange }: Int
                         <User className="w-6 h-6 text-white" />
                       </div>
                       <div>
-                        <div className="font-bold text-gray-900 text-lg">{session.candidateName || '未知候选人'}</div>
-                        <div className="flex items-center gap-2 text-sm text-gray-500">
+                        <div className="font-bold text-fg text-lg">{session.candidateName || '未知候选人'}</div>
+                        <div className="flex items-center gap-2 text-sm text-fg-muted">
                           <Mail className="w-3.5 h-3.5" />
                           {session.candidateEmail || '—'}
                         </div>
@@ -352,13 +352,13 @@ export const InterviewManagementPage = ({ isEmbedded = false, onTabChange }: Int
                     </div>
 
                     <div className="flex flex-col items-center px-6">
-                      <div className="text-sm font-medium text-gray-700">{session.position || '未指定岗位'}</div>
-                      <div className="text-xs text-gray-400">{session.templateName || '—'}</div>
+                      <div className="text-sm font-medium text-fg-secondary">{session.position || '未指定岗位'}</div>
+                      <div className="text-xs text-fg-faint">{session.templateName || '—'}</div>
                     </div>
 
                     <div className="flex items-center gap-2 px-6">
-                      <Clock className="w-4 h-4 text-gray-400" />
-                      <div className="text-sm text-gray-600">{formatTime(session.startTime)}</div>
+                      <Clock className="w-4 h-4 text-fg-faint" />
+                      <div className="text-sm text-fg-secondary">{formatTime(session.startTime)}</div>
                     </div>
 
                     <div className="px-4">
@@ -368,10 +368,10 @@ export const InterviewManagementPage = ({ isEmbedded = false, onTabChange }: Int
                     </div>
 
                     <div className="flex flex-col items-center px-6">
-                      <div className="text-sm font-medium text-gray-700">
+                      <div className="text-sm font-medium text-fg-secondary">
                         {session.progress?.current ?? 0}/{session.progress?.total ?? 0}
                       </div>
-                      <div className="w-24 h-2 bg-gray-100 rounded-full mt-1 overflow-hidden">
+                      <div className="w-24 h-2 bg-surface-muted rounded-full mt-1 overflow-hidden">
                         <div
                           className="h-full bg-gradient-to-r from-[#22d3ee] to-[#06b6d4] rounded-full transition-all"
                           style={{ width: `${(session.progress?.total ?? 0) > 0 ? ((session.progress?.current ?? 0) / session.progress.total) * 100 : 0}%` }}
@@ -383,7 +383,7 @@ export const InterviewManagementPage = ({ isEmbedded = false, onTabChange }: Int
                       {session.score !== undefined ? (
                         <div className="text-lg font-bold text-[#22d3ee]">{session.score}分</div>
                       ) : (
-                        <div className="text-sm text-gray-400">待评分</div>
+                        <div className="text-sm text-fg-faint">待评分</div>
                       )}
                     </div>
 
@@ -468,23 +468,23 @@ export const InterviewManagementPage = ({ isEmbedded = false, onTabChange }: Int
               <div className="text-2xl font-bold">{sessions.length}</div>
               <div className="text-sm opacity-80 mt-1">面试总数</div>
             </div>
-            <div className="bg-white rounded-xl border border-gray-100 p-5">
-              <div className="text-2xl font-bold text-gray-900">
+            <div className="bg-surface rounded-xl border border-border-subtle p-5">
+              <div className="text-2xl font-bold text-fg">
                 {sessions.filter(s => s.status === 'in_progress').length}
               </div>
-              <div className="text-sm text-gray-500 mt-1">正在面试</div>
+              <div className="text-sm text-fg-muted mt-1">正在面试</div>
             </div>
-            <div className="bg-white rounded-xl border border-gray-100 p-5">
-              <div className="text-2xl font-bold text-gray-900">
+            <div className="bg-surface rounded-xl border border-border-subtle p-5">
+              <div className="text-2xl font-bold text-fg">
                 {sessions.filter(s => s.status === 'pending').length}
               </div>
-              <div className="text-sm text-gray-500 mt-1">等待开始</div>
+              <div className="text-sm text-fg-muted mt-1">等待开始</div>
             </div>
-            <div className="bg-white rounded-xl border border-gray-100 p-5">
-              <div className="text-2xl font-bold text-gray-900">
+            <div className="bg-surface rounded-xl border border-border-subtle p-5">
+              <div className="text-2xl font-bold text-fg">
                 {sessions.filter(s => s.status === 'completed').length}
               </div>
-              <div className="text-sm text-gray-500 mt-1">已完成</div>
+              <div className="text-sm text-fg-muted mt-1">已完成</div>
             </div>
           </div>
         </div>
@@ -496,11 +496,11 @@ export const InterviewManagementPage = ({ isEmbedded = false, onTabChange }: Int
           <motion.div
             initial={{opacity: 0, scale: 0.95}}
             animate={{opacity: 1, scale: 1}}
-            className="bg-white rounded-xl shadow-xl w-full max-w-lg p-6 mx-4"
+            className="bg-surface rounded-xl shadow-xl w-full max-w-lg p-6 mx-4"
           >
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-bold text-gray-900">发起新面试</h3>
-              <button onClick={() => setShowCreateDialog(false)} className="text-gray-400 hover:text-gray-600">
+              <h3 className="text-lg font-bold text-fg">发起新面试</h3>
+              <button onClick={() => setShowCreateDialog(false)} className="text-fg-faint hover:text-fg-secondary">
                 <XCircle className="w-5 h-5" />
               </button>
             </div>
@@ -516,11 +516,11 @@ export const InterviewManagementPage = ({ isEmbedded = false, onTabChange }: Int
 
               {/* Template Selection */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">选择面试模板 *</label>
+                <label className="block text-sm font-medium text-fg-secondary mb-1">选择面试模板 *</label>
                 <select
                   value={selectedTemplateId}
                   onChange={(e) => setSelectedTemplateId(e.target.value)}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#22d3ee] bg-white"
+                  className="w-full border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#22d3ee] bg-surface"
                 >
                   <option value="">请选择面试模板</option>
                   {templates.map(t => (
@@ -533,7 +533,7 @@ export const InterviewManagementPage = ({ isEmbedded = false, onTabChange }: Int
             <div className="flex gap-3 mt-6">
               <button
                 onClick={() => setShowCreateDialog(false)}
-                className="flex-1 px-4 py-2 border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
+                className="flex-1 px-4 py-2 border border-border text-fg-secondary rounded-lg text-sm font-medium hover:bg-surface-muted transition-colors"
               >
                 取消
               </button>
@@ -546,7 +546,7 @@ export const InterviewManagementPage = ({ isEmbedded = false, onTabChange }: Int
                   {creating ? '创建中...' : '创建面试'}
                 </button>
                 {createDisabledReason && (
-                  <p className="text-xs text-gray-400 text-center">{createDisabledReason}</p>
+                  <p className="text-xs text-fg-faint text-center">{createDisabledReason}</p>
                 )}
               </div>
             </div>
@@ -557,13 +557,13 @@ export const InterviewManagementPage = ({ isEmbedded = false, onTabChange }: Int
       {/* Delete Confirmation */}
       <ModalPortal open={!!deleteConfirmId}>
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100]">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6 mx-4">
-            <h3 className="text-lg font-bold text-gray-900 mb-2">删除面试会话</h3>
-            <p className="text-sm text-gray-500 mb-6">确定要删除此面试会话吗？此操作不可撤销。</p>
+          <div className="bg-surface rounded-xl shadow-xl w-full max-w-sm p-6 mx-4">
+            <h3 className="text-lg font-bold text-fg mb-2">删除面试会话</h3>
+            <p className="text-sm text-fg-muted mb-6">确定要删除此面试会话吗？此操作不可撤销。</p>
             <div className="flex gap-3">
               <button
                 onClick={() => setDeleteConfirmId(null)}
-                className="flex-1 px-4 py-2 border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50"
+                className="flex-1 px-4 py-2 border border-border text-fg-secondary rounded-lg text-sm font-medium hover:bg-surface-muted"
               >
                 取消
               </button>

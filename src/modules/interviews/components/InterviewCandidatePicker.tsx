@@ -51,18 +51,18 @@ export const InterviewCandidatePicker = ({
 
   return (
     <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+      <label className="block text-sm font-medium text-fg-secondary mb-1">{label}</label>
       <input
         type="text"
         placeholder="搜索候选人姓名或邮箱..."
         value={search}
         onChange={(e) => onSearchChange(e.target.value)}
-        className={`w-full border border-gray-200 px-3 py-2 text-sm mb-2 focus:outline-none focus:ring-2 bg-white ${classes.input}`}
+        className={`w-full border border-border px-3 py-2 text-sm mb-2 focus:outline-none focus:ring-2 bg-surface ${classes.input}`}
       />
       <select
         value={selectedId}
         onChange={(e) => onSelectedIdChange(e.target.value)}
-        className={`w-full border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 bg-white ${classes.select}`}
+        className={`w-full border border-border px-3 py-2 text-sm focus:outline-none focus:ring-2 bg-surface ${classes.select}`}
         size={listSize}
       >
         {candidates.map((c) => (

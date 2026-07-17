@@ -48,11 +48,11 @@ const CATEGORY_COLORS: Record<string, string> = {
   '专业能力': 'bg-purple-100 text-purple-700',
   '应变能力': 'bg-orange-100 text-orange-700',
   '综合素质': 'bg-emerald-100 text-emerald-700',
-  '综合': 'bg-gray-100 text-gray-700',
+  '综合': 'bg-surface-muted text-fg-secondary',
 };
 
 const STATUS_LABELS: Record<string, {label: string; color: string}> = {
-  enrolled: {label: '已报名', color: 'bg-gray-100 text-gray-600'},
+  enrolled: {label: '已报名', color: 'bg-surface-muted text-fg-secondary'},
   in_progress: {label: '学习中', color: 'bg-blue-100 text-blue-600'},
   completed: {label: '已完成', color: 'bg-emerald-100 text-emerald-600'},
   failed: {label: '未通过', color: 'bg-red-100 text-red-600'},
@@ -212,10 +212,10 @@ export const TrainingAcademyPage = () => {
   if (loading) {
     return (
       <div className="max-w-[1500px] mx-auto w-full p-6">
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-4">
-          <div className="h-7 w-44 rounded-lg bg-gray-100 animate-pulse" />
+        <div className="bg-surface rounded-2xl border border-border shadow-sm p-6 space-y-4">
+          <div className="h-7 w-44 rounded-lg bg-surface-muted animate-pulse" />
           <div className="grid grid-cols-4 gap-4">
-            {[1, 2, 3, 4].map(i => <div key={i} className="h-28 rounded-xl bg-gray-100 animate-pulse" />)}
+            {[1, 2, 3, 4].map(i => <div key={i} className="h-28 rounded-xl bg-surface-muted animate-pulse" />)}
           </div>
         </div>
       </div>
@@ -231,8 +231,8 @@ export const TrainingAcademyPage = () => {
             <BookOpen className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-gray-900">培训学堂</h1>
-            <p className="text-sm text-gray-500">面试薄弱点分析 → 针对性培训 → 提升通过率</p>
+            <h1 className="text-xl font-bold text-fg">培训学堂</h1>
+            <p className="text-sm text-fg-muted">面试薄弱点分析 → 针对性培训 → 提升通过率</p>
           </div>
         </div>
       </div>
@@ -248,7 +248,7 @@ export const TrainingAcademyPage = () => {
       )}
 
       {/* Tab Navigation */}
-      <div className="flex gap-1 bg-gray-100 rounded-xl p-1 overflow-x-auto">
+      <div className="flex gap-1 bg-surface-muted rounded-xl p-1 overflow-x-auto">
         {TABS.map(tab => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -257,7 +257,7 @@ export const TrainingAcademyPage = () => {
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all min-w-[112px] flex-1 justify-center whitespace-nowrap ${
-                isActive ? 'bg-white text-[#1a4bc4] shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                isActive ? 'bg-surface text-[#1a4bc4] shadow-sm' : 'text-fg-muted hover:text-fg-secondary'
               }`}
             >
               <Icon className="w-4 h-4" />
@@ -378,12 +378,12 @@ const StatsCard = ({icon: Icon, label, value, color}: {
   };
 
   return (
-    <div className={`bg-gradient-to-br ${bgMap[color]} rounded-xl p-4 border border-gray-100`}>
+    <div className={`bg-gradient-to-br ${bgMap[color]} rounded-xl p-4 border border-border-subtle`}>
       <div className="flex items-center gap-3">
         <Icon className={`w-5 h-5 ${iconMap[color]}`} />
-        <span className="text-sm text-gray-500">{label}</span>
+        <span className="text-sm text-fg-muted">{label}</span>
       </div>
-      <div className="mt-2 text-2xl font-bold text-gray-900">{value}</div>
+      <div className="mt-2 text-2xl font-bold text-fg">{value}</div>
     </div>
   );
 };
@@ -404,18 +404,18 @@ const CoursesTab = ({courses, onAdd, onBatchEnroll, onEdit, onDelete}: {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex gap-2">
-          <button onClick={() => setFilter('')} className={`px-3 py-1.5 rounded-lg text-sm ${!filter ? 'bg-[#1a4bc4] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+          <button onClick={() => setFilter('')} className={`px-3 py-1.5 rounded-lg text-sm ${!filter ? 'bg-[#1a4bc4] text-white' : 'bg-surface-muted text-fg-secondary hover:bg-surface-muted'}`}>
             全部
           </button>
           {categories.map(cat => (
-            <button key={cat} onClick={() => setFilter(cat)} className={`px-3 py-1.5 rounded-lg text-sm ${filter === cat ? 'bg-[#1a4bc4] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+            <button key={cat} onClick={() => setFilter(cat)} className={`px-3 py-1.5 rounded-lg text-sm ${filter === cat ? 'bg-[#1a4bc4] text-white' : 'bg-surface-muted text-fg-secondary hover:bg-surface-muted'}`}>
               {cat}
             </button>
           ))}
         </div>
         <div className="flex items-center gap-2">
           {courses.length > 0 && (
-            <button onClick={onBatchEnroll} className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm hover:bg-gray-50 transition-colors">
+            <button onClick={onBatchEnroll} className="flex items-center gap-2 px-4 py-2 bg-surface border border-border text-fg-secondary rounded-lg text-sm hover:bg-surface-muted transition-colors">
               <Users className="w-4 h-4" /> 批量报名
             </button>
           )}
@@ -429,13 +429,13 @@ const CoursesTab = ({courses, onAdd, onBatchEnroll, onEdit, onDelete}: {
         {filtered.map(course => (
           <div
             key={course.id}
-            className="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md transition-shadow group relative cursor-pointer"
+            className="bg-surface rounded-xl border border-border p-5 hover:shadow-md transition-shadow group relative cursor-pointer"
             onClick={() => hasPlayableVideo(course) && navigate(`/training/preview?courseId=${course.id}`)}
           >
             <div className="flex items-start justify-between mb-3">
               <div>
-                <h3 className="font-semibold text-gray-900 text-sm">{course.title}</h3>
-                <p className="text-xs text-gray-500 mt-1 line-clamp-2">{course.description}</p>
+                <h3 className="font-semibold text-fg text-sm">{course.title}</h3>
+                <p className="text-xs text-fg-muted mt-1 line-clamp-2">{course.description}</p>
               </div>
               {hasPlayableVideo(course) && (
                 <span className="shrink-0 ml-2 px-1.5 py-0.5 bg-indigo-100 text-indigo-600 rounded text-[10px] font-medium flex items-center gap-1">
@@ -444,24 +444,24 @@ const CoursesTab = ({courses, onAdd, onBatchEnroll, onEdit, onDelete}: {
               )}
             </div>
             <div className="flex items-center gap-2 mb-3">
-              <span className={`px-2 py-0.5 rounded text-xs font-medium ${CATEGORY_COLORS[course.category] ?? 'bg-gray-100 text-gray-600'}`}>
+              <span className={`px-2 py-0.5 rounded text-xs font-medium ${CATEGORY_COLORS[course.category] ?? 'bg-surface-muted text-fg-secondary'}`}>
                 {course.category}
               </span>
-              <span className={`px-2 py-0.5 rounded text-xs font-medium ${(DIFFICULTY_LABELS[course.difficulty]?.color ?? 'bg-gray-100 text-gray-600')}`}>
+              <span className={`px-2 py-0.5 rounded text-xs font-medium ${(DIFFICULTY_LABELS[course.difficulty]?.color ?? 'bg-surface-muted text-fg-secondary')}`}>
                 {DIFFICULTY_LABELS[course.difficulty]?.label ?? course.difficulty}
               </span>
             </div>
-            <div className="flex items-center gap-4 text-xs text-gray-400">
+            <div className="flex items-center gap-4 text-xs text-fg-faint">
               <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{course.durationMinutes} 分钟</span>
               <span className="flex items-center gap-1"><BookOpen className="w-3 h-3" />{course.content.length} 章节</span>
               <span className="flex items-center gap-1"><Star className="w-3 h-3" />及格 {course.assessmentConfig.passingScore}分</span>
             </div>
             {/* Hover actions */}
-            <div className="flex items-center gap-1 mt-3 pt-3 border-t border-gray-100 opacity-0 group-hover:opacity-100 transition-opacity">
-              <button onClick={(e) => { e.stopPropagation(); onEdit(course); }} className="flex items-center gap-1 px-3 py-1.5 text-xs text-gray-600 hover:text-[#1a4bc4] hover:bg-blue-50 rounded-lg transition-colors">
+            <div className="flex items-center gap-1 mt-3 pt-3 border-t border-border-subtle opacity-0 group-hover:opacity-100 transition-opacity">
+              <button onClick={(e) => { e.stopPropagation(); onEdit(course); }} className="flex items-center gap-1 px-3 py-1.5 text-xs text-fg-secondary hover:text-[#1a4bc4] hover:bg-blue-50 rounded-lg transition-colors">
                 <Edit3 className="w-3.5 h-3.5" /> 编辑
               </button>
-              <button onClick={(e) => { e.stopPropagation(); onDelete(course.id); }} className="flex items-center gap-1 px-3 py-1.5 text-xs text-gray-600 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+              <button onClick={(e) => { e.stopPropagation(); onDelete(course.id); }} className="flex items-center gap-1 px-3 py-1.5 text-xs text-fg-secondary hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
                 <Trash2 className="w-3.5 h-3.5" /> 删除
               </button>
               {hasPlayableVideo(course) && (
@@ -560,7 +560,7 @@ export const VideoShareTab = ({courses, readonly = false, publicAccess = false, 
       };
     }
     return {
-      className: 'text-gray-400',
+      className: 'text-fg-faint',
       text: '未生成动作流',
     };
   };
@@ -743,14 +743,14 @@ export const VideoShareTab = ({courses, readonly = false, publicAccess = false, 
 
   return (
     <div className="space-y-5">
-      <div className="bg-white rounded-xl border border-gray-200 p-5">
+      <div className="bg-surface rounded-xl border border-border p-5">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h2 className="font-semibold text-gray-900 flex items-center gap-2">
+            <h2 className="font-semibold text-fg flex items-center gap-2">
               <Link2 className="w-4 h-4 text-[#1a4bc4]" />
               员工培训资料库
             </h2>
-            <p className="text-sm text-gray-500 mt-1">
+            <p className="text-sm text-fg-muted mt-1">
               按视频、PDF、Word 和课程分类管理公开资料链接，员工无需报名课程、无需登录后台即可观看或预览。
             </p>
           </div>
@@ -774,10 +774,10 @@ export const VideoShareTab = ({courses, readonly = false, publicAccess = false, 
       )}
 
       {shareableCourses.length === 0 ? (
-        <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
-          <PlayCircle className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-          <p className="text-gray-600 font-medium">暂无可分享的培训资料</p>
-          <p className="text-sm text-gray-400 mt-1">请先新建课程，在章节或参考资料中上传文件并保存课程。</p>
+        <div className="bg-surface rounded-xl border border-border p-12 text-center">
+          <PlayCircle className="w-12 h-12 text-fg-faint mx-auto mb-3" />
+          <p className="text-fg-secondary font-medium">暂无可分享的培训资料</p>
+          <p className="text-sm text-fg-faint mt-1">请先新建课程，在章节或参考资料中上传文件并保存课程。</p>
           {!readonly && onAddCourse && (
             <button onClick={onAddCourse} className="mt-4 px-4 py-2 bg-[#1a4bc4] text-white rounded-lg text-sm hover:bg-[#153da0]">
               新建课程
@@ -785,38 +785,38 @@ export const VideoShareTab = ({courses, readonly = false, publicAccess = false, 
           )}
         </div>
       ) : (
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <div className="p-4 border-b border-gray-200 space-y-4">
+        <div className="bg-surface rounded-xl border border-border overflow-hidden">
+          <div className="p-4 border-b border-border space-y-4">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <div className="rounded-lg border border-gray-200 px-3 py-2">
-                <p className="text-xs text-gray-500">全部资料</p>
-                <p className="text-xl font-bold text-gray-900">{assets.length}</p>
+              <div className="rounded-lg border border-border px-3 py-2">
+                <p className="text-xs text-fg-muted">全部资料</p>
+                <p className="text-xl font-bold text-fg">{assets.length}</p>
               </div>
-              <div className="rounded-lg border border-gray-200 px-3 py-2">
-                <p className="text-xs text-gray-500">视频</p>
-                <p className="text-xl font-bold text-gray-900">{assetCounts.video}</p>
+              <div className="rounded-lg border border-border px-3 py-2">
+                <p className="text-xs text-fg-muted">视频</p>
+                <p className="text-xl font-bold text-fg">{assetCounts.video}</p>
               </div>
-              <div className="rounded-lg border border-gray-200 px-3 py-2">
-                <p className="text-xs text-gray-500">文档</p>
-                <p className="text-xl font-bold text-gray-900">{assetCounts.document}</p>
+              <div className="rounded-lg border border-border px-3 py-2">
+                <p className="text-xs text-fg-muted">文档</p>
+                <p className="text-xl font-bold text-fg">{assetCounts.document}</p>
               </div>
-              <div className="rounded-lg border border-gray-200 px-3 py-2">
-                <p className="text-xs text-gray-500">课程</p>
-                <p className="text-xl font-bold text-gray-900">{shareableCourses.length}</p>
+              <div className="rounded-lg border border-border px-3 py-2">
+                <p className="text-xs text-fg-muted">课程</p>
+                <p className="text-xl font-bold text-fg">{shareableCourses.length}</p>
               </div>
             </div>
 
             <div className="flex flex-col xl:flex-row gap-3">
               <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-fg-faint" />
                 <input
                   value={query}
                   onChange={event => setQuery(event.target.value)}
                   placeholder="搜索标题、课程、分类、文件类型"
-                  className="w-full pl-9 pr-9 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4] focus:border-transparent"
+                  className="w-full pl-9 pr-9 py-2.5 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4] focus:border-transparent"
                 />
                 {query && (
-                  <button onClick={() => setQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                  <button onClick={() => setQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-fg-faint hover:text-fg-secondary">
                     <X className="w-4 h-4" />
                   </button>
                 )}
@@ -829,10 +829,10 @@ export const VideoShareTab = ({courses, readonly = false, publicAccess = false, 
                     className={`px-3 py-2 rounded-lg text-sm border transition-colors ${
                       kindFilter === filter.id
                         ? 'bg-gray-900 border-gray-900 text-white'
-                        : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                        : 'bg-surface border-border text-fg-secondary hover:bg-surface-muted'
                     }`}
                   >
-                    {filter.label} <span className={kindFilter === filter.id ? 'text-gray-300' : 'text-gray-400'}>{filter.count}</span>
+                    {filter.label} <span className={kindFilter === filter.id ? 'text-fg-faint' : 'text-fg-faint'}>{filter.count}</span>
                   </button>
                 ))}
               </div>
@@ -848,10 +848,10 @@ export const VideoShareTab = ({courses, readonly = false, publicAccess = false, 
                     className={`shrink-0 px-3 py-1.5 rounded-full text-xs border transition-colors ${
                       categoryFilter === category
                         ? 'bg-[#1a4bc4] border-[#1a4bc4] text-white'
-                        : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                        : 'bg-surface border-border text-fg-secondary hover:bg-surface-muted'
                     }`}
                   >
-                    {category} <span className={categoryFilter === category ? 'text-blue-100' : 'text-gray-400'}>{count}</span>
+                    {category} <span className={categoryFilter === category ? 'text-blue-100' : 'text-fg-faint'}>{count}</span>
                   </button>
                 );
               })}
@@ -861,12 +861,12 @@ export const VideoShareTab = ({courses, readonly = false, publicAccess = false, 
           <div className="hidden lg:block overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-gray-50 border-b border-gray-200">
-                  <th className="text-left px-4 py-3 text-gray-500 font-medium">资料</th>
-                  <th className="text-left px-4 py-3 text-gray-500 font-medium">课程</th>
-                  <th className="text-left px-4 py-3 text-gray-500 font-medium">分类</th>
-                  <th className="text-left px-4 py-3 text-gray-500 font-medium">状态</th>
-                  <th className="text-right px-4 py-3 text-gray-500 font-medium">操作</th>
+                <tr className="bg-surface-muted border-b border-border">
+                  <th className="text-left px-4 py-3 text-fg-muted font-medium">资料</th>
+                  <th className="text-left px-4 py-3 text-fg-muted font-medium">课程</th>
+                  <th className="text-left px-4 py-3 text-fg-muted font-medium">分类</th>
+                  <th className="text-left px-4 py-3 text-fg-muted font-medium">状态</th>
+                  <th className="text-right px-4 py-3 text-fg-muted font-medium">操作</th>
                 </tr>
               </thead>
               <tbody>
@@ -882,30 +882,30 @@ export const VideoShareTab = ({courses, readonly = false, publicAccess = false, 
                   const itemCopied = copiedId === itemKey;
                   const courseCopied = copiedId === courseLinkKey;
                   return (
-                    <tr key={asset.id} className="border-b border-gray-100 hover:bg-gray-50">
+                    <tr key={asset.id} className="border-b border-border-subtle hover:bg-surface-muted">
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-3 min-w-[260px]">
                           <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${asset.kind === 'video' ? 'bg-indigo-50 text-indigo-600' : 'bg-emerald-50 text-emerald-600'}`}>
                             {asset.kind === 'video' ? <PlayCircle className="w-4 h-4" /> : <FileText className="w-4 h-4" />}
                           </div>
                           <div className="min-w-0">
-                            <p className="font-medium text-gray-900 truncate">{asset.title}</p>
-                            <p className="text-xs text-gray-400">{asset.kindLabel} · {asset.extension || 'file'} · {asset.sourceLabel}</p>
+                            <p className="font-medium text-fg truncate">{asset.title}</p>
+                            <p className="text-xs text-fg-faint">{asset.kindLabel} · {asset.extension || 'file'} · {asset.sourceLabel}</p>
                           </div>
                         </div>
                       </td>
                       <td className="px-4 py-3">
-                        <p className="font-medium text-gray-800 truncate max-w-[220px]">{asset.course.title}</p>
-                        <p className="text-xs text-gray-400 truncate max-w-[220px]">{asset.course.description || '暂无描述'}</p>
+                        <p className="font-medium text-fg truncate max-w-[220px]">{asset.course.title}</p>
+                        <p className="text-xs text-fg-faint truncate max-w-[220px]">{asset.course.description || '暂无描述'}</p>
                       </td>
                       <td className="px-4 py-3">
-                        <span className={`px-2 py-0.5 rounded text-xs font-medium ${CATEGORY_COLORS[asset.course.category] ?? 'bg-gray-100 text-gray-600'}`}>
+                        <span className={`px-2 py-0.5 rounded text-xs font-medium ${CATEGORY_COLORS[asset.course.category] ?? 'bg-surface-muted text-fg-secondary'}`}>
                           {asset.course.category}
                         </span>
                       </td>
                       <td className="px-4 py-3">
                         <div className="space-y-1 text-xs">
-                          <p className="flex items-center gap-1 text-gray-500">
+                          <p className="flex items-center gap-1 text-fg-muted">
                             <Clock className="w-3.5 h-3.5" /> {asset.course.durationMinutes} 分钟
                           </p>
                           <p className={`flex items-center gap-1 ${captionStatus.className}`} title={captionJob?.error}>
@@ -928,7 +928,7 @@ export const VideoShareTab = ({courses, readonly = false, publicAccess = false, 
                               <button
                                 onClick={() => handleOpen(asset.course.id, asset.url)}
                                 disabled={itemLoading || isCaptionLoading}
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 text-gray-700 rounded-lg text-xs hover:bg-gray-50 disabled:opacity-60 transition-colors"
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-surface border border-border text-fg-secondary rounded-lg text-xs hover:bg-surface-muted disabled:opacity-60 transition-colors"
                               >
                                 <ExternalLink className="w-3.5 h-3.5" /> 打开
                               </button>
@@ -938,7 +938,7 @@ export const VideoShareTab = ({courses, readonly = false, publicAccess = false, 
                             <button
                               onClick={() => handleGenerateCaptions(asset.course, asset.url)}
                               disabled={courseLoading || isCaptionLoading}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 text-gray-700 rounded-lg text-xs hover:bg-gray-50 disabled:opacity-60 transition-colors"
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-surface border border-border text-fg-secondary rounded-lg text-xs hover:bg-surface-muted disabled:opacity-60 transition-colors"
                             >
                               {isCaptionLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
                               {isCaptionLoading ? `${progress}%` : asset.captionsCount > 0 ? '重生成' : '动作流'}
@@ -948,7 +948,7 @@ export const VideoShareTab = ({courses, readonly = false, publicAccess = false, 
                             <button
                               onClick={() => handleCopy(asset.course.id)}
                               disabled={courseLoading || isCaptionLoading}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 text-gray-700 rounded-lg text-xs hover:bg-gray-50 disabled:opacity-60 transition-colors"
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-surface border border-border text-fg-secondary rounded-lg text-xs hover:bg-surface-muted disabled:opacity-60 transition-colors"
                             >
                               {courseLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <BookOpen className="w-3.5 h-3.5" />}
                               {courseCopied ? '已复制' : '整课'}
@@ -957,7 +957,7 @@ export const VideoShareTab = ({courses, readonly = false, publicAccess = false, 
                           <button
                             onClick={() => handlePreviewAsset(asset)}
                             disabled={isCaptionLoading}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 text-gray-700 rounded-lg text-xs hover:bg-gray-50 disabled:opacity-60 transition-colors"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-surface border border-border text-fg-secondary rounded-lg text-xs hover:bg-surface-muted disabled:opacity-60 transition-colors"
                           >
                             {asset.kind === 'video' ? <PlayCircle className="w-3.5 h-3.5" /> : <FileText className="w-3.5 h-3.5" />}
                             预览
@@ -966,7 +966,7 @@ export const VideoShareTab = ({courses, readonly = false, publicAccess = false, 
                             <button
                               onClick={() => onEditCourse(asset.course)}
                               disabled={isCaptionLoading}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 text-gray-700 rounded-lg text-xs hover:bg-gray-50 disabled:opacity-60 transition-colors"
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-surface border border-border text-fg-secondary rounded-lg text-xs hover:bg-surface-muted disabled:opacity-60 transition-colors"
                             >
                               <Edit3 className="w-3.5 h-3.5" /> 编辑
                             </button>
@@ -975,7 +975,7 @@ export const VideoShareTab = ({courses, readonly = false, publicAccess = false, 
                             <button
                               onClick={() => onDeleteCourse(asset.course)}
                               disabled={courseLoading || isCaptionLoading}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-red-200 text-red-600 rounded-lg text-xs hover:bg-red-50 disabled:opacity-60 transition-colors"
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-surface border border-red-200 text-red-600 rounded-lg text-xs hover:bg-red-50 disabled:opacity-60 transition-colors"
                             >
                               <Trash2 className="w-3.5 h-3.5" /> 删除
                             </button>
@@ -989,7 +989,7 @@ export const VideoShareTab = ({courses, readonly = false, publicAccess = false, 
             </table>
           </div>
 
-          <div className="lg:hidden divide-y divide-gray-100">
+          <div className="lg:hidden divide-y divide-border-subtle">
             {pageAssets.map(asset => {
               const itemKey = getLinkKey(asset.course.id, asset.url);
               const courseLinkKey = getLinkKey(asset.course.id);
@@ -1006,10 +1006,10 @@ export const VideoShareTab = ({courses, readonly = false, publicAccess = false, 
                       {asset.kind === 'video' ? <PlayCircle className="w-5 h-5" /> : <FileText className="w-5 h-5" />}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="font-semibold text-gray-900">{asset.title}</p>
-                      <p className="text-xs text-gray-400 mt-1">{asset.kindLabel} · {asset.extension || 'file'} · {asset.course.title}</p>
+                      <p className="font-semibold text-fg">{asset.title}</p>
+                      <p className="text-xs text-fg-faint mt-1">{asset.kindLabel} · {asset.extension || 'file'} · {asset.course.title}</p>
                       <div className="flex flex-wrap items-center gap-2 mt-2">
-                        <span className={`px-2 py-0.5 rounded text-xs font-medium ${CATEGORY_COLORS[asset.course.category] ?? 'bg-gray-100 text-gray-600'}`}>
+                        <span className={`px-2 py-0.5 rounded text-xs font-medium ${CATEGORY_COLORS[asset.course.category] ?? 'bg-surface-muted text-fg-secondary'}`}>
                           {asset.course.category}
                         </span>
                         <span className={`text-xs flex items-center gap-1 ${captionStatus.className}`} title={captionJob?.error}>
@@ -1032,7 +1032,7 @@ export const VideoShareTab = ({courses, readonly = false, publicAccess = false, 
                         <button
                           onClick={() => handleOpen(asset.course.id, asset.url)}
                           disabled={itemLoading || isCaptionLoading}
-                          className="flex items-center justify-center gap-1.5 px-3 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-xs hover:bg-gray-50 disabled:opacity-60"
+                          className="flex items-center justify-center gap-1.5 px-3 py-2 bg-surface border border-border text-fg-secondary rounded-lg text-xs hover:bg-surface-muted disabled:opacity-60"
                         >
                           <ExternalLink className="w-3.5 h-3.5" /> 打开
                         </button>
@@ -1042,7 +1042,7 @@ export const VideoShareTab = ({courses, readonly = false, publicAccess = false, 
                       <button
                         onClick={() => handleGenerateCaptions(asset.course, asset.url)}
                         disabled={isCaptionLoading}
-                        className="flex items-center justify-center gap-1.5 px-3 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-xs hover:bg-gray-50 disabled:opacity-60"
+                        className="flex items-center justify-center gap-1.5 px-3 py-2 bg-surface border border-border text-fg-secondary rounded-lg text-xs hover:bg-surface-muted disabled:opacity-60"
                       >
                         {isCaptionLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
                         {isCaptionLoading ? `${progress}%` : '动作流'}
@@ -1052,7 +1052,7 @@ export const VideoShareTab = ({courses, readonly = false, publicAccess = false, 
                             <button
                               onClick={() => handleCopy(asset.course.id)}
                         disabled={loadingId === courseLinkKey || isCaptionLoading}
-                        className="flex items-center justify-center gap-1.5 px-3 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-xs hover:bg-gray-50 disabled:opacity-60"
+                        className="flex items-center justify-center gap-1.5 px-3 py-2 bg-surface border border-border text-fg-secondary rounded-lg text-xs hover:bg-surface-muted disabled:opacity-60"
                       >
                         <BookOpen className="w-3.5 h-3.5" /> 整课链接
                       </button>
@@ -1060,7 +1060,7 @@ export const VideoShareTab = ({courses, readonly = false, publicAccess = false, 
                     <button
                       onClick={() => handlePreviewAsset(asset)}
                       disabled={isCaptionLoading}
-                      className="flex items-center justify-center gap-1.5 px-3 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-xs hover:bg-gray-50 disabled:opacity-60"
+                      className="flex items-center justify-center gap-1.5 px-3 py-2 bg-surface border border-border text-fg-secondary rounded-lg text-xs hover:bg-surface-muted disabled:opacity-60"
                     >
                       {asset.kind === 'video' ? <PlayCircle className="w-3.5 h-3.5" /> : <FileText className="w-3.5 h-3.5" />}
                       预览
@@ -1069,7 +1069,7 @@ export const VideoShareTab = ({courses, readonly = false, publicAccess = false, 
                       <button
                         onClick={() => onEditCourse(asset.course)}
                         disabled={isCaptionLoading}
-                        className="flex items-center justify-center gap-1.5 px-3 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-xs hover:bg-gray-50 disabled:opacity-60"
+                        className="flex items-center justify-center gap-1.5 px-3 py-2 bg-surface border border-border text-fg-secondary rounded-lg text-xs hover:bg-surface-muted disabled:opacity-60"
                       >
                         <Edit3 className="w-3.5 h-3.5" /> 编辑
                       </button>
@@ -1078,7 +1078,7 @@ export const VideoShareTab = ({courses, readonly = false, publicAccess = false, 
                       <button
                         onClick={() => onDeleteCourse(asset.course)}
                         disabled={isCaptionLoading}
-                        className="flex items-center justify-center gap-1.5 px-3 py-2 bg-white border border-red-200 text-red-600 rounded-lg text-xs hover:bg-red-50 disabled:opacity-60"
+                        className="flex items-center justify-center gap-1.5 px-3 py-2 bg-surface border border-red-200 text-red-600 rounded-lg text-xs hover:bg-red-50 disabled:opacity-60"
                       >
                         <Trash2 className="w-3.5 h-3.5" /> 删除
                       </button>
@@ -1090,28 +1090,28 @@ export const VideoShareTab = ({courses, readonly = false, publicAccess = false, 
           </div>
 
           {filteredAssets.length === 0 && (
-            <div className="text-center py-12 text-gray-400">
+            <div className="text-center py-12 text-fg-faint">
               <Search className="w-10 h-10 mx-auto mb-2 opacity-50" />
               没有匹配的培训资料
             </div>
           )}
 
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 py-3 bg-gray-50 border-t border-gray-200 text-sm">
-            <span className="text-gray-500">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 py-3 bg-surface-muted border-t border-border text-sm">
+            <span className="text-fg-muted">
               共 {filteredAssets.length} 条，当前第 {safePage} / {totalPages} 页
             </span>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setPage(prev => Math.max(1, prev - 1))}
                 disabled={safePage <= 1}
-                className="px-3 py-1.5 bg-white border border-gray-200 text-gray-700 rounded-lg disabled:opacity-50 hover:bg-gray-50"
+                className="px-3 py-1.5 bg-surface border border-border text-fg-secondary rounded-lg disabled:opacity-50 hover:bg-surface-muted"
               >
                 上一页
               </button>
               <button
                 onClick={() => setPage(prev => Math.min(totalPages, prev + 1))}
                 disabled={safePage >= totalPages}
-                className="px-3 py-1.5 bg-white border border-gray-200 text-gray-700 rounded-lg disabled:opacity-50 hover:bg-gray-50"
+                className="px-3 py-1.5 bg-surface border border-border text-fg-secondary rounded-lg disabled:opacity-50 hover:bg-surface-muted"
               >
                 下一页
               </button>
@@ -1136,39 +1136,39 @@ const EnrollmentsTab = ({enrollments, onScore, onExport}: {enrollments: Training
         <div className="flex gap-2">
         {['', 'enrolled', 'in_progress', 'completed', 'failed'].map(s => (
           <button key={s} onClick={() => setStatusFilter(s)}
-            className={`px-3 py-1.5 rounded-lg text-sm ${statusFilter === s ? 'bg-[#1a4bc4] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+            className={`px-3 py-1.5 rounded-lg text-sm ${statusFilter === s ? 'bg-[#1a4bc4] text-white' : 'bg-surface-muted text-fg-secondary hover:bg-surface-muted'}`}>
             {s === '' ? '全部' : (STATUS_LABELS[s]?.label ?? s)}
           </button>
         ))}
       </div>
-      <button onClick={onExport} className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm hover:bg-gray-50 transition-colors">
+      <button onClick={onExport} className="flex items-center gap-2 px-4 py-2 bg-surface border border-border text-fg-secondary rounded-lg text-sm hover:bg-surface-muted transition-colors">
         <Download className="w-4 h-4" /> 导出 CSV
       </button>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <div className="bg-surface rounded-xl border border-border overflow-hidden">
         <table className="w-full text-sm">
           <thead>
-            <tr className="bg-gray-50 border-b border-gray-200">
-              <th className="text-left px-4 py-3 text-gray-500 font-medium">学员</th>
-              <th className="text-left px-4 py-3 text-gray-500 font-medium">课程</th>
-              <th className="text-left px-4 py-3 text-gray-500 font-medium">状态</th>
-              <th className="text-center px-4 py-3 text-gray-500 font-medium">进度</th>
-              <th className="text-center px-4 py-3 text-gray-500 font-medium">培训前</th>
-              <th className="text-center px-4 py-3 text-gray-500 font-medium">考核分</th>
-              <th className="text-center px-4 py-3 text-gray-500 font-medium">操作</th>
+            <tr className="bg-surface-muted border-b border-border">
+              <th className="text-left px-4 py-3 text-fg-muted font-medium">学员</th>
+              <th className="text-left px-4 py-3 text-fg-muted font-medium">课程</th>
+              <th className="text-left px-4 py-3 text-fg-muted font-medium">状态</th>
+              <th className="text-center px-4 py-3 text-fg-muted font-medium">进度</th>
+              <th className="text-center px-4 py-3 text-fg-muted font-medium">培训前</th>
+              <th className="text-center px-4 py-3 text-fg-muted font-medium">考核分</th>
+              <th className="text-center px-4 py-3 text-fg-muted font-medium">操作</th>
             </tr>
           </thead>
           <tbody>
             {filtered.map(enrollment => {
-              const st = STATUS_LABELS[enrollment.status] ?? {label: enrollment.status, color: 'bg-gray-100 text-gray-600'};
+              const st = STATUS_LABELS[enrollment.status] ?? {label: enrollment.status, color: 'bg-surface-muted text-fg-secondary'};
               const isScoring = scoringId === enrollment.id;
               return (
-                <tr key={enrollment.id} className="border-b border-gray-100 hover:bg-gray-50">
-                  <td className="px-4 py-3 font-medium text-gray-900">{enrollment.candidateName}</td>
+                <tr key={enrollment.id} className="border-b border-border-subtle hover:bg-surface-muted">
+                  <td className="px-4 py-3 font-medium text-fg">{enrollment.candidateName}</td>
                   <td className="px-4 py-3">
-                    <div className="text-gray-900">{enrollment.courseTitle}</div>
-                    <div className="text-xs text-gray-400">{enrollment.courseCategory}</div>
+                    <div className="text-fg">{enrollment.courseTitle}</div>
+                    <div className="text-xs text-fg-faint">{enrollment.courseCategory}</div>
                   </td>
                   <td className="px-4 py-3">
                     <span className={`px-2 py-0.5 rounded text-xs font-medium ${st.color}`}>{st.label}</span>
@@ -1178,10 +1178,10 @@ const EnrollmentsTab = ({enrollments, onScore, onExport}: {enrollments: Training
                       <div className="w-16 h-1.5 bg-gray-200 rounded-full overflow-hidden">
                         <div className="h-full bg-[#1a4bc4] rounded-full" style={{width: `${enrollment.progressPct}%`}} />
                       </div>
-                      <span className="text-xs text-gray-500">{enrollment.progressPct}%</span>
+                      <span className="text-xs text-fg-muted">{enrollment.progressPct}%</span>
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-center text-gray-600">{enrollment.preInterviewScore ?? '-'}</td>
+                  <td className="px-4 py-3 text-center text-fg-secondary">{enrollment.preInterviewScore ?? '-'}</td>
                   <td className="px-4 py-3 text-center font-medium">
                     {enrollment.finalScore !== undefined ? (
                       <span className={enrollment.finalScore >= 60 ? 'text-emerald-600' : 'text-red-500'}>
@@ -1212,7 +1212,7 @@ const EnrollmentsTab = ({enrollments, onScore, onExport}: {enrollments: Training
                         }} className="text-xs px-2 py-1 bg-emerald-500 text-white rounded hover:bg-emerald-600">
                           确认
                         </button>
-                        <button onClick={() => setScoringId(null)} className="text-xs px-2 py-1 bg-gray-200 text-gray-600 rounded hover:bg-gray-300">
+                        <button onClick={() => setScoringId(null)} className="text-xs px-2 py-1 bg-gray-200 text-fg-secondary rounded hover:bg-gray-300">
                           取消
                         </button>
                       </div>
@@ -1224,7 +1224,7 @@ const EnrollmentsTab = ({enrollments, onScore, onExport}: {enrollments: Training
           </tbody>
         </table>
         {filtered.length === 0 && (
-          <div className="text-center py-12 text-gray-400">
+          <div className="text-center py-12 text-fg-faint">
             <Users className="w-10 h-10 mx-auto mb-2 opacity-50" />
             暂无培训记录
           </div>
@@ -1277,8 +1277,8 @@ const AnalysisTab = ({data, courses}: {data: WeaknessAnalysis; courses: Training
       </div>
 
       {/* Weakness Bars */}
-      <div className="bg-white rounded-xl border border-gray-200 p-5 space-y-4">
-        <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+      <div className="bg-surface rounded-xl border border-border p-5 space-y-4">
+        <h3 className="font-semibold text-fg flex items-center gap-2">
           <Target className="w-4 h-4 text-red-500" /> 薄弱维度排名
         </h3>
         {data.weaknesses.map((w, i) => {
@@ -1288,17 +1288,17 @@ const AnalysisTab = ({data, courses}: {data: WeaknessAnalysis; courses: Training
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className="w-6 h-6 rounded-full bg-red-100 text-red-600 text-xs flex items-center justify-center font-bold">{i + 1}</span>
-                  <span className="font-medium text-gray-900">{w.dimension}</span>
-                  <span className="text-xs text-gray-400">平均分 {w.avgScore}</span>
+                  <span className="font-medium text-fg">{w.dimension}</span>
+                  <span className="text-xs text-fg-faint">平均分 {w.avgScore}</span>
                 </div>
                 <span className="text-sm text-red-500 font-medium">{w.frequency} 人次</span>
               </div>
-              <div className="w-full h-3 bg-gray-100 rounded-full overflow-hidden">
+              <div className="w-full h-3 bg-surface-muted rounded-full overflow-hidden">
                 <div className="h-full bg-gradient-to-r from-red-400 to-red-500 rounded-full transition-all"
                   style={{width: `${(w.frequency / maxFreq) * 100}%`}} />
               </div>
               <div className="flex items-center justify-between">
-                <div className="text-xs text-gray-400">
+                <div className="text-xs text-fg-faint">
                   受影响: {w.affectedCandidates.slice(0, 4).join('、')}{w.affectedCandidates.length > 4 ? ` 等${w.affectedCandidates.length}人` : ''}
                 </div>
                 {matchingCourses.length > 0 && (
@@ -1313,17 +1313,17 @@ const AnalysisTab = ({data, courses}: {data: WeaknessAnalysis; courses: Training
       </div>
 
       {/* Course Recommendation */}
-      <div className="bg-white rounded-xl border border-gray-200 p-5 space-y-4">
-        <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+      <div className="bg-surface rounded-xl border border-border p-5 space-y-4">
+        <h3 className="font-semibold text-fg flex items-center gap-2">
           <Award className="w-4 h-4 text-[#1a4bc4]" /> 智能推荐课程
         </h3>
-        <p className="text-sm text-gray-500">输入候选人 ID 和姓名，系统根据面试薄弱维度自动推荐匹配课程</p>
+        <p className="text-sm text-fg-muted">输入候选人 ID 和姓名，系统根据面试薄弱维度自动推荐匹配课程</p>
         <div className="flex items-center gap-3">
           <input value={candidateIdInput} onChange={e => setCandidateIdInput(e.target.value)}
-            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
+            className="flex-1 px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
             placeholder="候选人 ID" />
           <input value={candidateNameInput} onChange={e => setCandidateNameInput(e.target.value)}
-            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
+            className="flex-1 px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
             placeholder="候选人姓名" />
           <button onClick={handleRecommend} disabled={loading || !candidateIdInput.trim()}
             className="px-4 py-2 bg-[#1a4bc4] text-white rounded-lg text-sm hover:bg-[#153da0] disabled:opacity-50 whitespace-nowrap">
@@ -1335,7 +1335,7 @@ const AnalysisTab = ({data, courses}: {data: WeaknessAnalysis; courses: Training
           <div className="space-y-3 mt-4">
             {recommendation.dimensions.length > 0 && (
               <div className="flex gap-2">
-                <span className="text-sm text-gray-500">薄弱维度:</span>
+                <span className="text-sm text-fg-muted">薄弱维度:</span>
                 {recommendation.dimensions.map(d => (
                   <span key={d} className="px-2 py-0.5 bg-red-100 text-red-700 rounded text-xs font-medium">{d}</span>
                 ))}
@@ -1346,8 +1346,8 @@ const AnalysisTab = ({data, courses}: {data: WeaknessAnalysis; courses: Training
                 {recommendation.recommendations.map(course => (
                   <div key={course.id} className="flex items-center justify-between p-3 bg-blue-50 rounded-lg border border-blue-200">
                     <div>
-                      <div className="text-sm font-medium text-gray-900">{course.title}</div>
-                      <div className="text-xs text-gray-500">{course.category} · {course.difficulty}</div>
+                      <div className="text-sm font-medium text-fg">{course.title}</div>
+                      <div className="text-xs text-fg-muted">{course.category} · {course.difficulty}</div>
                     </div>
                     <button onClick={() => handleEnroll(course.id)}
                       className="px-3 py-1.5 bg-[#1a4bc4] text-white rounded-lg text-xs hover:bg-[#153da0] whitespace-nowrap">
@@ -1357,7 +1357,7 @@ const AnalysisTab = ({data, courses}: {data: WeaknessAnalysis; courses: Training
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-gray-400">该候选人无薄弱维度或暂无匹配课程</p>
+              <p className="text-sm text-fg-faint">该候选人无薄弱维度或暂无匹配课程</p>
             )}
           </div>
         )}
@@ -1371,23 +1371,23 @@ const EffectivenessTab = ({data}: {data: TrainingEffectiveness}) => {
     <div className="space-y-6">
       {/* Overall */}
       <div className="grid grid-cols-3 gap-4">
-        <div className="bg-white rounded-xl border border-gray-200 p-5 text-center">
-          <div className="text-3xl font-bold text-gray-900">{data.totalCompleted}</div>
-          <div className="text-sm text-gray-500 mt-1">培训完成人次</div>
+        <div className="bg-surface rounded-xl border border-border p-5 text-center">
+          <div className="text-3xl font-bold text-fg">{data.totalCompleted}</div>
+          <div className="text-sm text-fg-muted mt-1">培训完成人次</div>
         </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-5 text-center">
+        <div className="bg-surface rounded-xl border border-border p-5 text-center">
           <div className="text-3xl font-bold text-emerald-600">+{data.avgImprovement}</div>
-          <div className="text-sm text-gray-500 mt-1">平均分数提升</div>
+          <div className="text-sm text-fg-muted mt-1">平均分数提升</div>
         </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-5 text-center">
+        <div className="bg-surface rounded-xl border border-border p-5 text-center">
           <div className="text-3xl font-bold text-[#1a4bc4]">{data.improvementRate}%</div>
-          <div className="text-sm text-gray-500 mt-1">提升率</div>
+          <div className="text-sm text-fg-muted mt-1">提升率</div>
         </div>
       </div>
 
       {/* By Category */}
-      <div className="bg-white rounded-xl border border-gray-200 p-5">
-        <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+      <div className="bg-surface rounded-xl border border-border p-5">
+        <h3 className="font-semibold text-fg mb-4 flex items-center gap-2">
           <BarChart3 className="w-4 h-4 text-[#1a4bc4]" /> 各维度培训效果
         </h3>
         <div className="space-y-4">
@@ -1398,25 +1398,25 @@ const EffectivenessTab = ({data}: {data: TrainingEffectiveness}) => {
               <div key={category} className="space-y-2">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span className={`px-2 py-0.5 rounded text-xs font-medium ${CATEGORY_COLORS[category] ?? 'bg-gray-100 text-gray-600'}`}>
+                    <span className={`px-2 py-0.5 rounded text-xs font-medium ${CATEGORY_COLORS[category] ?? 'bg-surface-muted text-fg-secondary'}`}>
                       {category}
                     </span>
-                    <span className="text-xs text-gray-400">{stat.count} 人次</span>
+                    <span className="text-xs text-fg-faint">{stat.count} 人次</span>
                   </div>
                   <div className="flex items-center gap-1 text-sm">
-                    <span className="text-gray-400">{stat.avgPre}</span>
+                    <span className="text-fg-faint">{stat.avgPre}</span>
                     <ArrowUpRight className="w-3 h-3 text-emerald-500" />
                     <span className="font-medium text-emerald-600">{stat.avgPost}</span>
                     <span className="text-xs text-emerald-500">(+{improvement.toFixed(1)})</span>
                   </div>
                 </div>
-                <div className="relative h-3 bg-gray-100 rounded-full overflow-hidden">
+                <div className="relative h-3 bg-surface-muted rounded-full overflow-hidden">
                   <div className="h-full bg-gray-300 rounded-full" style={{width: `${(stat.avgPre / 100) * 100}%`}} />
                   <div className="absolute top-0 left-0 h-full bg-gradient-to-r from-[#1a4bc4] to-[#6366F1] rounded-full transition-all"
                     style={{width: `${barWidth}%`}} />
                 </div>
                 <div className="flex justify-between text-xs">
-                  <span className="text-gray-400">提升率: {stat.count > 0 ? Math.round((stat.improved / stat.count) * 100) : 0}%</span>
+                  <span className="text-fg-faint">提升率: {stat.count > 0 ? Math.round((stat.improved / stat.count) * 100) : 0}%</span>
                 </div>
               </div>
             );
@@ -1584,22 +1584,22 @@ export const CreateCourseModal = ({initial, onClose, onSubmit, defaultContentTyp
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={onClose}>
       <motion.div initial={{opacity: 0, scale: 0.95}} animate={{opacity: 1, scale: 1}}
-        className="bg-white rounded-2xl p-6 w-full max-w-2xl shadow-xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">{isEdit ? '编辑培训课程' : '新建培训课程'}</h3>
+        className="bg-surface rounded-2xl p-6 w-full max-w-2xl shadow-xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <h3 className="text-lg font-semibold text-fg mb-4">{isEdit ? '编辑培训课程' : '新建培训课程'}</h3>
         <div className="space-y-4">
           {/* Basic Info */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">课程标题 *</label>
+              <label className="block text-sm font-medium text-fg-secondary mb-1">课程标题 *</label>
               <input value={title} onChange={e => setTitle(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]" placeholder="输入课程标题" />
+                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]" placeholder="输入课程标题" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">时长 (分钟)</label>
+              <label className="block text-sm font-medium text-fg-secondary mb-1">时长 (分钟)</label>
               <NumericScoreInput
                 value={duration}
                 onChange={setDuration}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
+                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
                 min={1}
                 max={9999}
               />
@@ -1607,9 +1607,9 @@ export const CreateCourseModal = ({initial, onClose, onSubmit, defaultContentTyp
           </div>
           <div className="grid grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">分类维度</label>
+              <label className="block text-sm font-medium text-fg-secondary mb-1">分类维度</label>
               <select value={category} onChange={e => setCategory(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]">
+                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]">
                 <option value="沟通表达">沟通表达</option>
                 <option value="专业能力">专业能力</option>
                 <option value="应变能力">应变能力</option>
@@ -1618,24 +1618,24 @@ export const CreateCourseModal = ({initial, onClose, onSubmit, defaultContentTyp
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">难度</label>
+              <label className="block text-sm font-medium text-fg-secondary mb-1">难度</label>
               <select value={difficulty} onChange={e => setDifficulty(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]">
+                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]">
                 <option value="初级">初级</option>
                 <option value="中级">中级</option>
                 <option value="高级">高级</option>
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">胜任力维度</label>
+              <label className="block text-sm font-medium text-fg-secondary mb-1">胜任力维度</label>
               <input value={competencyDim} onChange={e => setCompetencyDim(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]" placeholder="可选" />
+                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]" placeholder="可选" />
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">课程描述</label>
+            <label className="block text-sm font-medium text-fg-secondary mb-1">课程描述</label>
             <textarea value={desc} onChange={e => setDesc(e.target.value)} rows={2}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]" placeholder="描述课程内容和学习目标" />
+              className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]" placeholder="描述课程内容和学习目标" />
           </div>
 
           {/* Content Sections Toggle */}
@@ -1654,7 +1654,7 @@ export const CreateCourseModal = ({initial, onClose, onSubmit, defaultContentTyp
             {showContentEditor && (
               <div className="mt-3 space-y-3">
                 {sections.map((sec, i) => (
-                  <div key={i} className="flex items-start gap-2 bg-gray-50 p-3 rounded-lg">
+                  <div key={i} className="flex items-start gap-2 bg-surface-muted p-3 rounded-lg">
                     <div className="flex-1 space-y-2">
                       <input value={sec.sectionTitle} onChange={e => updateSection(i, 'sectionTitle', e.target.value)}
                         className="w-full px-2 py-1 border rounded text-sm" placeholder="章节标题" />
@@ -1671,7 +1671,7 @@ export const CreateCourseModal = ({initial, onClose, onSubmit, defaultContentTyp
                               className="w-full px-2 py-1 border rounded text-sm font-mono" rows={6}
                               placeholder="输入带时间戳的文字稿内容，格式如：&#10;00:00:00 - 欢迎参加本次培训&#10;00:05:30 - 今天我们学习STAR法则&#10;00:10:15 - 第一个案例分析" />
                             <div className="flex items-center gap-2">
-                              <label className="shrink-0 px-2 py-1 bg-gray-100 hover:bg-gray-200 text-gray-500 rounded text-xs cursor-pointer transition-colors flex items-center gap-1">
+                              <label className="shrink-0 px-2 py-1 bg-surface-muted hover:bg-surface-muted text-fg-muted rounded text-xs cursor-pointer transition-colors flex items-center gap-1">
                                 <Upload className="w-3 h-3" /> 上传 .txt/.srt 文字稿
                                 <input type="file" className="hidden" accept=".txt,.srt,.vtt"
                                   onChange={async (e) => {
@@ -1708,7 +1708,7 @@ export const CreateCourseModal = ({initial, onClose, onSubmit, defaultContentTyp
                                     } catch (err) { console.error('Parse failed:', err); }
                                   }} />
                               </label>
-                              <span className="text-[10px] text-gray-400">支持 .txt（时间戳格式）、.srt、.vtt 自动解析</span>
+                              <span className="text-[10px] text-fg-faint">支持 .txt（时间戳格式）、.srt、.vtt 自动解析</span>
                             </div>
                           </div>
                         ) : (
@@ -1718,7 +1718,7 @@ export const CreateCourseModal = ({initial, onClose, onSubmit, defaultContentTyp
                             <label role="button" aria-disabled={uploadingSectionIndex !== null} className={`shrink-0 px-3 py-2 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 border ${
                               uploadingSectionIndex === i
                                 ? 'border-indigo-200 bg-indigo-50 text-indigo-600 cursor-wait'
-                                : 'border-gray-200 bg-white hover:bg-gray-50 text-gray-700 cursor-pointer shadow-sm'
+                                : 'border-border bg-surface hover:bg-surface-muted text-fg-secondary cursor-pointer shadow-sm'
                             }`}>
                               {uploadingSectionIndex === i ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
                               {uploadingSectionIndex === i ? `上传 ${sectionUploadProgress}%` : '本地上传'}
@@ -1736,7 +1736,7 @@ export const CreateCourseModal = ({initial, onClose, onSubmit, defaultContentTyp
                           </div>
                         )}
                         {sec.contentType === 'video' && (
-                          <p className="text-[10px] text-gray-400">
+                          <p className="text-[10px] text-fg-faint">
                             视频会直传对象存储。编辑已有视频时，上传完成后需要点击底部「保存修改」才会更新公开链接。
                           </p>
                         )}
@@ -1745,7 +1745,7 @@ export const CreateCourseModal = ({initial, onClose, onSubmit, defaultContentTyp
                     <button onClick={() => removeSection(i)} className="text-red-400 hover:text-red-600 text-xs mt-1">删除</button>
                   </div>
                 ))}
-                <button onClick={() => addSection(isEdit ? 'text' : 'video')} className="text-xs px-3 py-1.5 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200">
+                <button onClick={() => addSection(isEdit ? 'text' : 'video')} className="text-xs px-3 py-1.5 bg-surface-muted text-fg-secondary rounded-lg hover:bg-surface-muted">
                   + 添加{isEdit ? '' : '视频'}章节
                 </button>
               </div>
@@ -1754,7 +1754,7 @@ export const CreateCourseModal = ({initial, onClose, onSubmit, defaultContentTyp
 
           {/* Materials */}
           <div className="border-t pt-4">
-            <button onClick={() => {}} className="flex items-center gap-2 text-sm font-medium text-gray-500 mb-2">
+            <button onClick={() => {}} className="flex items-center gap-2 text-sm font-medium text-fg-muted mb-2">
               参考资料 ({materials.length})
             </button>
             {materials.map((mat, i) => (
@@ -1773,7 +1773,7 @@ export const CreateCourseModal = ({initial, onClose, onSubmit, defaultContentTyp
                 <label className={`px-2 py-1 rounded text-xs transition-colors flex items-center gap-1 ${
                   uploadingMaterialIndex === i
                     ? 'bg-indigo-50 text-indigo-600 cursor-wait'
-                    : 'bg-gray-100 hover:bg-gray-200 text-gray-600 cursor-pointer'
+                    : 'bg-surface-muted hover:bg-surface-muted text-fg-secondary cursor-pointer'
                 }`}>
                   {uploadingMaterialIndex === i ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
                   {uploadingMaterialIndex === i ? `上传 ${materialUploadProgress}%` : '上传'}
@@ -1790,7 +1790,7 @@ export const CreateCourseModal = ({initial, onClose, onSubmit, defaultContentTyp
                 <button onClick={() => removeMaterial(i)} className="text-red-400 hover:text-red-600 text-xs">删除</button>
               </div>
             ))}
-            <button onClick={addMaterial} className="text-xs px-3 py-1.5 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200">
+            <button onClick={addMaterial} className="text-xs px-3 py-1.5 bg-surface-muted text-fg-secondary rounded-lg hover:bg-surface-muted">
               + 添加参考资料
             </button>
           </div>
@@ -1799,20 +1799,20 @@ export const CreateCourseModal = ({initial, onClose, onSubmit, defaultContentTyp
           <div className="border-t pt-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">考核方式</label>
+                <label className="block text-sm font-medium text-fg-secondary mb-1">考核方式</label>
                 <select value={assessType} onChange={e => setAssessType(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]">
+                  className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]">
                   <option value="quiz">测验</option>
                   <option value="ai_review">AI 评审</option>
                   <option value="manual">人工评审</option>
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">及格分数</label>
+                <label className="block text-sm font-medium text-fg-secondary mb-1">及格分数</label>
                 <NumericScoreInput
                   value={passingScore}
                   onChange={setPassingScore}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
+                  className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
                   min={0}
                   max={100}
                 />
@@ -1821,7 +1821,7 @@ export const CreateCourseModal = ({initial, onClose, onSubmit, defaultContentTyp
           </div>
         </div>
         <div className="flex justify-end gap-3 mt-6">
-          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">取消</button>
+          <button onClick={onClose} className="px-4 py-2 text-sm text-fg-secondary hover:bg-surface-muted rounded-lg">取消</button>
           <button onClick={handleSubmit}
             className="px-4 py-2 text-sm bg-[#1a4bc4] text-white rounded-lg hover:bg-[#153da0] disabled:opacity-50 flex items-center gap-2"
             disabled={!title.trim() || isSubmitting}>
@@ -1851,18 +1851,18 @@ const PathsTab = ({paths, courses, onAdd, onEdit, onDelete, onEnrollmentClick, o
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex gap-2">
-          <button onClick={() => setFilter('')} className={`px-3 py-1.5 rounded-lg text-sm ${!filter ? 'bg-[#1a4bc4] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+          <button onClick={() => setFilter('')} className={`px-3 py-1.5 rounded-lg text-sm ${!filter ? 'bg-[#1a4bc4] text-white' : 'bg-surface-muted text-fg-secondary hover:bg-surface-muted'}`}>
             全部
           </button>
           {categories.map(cat => (
-            <button key={cat} onClick={() => setFilter(cat)} className={`px-3 py-1.5 rounded-lg text-sm ${filter === cat ? 'bg-[#1a4bc4] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+            <button key={cat} onClick={() => setFilter(cat)} className={`px-3 py-1.5 rounded-lg text-sm ${filter === cat ? 'bg-[#1a4bc4] text-white' : 'bg-surface-muted text-fg-secondary hover:bg-surface-muted'}`}>
               {cat}
             </button>
           ))}
         </div>
         <div className="flex items-center gap-2">
           {paths.length > 0 && (
-            <button onClick={onBatchEnroll} className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm hover:bg-gray-50 transition-colors">
+            <button onClick={onBatchEnroll} className="flex items-center gap-2 px-4 py-2 bg-surface border border-border text-fg-secondary rounded-lg text-sm hover:bg-surface-muted transition-colors">
               <Users className="w-4 h-4" /> 批量报名
             </button>
           )}
@@ -1873,10 +1873,10 @@ const PathsTab = ({paths, courses, onAdd, onEdit, onDelete, onEnrollmentClick, o
       </div>
 
       {filtered.length === 0 ? (
-        <div className="text-center py-16 text-gray-400 bg-white rounded-xl border border-gray-200">
+        <div className="text-center py-16 text-fg-faint bg-surface rounded-xl border border-border">
           <MapPin className="w-12 h-12 mx-auto mb-4 opacity-40" />
           <p className="text-sm font-medium mb-1">还没有学习路径</p>
-          <p className="text-xs text-gray-400 mb-4">创建结构化的多课程培训路径，引导学员循序渐进完成学习</p>
+          <p className="text-xs text-fg-faint mb-4">创建结构化的多课程培训路径，引导学员循序渐进完成学习</p>
           <button onClick={onAdd} className="px-4 py-2 bg-[#1a4bc4] text-white rounded-lg text-sm hover:bg-[#153da0]">
             创建第一条路径
           </button>
@@ -1887,32 +1887,32 @@ const PathsTab = ({paths, courses, onAdd, onEdit, onDelete, onEnrollmentClick, o
             const requiredCount = path.courses.filter(c => c.isRequired).length;
             const optionalCount = path.courses.filter(c => !c.isRequired).length;
             return (
-              <div key={path.id} className="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md transition-shadow group">
+              <div key={path.id} className="bg-surface rounded-xl border border-border p-5 hover:shadow-md transition-shadow group">
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
-                      <h3 className="font-semibold text-gray-900 text-sm truncate">{path.title}</h3>
+                      <h3 className="font-semibold text-fg text-sm truncate">{path.title}</h3>
                       {path.isCertified && (
                         <span className="shrink-0 px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded text-[10px] font-medium">认证</span>
                       )}
                     </div>
-                    <p className="text-xs text-gray-500 line-clamp-2">{path.description || '暂无描述'}</p>
+                    <p className="text-xs text-fg-muted line-clamp-2">{path.description || '暂无描述'}</p>
                   </div>
                   <div className="flex items-center gap-1 ml-2 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                    <button onClick={() => onEdit(path)} className="p-1.5 text-gray-400 hover:text-[#1a4bc4] hover:bg-blue-50 rounded-lg transition-colors" title="编辑">
+                    <button onClick={() => onEdit(path)} className="p-1.5 text-fg-faint hover:text-[#1a4bc4] hover:bg-blue-50 rounded-lg transition-colors" title="编辑">
                       <Edit3 className="w-3.5 h-3.5" />
                     </button>
-                    <button onClick={() => onDelete(path.id)} className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="删除">
+                    <button onClick={() => onDelete(path.id)} className="p-1.5 text-fg-faint hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="删除">
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 </div>
 
                 <div className="flex items-center gap-2 mb-3">
-                  <span className={`px-2 py-0.5 rounded text-xs font-medium ${CATEGORY_COLORS[path.category] ?? 'bg-gray-100 text-gray-600'}`}>
+                  <span className={`px-2 py-0.5 rounded text-xs font-medium ${CATEGORY_COLORS[path.category] ?? 'bg-surface-muted text-fg-secondary'}`}>
                     {path.category}
                   </span>
-                  <span className={`px-2 py-0.5 rounded text-xs font-medium ${(DIFFICULTY_LABELS[path.level]?.color ?? 'bg-gray-100 text-gray-600')}`}>
+                  <span className={`px-2 py-0.5 rounded text-xs font-medium ${(DIFFICULTY_LABELS[path.level]?.color ?? 'bg-surface-muted text-fg-secondary')}`}>
                     {DIFFICULTY_LABELS[path.level]?.label ?? path.level}
                   </span>
                 </div>
@@ -1921,20 +1921,20 @@ const PathsTab = ({paths, courses, onAdd, onEdit, onDelete, onEnrollmentClick, o
                   <div className="mb-3 space-y-1.5">
                     {path.courses.slice(0, 3).map((pc, i) => (
                       <div key={pc.id} className="flex items-center gap-2 text-xs">
-                        <span className="w-5 h-5 rounded bg-gray-100 text-gray-500 flex items-center justify-center text-[10px] font-medium shrink-0">
+                        <span className="w-5 h-5 rounded bg-surface-muted text-fg-muted flex items-center justify-center text-[10px] font-medium shrink-0">
                           {i + 1}
                         </span>
-                        <span className="text-gray-700 truncate">{pc.course.title}</span>
-                        {!pc.isRequired && <span className="text-[10px] text-gray-400 shrink-0">选修</span>}
+                        <span className="text-fg-secondary truncate">{pc.course.title}</span>
+                        {!pc.isRequired && <span className="text-[10px] text-fg-faint shrink-0">选修</span>}
                       </div>
                     ))}
                     {path.courses.length > 3 && (
-                      <div className="text-xs text-gray-400 pl-7">+{path.courses.length - 3} 门课程</div>
+                      <div className="text-xs text-fg-faint pl-7">+{path.courses.length - 3} 门课程</div>
                     )}
                   </div>
                 )}
 
-                <div className="flex items-center justify-between text-xs text-gray-400 pt-3 border-t border-gray-100">
+                <div className="flex items-center justify-between text-xs text-fg-faint pt-3 border-t border-border-subtle">
                   <span className="flex items-center gap-1">
                     <BookOpen className="w-3 h-3" />
                     {requiredCount > 0 && <span>{requiredCount} 必修</span>}
@@ -2017,8 +2017,8 @@ const PathFormModal = ({courses, initial, onClose, onSubmit}: {
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={onClose}>
       <motion.div initial={{opacity: 0, scale: 0.95}} animate={{opacity: 1, scale: 1}}
-        className="bg-white rounded-2xl p-6 w-full max-w-2xl shadow-xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">
+        className="bg-surface rounded-2xl p-6 w-full max-w-2xl shadow-xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <h3 className="text-lg font-semibold text-fg mb-4">
           {isEdit ? '编辑学习路径' : '新建学习路径'}
         </h3>
 
@@ -2026,15 +2026,15 @@ const PathFormModal = ({courses, initial, onClose, onSubmit}: {
           {/* Basic Info */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">路径名称 *</label>
+              <label className="block text-sm font-medium text-fg-secondary mb-1">路径名称 *</label>
               <input value={title} onChange={e => setTitle(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
+                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
                 placeholder="例如：前端开发工程师入职培训" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">分类</label>
+              <label className="block text-sm font-medium text-fg-secondary mb-1">分类</label>
               <select value={category} onChange={e => setCategory(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]">
+                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]">
                 <option value="沟通表达">沟通表达</option>
                 <option value="专业能力">专业能力</option>
                 <option value="应变能力">应变能力</option>
@@ -2046,9 +2046,9 @@ const PathFormModal = ({courses, initial, onClose, onSubmit}: {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">难度等级</label>
+              <label className="block text-sm font-medium text-fg-secondary mb-1">难度等级</label>
               <select value={level} onChange={e => setLevel(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]">
+                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]">
                 <option value="初级">初级</option>
                 <option value="中级">中级</option>
                 <option value="高级">高级</option>
@@ -2057,22 +2057,22 @@ const PathFormModal = ({courses, initial, onClose, onSubmit}: {
             <div className="flex items-end pb-2">
               <label className="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" checked={isCertified} onChange={e => setIsCertified(e.target.checked)}
-                  className="w-4 h-4 rounded border-gray-300 text-[#1a4bc4] focus:ring-[#1a4bc4]" />
-                <span className="text-sm text-gray-700">认证路径 (完成后颁发证书)</span>
+                  className="w-4 h-4 rounded border-border text-[#1a4bc4] focus:ring-[#1a4bc4]" />
+                <span className="text-sm text-fg-secondary">认证路径 (完成后颁发证书)</span>
               </label>
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">路径描述</label>
+            <label className="block text-sm font-medium text-fg-secondary mb-1">路径描述</label>
             <textarea value={desc} onChange={e => setDesc(e.target.value)} rows={2}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
+              className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
               placeholder="描述该学习路径的目标和适用人群" />
           </div>
 
           {/* Course Selection */}
           <div className="border-t pt-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-fg-secondary mb-2">
               包含课程 ({selectedCourseIds.length})
             </label>
 
@@ -2083,11 +2083,11 @@ const PathFormModal = ({courses, initial, onClose, onSubmit}: {
                   <div key={course.id} className="flex items-center gap-3 bg-blue-50 p-3 rounded-lg border border-blue-100">
                     <div className="flex items-center gap-1">
                       <button onClick={() => moveCourse(idx, -1)} disabled={idx === 0}
-                        className="text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed">
+                        className="text-fg-faint hover:text-fg-secondary disabled:opacity-30 disabled:cursor-not-allowed">
                         <ChevronRight className="w-4 h-4 rotate-180" />
                       </button>
                       <button onClick={() => moveCourse(idx, 1)} disabled={idx === selectedCourses.length - 1}
-                        className="text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed">
+                        className="text-fg-faint hover:text-fg-secondary disabled:opacity-30 disabled:cursor-not-allowed">
                         <ChevronRight className="w-4 h-4" />
                       </button>
                     </div>
@@ -2095,8 +2095,8 @@ const PathFormModal = ({courses, initial, onClose, onSubmit}: {
                       {idx + 1}
                     </span>
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium text-gray-900 truncate">{course.title}</div>
-                      <div className="text-xs text-gray-500">{course.category} · {course.durationMinutes}分钟</div>
+                      <div className="text-sm font-medium text-fg truncate">{course.title}</div>
+                      <div className="text-xs text-fg-muted">{course.category} · {course.durationMinutes}分钟</div>
                     </div>
                     <button onClick={() => toggleCourse(course.id)}
                       className="text-red-400 hover:text-red-600 text-xs shrink-0">移除</button>
@@ -2106,20 +2106,20 @@ const PathFormModal = ({courses, initial, onClose, onSubmit}: {
             )}
 
             {/* Available courses */}
-            <div className="max-h-48 overflow-y-auto border border-gray-200 rounded-lg">
+            <div className="max-h-48 overflow-y-auto border border-border rounded-lg">
               {courses.filter(c => !selectedCourseIds.includes(c.id)).length === 0 ? (
-                <div className="text-center py-6 text-gray-400 text-sm">
+                <div className="text-center py-6 text-fg-faint text-sm">
                   {courses.length === 0 ? '暂无可选课程，请先创建课程' : '所有课程已添加'}
                 </div>
               ) : (
                 courses.filter(c => !selectedCourseIds.includes(c.id)).map(course => (
                   <button key={course.id}
                     onClick={() => toggleCourse(course.id)}
-                    className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 text-left border-b border-gray-100 last:border-0 transition-colors">
+                    className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-surface-muted text-left border-b border-border-subtle last:border-0 transition-colors">
                     <Plus className="w-4 h-4 text-[#1a4bc4] shrink-0" />
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm text-gray-900 truncate">{course.title}</div>
-                      <div className="text-xs text-gray-400">{course.category} · {DIFFICULTY_LABELS[course.difficulty]?.label} · {course.durationMinutes}分钟</div>
+                      <div className="text-sm text-fg truncate">{course.title}</div>
+                      <div className="text-xs text-fg-faint">{course.category} · {DIFFICULTY_LABELS[course.difficulty]?.label} · {course.durationMinutes}分钟</div>
                     </div>
                   </button>
                 ))
@@ -2129,7 +2129,7 @@ const PathFormModal = ({courses, initial, onClose, onSubmit}: {
         </div>
 
         <div className="flex justify-end gap-3 mt-6">
-          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">取消</button>
+          <button onClick={onClose} className="px-4 py-2 text-sm text-fg-secondary hover:bg-surface-muted rounded-lg">取消</button>
           <button onClick={handleSubmit}
             className="px-4 py-2 text-sm bg-[#1a4bc4] text-white rounded-lg hover:bg-[#153da0] disabled:opacity-50 flex items-center gap-2"
             disabled={!title.trim() || isSubmitting}>
@@ -2209,10 +2209,10 @@ const PathEnrollmentModal = ({pathId, onClose}: {pathId: string; onClose: () => 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={onClose}>
       <motion.div initial={{opacity: 0, scale: 0.95}} animate={{opacity: 1, scale: 1}}
-        className="bg-white rounded-2xl p-6 w-full max-w-3xl shadow-xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        className="bg-surface rounded-2xl p-6 w-full max-w-3xl shadow-xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900">路径报名管理</h3>
-          <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
+          <h3 className="text-lg font-semibold text-fg">路径报名管理</h3>
+          <button onClick={onClose} className="p-1.5 text-fg-faint hover:text-fg-secondary rounded-lg hover:bg-surface-muted">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -2234,14 +2234,14 @@ const PathEnrollmentModal = ({pathId, onClose}: {pathId: string; onClose: () => 
         </div>
 
         {/* Candidate Search + Enroll */}
-        <div className="mb-5 p-4 bg-gray-50 rounded-xl">
-          <label className="block text-sm font-medium text-gray-700 mb-2">添加候选人</label>
+        <div className="mb-5 p-4 bg-surface-muted rounded-xl">
+          <label className="block text-sm font-medium text-fg-secondary mb-2">添加候选人</label>
           <div className="flex gap-2">
             <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-fg-faint" />
               <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleSearch()}
-                className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
+                className="w-full pl-9 pr-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
                 placeholder="搜索候选人姓名..." />
             </div>
             <button onClick={handleSearch} disabled={searching || !searchQuery.trim()}
@@ -2250,14 +2250,14 @@ const PathEnrollmentModal = ({pathId, onClose}: {pathId: string; onClose: () => 
             </button>
           </div>
           {searchResults.length > 0 && (
-            <div className="mt-2 border border-gray-200 rounded-lg divide-y divide-gray-100 max-h-40 overflow-y-auto bg-white">
+            <div className="mt-2 border border-border rounded-lg divide-y divide-border-subtle max-h-40 overflow-y-auto bg-surface">
               {searchResults.map(c => {
                 const alreadyEnrolled = enrollments.some(e => e.candidateId === c.id);
                 return (
                   <div key={c.id} className="flex items-center justify-between px-3 py-2">
-                    <span className="text-sm text-gray-900">{c.name}</span>
+                    <span className="text-sm text-fg">{c.name}</span>
                     {alreadyEnrolled ? (
-                      <span className="text-xs text-gray-400">已报名</span>
+                      <span className="text-xs text-fg-faint">已报名</span>
                     ) : (
                       <button onClick={() => handleEnroll(c.id)} disabled={enrolling === c.id}
                         className="text-xs px-3 py-1 bg-[#1a4bc4] text-white rounded-lg hover:bg-[#153da0] disabled:opacity-50">
@@ -2273,34 +2273,34 @@ const PathEnrollmentModal = ({pathId, onClose}: {pathId: string; onClose: () => 
 
         {/* Enrollment List */}
         {loading ? (
-          <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-gray-400" /></div>
+          <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-fg-faint" /></div>
         ) : enrollments.length === 0 ? (
-          <div className="text-center py-8 text-gray-400">
+          <div className="text-center py-8 text-fg-faint">
             <Users className="w-10 h-10 mx-auto mb-2 opacity-50" />
             <p className="text-sm">暂无学员报名此路径</p>
             <p className="text-xs mt-1">使用上方搜索添加候选人</p>
           </div>
         ) : (
-          <div className="overflow-hidden border border-gray-200 rounded-xl">
+          <div className="overflow-hidden border border-border rounded-xl">
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-gray-50 border-b border-gray-200">
-                  <th className="text-left px-4 py-3 text-gray-500 font-medium">姓名</th>
-                  <th className="text-center px-4 py-3 text-gray-500 font-medium">状态</th>
-                  <th className="text-center px-4 py-3 text-gray-500 font-medium">进度</th>
-                  <th className="text-center px-4 py-3 text-gray-500 font-medium">操作</th>
+                <tr className="bg-surface-muted border-b border-border">
+                  <th className="text-left px-4 py-3 text-fg-muted font-medium">姓名</th>
+                  <th className="text-center px-4 py-3 text-fg-muted font-medium">状态</th>
+                  <th className="text-center px-4 py-3 text-fg-muted font-medium">进度</th>
+                  <th className="text-center px-4 py-3 text-fg-muted font-medium">操作</th>
                 </tr>
               </thead>
               <tbody>
                 {enrollments.map(enrollment => (
-                  <tr key={enrollment.id} className="border-b border-gray-100 hover:bg-gray-50">
-                    <td className="px-4 py-3 font-medium text-gray-900">
+                  <tr key={enrollment.id} className="border-b border-border-subtle hover:bg-surface-muted">
+                    <td className="px-4 py-3 font-medium text-fg">
                       {enrollment.candidateName || enrollment.candidateId}
                     </td>
                     <td className="px-4 py-3 text-center">
                       <select value={enrollment.status}
                         onChange={e => handleUpdate(enrollment.id, 'status', e.target.value)}
-                        className="px-2 py-1 border border-gray-200 rounded text-xs focus:outline-none focus:ring-1 focus:ring-[#1a4bc4]">
+                        className="px-2 py-1 border border-border rounded text-xs focus:outline-none focus:ring-1 focus:ring-[#1a4bc4]">
                         <option value="enrolled">已报名</option>
                         <option value="in_progress">学习中</option>
                         <option value="completed">已完成</option>
@@ -2312,7 +2312,7 @@ const PathEnrollmentModal = ({pathId, onClose}: {pathId: string; onClose: () => 
                         <input type="range" min="0" max="100" value={enrollment.progressPct}
                           onChange={e => handleUpdate(enrollment.id, 'progressPct', Number(e.target.value))}
                           className="w-16 h-1.5 accent-[#1a4bc4]" />
-                        <span className="text-xs text-gray-500 w-8">{enrollment.progressPct}%</span>
+                        <span className="text-xs text-fg-muted w-8">{enrollment.progressPct}%</span>
                       </div>
                     </td>
                     <td className="px-4 py-3 text-center">
@@ -2394,10 +2394,10 @@ const BatchEnrollModal = ({courses, paths, onClose, onDone}: {
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={handleClose}>
       <motion.div initial={{opacity: 0, scale: 0.95}} animate={{opacity: 1, scale: 1}}
-        className="bg-white rounded-2xl p-6 w-full max-w-2xl shadow-xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        className="bg-surface rounded-2xl p-6 w-full max-w-2xl shadow-xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900">批量报名</h3>
-          <button onClick={handleClose} className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
+          <h3 className="text-lg font-semibold text-fg">批量报名</h3>
+          <button onClick={handleClose} className="p-1.5 text-fg-faint hover:text-fg-secondary rounded-lg hover:bg-surface-muted">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -2415,10 +2415,10 @@ const BatchEnrollModal = ({courses, paths, onClose, onDone}: {
               </div>
             </div>
             {result.skipped.length > 0 && (
-              <div className="text-sm text-gray-500">
+              <div className="text-sm text-fg-muted">
                 <p className="font-medium mb-1">跳过详情：</p>
                 {result.skipped.map(s => (
-                  <div key={s.candidateId} className="text-xs text-gray-400">· {s.candidateId}: {s.reason}</div>
+                  <div key={s.candidateId} className="text-xs text-fg-faint">· {s.candidateId}: {s.reason}</div>
                 ))}
               </div>
             )}
@@ -2430,19 +2430,19 @@ const BatchEnrollModal = ({courses, paths, onClose, onDone}: {
           <div className="space-y-4">
             {/* Target Selection */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">报名目标</label>
+              <label className="block text-sm font-medium text-fg-secondary mb-2">报名目标</label>
               <div className="flex gap-2 mb-3">
                 <button onClick={() => { setTargetType('course'); setTargetId(''); }}
-                  className={`px-4 py-2 rounded-lg text-sm ${targetType === 'course' ? 'bg-[#1a4bc4] text-white' : 'bg-gray-100 text-gray-600'}`}>
+                  className={`px-4 py-2 rounded-lg text-sm ${targetType === 'course' ? 'bg-[#1a4bc4] text-white' : 'bg-surface-muted text-fg-secondary'}`}>
                   课程
                 </button>
                 <button onClick={() => { setTargetType('path'); setTargetId(''); }}
-                  className={`px-4 py-2 rounded-lg text-sm ${targetType === 'path' ? 'bg-[#1a4bc4] text-white' : 'bg-gray-100 text-gray-600'}`}>
+                  className={`px-4 py-2 rounded-lg text-sm ${targetType === 'path' ? 'bg-[#1a4bc4] text-white' : 'bg-surface-muted text-fg-secondary'}`}>
                   学习路径
                 </button>
               </div>
               <select value={targetId} onChange={e => setTargetId(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]">
+                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]">
                 <option value="">选择{targetType === 'course' ? '课程' : '学习路径'}...</option>
                 {activeTargets.map((t: TrainingCourse | LearningPath) => (
                   <option key={t.id} value={t.id}>
@@ -2454,13 +2454,13 @@ const BatchEnrollModal = ({courses, paths, onClose, onDone}: {
 
             {/* Candidate Search */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">选择候选人</label>
+              <label className="block text-sm font-medium text-fg-secondary mb-2">选择候选人</label>
               <div className="flex gap-2 mb-3">
                 <div className="flex-1 relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-fg-faint" />
                   <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
                     onKeyDown={e => e.key === 'Enter' && handleSearch()}
-                    className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
+                    className="w-full pl-9 pr-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
                     placeholder="搜索候选人姓名..." />
                 </div>
                 <button onClick={handleSearch} disabled={searching}
@@ -2483,14 +2483,14 @@ const BatchEnrollModal = ({courses, paths, onClose, onDone}: {
 
               {/* Search results */}
               {searchResults.length > 0 && (
-                <div className="border border-gray-200 rounded-lg divide-y divide-gray-100 max-h-48 overflow-y-auto">
+                <div className="border border-border rounded-lg divide-y divide-border-subtle max-h-48 overflow-y-auto">
                   {searchResults.map(c => {
                     const isSelected = selectedCandidates.some(s => s.id === c.id);
                     return (
-                      <label key={c.id} className={`flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-gray-50 ${isSelected ? 'bg-blue-50' : ''}`}>
+                      <label key={c.id} className={`flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-surface-muted ${isSelected ? 'bg-blue-50' : ''}`}>
                         <input type="checkbox" checked={isSelected} onChange={() => toggleCandidate(c)}
-                          className="w-4 h-4 rounded border-gray-300 text-[#1a4bc4] focus:ring-[#1a4bc4]" />
-                        <span className="text-sm text-gray-900">{c.name}</span>
+                          className="w-4 h-4 rounded border-border text-[#1a4bc4] focus:ring-[#1a4bc4]" />
+                        <span className="text-sm text-fg">{c.name}</span>
                       </label>
                     );
                   })}
@@ -2499,7 +2499,7 @@ const BatchEnrollModal = ({courses, paths, onClose, onDone}: {
             </div>
 
             <div className="flex justify-end gap-3 pt-2">
-              <button onClick={handleClose} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">取消</button>
+              <button onClick={handleClose} className="px-4 py-2 text-sm text-fg-secondary hover:bg-surface-muted rounded-lg">取消</button>
               <button onClick={handleSubmit} disabled={!targetId || selectedCandidates.length === 0 || submitting}
                 className="px-4 py-2 text-sm bg-[#1a4bc4] text-white rounded-lg hover:bg-[#153da0] disabled:opacity-50 flex items-center gap-2">
                 {submitting && <Loader2 className="w-4 h-4 animate-spin" />}

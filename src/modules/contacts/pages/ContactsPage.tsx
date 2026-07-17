@@ -13,7 +13,7 @@ const STATUS_OPTIONS = [
   {value: 'responded', label: '已回复', color: 'bg-emerald-100 text-emerald-700'},
   {value: 'interview_scheduled', label: '已安排面试', color: 'bg-purple-100 text-purple-700'},
   {value: 'hired', label: '已入职', color: 'bg-green-100 text-green-700'},
-  {value: 'rejected', label: '已拒绝', color: 'bg-gray-100 text-gray-500'},
+  {value: 'rejected', label: '已拒绝', color: 'bg-surface-muted text-fg-muted'},
 ];
 
 const CHANNEL_LABELS: Record<string, string> = {
@@ -58,9 +58,6 @@ export const ContactsPage = () => {
   }, [selectedProject]);
 
   const handleStatusChange = async (id: string, newStatus: Contact['status']) => {
-    // #region agent log
-    fetch('http://127.0.0.1:7854/ingest/be9f27ce-5c59-41c9-a632-43d870814038',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'a35f32'},body:JSON.stringify({sessionId:'a35f32',location:'ContactsPage.tsx:handleStatusChange',message:'status dropdown change',data:{id,newStatus},timestamp:Date.now(),hypothesisId:'H4'})}).catch(()=>{});
-    // #endregion
     try {
       const updated = await updateContactStatus(id, newStatus);
       setContacts((prev) => prev.map((c) => (c.id === id ? updated : c)));
@@ -83,9 +80,6 @@ export const ContactsPage = () => {
   };
 
   const openEditDialog = (contact: Contact) => {
-    // #region agent log
-    fetch('http://127.0.0.1:7854/ingest/be9f27ce-5c59-41c9-a632-43d870814038',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'a35f32'},body:JSON.stringify({sessionId:'a35f32',location:'ContactsPage.tsx:openEditDialog',message:'open edit dialog',data:{contactId:contact.id,status:contact.status,channel:contact.channel},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
-    // #endregion
     setEditingContact(contact);
     setEditForm({
       outreachPerson: contact.outreachPerson,
@@ -97,9 +91,6 @@ export const ContactsPage = () => {
   const handleSaveEdit = async () => {
     if (!editingContact || !editForm.reason.trim()) return;
     setSubmitting(true);
-    // #region agent log
-    fetch('http://127.0.0.1:7854/ingest/be9f27ce-5c59-41c9-a632-43d870814038',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'a35f32'},body:JSON.stringify({sessionId:'a35f32',location:'ContactsPage.tsx:handleSaveEdit',message:'save edit clicked',data:{contactId:editingContact.id,contactStatus:editingContact.status,editForm},timestamp:Date.now(),hypothesisId:'H1-H4-H5'})}).catch(()=>{});
-    // #endregion
     try {
       const updated = await updateContact(editingContact.id, {
         outreachPerson: editForm.outreachPerson.trim(),
@@ -110,9 +101,6 @@ export const ContactsPage = () => {
       setEditingContact(null);
       setToastMessage(`已更新联系人：${updated.candidateName}`);
     } catch (e) {
-      // #region agent log
-      fetch('http://127.0.0.1:7854/ingest/be9f27ce-5c59-41c9-a632-43d870814038',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'a35f32'},body:JSON.stringify({sessionId:'a35f32',location:'ContactsPage.tsx:handleSaveEdit:error',message:'save edit failed',data:{error:e instanceof Error?e.message:String(e)},timestamp:Date.now(),hypothesisId:'H1-H2'})}).catch(()=>{});
-      // #endregion
       console.error('Failed to update contact:', e);
       setToastMessage(e instanceof Error ? e.message : '更新失败，请重试');
     } finally {
@@ -171,13 +159,13 @@ export const ContactsPage = () => {
       {toastMessage && (
         <div className="fixed top-4 right-4 z-50 bg-gray-900 text-white px-4 py-3 rounded-lg shadow-lg text-[13px] font-medium flex items-center gap-2">
           {toastMessage}
-          <button onClick={() => setToastMessage(null)} className="ml-2 text-gray-400 hover:text-white">×</button>
+          <button onClick={() => setToastMessage(null)} className="ml-2 text-fg-faint hover:text-white">×</button>
         </div>
       )}
       <div className="flex items-end justify-between">
         <div>
-          <h1 className="text-[26px] font-bold text-gray-900 dark:text-white mb-1">联系人管理</h1>
-          <p className="text-[13px] text-gray-500 dark:text-gray-400">管理所有已推进的候选人，追踪联系状态和漏斗转化。</p>
+          <h1 className="text-[26px] font-bold text-fg mb-1">联系人管理</h1>
+          <p className="text-[13px] text-fg-muted">管理所有已推进的候选人，追踪联系状态和漏斗转化。</p>
         </div>
       </div>
 
@@ -190,7 +178,7 @@ export const ContactsPage = () => {
             // Use the ProjectContext setter indirectly by selecting project
             // The parent component handles this via the sidebar project selector
           }}
-          className="px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-700 dark:text-gray-300"
+          className="px-3 py-2 bg-surface border border-border rounded-lg text-sm text-fg-secondary"
         >
           <option value="">全部项目</option>
           {projects.map(p => (
@@ -198,13 +186,13 @@ export const ContactsPage = () => {
           ))}
         </select>
         <div className="relative flex-1 max-w-xs">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-fg-faint" />
           <input
             type="text"
             placeholder="搜索候选人、岗位、项目..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-700 dark:text-gray-300 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
+            className="w-full pl-9 pr-3 py-2 bg-surface border border-border rounded-lg text-sm text-fg-secondary placeholder-fg-faint focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
           />
         </div>
       </div>
@@ -218,31 +206,31 @@ export const ContactsPage = () => {
         ].map((item) => {
           const Icon = item.icon;
           return (
-            <div key={item.label} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-4">
+            <div key={item.label} className="bg-surface rounded-xl border border-border shadow-sm p-4">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-[12px] text-gray-500 dark:text-gray-400">{item.label}</span>
+                <span className="text-[12px] text-fg-muted">{item.label}</span>
                 <Icon className="w-4 h-4 text-[#1a4bc4]" />
               </div>
-              <div className="text-[28px] leading-none font-bold text-gray-900 dark:text-white">{item.value}</div>
+              <div className="text-[28px] leading-none font-bold text-fg">{item.value}</div>
             </div>
           );
         })}
       </div>
 
       {loading ? (
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-10 flex items-center justify-center text-gray-500 dark:text-gray-400">
+        <div className="bg-surface rounded-xl border border-border shadow-sm p-10 flex items-center justify-center text-fg-muted">
           <Loader2 className="w-5 h-5 mr-2 animate-spin" />
           正在加载联系人...
         </div>
       ) : filteredContacts.length === 0 ? (
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-10 flex items-center justify-center text-gray-500 dark:text-gray-400">
+        <div className="bg-surface rounded-xl border border-border shadow-sm p-10 flex items-center justify-center text-fg-muted">
           {searchQuery ? '没有找到匹配的联系人' : '暂无联系人，请在入围名单中推进候选人'}
         </div>
       ) : (
-        <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+        <div className="bg-surface rounded-2xl border border-border shadow-sm overflow-hidden">
           <table className="w-full">
-            <thead className="bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700">
-              <tr className="text-left text-[12px] text-gray-500 dark:text-gray-400 font-medium">
+            <thead className="bg-surface-muted/50 border-b border-border">
+              <tr className="text-left text-[12px] text-fg-muted font-medium">
                 <th className="px-6 py-3">候选人</th>
                 <th className="px-6 py-3">岗位</th>
                 <th className="px-6 py-3">推进人</th>
@@ -253,29 +241,29 @@ export const ContactsPage = () => {
                 <th className="px-6 py-3 text-right">操作</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100 dark:divide-gray-700/50">
+            <tbody className="divide-y divide-border-subtle">
               {filteredContacts.map((contact) => (
-                <tr key={contact.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
+                <tr key={contact.id} className="hover:bg-surface-muted transition-colors">
                   <td className="px-6 py-4">
                     <button
                       onClick={() => handleCandidateClick(contact)}
-                      className="font-bold text-gray-900 dark:text-white text-[14px] hover:text-blue-600 dark:hover:text-blue-400 transition-colors text-left"
+                      className="font-bold text-fg text-[14px] hover:text-blue-600 dark:hover:text-blue-400 transition-colors text-left"
                     >
                       {contact.candidateName}
                     </button>
                   </td>
                   <td className="px-6 py-4">
-                    <div className="text-[13px] text-gray-700 dark:text-gray-300">{contact.positionName}</div>
-                    <div className="text-[11px] text-gray-500 dark:text-gray-400">{contact.projectName}</div>
+                    <div className="text-[13px] text-fg-secondary">{contact.positionName}</div>
+                    <div className="text-[11px] text-fg-muted">{contact.projectName}</div>
                   </td>
-                  <td className="px-6 py-4 text-[13px] text-gray-700 dark:text-gray-300">{contact.outreachPerson}</td>
+                  <td className="px-6 py-4 text-[13px] text-fg-secondary">{contact.outreachPerson}</td>
                   <td className="px-6 py-4">
-                    <span className="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded text-[11px] font-medium">
+                    <span className="px-2 py-1 bg-surface-muted text-fg-secondary rounded text-[11px] font-medium">
                       {CHANNEL_LABELS[contact.channel] ?? contact.channel}
                     </span>
                   </td>
                   <td className="px-6 py-4">
-                    <div className="text-[12px] text-gray-600 dark:text-gray-300 max-w-[200px] line-clamp-2">{contact.reason}</div>
+                    <div className="text-[12px] text-fg-secondary max-w-[200px] line-clamp-2">{contact.reason}</div>
                   </td>
                   <td className="px-6 py-4">
                     <select
@@ -290,14 +278,14 @@ export const ContactsPage = () => {
                       ))}
                     </select>
                   </td>
-                  <td className="px-6 py-4 text-[12px] text-gray-500 dark:text-gray-400">
+                  <td className="px-6 py-4 text-[12px] text-fg-muted">
                     {new Date(contact.createdAt).toLocaleDateString()}
                   </td>
                   <td className="px-6 py-4 text-right">
                     <div className="flex items-center justify-end gap-2">
                       <button
                         onClick={() => openEditDialog(contact)}
-                        className="px-2 py-1.5 border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                        className="px-2 py-1.5 border border-border text-fg-secondary rounded-lg hover:bg-surface-muted transition-colors"
                         title="编辑推进信息"
                       >
                         <Pencil className="w-4 h-4" />
@@ -324,42 +312,42 @@ export const ContactsPage = () => {
           <motion.div
             initial={{opacity: 0, scale: 0.95}}
             animate={{opacity: 1, scale: 1}}
-            className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md p-6"
+            className="bg-surface rounded-xl shadow-xl w-full max-w-md p-6"
           >
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white">编辑推进信息</h3>
+              <h3 className="text-lg font-bold text-fg">编辑推进信息</h3>
               <button
                 onClick={() => setEditingContact(null)}
-                className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
+                className="text-fg-faint hover:text-fg-secondary"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
             <div className="space-y-4">
               <div>
-                <label className="block text-[13px] font-medium text-gray-700 dark:text-gray-300 mb-1">候选人</label>
-                <div className="px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg text-[13px] bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white">
+                <label className="block text-[13px] font-medium text-fg-secondary mb-1">候选人</label>
+                <div className="px-3 py-2 border border-border rounded-lg text-[13px] bg-surface-muted text-fg">
                   {editingContact.candidateName}
                 </div>
               </div>
               <div>
-                <label className="block text-[13px] font-medium text-gray-700 dark:text-gray-300 mb-1">岗位</label>
-                <div className="px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg text-[13px] bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white">
+                <label className="block text-[13px] font-medium text-fg-secondary mb-1">岗位</label>
+                <div className="px-3 py-2 border border-border rounded-lg text-[13px] bg-surface-muted text-fg">
                   {editingContact.positionName} · {editingContact.projectName}
                 </div>
               </div>
               <div>
-                <label className="block text-[13px] font-medium text-gray-700 dark:text-gray-300 mb-1">推进人</label>
+                <label className="block text-[13px] font-medium text-fg-secondary mb-1">推进人</label>
                 <input
                   type="text"
                   value={editForm.outreachPerson}
                   onChange={(e) => setEditForm({...editForm, outreachPerson: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4] bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  className="w-full px-3 py-2 border border-border rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4] bg-surface-muted text-fg"
                   placeholder="请输入推进人"
                 />
               </div>
               <div>
-                <label className="block text-[13px] font-medium text-gray-700 dark:text-gray-300 mb-1">联系渠道</label>
+                <label className="block text-[13px] font-medium text-fg-secondary mb-1">联系渠道</label>
                 <div className="flex gap-2">
                   {(['wechat', 'email', 'phone'] as const).map((ch) => (
                     <button
@@ -369,7 +357,7 @@ export const ContactsPage = () => {
                       className={`px-4 py-2 rounded-lg text-[13px] font-medium transition-colors ${
                         editForm.channel === ch
                           ? 'bg-[#1a4bc4] text-white'
-                          : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                          : 'bg-surface-muted text-fg-secondary hover:bg-surface-muted'
                       }`}
                     >
                       {CHANNEL_LABELS[ch]}
@@ -378,11 +366,11 @@ export const ContactsPage = () => {
                 </div>
               </div>
               <div>
-                <label className="block text-[13px] font-medium text-gray-700 dark:text-gray-300 mb-1">推进理由</label>
+                <label className="block text-[13px] font-medium text-fg-secondary mb-1">推进理由</label>
                 <textarea
                   value={editForm.reason}
                   onChange={(e) => setEditForm({...editForm, reason: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4] resize-none bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  className="w-full px-3 py-2 border border-border rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4] resize-none bg-surface-muted text-fg"
                   rows={3}
                   placeholder="请输入推进理由..."
                 />
@@ -391,7 +379,7 @@ export const ContactsPage = () => {
             <div className="flex gap-3 mt-6">
               <button
                 onClick={() => setEditingContact(null)}
-                className="flex-1 px-4 py-2 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-[13px] font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                className="flex-1 px-4 py-2 border border-border text-fg-secondary rounded-lg text-[13px] font-medium hover:bg-surface-muted transition-colors"
               >
                 取消
               </button>

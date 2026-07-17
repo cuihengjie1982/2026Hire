@@ -66,12 +66,12 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
           </div>
 
           {/* Title */}
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+          <h1 className="text-2xl font-bold text-fg">
             页面出了点问题
           </h1>
 
           {/* Description */}
-          <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
+          <p className="text-sm text-fg-muted leading-relaxed">
             {this.state.staleAssetError
               ? '系统刚刚更新过版本，当前浏览器还在使用旧资源。请重新加载页面获取最新版本。'
               : '抱歉，页面遇到了一个意外错误。您可以尝试重新加载页面，或返回首页继续操作。'}
@@ -92,10 +92,9 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
             <button
               onClick={() => this.handleGoHome()}
               className="
-                px-5 py-2.5 rounded-xl text-sm font-medium text-[#1a4bc4]
-                bg-white hover:bg-gray-50 transition-colors
-                border border-gray-200 shadow-sm
-                dark:bg-gray-800 dark:border-gray-700 dark:text-blue-300
+                px-5 py-2.5 rounded-xl text-sm font-medium text-brand
+                bg-surface hover:bg-surface-muted transition-colors
+                border border-border shadow-sm
               "
             >
               返回首页

@@ -30,7 +30,7 @@ const InterviewerAvatar = ({ name = 'AI 面试官' }: { name?: string }) => (
       <Bot className="w-5 h-5 text-white" />
     </div>
     <div>
-      <span className="font-medium text-gray-900 text-sm">{name}</span>
+      <span className="font-medium text-fg text-sm">{name}</span>
       <span className="ml-2 inline-block w-2 h-2 rounded-full bg-green-400" title="在线" />
     </div>
   </div>
@@ -55,14 +55,14 @@ const MessageBubble = ({
       }`}>
         {isInterviewer
           ? <Bot className="w-4 h-4 text-white" />
-          : <User className="w-4 h-4 text-gray-600" />
+          : <User className="w-4 h-4 text-fg-secondary" />
         }
       </div>
 
       {/* Content */}
       <div className={`max-w-[85%] sm:max-w-[75%] px-3 sm:px-4 py-2 sm:py-2.5 rounded-2xl text-sm leading-relaxed ${
         isInterviewer
-          ? 'bg-white border border-gray-200 text-gray-800 rounded-tl-sm'
+          ? 'bg-surface border border-border text-fg rounded-tl-sm'
           : 'bg-[#1a4bc4] text-white rounded-tr-sm'
       }`}>
         <div className="whitespace-pre-wrap break-words">
@@ -72,7 +72,7 @@ const MessageBubble = ({
           )}
         </div>
         {!isStreaming && msg.createdAt && (
-          <div className={`text-xs mt-1 ${isInterviewer ? 'text-gray-400' : 'text-blue-200'}`}>
+          <div className={`text-xs mt-1 ${isInterviewer ? 'text-fg-faint' : 'text-blue-200'}`}>
             {new Date(msg.createdAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
           </div>
         )}
@@ -87,7 +87,7 @@ const TypingIndicator = () => (
     <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-[#1a4bc4] to-purple-500 flex items-center justify-center">
       <Bot className="w-4 h-4 text-white" />
     </div>
-    <div className="bg-white border border-gray-200 rounded-2xl rounded-tl-sm px-4 py-3">
+    <div className="bg-surface border border-border rounded-2xl rounded-tl-sm px-4 py-3">
       <div className="flex gap-1.5">
         <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
         <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
@@ -107,7 +107,7 @@ const CompletionOverlay = ({
   onExport: () => void;
   exporting: boolean;
 }) => (
-  <div className="absolute inset-0 bg-white/95 backdrop-blur-sm z-50 flex items-center justify-center p-6">
+  <div className="absolute inset-0 bg-surface/95 backdrop-blur-sm z-50 flex items-center justify-center p-6">
     <div className="max-w-md w-full text-center space-y-6">
       {/* Icon */}
       <div className="flex justify-center">
@@ -117,19 +117,19 @@ const CompletionOverlay = ({
       </div>
 
       {/* Title */}
-      <h2 className="text-2xl font-bold text-gray-900">面试完成</h2>
-      <p className="text-sm text-gray-500">
+      <h2 className="text-2xl font-bold text-fg">面试完成</h2>
+      <p className="text-sm text-fg-muted">
         总用时 {formatTime(timeLeft > 0 ? timeLeft : 0)}，感谢你的参与！
       </p>
 
       {/* Score preview */}
       {score && (
         <div className="bg-gradient-to-br from-[#F5F3FF] to-[#EBE0FF] rounded-2xl p-5 space-y-3">
-          <div className="text-4xl font-bold text-[#1a4bc4]">{score.overallScore}<span className="text-lg text-gray-400 font-normal">/100</span></div>
-          <div className="inline-block px-3 py-1 rounded-full bg-white text-sm font-medium text-gray-700">
+          <div className="text-4xl font-bold text-[#1a4bc4]">{score.overallScore}<span className="text-lg text-fg-faint font-normal">/100</span></div>
+          <div className="inline-block px-3 py-1 rounded-full bg-surface text-sm font-medium text-fg-secondary">
             {score.gradeLabel}
           </div>
-          <p className="text-sm text-gray-600">{score.summary}</p>
+          <p className="text-sm text-fg-secondary">{score.summary}</p>
         </div>
       )}
 
@@ -143,7 +143,7 @@ const CompletionOverlay = ({
       <button
         onClick={onExport}
         disabled={exporting}
-        className="px-6 py-2.5 rounded-xl text-sm font-medium text-[#1a4bc4] bg-white border border-[#1a4bc4] hover:bg-blue-50 disabled:opacity-50 transition-colors flex items-center gap-2 mx-auto"
+        className="px-6 py-2.5 rounded-xl text-sm font-medium text-[#1a4bc4] bg-surface border border-[#1a4bc4] hover:bg-surface-muted disabled:opacity-50 transition-colors flex items-center gap-2 mx-auto"
       >
         {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
         {exporting ? '生成中...' : '导出 PDF 报告'}
@@ -248,8 +248,8 @@ const ConversationInterviewPageInner = () => {
       <div className="min-h-screen w-full flex items-center justify-center bg-gradient-to-br from-[#F5F3FF] to-[#EBE0FF] p-6">
         <div className="max-w-md w-full text-center space-y-4">
           <AlertCircle className="w-12 h-12 text-red-400 mx-auto" />
-          <h2 className="text-xl font-bold text-gray-900">连接失败</h2>
-          <p className="text-sm text-gray-500">{error}</p>
+          <h2 className="text-xl font-bold text-fg">连接失败</h2>
+          <p className="text-sm text-fg-muted">{error}</p>
           <button onClick={retry} className="px-5 py-2 rounded-xl text-sm font-medium text-white bg-[#1a4bc4]">
             重试
           </button>
@@ -264,7 +264,7 @@ const ConversationInterviewPageInner = () => {
       <div className="min-h-screen w-full flex items-center justify-center bg-gradient-to-br from-[#F5F3FF] to-[#EBE0FF]">
         <div className="text-center space-y-3">
           <Loader2 className="w-10 h-10 text-[#1a4bc4] animate-spin mx-auto" />
-          <p className="text-sm text-gray-500">正在连接面试会话...</p>
+          <p className="text-sm text-fg-muted">正在连接面试会话...</p>
         </div>
       </div>
     );
@@ -275,23 +275,23 @@ const ConversationInterviewPageInner = () => {
   return (
     <div className="min-h-dvh w-full bg-gradient-to-br from-[#F5F3FF] to-[#EBE0FF] flex flex-col relative" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
       {/* Header */}
-      <header className="flex-shrink-0 bg-white border-b border-gray-200 px-3 sm:px-4 py-2.5 sm:py-3 flex items-center justify-between shadow-sm">
+      <header className="flex-shrink-0 bg-surface border-b border-border px-3 sm:px-4 py-2.5 sm:py-3 flex items-center justify-between shadow-sm">
         <InterviewerAvatar />
         <div className="flex items-center gap-4">
           {/* Topic progress */}
           {currentTopic && (
-            <span className="text-xs text-gray-500 bg-gray-100 px-2.5 py-1 rounded-full">
+            <span className="text-xs text-fg-muted bg-surface-muted px-2.5 py-1 rounded-full">
               当前话题：{currentTopic}
             </span>
           )}
           {topicsCovered > 0 && (
-            <span className="text-xs text-gray-400">
+            <span className="text-xs text-fg-faint">
               已覆盖 {topicsCovered} 个话题
             </span>
           )}
           {/* Timer */}
           <div className={`flex items-center gap-1.5 text-sm font-mono ${
-            timeLeft < 120 ? 'text-red-500' : 'text-gray-500'
+            timeLeft < 120 ? 'text-red-500' : 'text-fg-muted'
           }`}>
             <Clock className="w-4 h-4" />
             {formatTime(timeLeft)}
@@ -319,12 +319,12 @@ const ConversationInterviewPageInner = () => {
       </main>
 
       {/* Input area */}
-      <footer className="flex-shrink-0 bg-white border-t border-gray-200 px-2 sm:px-4 py-2.5 sm:py-3">
+      <footer className="flex-shrink-0 bg-surface border-t border-border px-2 sm:px-4 py-2.5 sm:py-3">
         <div className="max-w-3xl mx-auto space-y-2 sm:space-y-3">
           {/* Candidate question panel */}
           {showCandidateQuestion && (
-            <div className="bg-gray-50 rounded-xl p-3 space-y-2">
-              <p className="text-xs text-gray-500">
+            <div className="bg-surface-muted rounded-xl p-3 space-y-2">
+              <p className="text-xs text-fg-muted">
                 {config.candidateQuestionPrompt || '你有什么问题想问吗？'}
               </p>
               <div className="flex gap-2">
@@ -334,7 +334,7 @@ const ConversationInterviewPageInner = () => {
                   onChange={(e) => setCandidateQuestion(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleAskQuestion()}
                   placeholder="输入你的问题..."
-                  className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                  className="flex-1 border border-border rounded-lg px-3 py-2 text-sm bg-surface text-fg"
                 />
                 <button
                   onClick={handleAskQuestion}
@@ -353,7 +353,7 @@ const ConversationInterviewPageInner = () => {
             {canAskQuestion && (
               <button
                 onClick={() => setShowCandidateQuestion(!showCandidateQuestion)}
-                className="flex-shrink-0 px-3 py-2 rounded-lg text-xs font-medium text-[#1a4bc4] bg-blue-50 hover:bg-blue-100 transition-colors"
+                className="flex-shrink-0 px-3 py-2 rounded-lg text-xs font-medium text-[#1a4bc4] bg-brand-soft hover:opacity-90 transition-colors"
               >
                 我要提问
               </button>
@@ -381,8 +381,8 @@ const ConversationInterviewPageInner = () => {
               }
               disabled={isStreaming || state === 'completed' || voice.isListening}
               rows={2}
-              className={`flex-1 border rounded-xl px-4 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]/20 focus:border-[#1a4bc4] disabled:bg-gray-50 disabled:text-gray-400 ${
-                voice.isListening ? 'border-red-300 bg-red-50/30' : 'border-gray-200'
+              className={`flex-1 border rounded-xl px-4 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]/20 focus:border-[#1a4bc4] disabled:bg-surface-muted disabled:text-fg-faint bg-surface text-fg ${
+                voice.isListening ? 'border-red-300 bg-red-50/30 dark:bg-red-900/20' : 'border-border'
               }`}
             />
 

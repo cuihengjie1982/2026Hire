@@ -114,7 +114,7 @@ export const InterviewResultsPage = ({ isEmbedded = false, onTabChange }: Interv
       case 'qualified': return { bg: 'bg-blue-100', text: 'text-blue-700', icon: CheckCircle };
       case 'pending': return { bg: 'bg-amber-100', text: 'text-amber-700', icon: HelpCircle };
       case 'rejected': return { bg: 'bg-red-100', text: 'text-red-700', icon: XCircle };
-      default: return { bg: 'bg-gray-100', text: 'text-gray-700', icon: AlertCircle };
+      default: return { bg: 'bg-surface-muted', text: 'text-fg-secondary', icon: AlertCircle };
     }
   };
 
@@ -148,11 +148,11 @@ export const InterviewResultsPage = ({ isEmbedded = false, onTabChange }: Interv
             <div className="w-8 h-8 bg-gradient-to-br from-[#1a4bc4] to-[#6366F1] rounded flex items-center justify-center mr-3">
               <FileText className="w-5 h-5 text-white" />
             </div>
-            <span className="text-xl font-bold text-gray-900 dark:text-white">EM-BOX recruiting platform</span>
+            <span className="text-xl font-bold text-fg">EM-BOX recruiting platform</span>
           </div>
           <div className="text-center mb-8">
-            <h1 className="text-[44px] font-extrabold text-gray-900 dark:text-white tracking-tight mb-4">面试结果</h1>
-            <p className="text-[20px] text-gray-700 dark:text-gray-300">查看候选人面试评估结果</p>
+            <h1 className="text-[44px] font-extrabold text-fg tracking-tight mb-4">面试结果</h1>
+            <p className="text-[20px] text-fg-secondary">查看候选人面试评估结果</p>
           </div>
           <div className="flex justify-center space-x-4 mb-8">
             {[
@@ -167,7 +167,7 @@ export const InterviewResultsPage = ({ isEmbedded = false, onTabChange }: Interv
                 className={`px-6 py-2.5 rounded-lg text-lg font-bold transition-colors ${
                   tab.key === 'results'
                     ? 'bg-[#22d3ee] text-white shadow-md'
-                    : 'bg-transparent text-gray-700 dark:text-gray-300 hover:bg-white/50 dark:hover:bg-gray-700/50 border border-transparent'
+                    : 'bg-transparent text-fg-secondary hover:bg-surface-muted/50 border border-transparent'
                 }`}
               >
                 {tab.label}
@@ -177,45 +177,45 @@ export const InterviewResultsPage = ({ isEmbedded = false, onTabChange }: Interv
         </>
       )}
 
-      <div className={`${isEmbedded ? 'flex-1' : 'max-w-[1600px] w-full mx-auto bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl flex flex-1 mb-8 overflow-hidden border border-white'}`}>
+      <div className={`${isEmbedded ? 'flex-1' : 'max-w-[1600px] w-full mx-auto bg-surface/90 backdrop-blur-sm rounded-2xl shadow-xl flex flex-1 mb-8 overflow-hidden border border-border'}`}>
         <div className="flex-1 p-6">
           {/* Filters */}
-          <div className="bg-white rounded-xl border border-gray-100 p-4 mb-6">
+          <div className="bg-surface rounded-xl border border-border-subtle p-4 mb-6">
             <div className="flex flex-wrap items-center gap-4">
               <div className="relative flex-1 min-w-[240px]">
-                <Search className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
+                <Search className="w-4 h-4 text-fg-faint absolute left-3 top-3" />
                 <input
                   type="text"
                   placeholder="搜索候选人姓名或邮箱..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full bg-gray-50 border border-gray-200 rounded-lg pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#22d3ee]/20 focus:border-[#22d3ee] transition-all placeholder-gray-400"
+                  className="w-full bg-surface-muted border border-border rounded-lg pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#22d3ee]/20 focus:border-[#22d3ee] transition-all placeholder-fg-faint"
                 />
               </div>
               <div className="relative">
                 <select
                   value={positionFilter}
                   onChange={(e) => setPositionFilter(e.target.value)}
-                  className="appearance-none bg-white border border-gray-200 rounded-lg pl-4 pr-10 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#22d3ee]/20 focus:border-[#22d3ee] transition-all cursor-pointer"
+                  className="appearance-none bg-surface border border-border rounded-lg pl-4 pr-10 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#22d3ee]/20 focus:border-[#22d3ee] transition-all cursor-pointer"
                 >
                   <option value="all">全部岗位</option>
                   {positionOptions.map(pos => (
                     <option key={pos} value={pos}>{pos}</option>
                   ))}
                 </select>
-                <ChevronDown className="w-4 h-4 text-gray-400 absolute right-3 top-3 pointer-events-none" />
+                <ChevronDown className="w-4 h-4 text-fg-faint absolute right-3 top-3 pointer-events-none" />
               </div>
               <div className="relative">
                 <select
                   value={gradeFilter}
                   onChange={(e) => setGradeFilter(e.target.value)}
-                  className="appearance-none bg-white border border-gray-200 rounded-lg pl-4 pr-10 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#22d3ee]/20 focus:border-[#22d3ee] transition-all cursor-pointer"
+                  className="appearance-none bg-surface border border-border rounded-lg pl-4 pr-10 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#22d3ee]/20 focus:border-[#22d3ee] transition-all cursor-pointer"
                 >
                   {grades.map(g => (
                     <option key={g.value} value={g.value}>{g.label}</option>
                   ))}
                 </select>
-                <ChevronDown className="w-4 h-4 text-gray-400 absolute right-3 top-3 pointer-events-none" />
+                <ChevronDown className="w-4 h-4 text-fg-faint absolute right-3 top-3 pointer-events-none" />
               </div>
               <button
                 onClick={handleExport}
@@ -229,28 +229,28 @@ export const InterviewResultsPage = ({ isEmbedded = false, onTabChange }: Interv
           </div>
 
           {/* Results Table */}
-          <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+          <div className="bg-surface rounded-xl border border-border-subtle overflow-hidden">
             {loading ? (
               <div className="text-center py-16">
                 <Loader2 className="w-8 h-8 text-[#22d3ee] animate-spin mx-auto mb-4" />
-                <p className="text-gray-500">加载中...</p>
+                <p className="text-fg-muted">加载中...</p>
               </div>
             ) : (
               <table className="w-full">
-                <thead className="bg-gray-50 border-b border-gray-200">
+                <thead className="bg-surface-muted border-b border-border">
                   <tr>
-                    <th className="px-4 py-3 text-left text-sm font-bold text-gray-700">候选人</th>
-                    <th className="px-4 py-3 text-left text-sm font-bold text-gray-700">邮箱</th>
-                    <th className="px-4 py-3 text-left text-sm font-bold text-gray-700">应聘岗位</th>
-                    <th className="px-4 py-3 text-left text-sm font-bold text-gray-700">面试日期</th>
-                    <th className="px-4 py-3 text-left text-sm font-bold text-gray-700">总分</th>
-                    <th className="px-4 py-3 text-left text-sm font-bold text-gray-700">等级</th>
-                    <th className="px-4 py-3 text-left text-sm font-bold text-gray-700">面试时长</th>
-                    <th className="px-4 py-3 text-left text-sm font-bold text-gray-700">状态</th>
-                    <th className="px-4 py-3 text-center text-sm font-bold text-gray-700">操作</th>
+                    <th className="px-4 py-3 text-left text-sm font-bold text-fg-secondary">候选人</th>
+                    <th className="px-4 py-3 text-left text-sm font-bold text-fg-secondary">邮箱</th>
+                    <th className="px-4 py-3 text-left text-sm font-bold text-fg-secondary">应聘岗位</th>
+                    <th className="px-4 py-3 text-left text-sm font-bold text-fg-secondary">面试日期</th>
+                    <th className="px-4 py-3 text-left text-sm font-bold text-fg-secondary">总分</th>
+                    <th className="px-4 py-3 text-left text-sm font-bold text-fg-secondary">等级</th>
+                    <th className="px-4 py-3 text-left text-sm font-bold text-fg-secondary">面试时长</th>
+                    <th className="px-4 py-3 text-left text-sm font-bold text-fg-secondary">状态</th>
+                    <th className="px-4 py-3 text-center text-sm font-bold text-fg-secondary">操作</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
+                <tbody className="divide-y divide-border-subtle">
                   {filteredResults.map((result, index) => {
                     const gradeStyle = getGradeColor(result.grade);
                     const GradeIcon = gradeStyle.icon;
@@ -260,22 +260,22 @@ export const InterviewResultsPage = ({ isEmbedded = false, onTabChange }: Interv
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         transition={{ delay: index * 0.03 }}
-                        className="hover:bg-gray-50 transition-colors"
+                        className="hover:bg-surface-muted transition-colors"
                       >
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2">
                             <div className="w-8 h-8 bg-gradient-to-br from-[#22d3ee] to-[#06b6d4] rounded-full flex items-center justify-center">
                               <User className="w-4 h-4 text-white" />
                             </div>
-                            <span className="font-medium text-gray-900">{result.candidateName}</span>
+                            <span className="font-medium text-fg">{result.candidateName}</span>
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-sm text-gray-600">{result.candidateEmail || '—'}</td>
-                        <td className="px-4 py-3 text-sm text-gray-700">{result.position || '—'}</td>
-                        <td className="px-4 py-3 text-sm text-gray-600">{formatDate(result.interviewDate)}</td>
+                        <td className="px-4 py-3 text-sm text-fg-secondary">{result.candidateEmail || '—'}</td>
+                        <td className="px-4 py-3 text-sm text-fg-secondary">{result.position || '—'}</td>
+                        <td className="px-4 py-3 text-sm text-fg-secondary">{formatDate(result.interviewDate)}</td>
                         <td className="px-4 py-3">
                           <span className="font-bold text-[#22d3ee] text-lg">{result.totalScore}</span>
-                          <span className="text-gray-400 text-sm">分</span>
+                          <span className="text-fg-faint text-sm">分</span>
                         </td>
                         <td className="px-4 py-3">
                           <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-sm font-medium ${gradeStyle.bg} ${gradeStyle.text}`}>
@@ -283,7 +283,7 @@ export const InterviewResultsPage = ({ isEmbedded = false, onTabChange }: Interv
                             {getGradeLabel(result.grade)}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-sm text-gray-600">{result.duration}分钟</td>
+                        <td className="px-4 py-3 text-sm text-fg-secondary">{result.duration}分钟</td>
                         <td className="px-4 py-3">
                           <span className={`px-2 py-0.5 rounded text-xs font-medium ${
                             result.status === 'reviewed' ? 'bg-emerald-100 text-emerald-600' : 'bg-blue-100 text-blue-600'
@@ -310,8 +310,8 @@ export const InterviewResultsPage = ({ isEmbedded = false, onTabChange }: Interv
             )}
             {!loading && filteredResults.length === 0 && (
               <div className="text-center py-16">
-                <Search className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                <p className="text-gray-500 font-medium">{results.length === 0 ? '暂无面试结果' : '没有找到匹配的结果'}</p>
+                <Search className="w-12 h-12 text-fg-faint mx-auto mb-3" />
+                <p className="text-fg-muted font-medium">{results.length === 0 ? '暂无面试结果' : '没有找到匹配的结果'}</p>
               </div>
             )}
           </div>
@@ -322,17 +322,17 @@ export const InterviewResultsPage = ({ isEmbedded = false, onTabChange }: Interv
               <div className="text-3xl font-bold">{totalCount}</div>
               <div className="text-sm opacity-80 mt-1">面试总数</div>
             </div>
-            <div className="bg-white rounded-xl border border-gray-100 p-5">
-              <div className="text-3xl font-bold text-gray-900">{passCount}</div>
-              <div className="text-sm text-gray-500 mt-1">通过人数</div>
+            <div className="bg-surface rounded-xl border border-border-subtle p-5">
+              <div className="text-3xl font-bold text-fg">{passCount}</div>
+              <div className="text-sm text-fg-muted mt-1">通过人数</div>
             </div>
-            <div className="bg-white rounded-xl border border-gray-100 p-5">
+            <div className="bg-surface rounded-xl border border-border-subtle p-5">
               <div className="text-3xl font-bold text-emerald-600">{passRate}%</div>
-              <div className="text-sm text-gray-500 mt-1">通过率</div>
+              <div className="text-sm text-fg-muted mt-1">通过率</div>
             </div>
-            <div className="bg-white rounded-xl border border-gray-100 p-5">
-              <div className="text-3xl font-bold text-gray-900">{avgScore}</div>
-              <div className="text-sm text-gray-500 mt-1">平均分</div>
+            <div className="bg-surface rounded-xl border border-border-subtle p-5">
+              <div className="text-3xl font-bold text-fg">{avgScore}</div>
+              <div className="text-sm text-fg-muted mt-1">平均分</div>
             </div>
           </div>
         </div>
@@ -344,62 +344,62 @@ export const InterviewResultsPage = ({ isEmbedded = false, onTabChange }: Interv
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+            className="bg-surface rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
           >
-            <div className="p-6 border-b border-gray-100">
+            <div className="p-6 border-b border-border-subtle">
               <div className="flex items-center justify-between">
-                <h3 className="text-xl font-bold text-gray-900">面试详细报告</h3>
+                <h3 className="text-xl font-bold text-fg">面试详细报告</h3>
                 <button
                   onClick={() => setSelectedResult(null)}
-                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                  className="p-2 hover:bg-surface-muted rounded-lg transition-colors"
                 >
-                  <span className="text-gray-400 text-xl">&times;</span>
+                  <span className="text-fg-faint text-xl">&times;</span>
                 </button>
               </div>
             </div>
 
             <div className="p-6 space-y-6">
               {/* Candidate Info */}
-              <div className="bg-gray-50 rounded-xl p-5">
+              <div className="bg-surface-muted rounded-xl p-5">
                 <div className="flex items-center gap-4">
                   <div className="w-14 h-14 bg-gradient-to-br from-[#22d3ee] to-[#06b6d4] rounded-full flex items-center justify-center">
                     <User className="w-7 h-7 text-white" />
                   </div>
                   <div>
-                    <div className="font-bold text-xl text-gray-900">{selectedResult.candidateName}</div>
-                    <div className="flex items-center gap-2 text-sm text-gray-500 mt-1">
+                    <div className="font-bold text-xl text-fg">{selectedResult.candidateName}</div>
+                    <div className="flex items-center gap-2 text-sm text-fg-muted mt-1">
                       <Mail className="w-3.5 h-3.5" />
                       {selectedResult.candidateEmail || '—'}
                     </div>
                   </div>
                   <div className="ml-auto text-right">
                     <div className="text-3xl font-bold text-[#22d3ee]">{selectedResult.totalScore}</div>
-                    <div className="text-sm text-gray-500">综合得分</div>
+                    <div className="text-sm text-fg-muted">综合得分</div>
                   </div>
                 </div>
               </div>
 
               {/* Basic Info */}
               <div className="grid grid-cols-3 gap-4">
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <div className="text-sm text-gray-500 mb-1">应聘岗位</div>
-                  <div className="font-medium text-gray-900">{selectedResult.position || '—'}</div>
+                <div className="bg-surface-muted rounded-lg p-4">
+                  <div className="text-sm text-fg-muted mb-1">应聘岗位</div>
+                  <div className="font-medium text-fg">{selectedResult.position || '—'}</div>
                 </div>
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <div className="text-sm text-gray-500 mb-1">面试时间</div>
-                  <div className="font-medium text-gray-900">{formatDate(selectedResult.interviewDate)}</div>
+                <div className="bg-surface-muted rounded-lg p-4">
+                  <div className="text-sm text-fg-muted mb-1">面试时间</div>
+                  <div className="font-medium text-fg">{formatDate(selectedResult.interviewDate)}</div>
                 </div>
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <div className="text-sm text-gray-500 mb-1">面试时长</div>
-                  <div className="font-medium text-gray-900">{selectedResult.duration}分钟</div>
+                <div className="bg-surface-muted rounded-lg p-4">
+                  <div className="text-sm text-fg-muted mb-1">面试时长</div>
+                  <div className="font-medium text-fg">{selectedResult.duration}分钟</div>
                 </div>
               </div>
 
               {/* Grade */}
-              <div className="flex items-center justify-between bg-gray-50 rounded-xl p-5">
+              <div className="flex items-center justify-between bg-surface-muted rounded-xl p-5">
                 <div>
-                  <div className="text-lg font-bold text-gray-900">{getGradeLabel(selectedResult.grade)}</div>
-                  <div className="text-sm text-gray-500 mt-1">{selectedResult.gradeLabel}</div>
+                  <div className="text-lg font-bold text-fg">{getGradeLabel(selectedResult.grade)}</div>
+                  <div className="text-sm text-fg-muted mt-1">{selectedResult.gradeLabel}</div>
                 </div>
                 <div className={`px-4 py-2 rounded-lg ${getGradeColor(selectedResult.grade).bg} ${getGradeColor(selectedResult.grade).text}`}>
                   <span className="font-bold">{selectedResult.totalScore}分</span>
@@ -409,23 +409,23 @@ export const InterviewResultsPage = ({ isEmbedded = false, onTabChange }: Interv
               {/* Dimension Scores */}
               {(selectedResult.dimensions ?? []).length > 0 && (
                 <div>
-                  <div className="font-bold text-gray-900 mb-3">各维度得分</div>
+                  <div className="font-bold text-fg mb-3">各维度得分</div>
                   <div className="space-y-3">
                     {(selectedResult.dimensions ?? []).map((dim, i) => {
                       const maxScore = dim.weight || 100;
                       const pct = maxScore > 0 ? Math.min(100, (dim.score / maxScore) * 100) : 0;
                       return (
                         <div key={i} className="flex items-center gap-3">
-                          <div className="w-28 text-sm text-gray-600 truncate" title={dim.name}>{dim.name}</div>
+                          <div className="w-28 text-sm text-fg-secondary truncate" title={dim.name}>{dim.name}</div>
                           <div className="flex-1">
-                            <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
+                            <div className="h-3 bg-surface-muted rounded-full overflow-hidden">
                               <div
                                 className="h-full bg-gradient-to-r from-[#22d3ee] to-[#06b6d4] rounded-full transition-all"
                                 style={{ width: `${pct}%` }}
                               />
                             </div>
                           </div>
-                          <div className="w-20 text-sm font-medium text-gray-900 text-right">{dim.score}/{maxScore}</div>
+                          <div className="w-20 text-sm font-medium text-fg text-right">{dim.score}/{maxScore}</div>
                         </div>
                       );
                     })}
@@ -434,10 +434,10 @@ export const InterviewResultsPage = ({ isEmbedded = false, onTabChange }: Interv
               )}
 
               {/* Approval Status */}
-              <div className="bg-gray-50 rounded-xl p-5">
+              <div className="bg-surface-muted rounded-xl p-5">
                 <div className="flex items-center justify-between">
                   <div>
-                    <div className="text-sm text-gray-500 mb-1">审核状态</div>
+                    <div className="text-sm text-fg-muted mb-1">审核状态</div>
                     <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium ${
                       selectedResult.status === 'reviewed'
                         ? 'bg-emerald-100 text-emerald-700'
@@ -467,10 +467,10 @@ export const InterviewResultsPage = ({ isEmbedded = false, onTabChange }: Interv
               </div>
             </div>
 
-            <div className="p-6 border-t border-gray-100 flex justify-end gap-3">
+            <div className="p-6 border-t border-border-subtle flex justify-end gap-3">
               <button
                 onClick={() => setSelectedResult(null)}
-                className="px-5 py-2.5 border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
+                className="px-5 py-2.5 border border-border text-fg-secondary rounded-lg text-sm font-medium hover:bg-surface-muted transition-colors"
               >
                 关闭
               </button>

@@ -199,36 +199,36 @@ const CascadingSelect = ({province, city, onProvinceChange, onCityChange, classN
   return (
     <div className={`flex gap-2 ${className}`}>
       <div ref={provinceRef} className="relative">
-        <button type="button" onClick={() => setProvinceOpen(!provinceOpen)} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4] bg-white flex items-center justify-between min-w-[120px]">
-          <span className={province ? "text-gray-900" : "text-gray-400"}>{province || "选择省份"}</span>
-          <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${provinceOpen ? "rotate-180" : ""}`} />
+        <button type="button" onClick={() => setProvinceOpen(!provinceOpen)} className="w-full px-3 py-2 border border-border rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4] bg-surface flex items-center justify-between min-w-[120px]">
+          <span className={province ? "text-fg" : "text-fg-faint"}>{province || "选择省份"}</span>
+          <ChevronDown className={`w-4 h-4 text-fg-faint transition-transform ${provinceOpen ? "rotate-180" : ""}`} />
         </button>
         {provinceOpen && (
-          <div className="absolute top-full left-0 mt-1 w-[180px] bg-white border border-gray-200 rounded-lg shadow-lg z-30 max-h-[250px] overflow-hidden">
-            <div className="p-2 border-b border-gray-100">
-              <input type="text" value={provinceSearch} onChange={e => setProvinceSearch(e.target.value)} placeholder="搜索省份..." className="w-full px-2 py-1.5 border border-gray-200 rounded text-[12px] focus:outline-none focus:ring-1 focus:ring-[#1a4bc4]" autoFocus />
+          <div className="absolute top-full left-0 mt-1 w-[180px] bg-surface border border-border rounded-lg shadow-lg z-30 max-h-[250px] overflow-hidden">
+            <div className="p-2 border-b border-border-subtle">
+              <input type="text" value={provinceSearch} onChange={e => setProvinceSearch(e.target.value)} placeholder="搜索省份..." className="w-full px-2 py-1.5 border border-border rounded text-[12px] focus:outline-none focus:ring-1 focus:ring-[#1a4bc4]" autoFocus />
             </div>
             <div className="overflow-y-auto max-h-[200px]">
               {filteredProvinces.map(p => (
-                <button key={p} type="button" onClick={() => handleProvinceSelect(p)} className={`w-full px-3 py-2 text-[13px] text-left hover:bg-gray-50 ${province === p ? "bg-[#1a4bc4]/5 text-[#1a4bc4]" : "text-gray-700"}`}>{p}</button>
+                <button key={p} type="button" onClick={() => handleProvinceSelect(p)} className={`w-full px-3 py-2 text-[13px] text-left hover:bg-surface-muted ${province === p ? "bg-[#1a4bc4]/5 text-[#1a4bc4]" : "text-fg-secondary"}`}>{p}</button>
               ))}
             </div>
           </div>
         )}
       </div>
       <div ref={cityRef} className="relative">
-        <button type="button" onClick={() => { if (!province) { alert("请先选择省份"); return; } setCityOpen(!cityOpen); }} className={`w-full px-3 py-2 border border-gray-200 rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4] bg-white flex items-center justify-between min-w-[120px] ${!province ? "opacity-50 cursor-not-allowed" : ""}`}>
-          <span className={city ? "text-gray-900" : "text-gray-400"}>{city || "选择城市"}</span>
-          <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${cityOpen ? "rotate-180" : ""}`} />
+        <button type="button" onClick={() => { if (!province) { alert("请先选择省份"); return; } setCityOpen(!cityOpen); }} className={`w-full px-3 py-2 border border-border rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4] bg-surface flex items-center justify-between min-w-[120px] ${!province ? "opacity-50 cursor-not-allowed" : ""}`}>
+          <span className={city ? "text-fg" : "text-fg-faint"}>{city || "选择城市"}</span>
+          <ChevronDown className={`w-4 h-4 text-fg-faint transition-transform ${cityOpen ? "rotate-180" : ""}`} />
         </button>
         {cityOpen && (
-          <div className="absolute top-full left-0 mt-1 w-[180px] bg-white border border-gray-200 rounded-lg shadow-lg z-30 max-h-[250px] overflow-hidden">
-            <div className="p-2 border-b border-gray-100">
-              <input type="text" value={citySearch} onChange={e => setCitySearch(e.target.value)} placeholder="搜索城市..." className="w-full px-2 py-1.5 border border-gray-200 rounded text-[12px] focus:outline-none focus:ring-1 focus:ring-[#1a4bc4]" autoFocus />
+          <div className="absolute top-full left-0 mt-1 w-[180px] bg-surface border border-border rounded-lg shadow-lg z-30 max-h-[250px] overflow-hidden">
+            <div className="p-2 border-b border-border-subtle">
+              <input type="text" value={citySearch} onChange={e => setCitySearch(e.target.value)} placeholder="搜索城市..." className="w-full px-2 py-1.5 border border-border rounded text-[12px] focus:outline-none focus:ring-1 focus:ring-[#1a4bc4]" autoFocus />
             </div>
             <div className="overflow-y-auto max-h-[200px]">
               {filteredCities.map(c => (
-                <button key={c} type="button" onClick={() => { onCityChange(c); setCityOpen(false); setCitySearch(""); }} className={`w-full px-3 py-2 text-[13px] text-left hover:bg-gray-50 ${city === c ? "bg-[#1a4bc4]/5 text-[#1a4bc4]" : "text-gray-700"}`}>{c}</button>
+                <button key={c} type="button" onClick={() => { onCityChange(c); setCityOpen(false); setCitySearch(""); }} className={`w-full px-3 py-2 text-[13px] text-left hover:bg-surface-muted ${city === c ? "bg-[#1a4bc4]/5 text-[#1a4bc4]" : "text-fg-secondary"}`}>{c}</button>
               ))}
             </div>
           </div>
@@ -264,36 +264,36 @@ const MajorSelect = ({category, major, onCategoryChange, onMajorChange, classNam
   return (
     <div className={`flex gap-2 ${className}`}>
       <div ref={categoryRef} className="relative">
-        <button type="button" onClick={() => setCategoryOpen(!categoryOpen)} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4] bg-white flex items-center justify-between min-w-[120px]">
-          <span className={category ? "text-gray-900" : "text-gray-400"}>{category || "选择大类"}</span>
-          <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${categoryOpen ? "rotate-180" : ""}`} />
+        <button type="button" onClick={() => setCategoryOpen(!categoryOpen)} className="w-full px-3 py-2 border border-border rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4] bg-surface flex items-center justify-between min-w-[120px]">
+          <span className={category ? "text-fg" : "text-fg-faint"}>{category || "选择大类"}</span>
+          <ChevronDown className={`w-4 h-4 text-fg-faint transition-transform ${categoryOpen ? "rotate-180" : ""}`} />
         </button>
         {categoryOpen && (
-          <div className="absolute top-full left-0 mt-1 w-[180px] bg-white border border-gray-200 rounded-lg shadow-lg z-30 max-h-[250px] overflow-hidden">
-            <div className="p-2 border-b border-gray-100">
-              <input type="text" value={categorySearch} onChange={e => setCategorySearch(e.target.value)} placeholder="搜索大类..." className="w-full px-2 py-1.5 border border-gray-200 rounded text-[12px] focus:outline-none focus:ring-1 focus:ring-[#1a4bc4]" autoFocus />
+          <div className="absolute top-full left-0 mt-1 w-[180px] bg-surface border border-border rounded-lg shadow-lg z-30 max-h-[250px] overflow-hidden">
+            <div className="p-2 border-b border-border-subtle">
+              <input type="text" value={categorySearch} onChange={e => setCategorySearch(e.target.value)} placeholder="搜索大类..." className="w-full px-2 py-1.5 border border-border rounded text-[12px] focus:outline-none focus:ring-1 focus:ring-[#1a4bc4]" autoFocus />
             </div>
             <div className="overflow-y-auto max-h-[200px]">
               {filteredCategories.map(c => (
-                <button key={c} type="button" onClick={() => handleCategorySelect(c)} className={`w-full px-3 py-2 text-[13px] text-left hover:bg-gray-50 ${category === c ? "bg-[#1a4bc4]/5 text-[#1a4bc4]" : "text-gray-700"}`}>{c}</button>
+                <button key={c} type="button" onClick={() => handleCategorySelect(c)} className={`w-full px-3 py-2 text-[13px] text-left hover:bg-surface-muted ${category === c ? "bg-[#1a4bc4]/5 text-[#1a4bc4]" : "text-fg-secondary"}`}>{c}</button>
               ))}
             </div>
           </div>
         )}
       </div>
       <div ref={majorRef} className="relative">
-        <button type="button" onClick={() => { if (!category) { alert("请先选择专业大类"); return; } setMajorOpen(!majorOpen); }} className={`w-full px-3 py-2 border border-gray-200 rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4] bg-white flex items-center justify-between min-w-[120px] ${!category ? "opacity-50 cursor-not-allowed" : ""}`}>
-          <span className={major ? "text-gray-900" : "text-gray-400"}>{major || "选择具体专业"}</span>
-          <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${majorOpen ? "rotate-180" : ""}`} />
+        <button type="button" onClick={() => { if (!category) { alert("请先选择专业大类"); return; } setMajorOpen(!majorOpen); }} className={`w-full px-3 py-2 border border-border rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4] bg-surface flex items-center justify-between min-w-[120px] ${!category ? "opacity-50 cursor-not-allowed" : ""}`}>
+          <span className={major ? "text-fg" : "text-fg-faint"}>{major || "选择具体专业"}</span>
+          <ChevronDown className={`w-4 h-4 text-fg-faint transition-transform ${majorOpen ? "rotate-180" : ""}`} />
         </button>
         {majorOpen && (
-          <div className="absolute top-full left-0 mt-1 w-[180px] bg-white border border-gray-200 rounded-lg shadow-lg z-30 max-h-[250px] overflow-hidden">
-            <div className="p-2 border-b border-gray-100">
-              <input type="text" value={majorSearch} onChange={e => setMajorSearch(e.target.value)} placeholder="搜索专业..." className="w-full px-2 py-1.5 border border-gray-200 rounded text-[12px] focus:outline-none focus:ring-1 focus:ring-[#1a4bc4]" autoFocus />
+          <div className="absolute top-full left-0 mt-1 w-[180px] bg-surface border border-border rounded-lg shadow-lg z-30 max-h-[250px] overflow-hidden">
+            <div className="p-2 border-b border-border-subtle">
+              <input type="text" value={majorSearch} onChange={e => setMajorSearch(e.target.value)} placeholder="搜索专业..." className="w-full px-2 py-1.5 border border-border rounded text-[12px] focus:outline-none focus:ring-1 focus:ring-[#1a4bc4]" autoFocus />
             </div>
             <div className="overflow-y-auto max-h-[200px]">
               {filteredMajors.map(m => (
-                <button key={m} type="button" onClick={() => { onMajorChange(m); setMajorOpen(false); setMajorSearch(""); }} className={`w-full px-3 py-2 text-[13px] text-left hover:bg-gray-50 ${major === m ? "bg-[#1a4bc4]/5 text-[#1a4bc4]" : "text-gray-700"}`}>{m}</button>
+                <button key={m} type="button" onClick={() => { onMajorChange(m); setMajorOpen(false); setMajorSearch(""); }} className={`w-full px-3 py-2 text-[13px] text-left hover:bg-surface-muted ${major === m ? "bg-[#1a4bc4]/5 text-[#1a4bc4]" : "text-fg-secondary"}`}>{m}</button>
               ))}
             </div>
           </div>
@@ -897,7 +897,7 @@ export const CandidateSearchPage = () => {
         {selectedCandidate && <CandidateDetailModal isOpen={!!selectedCandidate} onClose={() => setSelectedCandidate(null)} candidate={selectedCandidate} positionDetail={positionDetail} />}
       </AnimatePresence>
       <ResumeImportModal isOpen={isImportModalOpen} onClose={() => setIsImportModalOpen(false)} onComplete={() => { setIsImportModalOpen(false); refresh(); }} />
-      <motion.div initial={{opacity: 0, y: 10}} animate={{opacity: 1, y: 0}} exit={{opacity: 0, y: -10}} className="mx-auto flex flex-col h-full bg-slate-50 dark:bg-gray-800 relative max-w-[1500px] w-full">
+      <motion.div initial={{opacity: 0, y: 10}} animate={{opacity: 1, y: 0}} exit={{opacity: 0, y: -10}} className="mx-auto flex flex-col h-full bg-page relative max-w-[1500px] w-full">
         {/* Toast Notification */}
         {toastMessage && (
           <motion.div
@@ -911,14 +911,14 @@ export const CandidateSearchPage = () => {
           </motion.div>
         )}
 
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 sticky top-0 z-10">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border-subtle bg-surface sticky top-0 z-10">
           <div className="flex items-center text-sm">
-            <span className="text-gray-400 dark:text-gray-500">首页</span>
-            <span className="mx-2 text-gray-300 dark:text-gray-600">/</span>
-            <span className="text-gray-900 dark:text-white font-medium">候选人搜索</span>
+            <span className="text-fg-faint">首页</span>
+            <span className="mx-2 text-fg-faint">/</span>
+            <span className="text-fg font-medium">候选人搜索</span>
           </div>
           <div className="flex items-center space-x-4">
-            <span className="text-[13px] text-gray-500 dark:text-gray-400">
+            <span className="text-[13px] text-fg-muted">
               导入候选人请前往{' '}
               <button
                 type="button"
@@ -933,26 +933,26 @@ export const CandidateSearchPage = () => {
                 try { await exportCandidatesCsv(); showToast("候选人数据已导出"); }
                 catch (e: unknown) { showToast(e instanceof Error ? e.message : "导出失败"); }
               }}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-[13px] text-[#1a4bc4] border border-blue-200 dark:border-gray-700 rounded-lg hover:bg-blue-50 dark:hover:bg-gray-700/30 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-[13px] text-[#1a4bc4] border border-border rounded-lg hover:bg-surface-muted transition-colors"
             >
               <Download className="w-4 h-4" />
               导出 CSV
             </button>
-            <button onClick={() => showToast('暂无新通知')} className="relative p-2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors ml-2">
+            <button onClick={() => showToast('暂无新通知')} className="relative p-2 text-fg-faint hover:text-fg-secondary transition-colors ml-2">
               <Bell className="w-5 h-5" />
-              <span className="absolute top-1.5 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white dark:border-gray-800"></span>
+              <span className="absolute top-1.5 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-border"></span>
             </button>
           </div>
         </div>
         <div className="flex-1 overflow-y-auto w-full mx-auto flex">
           <div className="flex-1 p-5 pb-14">
-            <div className="bg-white dark:bg-gray-800 p-5 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm mb-5">
+            <div className="bg-surface p-5 rounded-xl border border-border shadow-sm mb-5">
               <div className="relative mb-4">
                 <textarea
                   value={aiSearchQuery}
                   onChange={(e) => setAiSearchQuery(e.target.value)}
                   placeholder="用自然语言描述你需要的候选人，例如：有武术背景、能接受面部动捕的MWV演员，擅长舞蹈表演"
-                  className="w-full px-4 py-3 pr-32 rounded-xl border-2 border-purple-200 dark:border-gray-600 shadow-sm focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none text-[14px] text-gray-900 dark:text-white bg-white dark:bg-gray-800 placeholder:text-gray-400 dark:placeholder:text-gray-500 resize-none"
+                  className="w-full px-4 py-3 pr-32 rounded-xl border-2 border-border shadow-sm focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none text-[14px] text-fg bg-surface placeholder:text-fg-faint  resize-none"
                   rows={2}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && e.ctrlKey) {
@@ -977,12 +977,12 @@ export const CandidateSearchPage = () => {
                   )}
                 </button>
               </div>
-              <p className="text-[12px] text-gray-400 dark:text-gray-500 -mt-1">按 Ctrl + Enter 快速搜索 · 在人才库中根据关键词匹配候选人</p>
+              <p className="text-[12px] text-fg-faint -mt-1">按 Ctrl + Enter 快速搜索 · 在人才库中根据关键词匹配候选人</p>
               <div className="flex flex-wrap items-center gap-3">
                 <select
                   value={selectedProjectId}
                   onChange={(e) => setSelectedProjectId(e.target.value)}
-                  className="px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4] bg-white dark:bg-gray-800 dark:text-white min-w-[160px]"
+                  className="px-3 py-2 border border-border rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4] bg-surface text-fg min-w-[160px]"
                 >
                   <option value="">全部项目</option>
                   {projects.map((project) => (
@@ -994,7 +994,7 @@ export const CandidateSearchPage = () => {
                 <select
                   value={selectedPositionId}
                   onChange={(e) => setSelectedPositionId(e.target.value)}
-                  className="px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4] bg-white dark:bg-gray-800 dark:text-white min-w-[160px]"
+                  className="px-3 py-2 border border-border rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4] bg-surface text-fg min-w-[160px]"
                 >
                   <option value="">全部岗位</option>
                   {positions.map((position) => (
@@ -1016,7 +1016,7 @@ export const CandidateSearchPage = () => {
                       setMatchDateTo(to.toISOString().slice(0, 10));
                     }
                   }}
-                  className="px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4] bg-white dark:bg-gray-800 dark:text-white min-w-[110px]"
+                  className="px-3 py-2 border border-border rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4] bg-surface text-fg min-w-[110px]"
                 >
                   <option value="all">全部时间</option>
                   <option value="week">近一周</option>
@@ -1029,14 +1029,14 @@ export const CandidateSearchPage = () => {
                       type="date"
                       value={matchDateFrom}
                       onChange={e => setMatchDateFrom(e.target.value)}
-                      className="px-2 py-1.5 border border-gray-200 dark:border-gray-700 rounded-lg text-[12px] focus:outline-none focus:ring-1 focus:ring-[#1a4bc4] bg-white dark:bg-gray-800 dark:text-white"
+                      className="px-2 py-1.5 border border-border rounded-lg text-[12px] focus:outline-none focus:ring-1 focus:ring-[#1a4bc4] bg-surface text-fg"
                     />
-                    <span className="text-[12px] text-gray-400 dark:text-gray-500">至</span>
+                    <span className="text-[12px] text-fg-faint">至</span>
                     <input
                       type="date"
                       value={matchDateTo}
                       onChange={e => setMatchDateTo(e.target.value)}
-                      className="px-2 py-1.5 border border-gray-200 dark:border-gray-700 rounded-lg text-[12px] focus:outline-none focus:ring-1 focus:ring-[#1a4bc4] bg-white dark:bg-gray-800 dark:text-white"
+                      className="px-2 py-1.5 border border-border rounded-lg text-[12px] focus:outline-none focus:ring-1 focus:ring-[#1a4bc4] bg-surface text-fg"
                     />
                   </div>
                 )}
@@ -1137,14 +1137,14 @@ export const CandidateSearchPage = () => {
                     AI 智能排名
                   </button>
                 )}
-                <span onClick={() => setShowMoreFilters(!showMoreFilters)} className={`cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/30 px-3 py-1.5 rounded-md transition-colors ${showMoreFilters ? 'text-[#1a4bc4]' : 'text-gray-400 dark:text-gray-500'}`}>+ 更多筛选</span>
+                <span onClick={() => setShowMoreFilters(!showMoreFilters)} className={`cursor-pointer hover:bg-surface-muted px-3 py-1.5 rounded-md transition-colors ${showMoreFilters ? 'text-[#1a4bc4]' : 'text-fg-faint'}`}>+ 更多筛选</span>
               </div>
               {showMoreFilters && (
                 <div className="flex items-center gap-4 mt-3">
                   <select
                     value={experienceFilter}
                     onChange={(e) => setExperienceFilter(e.target.value)}
-                    className="px-3 py-2 border border-gray-200 rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4] bg-white min-w-[140px]"
+                    className="px-3 py-2 border border-border rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4] bg-surface min-w-[140px]"
                   >
                     <option value="all">全部经验</option>
                     <option value="0-1">0-1年</option>
@@ -1161,7 +1161,7 @@ export const CandidateSearchPage = () => {
                   <select
                     value={educationFilter}
                     onChange={(e) => setEducationFilter(e.target.value)}
-                    className="px-3 py-2 border border-gray-200 rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4] bg-white min-w-[140px]"
+                    className="px-3 py-2 border border-border rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4] bg-surface min-w-[140px]"
                   >
                     <option value="all">全部学历</option>
                     <option value="高中">高中</option>
@@ -1181,16 +1181,16 @@ export const CandidateSearchPage = () => {
 
               {/* Match History Panel */}
               {matchHistory.length > 0 && (
-                <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm mb-4">
+                <div className="bg-surface p-4 rounded-xl border border-border shadow-sm mb-4">
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
-                      <History className="w-4 h-4 text-gray-500" />
-                      <span className="font-bold text-[13px] text-gray-900">匹配历史</span>
-                      <span className="text-[11px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded-full">{matchHistory.length}</span>
+                      <History className="w-4 h-4 text-fg-muted" />
+                      <span className="font-bold text-[13px] text-fg">匹配历史</span>
+                      <span className="text-[11px] text-fg-faint bg-surface-muted px-1.5 py-0.5 rounded-full">{matchHistory.length}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       {/* Time window filter */}
-                      <div className="flex items-center bg-gray-100 rounded-lg p-0.5">
+                      <div className="flex items-center bg-surface-muted rounded-lg p-0.5">
                         {[
                           {value: '3days', label: '近3条'},
                           {value: 'week', label: '近一周'},
@@ -1201,8 +1201,8 @@ export const CandidateSearchPage = () => {
                             onClick={() => setHistoryTimeWindow(opt.value as any)}
                             className={`px-2 py-1 text-[11px] rounded-md transition-colors ${
                               historyTimeWindow === opt.value
-                                ? 'bg-white shadow-sm text-[#1a4bc4] font-medium'
-                                : 'text-gray-500 hover:text-gray-700'
+                                ? 'bg-surface shadow-sm text-[#1a4bc4] font-medium'
+                                : 'text-fg-muted hover:text-fg-secondary'
                             }`}
                           >
                             {opt.label}
@@ -1213,7 +1213,7 @@ export const CandidateSearchPage = () => {
                         <select
                           value={historyFilterPosition}
                           onChange={e => setHistoryFilterPosition(e.target.value)}
-                          className="px-2 py-1 border border-gray-200 rounded-lg text-[11px] focus:outline-none focus:ring-1 focus:ring-[#1a4bc4] bg-white"
+                          className="px-2 py-1 border border-border rounded-lg text-[11px] focus:outline-none focus:ring-1 focus:ring-[#1a4bc4] bg-surface"
                         >
                           <option value="">全部岗位</option>
                           {positions.map(p => (
@@ -1221,7 +1221,7 @@ export const CandidateSearchPage = () => {
                           ))}
                         </select>
                       )}
-                      <button onClick={clearMatchHistory} className="text-[11px] text-gray-400 hover:text-red-500 transition-colors">全部清除</button>
+                      <button onClick={clearMatchHistory} className="text-[11px] text-fg-faint hover:text-red-500 transition-colors">全部清除</button>
                     </div>
                   </div>
 
@@ -1246,18 +1246,18 @@ export const CandidateSearchPage = () => {
                       <>
                         <div className="space-y-2 max-h-[240px] overflow-y-auto">
                           {displayItems.length === 0 ? (
-                            <p className="text-[12px] text-gray-400 text-center py-3">暂无历史记录</p>
+                            <p className="text-[12px] text-fg-faint text-center py-3">暂无历史记录</p>
                           ) : displayItems.map(item => (
-                            <div key={item.id} className="border border-gray-100 rounded-lg px-3 py-2.5 hover:bg-gray-50 transition-colors">
+                            <div key={item.id} className="border border-border-subtle rounded-lg px-3 py-2.5 hover:bg-surface-muted transition-colors">
                               <div className="flex items-start justify-between">
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-2 mb-1 flex-wrap">
-                                    <span className="text-[11px] text-gray-400">
+                                    <span className="text-[11px] text-fg-faint">
                                       {new Date(item.timestamp).toLocaleString('zh-CN', {month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit'})}
                                     </span>
-                                    <span className="text-[11px] text-gray-300">·</span>
-                                    <span className="text-[11px] text-gray-600 font-medium truncate">{item.positionName}</span>
-                                    <span className="text-[11px] text-gray-300">·</span>
+                                    <span className="text-[11px] text-fg-faint">·</span>
+                                    <span className="text-[11px] text-fg-secondary font-medium truncate">{item.positionName}</span>
+                                    <span className="text-[11px] text-fg-faint">·</span>
                                     <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
                                       item.type === 'ai_search' ? 'bg-violet-50 text-violet-600' :
                                       item.type === 'smart_match' ? 'bg-purple-50 text-purple-600' :
@@ -1266,7 +1266,7 @@ export const CandidateSearchPage = () => {
                                       {item.type === 'ai_search' ? 'AI搜索' : item.type === 'smart_match' ? '智能匹配' : 'AI排名'}
                                     </span>
                                   </div>
-                                  <div className="text-[11px] text-gray-500">
+                                  <div className="text-[11px] text-fg-muted">
                                     {item.candidateCount}人
                                     {item.computedScores && Object.keys(item.computedScores).length > 0 && (
                                       <span className="ml-2">
@@ -1282,7 +1282,7 @@ export const CandidateSearchPage = () => {
                                   >查看</button>
                                   <button
                                     onClick={() => deleteMatchHistoryItem(item.id)}
-                                    className="text-[11px] text-gray-400 hover:text-red-500 transition-colors p-1 rounded hover:bg-red-50"
+                                    className="text-[11px] text-fg-faint hover:text-red-500 transition-colors p-1 rounded hover:bg-red-50"
                                   ><Trash2 className="w-3.5 h-3.5" /></button>
                                 </div>
                               </div>
@@ -1300,7 +1300,7 @@ export const CandidateSearchPage = () => {
                         {historyExpanded && filtered.length > 3 && (
                           <button
                             onClick={() => setHistoryExpanded(false)}
-                            className="w-full text-center text-[12px] text-gray-400 hover:text-gray-600 py-1.5 mt-1"
+                            className="w-full text-center text-[12px] text-fg-faint hover:text-fg-secondary py-1.5 mt-1"
                           >
                             收起
                           </button>
@@ -1312,9 +1312,9 @@ export const CandidateSearchPage = () => {
               )}
             </div>
             <div className="flex flex-col lg:flex-row gap-5">
-              <div className="w-full lg:w-[228px] flex-shrink-0 space-y-7 bg-white p-4 rounded-xl border border-gray-200 h-fit">
+              <div className="w-full lg:w-[228px] flex-shrink-0 space-y-7 bg-surface p-4 rounded-xl border border-border h-fit">
                 <div>
-                  <h3 className="font-bold text-gray-900 mb-3 text-[14px]">AI 评级</h3>
+                  <h3 className="font-bold text-fg mb-3 text-[14px]">AI 评级</h3>
                   <div className="flex flex-wrap gap-2">
                     {['A', 'B+', 'B', 'C'].map((grade) => (
                       <button
@@ -1323,7 +1323,7 @@ export const CandidateSearchPage = () => {
                         className={`w-8 h-8 rounded text-[12px] font-bold transition-colors ${
                           selectedGrades.has(grade)
                             ? grade === 'A' ? 'bg-[#10B981] text-white' : grade === 'B+' ? 'bg-[#1a4bc4] text-white' : grade === 'B' ? 'bg-[#3b82f6] text-white' : 'bg-[#0EA5E9] text-white'
-                            : 'bg-gray-100 text-gray-400'
+                            : 'bg-surface-muted text-fg-faint'
                         }`}
                       >
                         {grade}
@@ -1344,55 +1344,55 @@ export const CandidateSearchPage = () => {
                     <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-violet-100 to-purple-100 flex items-center justify-center mb-6">
                       <Search className="w-10 h-10 text-violet-500" />
                     </div>
-                    <h2 className="text-xl font-bold text-gray-900 mb-2">搜索候选人</h2>
-                    <p className="text-sm text-gray-500 text-center max-w-md mb-8">
+                    <h2 className="text-xl font-bold text-fg mb-2">搜索候选人</h2>
+                    <p className="text-sm text-fg-muted text-center max-w-md mb-8">
                       使用上方的 <span className="font-medium text-violet-600">AI 搜索</span> 用自然语言描述需求，
                       或选择岗位后点击 <span className="font-medium text-violet-600">智能匹配</span> 自动评分筛选
                     </p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full max-w-lg">
-                      <div className="bg-white border border-gray-200 rounded-xl p-4 text-center">
+                      <div className="bg-surface border border-border rounded-xl p-4 text-center">
                         <div className="w-10 h-10 rounded-lg bg-violet-50 flex items-center justify-center mx-auto mb-2">
                           <Sparkles className="w-5 h-5 text-violet-500" />
                         </div>
-                        <div className="text-sm font-semibold text-gray-900 mb-1">AI 自然语言搜索</div>
-                        <div className="text-xs text-gray-500">用日常语言描述你想要的候选人特征</div>
+                        <div className="text-sm font-semibold text-fg mb-1">AI 自然语言搜索</div>
+                        <div className="text-xs text-fg-muted">用日常语言描述你想要的候选人特征</div>
                       </div>
-                      <div className="bg-white border border-gray-200 rounded-xl p-4 text-center">
+                      <div className="bg-surface border border-border rounded-xl p-4 text-center">
                         <div className="w-10 h-10 rounded-lg bg-purple-50 flex items-center justify-center mx-auto mb-2">
                           <User className="w-5 h-5 text-purple-500" />
                         </div>
-                        <div className="text-sm font-semibold text-gray-900 mb-1">智能匹配评分</div>
-                        <div className="text-xs text-gray-500">选择岗位后自动评分并筛选候选人</div>
+                        <div className="text-sm font-semibold text-fg mb-1">智能匹配评分</div>
+                        <div className="text-xs text-fg-muted">选择岗位后自动评分并筛选候选人</div>
                       </div>
                     </div>
                   </motion.div>
                 ) : (
                   <>
                     <div className="flex items-center justify-between mb-4">
-                      <div className="font-bold text-[18px] text-gray-900">
+                      <div className="font-bold text-[18px] text-fg">
                         找到 <span className="text-black">{filteredCandidates.length}</span> 名候选人
-                        {aiSearchActive && <span className="text-[13px] font-normal text-gray-400 ml-2">· AI 搜索</span>}
-                        {smartMatchActive && <span className="text-[13px] font-normal text-gray-400 ml-2">· 智能匹配</span>}
+                        {aiSearchActive && <span className="text-[13px] font-normal text-fg-faint ml-2">· AI 搜索</span>}
+                        {smartMatchActive && <span className="text-[13px] font-normal text-fg-faint ml-2">· 智能匹配</span>}
                       </div>
                       <div className="flex items-center space-x-3 text-[13px]">
                         <select
                           value={sortOption}
                           onChange={(e) => setSortOption(e.target.value as 'relevance' | 'newest' | 'score')}
-                          className="flex items-center space-x-2 text-gray-600 bg-white border border-gray-200 px-3 py-1.5 rounded-lg cursor-pointer hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#1a4bc4] text-[13px] appearance-none pr-8"
+                          className="flex items-center space-x-2 text-fg-secondary bg-surface border border-border px-3 py-1.5 rounded-lg cursor-pointer hover:bg-surface-muted focus:outline-none focus:ring-2 focus:ring-[#1a4bc4] text-[13px] appearance-none pr-8"
                         >
                           <option value="relevance">相关度排序</option>
                           <option value="newest">时间最新</option>
                           <option value="score">评分最高</option>
                         </select>
-                        <div className="flex items-center bg-gray-100 rounded-lg p-1">
-                          <button onClick={() => setViewMode('grid')} className={`p-1 px-2.5 rounded-md transition-colors ${viewMode === 'grid' ? 'bg-white shadow-sm text-[#1a4bc4]' : 'text-gray-500 hover:text-gray-700'}`}><Grid className="w-4 h-4" /></button>
-                          <button onClick={() => setViewMode('list')} className={`p-1 px-2.5 rounded-md transition-colors ${viewMode === 'list' ? 'bg-white shadow-sm text-[#1a4bc4]' : 'text-gray-500 hover:text-gray-700'}`}><List className="w-4 h-4" /></button>
+                        <div className="flex items-center bg-surface-muted rounded-lg p-1">
+                          <button onClick={() => setViewMode('grid')} className={`p-1 px-2.5 rounded-md transition-colors ${viewMode === 'grid' ? 'bg-surface shadow-sm text-[#1a4bc4]' : 'text-fg-muted hover:text-fg-secondary'}`}><Grid className="w-4 h-4" /></button>
+                          <button onClick={() => setViewMode('list')} className={`p-1 px-2.5 rounded-md transition-colors ${viewMode === 'list' ? 'bg-surface shadow-sm text-[#1a4bc4]' : 'text-fg-muted hover:text-fg-secondary'}`}><List className="w-4 h-4" /></button>
                         </div>
                       </div>
                     </div>
 
                     {isLoading ? (
-                      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-10 flex items-center justify-center text-gray-500">
+                      <div className="bg-surface rounded-xl border border-border shadow-sm p-10 flex items-center justify-center text-fg-muted">
                         <Loader2 className="w-5 h-5 mr-2 animate-spin" />
                         正在加载候选人数据...
                       </div>
@@ -1404,13 +1404,13 @@ export const CandidateSearchPage = () => {
                       <motion.div
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className="bg-white rounded-xl border border-gray-200 shadow-sm p-12 flex flex-col items-center justify-center text-center"
+                        className="bg-surface rounded-xl border border-border shadow-sm p-12 flex flex-col items-center justify-center text-center"
                       >
-                        <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mb-4">
-                          <Search className="w-8 h-8 text-gray-400" />
+                        <div className="w-16 h-16 rounded-full bg-surface-muted flex items-center justify-center mb-4">
+                          <Search className="w-8 h-8 text-fg-faint" />
                         </div>
-                        <h3 className="text-lg font-bold text-gray-900 mb-1">未找到匹配的候选人</h3>
-                        <p className="text-sm text-gray-500 max-w-sm">
+                        <h3 className="text-lg font-bold text-fg mb-1">未找到匹配的候选人</h3>
+                        <p className="text-sm text-fg-muted max-w-sm">
                           {aiSearchActive
                             ? '尝试调整搜索关键词，使用更宽泛的描述重新搜索'
                             : '当前岗位条件下没有匹配的候选人，尝试更换岗位或调整筛选条件'}
@@ -1432,16 +1432,16 @@ export const CandidateSearchPage = () => {
                             key={candidate.id}
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
-                            className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 hover:shadow-md transition-shadow flex flex-col"
+                            className="bg-surface rounded-xl border border-border shadow-sm p-4 hover:shadow-md transition-shadow flex flex-col"
                           >
                             {/* 基本信息行 */}
                             <div className="flex gap-3 mb-3">
                               {/* 头像 */}
                               <div className="flex-shrink-0">
                                 {photoUrl ? (
-                                  <img src={photoUrl} alt="" className="w-[52px] h-[64px] rounded-lg object-cover border border-gray-200" />
+                                  <img src={photoUrl} alt="" className="w-[52px] h-[64px] rounded-lg object-cover border border-border" />
                                 ) : (
-                                  <div className="w-[52px] h-[64px] rounded-lg bg-[#1a4bc4]/10 flex items-center justify-center border border-gray-200">
+                                  <div className="w-[52px] h-[64px] rounded-lg bg-[#1a4bc4]/10 flex items-center justify-center border border-border">
                                     <span className="text-[#1a4bc4] text-base font-bold">{initials}</span>
                                   </div>
                                 )}
@@ -1450,21 +1450,21 @@ export const CandidateSearchPage = () => {
                               {/* 姓名 + 基本信息 */}
                               <div className="flex-1 min-w-0 space-y-1">
                                 <div className="flex items-center gap-2">
-                                  <span className="font-bold text-gray-900 text-[15px]">{candidate.name}</span>
+                                  <span className="font-bold text-fg text-[15px]">{candidate.name}</span>
                                   {info?.currentlyEmployed && (
                                     <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${statusColor}`}>{info.currentlyEmployed}</span>
                                   )}
                                 </div>
-                                <div className="text-[11px] text-gray-600">
+                                <div className="text-[11px] text-fg-secondary">
                                   {info?.ageOrBirth && <span>年龄: {info.ageOrBirth}</span>}
                                   {info?.gender && <span className="ml-2">| {info.gender}</span>}
                                 </div>
-                                <div className="flex items-center gap-1 text-[11px] text-gray-600">
-                                  <Phone className="w-3 h-3 text-gray-400" />
+                                <div className="flex items-center gap-1 text-[11px] text-fg-secondary">
+                                  <Phone className="w-3 h-3 text-fg-faint" />
                                   <span className="truncate">{info?.phone || '—'}</span>
                                 </div>
-                                <div className="flex items-center gap-1 text-[11px] text-gray-600">
-                                  <Mail className="w-3 h-3 text-gray-400" />
+                                <div className="flex items-center gap-1 text-[11px] text-fg-secondary">
+                                  <Mail className="w-3 h-3 text-fg-faint" />
                                   <span className="truncate">{info?.email || '—'}</span>
                                 </div>
                               </div>
@@ -1474,15 +1474,15 @@ export const CandidateSearchPage = () => {
                                 <div className="w-14 h-14 rounded-full bg-red-500 flex items-center justify-center text-xl font-black text-white shadow">
                                   {candidate.fitScore?.[0] || 0}
                                 </div>
-                                <div className="text-[10px] text-gray-600 mt-1 font-bold">FIT SCORE</div>
+                                <div className="text-[10px] text-fg-secondary mt-1 font-bold">FIT SCORE</div>
                               </div>
                             </div>
 
                             {/* 教育信息行 */}
                             {(info?.school || info?.highestEducation || info?.major || info?.educationTime) && (
-                              <div className="border-t border-gray-100 pt-3 mb-3">
-                                <div className="text-[10px] text-gray-400 font-medium mb-2 tracking-wider">教育信息</div>
-                                <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-gray-600">
+                              <div className="border-t border-border-subtle pt-3 mb-3">
+                                <div className="text-[10px] text-fg-faint font-medium mb-2 tracking-wider">教育信息</div>
+                                <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-fg-secondary">
                                   {info?.school && <span>学校: {info.school}</span>}
                                   {info?.highestEducation && <span>学历: {info.highestEducation}</span>}
                                   {info?.major && <span>专业: {info.major}</span>}
@@ -1492,12 +1492,12 @@ export const CandidateSearchPage = () => {
                             )}
 
                             {/* 相关信息行 */}
-                            <div className="border-t border-gray-100 pt-3 mb-3">
-                              <div className="text-[10px] text-gray-400 font-medium mb-2 tracking-wider">相关信息</div>
-                              <div className="space-y-1 text-[11px] text-gray-600">
+                            <div className="border-t border-border-subtle pt-3 mb-3">
+                              <div className="text-[10px] text-fg-faint font-medium mb-2 tracking-wider">相关信息</div>
+                              <div className="space-y-1 text-[11px] text-fg-secondary">
                                 {lastWorkDisplay !== '—' && (
                                   <div className="flex items-start gap-1">
-                                    <Building2 className="w-3 h-3 text-gray-400 flex-shrink-0 mt-0.5" />
+                                    <Building2 className="w-3 h-3 text-fg-faint flex-shrink-0 mt-0.5" />
                                     <span>{lastWorkDisplay}</span>
                                   </div>
                                 )}
@@ -1511,13 +1511,13 @@ export const CandidateSearchPage = () => {
                                 <div className="flex flex-wrap gap-x-3 gap-y-1">
                                   {info?.expectedSalary && (
                                     <span className="flex items-center gap-1">
-                                      <Banknote className="w-3 h-3 text-gray-400" />
+                                      <Banknote className="w-3 h-3 text-fg-faint" />
                                       {info.expectedSalary}
                                     </span>
                                   )}
                                   {info?.location && (
                                     <span className="flex items-center gap-1">
-                                      <MapPin className="w-3 h-3 text-gray-400" />
+                                      <MapPin className="w-3 h-3 text-fg-faint" />
                                       {info.location}
                                     </span>
                                   )}
@@ -1527,9 +1527,9 @@ export const CandidateSearchPage = () => {
 
                             {/* 推荐理由 */}
                             {(candidate.reason || candidate._aiResult?.overallAssessment) && (
-                              <div className="bg-gray-50 rounded-lg px-3 py-2 mb-3">
-                                <div className="text-[10px] font-bold text-gray-500 mb-1">推荐理由</div>
-                                <div className="text-[12px] text-gray-700 whitespace-pre-line leading-relaxed">
+                              <div className="bg-surface-muted rounded-lg px-3 py-2 mb-3">
+                                <div className="text-[10px] font-bold text-fg-muted mb-1">推荐理由</div>
+                                <div className="text-[12px] text-fg-secondary whitespace-pre-line leading-relaxed">
                                   {candidate._aiResult?.overallAssessment || candidate.reason}
                                 </div>
                               </div>
@@ -1545,7 +1545,7 @@ export const CandidateSearchPage = () => {
                               </button>
                               <button
                                 onClick={() => setSelectedCandidate(candidate)}
-                                className="flex-1 border border-gray-200 hover:bg-gray-50 text-gray-700 py-2 rounded-lg text-[12px] font-medium transition-colors"
+                                className="flex-1 border border-border hover:bg-surface-muted text-fg-secondary py-2 rounded-lg text-[12px] font-medium transition-colors"
                               >
                                 查看详情
                               </button>
@@ -1570,10 +1570,10 @@ export const CandidateSearchPage = () => {
                       </div>
                     ) : (
                       /* List view */
-                      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-x-auto">
+                      <div className="bg-surface rounded-xl border border-border shadow-sm overflow-x-auto">
                         <table className="w-full min-w-[1100px]">
-                          <thead className="bg-gray-50 border-b border-gray-200">
-                            <tr className="text-left text-[12px] text-gray-500 font-medium">
+                          <thead className="bg-surface-muted border-b border-border">
+                            <tr className="text-left text-[12px] text-fg-muted font-medium">
                               <th className="px-4 py-3 min-w-[160px]">基本信息</th>
                               <th className="px-4 py-3 min-w-[180px]">教育信息</th>
                               <th className="px-4 py-3 min-w-[160px]">相关信息</th>
@@ -1582,42 +1582,42 @@ export const CandidateSearchPage = () => {
                               <th className="px-4 py-3 text-right min-w-[140px]">操作</th>
                             </tr>
                           </thead>
-                          <tbody className="divide-y divide-gray-100">
+                          <tbody className="divide-y divide-border-subtle">
                             {filteredCandidates.map((candidate) => {
                               const info = candidate.resumeParsedInfo;
                               const {company: lastCompany, role: lastRole} = extractLastJob(info?.rawText);
                               const lastWorkDisplay = [lastCompany, lastRole].filter(Boolean).join(' · ') || '—';
                               const statusColor = info?.currentlyEmployed === '在职' ? 'text-emerald-600 bg-emerald-50' : 'text-amber-600 bg-amber-50';
                               return (
-                              <tr key={candidate.id} className="hover:bg-gray-50 transition-colors">
+                              <tr key={candidate.id} className="hover:bg-surface-muted transition-colors">
                                 <td className="px-4 py-3">
-                                  <div className="font-bold text-[14px] text-gray-900">{candidate.name}</div>
-                                  <div className="text-[11px] text-gray-500 mt-0.5">
+                                  <div className="font-bold text-[14px] text-fg">{candidate.name}</div>
+                                  <div className="text-[11px] text-fg-muted mt-0.5">
                                     {info?.ageOrBirth || '—'}{info?.gender ? ` | ${info.gender}` : ''}
                                     {info?.currentlyEmployed && (
                                       <span className={`ml-1.5 text-[10px] px-1 py-0.5 rounded-full font-medium ${statusColor}`}>{info.currentlyEmployed}</span>
                                     )}
                                   </div>
-                                  <div className="text-[11px] text-gray-400 mt-0.5 flex items-center gap-1">
+                                  <div className="text-[11px] text-fg-faint mt-0.5 flex items-center gap-1">
                                     <Phone className="w-3 h-3" />{info?.phone || '—'}
                                   </div>
-                                  <div className="text-[11px] text-gray-400 mt-0.5 flex items-center gap-1">
+                                  <div className="text-[11px] text-fg-faint mt-0.5 flex items-center gap-1">
                                     <Mail className="w-3 h-3" />{info?.email || '—'}
                                   </div>
                                 </td>
                                 <td className="px-4 py-3">
-                                  <div className="text-[12px] text-gray-700">{info?.school || '—'}</div>
-                                  <div className="text-[11px] text-gray-500 mt-0.5">{info?.highestEducation || '—'} | {info?.major || '—'}</div>
-                                  <div className="text-[11px] text-gray-400 mt-0.5">{info?.educationTime || '—'}</div>
+                                  <div className="text-[12px] text-fg-secondary">{info?.school || '—'}</div>
+                                  <div className="text-[11px] text-fg-muted mt-0.5">{info?.highestEducation || '—'} | {info?.major || '—'}</div>
+                                  <div className="text-[11px] text-fg-faint mt-0.5">{info?.educationTime || '—'}</div>
                                 </td>
                                 <td className="px-4 py-3">
-                                  <div className="text-[12px] text-gray-700">{lastWorkDisplay}</div>
+                                  <div className="text-[12px] text-fg-secondary">{lastWorkDisplay}</div>
                                   <div className="flex flex-wrap gap-1 mt-1">
                                     {(candidate.honors || []).slice(0, 2).map((h, i) => (
                                       <span key={i} className="text-[10px] px-1.5 py-0.5 bg-amber-50 text-amber-700 rounded">{h}</span>
                                     ))}
                                   </div>
-                                  <div className="flex items-center gap-2 mt-1 text-[11px] text-gray-500">
+                                  <div className="flex items-center gap-2 mt-1 text-[11px] text-fg-muted">
                                     {info?.expectedSalary && (
                                       <span className="flex items-center gap-0.5"><Banknote className="w-3 h-3" />{info.expectedSalary}</span>
                                     )}
@@ -1632,14 +1632,14 @@ export const CandidateSearchPage = () => {
                                   </div>
                                 </td>
                                 <td className="px-4 py-3">
-                                  <div className="text-[12px] text-gray-600 line-clamp-2 max-w-[180px]">
+                                  <div className="text-[12px] text-fg-secondary line-clamp-2 max-w-[180px]">
                                     {candidate._aiResult?.overallAssessment || candidate.reason || '—'}
                                   </div>
                                 </td>
                                 <td className="px-4 py-3 text-right">
                                   <div className="flex items-center justify-end gap-2">
                                     <button onClick={() => handleAddToShortlist(candidate)} className="px-3 py-1.5 bg-[#1a4bc4] hover:bg-[#0c2b7a] text-white rounded-lg text-[12px] font-medium transition-colors">加入名单</button>
-                                    <button onClick={() => setSelectedCandidate(candidate)} className="px-3 py-1.5 border border-gray-200 hover:bg-gray-50 text-gray-700 rounded-lg text-[12px] font-medium transition-colors">详情</button>
+                                    <button onClick={() => setSelectedCandidate(candidate)} className="px-3 py-1.5 border border-border hover:bg-surface-muted text-fg-secondary rounded-lg text-[12px] font-medium transition-colors">详情</button>
                                     <button
                                       onClick={() => handleReparseCandidate(candidate)}
                                       className="px-2 py-1.5 border border-blue-200 text-blue-500 rounded-lg hover:bg-blue-50 transition-colors"

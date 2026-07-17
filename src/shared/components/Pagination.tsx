@@ -30,14 +30,14 @@ export const Pagination: React.FC<PaginationProps> = ({page, pageSize, total, on
       <button
         onClick={() => onChange(page - 1)}
         disabled={page <= 1}
-        className="p-2 rounded-lg text-gray-500 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+        className="p-2 rounded-lg text-fg-muted hover:bg-surface-muted disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
         aria-label="上一页"
       >
         <ChevronLeft className="w-4 h-4" />
       </button>
       {pages.map((p, i) =>
         p === '...' ? (
-          <span key={`dots-${i}`} className="px-2 text-gray-400 text-sm">...</span>
+          <span key={`dots-${i}`} className="px-2 text-fg-faint text-sm">...</span>
         ) : (
           <button
             key={p}
@@ -45,7 +45,7 @@ export const Pagination: React.FC<PaginationProps> = ({page, pageSize, total, on
             className={`min-w-[32px] h-8 rounded-lg text-sm font-medium transition-colors ${
               p === page
                 ? 'bg-[#1a4bc4] text-white'
-                : 'text-gray-600 hover:bg-gray-100'
+                : 'text-fg-secondary hover:bg-surface-muted'
             }`}
             aria-current={p === page ? 'page' : undefined}
           >
@@ -56,12 +56,12 @@ export const Pagination: React.FC<PaginationProps> = ({page, pageSize, total, on
       <button
         onClick={() => onChange(page + 1)}
         disabled={page >= totalPages}
-        className="p-2 rounded-lg text-gray-500 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+        className="p-2 rounded-lg text-fg-muted hover:bg-surface-muted disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
         aria-label="下一页"
       >
         <ChevronRight className="w-4 h-4" />
       </button>
-      <span className="ml-3 text-xs text-gray-400">共 {total} 条</span>
+      <span className="ml-3 text-xs text-fg-faint">共 {total} 条</span>
     </nav>
   );
 };

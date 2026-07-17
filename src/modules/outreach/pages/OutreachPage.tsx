@@ -13,7 +13,7 @@ const CHANNEL_OPTIONS: {value: CommChannel; label: string; color: string}[] = [
   {value: 'email', label: '邮件', color: 'bg-indigo-100 text-indigo-700'},
   {value: 'sms', label: '短信', color: 'bg-purple-100 text-purple-700'},
   {value: 'interview', label: '面试', color: 'bg-amber-100 text-amber-700'},
-  {value: 'other', label: '其他', color: 'bg-gray-100 text-gray-600'},
+  {value: 'other', label: '其他', color: 'bg-surface-muted text-fg-secondary'},
 ];
 
 const STATUS_OPTIONS: {value: CommStatus; label: string; color: string}[] = [
@@ -178,8 +178,8 @@ export const OutreachPage = () => {
     >
       <div className="flex items-end justify-between">
         <div>
-          <h1 className="text-[26px] font-bold text-gray-900 dark:text-white mb-1">沟通记录</h1>
-          <p className="text-[13px] text-gray-500 dark:text-gray-400">记录与候选人的每次沟通，追踪联系状态。</p>
+          <h1 className="text-[26px] font-bold text-fg mb-1">沟通记录</h1>
+          <p className="text-[13px] text-fg-muted">记录与候选人的每次沟通，追踪联系状态。</p>
         </div>
         <button
           onClick={handleOpenCreate}
@@ -199,20 +199,20 @@ export const OutreachPage = () => {
         ].map((item) => {
           const Icon = item.icon;
           return (
-            <div key={item.label} className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700 shadow-sm">
+            <div key={item.label} className="bg-surface rounded-xl p-4 border border-border shadow-sm">
               <div className="flex items-center justify-between mb-3">
-                <div className="text-[12px] text-gray-500 dark:text-gray-400">{item.label}</div>
+                <div className="text-[12px] text-fg-muted">{item.label}</div>
                 <Icon className="w-4 h-4 text-[#1a4bc4]" />
               </div>
-              <div className="text-[28px] leading-none font-bold text-gray-900 dark:text-white">{item.value}</div>
+              <div className="text-[28px] leading-none font-bold text-fg">{item.value}</div>
             </div>
           );
         })}
       </div>
 
-      <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+      <div className="bg-surface rounded-2xl border border-border shadow-sm overflow-hidden">
         {isRecordsLoading ? (
-          <div className="p-10 flex items-center justify-center text-gray-500 dark:text-gray-400">
+          <div className="p-10 flex items-center justify-center text-fg-muted">
             <Loader2 className="w-5 h-5 mr-2 animate-spin" />
             正在加载沟通记录...
           </div>
@@ -221,15 +221,15 @@ export const OutreachPage = () => {
             沟通记录加载失败：{recordsError}
           </div>
         ) : records.length === 0 ? (
-          <div className="p-10 flex flex-col items-center justify-center text-gray-500 dark:text-gray-400 text-[13px]">
-            <MessageSquare className="w-8 h-8 text-gray-300 dark:text-gray-600 mb-3" />
+          <div className="p-10 flex flex-col items-center justify-center text-fg-muted text-[13px]">
+            <MessageSquare className="w-8 h-8 text-fg-faint mb-3" />
             暂无沟通记录，点击右上角按钮新增
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700">
-                <tr className="text-left text-[12px] text-gray-500 dark:text-gray-400 font-medium">
+              <thead className="bg-surface-muted/50 border-b border-border">
+                <tr className="text-left text-[12px] text-fg-muted font-medium">
                   <th className="px-5 py-3">候选人</th>
                   <th className="px-5 py-3">岗位</th>
                   <th className="px-5 py-3">渠道</th>
@@ -239,15 +239,15 @@ export const OutreachPage = () => {
                   <th className="px-5 py-3 w-12"></th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100 dark:divide-gray-700/50">
+              <tbody className="divide-y divide-border-subtle">
                 {records.map((record) => (
-                  <tr key={record.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
+                  <tr key={record.id} className="hover:bg-surface-muted transition-colors">
                     <td className="px-5 py-4">
-                      <span className="font-medium text-gray-900 dark:text-white text-[13px]">{record.candidateName || '-'}</span>
+                      <span className="font-medium text-fg text-[13px]">{record.candidateName || '-'}</span>
                     </td>
-                    <td className="px-5 py-4 text-[13px] text-gray-600 dark:text-gray-300">{record.positionName || '-'}</td>
+                    <td className="px-5 py-4 text-[13px] text-fg-secondary">{record.positionName || '-'}</td>
                     <td className="px-5 py-4">
-                      <span className={`px-2 py-0.5 rounded text-[11px] font-medium ${CHANNEL_OPTIONS.find(c => c.value === record.channel)?.color ?? 'bg-gray-100 text-gray-600'}`}>
+                      <span className={`px-2 py-0.5 rounded text-[11px] font-medium ${CHANNEL_OPTIONS.find(c => c.value === record.channel)?.color ?? 'bg-surface-muted text-fg-secondary'}`}>
                         {CHANNEL_OPTIONS.find(c => c.value === record.channel)?.label ?? record.channel}
                       </span>
                       {record.channel === 'sms' && record.smsStatus && (
@@ -257,18 +257,18 @@ export const OutreachPage = () => {
                       )}
                     </td>
                     <td className="px-5 py-4">
-                      <div className="text-[12px] text-gray-600 dark:text-gray-300 max-w-[240px] truncate">{record.content || '-'}</div>
+                      <div className="text-[12px] text-fg-secondary max-w-[240px] truncate">{record.content || '-'}</div>
                     </td>
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-1">
                         {updatingStatusId === record.id && (
-                          <Loader2 className="w-3 h-3 animate-spin text-gray-400 dark:text-gray-500" />
+                          <Loader2 className="w-3 h-3 animate-spin text-fg-faint" />
                         )}
                         <select
                           value={record.status}
                           onChange={(e) => handleStatusChange(record.id, e.target.value as CommStatus)}
                           disabled={updatingStatusId === record.id}
-                          className={`px-2 py-1 rounded text-[11px] font-medium border-0 cursor-pointer disabled:opacity-50 ${STATUS_OPTIONS.find((s) => s.value === record.status)?.color ?? 'bg-gray-100 text-gray-600'}`}
+                          className={`px-2 py-1 rounded text-[11px] font-medium border-0 cursor-pointer disabled:opacity-50 ${STATUS_OPTIONS.find((s) => s.value === record.status)?.color ?? 'bg-surface-muted text-fg-secondary'}`}
                         >
                           {STATUS_OPTIONS.map((opt) => (
                             <option key={opt.value} value={opt.value}>
@@ -278,14 +278,14 @@ export const OutreachPage = () => {
                         </select>
                       </div>
                     </td>
-                    <td className="px-5 py-4 text-[12px] text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                    <td className="px-5 py-4 text-[12px] text-fg-muted whitespace-nowrap">
                       {new Date(record.createdAt).toLocaleString('zh-CN')}
                     </td>
                     <td className="px-5 py-4">
                       <button
                         onClick={() => handleDeleteRecord(record.id)}
                         disabled={deletingId === record.id}
-                        className="p-1.5 text-gray-400 dark:text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-md transition-colors disabled:opacity-50"
+                        className="p-1.5 text-fg-faint hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-md transition-colors disabled:opacity-50"
                         title="删除记录"
                       >
                         {deletingId === record.id ? (
@@ -306,23 +306,23 @@ export const OutreachPage = () => {
       {/* Create Record Dialog */}
       {showCreateDialog && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto">
+          <div className="bg-surface rounded-xl shadow-xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-5">
-              <h3 className="text-[18px] font-bold text-gray-900 dark:text-white">
+              <h3 className="text-[18px] font-bold text-fg">
                 {isSmsMode ? '发送短信' : '新增沟通记录'}
               </h3>
-              <button onClick={resetDialog} className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
+              <button onClick={resetDialog} className="text-fg-faint hover:text-fg-secondary transition-colors">
                 <X className="w-5 h-5" />
               </button>
             </div>
             <div className="space-y-4">
               {/* Candidate selector */}
               <div>
-                <label className="block text-[13px] font-medium text-gray-700 dark:text-gray-300 mb-1.5">候选人</label>
+                <label className="block text-[13px] font-medium text-fg-secondary mb-1.5">候选人</label>
                 <select
                   value={selectedCandidateId}
                   onChange={(e) => setSelectedCandidateId(e.target.value)}
-                  className="w-full px-3 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg text-[14px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4] bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  className="w-full px-3 py-2.5 border border-border rounded-lg text-[14px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4] bg-surface-muted text-fg"
                 >
                   <option value="">请选择候选人</option>
                   {candidates.map(c => (
@@ -330,7 +330,7 @@ export const OutreachPage = () => {
                   ))}
                 </select>
                 {isSmsMode && selectedCandidate && (
-                  <div className="mt-1.5 text-[12px] text-gray-500 dark:text-gray-400">
+                  <div className="mt-1.5 text-[12px] text-fg-muted">
                     手机号：{selectedCandidate.phone || <span className="text-red-500">未填写</span>}
                   </div>
                 )}
@@ -344,7 +344,7 @@ export const OutreachPage = () => {
 
               {/* Channel selector */}
               <div>
-                <label className="block text-[13px] font-medium text-gray-700 dark:text-gray-300 mb-1.5">沟通渠道</label>
+                <label className="block text-[13px] font-medium text-fg-secondary mb-1.5">沟通渠道</label>
                 <div className="flex flex-wrap gap-2">
                   {CHANNEL_OPTIONS.map(opt => (
                     <button
@@ -353,7 +353,7 @@ export const OutreachPage = () => {
                       className={`px-3 py-1.5 rounded-lg text-[12px] font-medium border transition-colors ${
                         newChannel === opt.value
                           ? 'border-[#1a4bc4] bg-[#1a4bc4]/5 text-[#1a4bc4]'
-                          : 'border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+                          : 'border-border text-fg-secondary hover:bg-surface-muted'
                       }`}
                     >
                       {opt.label}
@@ -367,11 +367,11 @@ export const OutreachPage = () => {
                 <>
                   {/* Template selector */}
                   <div>
-                    <label className="block text-[13px] font-medium text-gray-700 dark:text-gray-300 mb-1.5">短信模板</label>
+                    <label className="block text-[13px] font-medium text-fg-secondary mb-1.5">短信模板</label>
                     <select
                       value={selectedTemplateId}
                       onChange={(e) => { setSelectedTemplateId(e.target.value); setTemplateParams({}); setSmsError(null); }}
-                      className="w-full px-3 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg text-[14px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4] bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      className="w-full px-3 py-2.5 border border-border rounded-lg text-[14px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4] bg-surface-muted text-fg"
                     >
                       <option value="">请选择模板</option>
                       {smsTemplates.map(t => (
@@ -383,7 +383,7 @@ export const OutreachPage = () => {
                   {/* Dynamic template parameters */}
                   {selectedTemplate && selectedTemplate.parameters.length > 0 && (
                     <div className="space-y-2.5">
-                      <label className="block text-[13px] font-medium text-gray-700 dark:text-gray-300">模板参数</label>
+                      <label className="block text-[13px] font-medium text-fg-secondary">模板参数</label>
                       {selectedTemplate.parameters.map((param, idx) => (
                         <div key={idx}>
                           <input
@@ -391,7 +391,7 @@ export const OutreachPage = () => {
                             value={templateParams[param] ?? ''}
                             onChange={(e) => setTemplateParams(prev => ({...prev, [param]: e.target.value}))}
                             placeholder={param}
-                            className="w-full px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg text-[14px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4] bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder:text-gray-400"
+                            className="w-full px-3 py-2 border border-border rounded-lg text-[14px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4] bg-surface-muted text-fg placeholder:text-fg-faint"
                           />
                         </div>
                       ))}
@@ -402,7 +402,7 @@ export const OutreachPage = () => {
                   {smsPreview && (
                     <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-3">
                       <div className="text-[11px] text-purple-600 dark:text-purple-400 font-medium mb-1">预览</div>
-                      <div className="text-[13px] text-gray-700 dark:text-gray-300">{smsPreview}</div>
+                      <div className="text-[13px] text-fg-secondary">{smsPreview}</div>
                     </div>
                   )}
 
@@ -417,13 +417,13 @@ export const OutreachPage = () => {
               ) : (
                 /* Standard content textarea */
                 <div>
-                  <label className="block text-[13px] font-medium text-gray-700 dark:text-gray-300 mb-1.5">沟通内容</label>
+                  <label className="block text-[13px] font-medium text-fg-secondary mb-1.5">沟通内容</label>
                   <textarea
                     value={newContent}
                     onChange={(e) => setNewContent(e.target.value)}
                     placeholder="简要记录沟通内容..."
                     rows={3}
-                    className="w-full px-3 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg text-[14px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4] resize-none placeholder:text-gray-400 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    className="w-full px-3 py-2.5 border border-border rounded-lg text-[14px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4] resize-none placeholder:text-fg-faint bg-surface-muted text-fg"
                   />
                 </div>
               )}
@@ -432,7 +432,7 @@ export const OutreachPage = () => {
             <div className="flex gap-3 mt-6">
               <button
                 onClick={resetDialog}
-                className="flex-1 px-4 py-2.5 border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg text-[13px] font-medium text-gray-700 dark:text-gray-300 transition-colors"
+                className="flex-1 px-4 py-2.5 border border-border hover:bg-surface-muted rounded-lg text-[13px] font-medium text-fg-secondary transition-colors"
               >
                 取消
               </button>

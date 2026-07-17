@@ -771,11 +771,11 @@ export const CandidateDetailModal = ({ isOpen, onClose, candidate, positionDetai
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 20 }}
-        className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-[640px] max-h-[90vh] flex flex-col relative z-10 overflow-hidden"
+        className="bg-surface rounded-2xl shadow-xl w-full max-w-[640px] max-h-[90vh] flex flex-col relative z-10 overflow-hidden"
       >
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 p-2 text-gray-400 dark:text-gray-500 hover:text-gray-600 transition-colors bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 rounded-full z-10"
+          className="absolute top-4 right-4 p-2 text-fg-faint hover:text-fg-secondary transition-colors bg-surface-muted hover:bg-surface-muted rounded-full z-10"
         >
           <X className="w-5 h-5" />
         </button>
@@ -789,9 +789,9 @@ export const CandidateDetailModal = ({ isOpen, onClose, candidate, positionDetai
                 {candidate ? getInitials(candidate.name) : '??'}
               </div>
               <div className="flex-1">
-                <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">{candidate?.name || '未知'}</h2>
-                <div className="text-gray-600 dark:text-gray-300 font-medium mb-1">{propPositionDetail?.position.name || candidate?.positionName || candidate?.roles?.[0] || '未分配岗位'}</div>
-                <div className="text-gray-500 dark:text-gray-400 text-sm flex items-center">
+                <h2 className="text-2xl font-bold text-fg mb-1">{candidate?.name || '未知'}</h2>
+                <div className="text-fg-secondary font-medium mb-1">{propPositionDetail?.position.name || candidate?.positionName || candidate?.roles?.[0] || '未分配岗位'}</div>
+                <div className="text-fg-muted text-sm flex items-center">
                   {displayLocation}
                 </div>
               </div>
@@ -801,44 +801,44 @@ export const CandidateDetailModal = ({ isOpen, onClose, candidate, positionDetai
             <div className="flex items-center space-x-3 mb-6">
               <button
                 onClick={handleInitiateOutreach}
-                className="border border-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/30 text-gray-700 dark:text-gray-300 px-5 py-2 rounded-lg text-sm font-medium transition-colors bg-white dark:bg-gray-800"
+                className="border border-border hover:bg-surface-muted text-fg-secondary px-5 py-2 rounded-lg text-sm font-medium transition-colors bg-surface"
               >
                 发起外联
               </button>
               <div className="relative">
                 <button
                   onClick={() => setShowDownloadMenu(!showDownloadMenu)}
-                  className="border border-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/30 text-gray-700 dark:text-gray-300 px-5 py-2 rounded-lg text-sm font-medium transition-colors bg-white dark:bg-gray-800 flex items-center"
+                  className="border border-border hover:bg-surface-muted text-fg-secondary px-5 py-2 rounded-lg text-sm font-medium transition-colors bg-surface flex items-center"
                 >
                   <Download className="w-4 h-4 mr-2" />
                   下载
                   <MoreHorizontal className="w-4 h-4 ml-2" />
                 </button>
                 {showDownloadMenu && (
-                  <div className="absolute top-full left-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-20 min-w-[200px]">
+                  <div className="absolute top-full left-0 mt-1 bg-surface border border-border rounded-lg shadow-lg z-20 min-w-[200px]">
                     <button
                       onClick={() => { setShowDownloadMenu(false); handlePreview('report'); }}
-                      className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors"
+                      className="w-full text-left px-4 py-2 text-sm text-fg-secondary hover:bg-surface-muted transition-colors"
                     >
                       预览匹配评估报告
                     </button>
-                    <div className="border-t border-gray-100 dark:border-gray-700" />
+                    <div className="border-t border-border-subtle" />
                     <button
                       onClick={() => { downloadEvaluationPDF(); setShowDownloadMenu(false); }}
-                      className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors"
+                      className="w-full text-left px-4 py-2 text-sm text-fg-secondary hover:bg-surface-muted transition-colors"
                     >
                       下载匹配评估报告 (PDF)
                     </button>
                     <button
                       onClick={() => { downloadEvaluationPNG(); setShowDownloadMenu(false); }}
-                      className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors"
+                      className="w-full text-left px-4 py-2 text-sm text-fg-secondary hover:bg-surface-muted transition-colors"
                     >
                       下载匹配评估报告 (PNG)
                     </button>
-                    <div className="border-t border-gray-100 dark:border-gray-700" />
+                    <div className="border-t border-border-subtle" />
                     <button
                       onClick={() => { downloadOriginalResume(); setShowDownloadMenu(false); }}
-                      className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors"
+                      className="w-full text-left px-4 py-2 text-sm text-fg-secondary hover:bg-surface-muted transition-colors"
                     >
                       下载原始简历 (PDF)
                     </button>
@@ -847,7 +847,7 @@ export const CandidateDetailModal = ({ isOpen, onClose, candidate, positionDetai
               </div>
               <button
                 onClick={() => handlePreview('report')}
-                className="border border-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/30 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg text-sm font-medium transition-colors bg-white dark:bg-gray-800 flex items-center"
+                className="border border-border hover:bg-surface-muted text-fg-secondary px-4 py-2 rounded-lg text-sm font-medium transition-colors bg-surface flex items-center"
                 title="预览简历和评估报告"
               >
                 <Eye className="w-4 h-4 mr-1.5" />
@@ -856,7 +856,7 @@ export const CandidateDetailModal = ({ isOpen, onClose, candidate, positionDetai
             </div>
 
             {/* Tabs */}
-            <div className="flex border-b border-gray-200 dark:border-gray-700 mb-6 w-full">
+            <div className="flex border-b border-border mb-6 w-full">
               {[
                 { key: 'profile' as const, label: '档案信息' },
                 { key: 'fit' as const, label: 'Fit Score' },
@@ -869,7 +869,7 @@ export const CandidateDetailModal = ({ isOpen, onClose, candidate, positionDetai
                   className={`py-3 px-4 text-sm font-medium border-b-2 transition-colors ${
                     activeTab === tab.key
                       ? 'border-[#1a4bc4] text-[#1a4bc4]'
-                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                      : 'border-transparent text-fg-muted hover:text-fg-secondary'
                   }`}
                 >
                   {tab.label}
@@ -884,33 +884,33 @@ export const CandidateDetailModal = ({ isOpen, onClose, candidate, positionDetai
                 {/* Basic Info & Radar */}
                 <div className="flex flex-col md:flex-row gap-8">
                   <div className="flex-1 space-y-4">
-                    <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-3">基本信息</h3>
+                    <h3 className="text-lg font-bold text-fg mb-3">基本信息</h3>
                     <div className="grid grid-cols-[100px_1fr] gap-y-3 text-sm">
-                      <div className="text-gray-500 dark:text-gray-400">姓名</div>
-                      <div className="text-gray-900 dark:text-white font-medium">{parsedInfo?.name || candidate?.name || '未知'}</div>
+                      <div className="text-fg-muted">姓名</div>
+                      <div className="text-fg font-medium">{parsedInfo?.name || candidate?.name || '未知'}</div>
 
-                      <div className="text-gray-500 dark:text-gray-400">年龄</div>
-                      <div className="text-gray-900 dark:text-white">{parsedInfo?.ageOrBirth || '未知'}</div>
+                      <div className="text-fg-muted">年龄</div>
+                      <div className="text-fg">{parsedInfo?.ageOrBirth || '未知'}</div>
 
-                      <div className="text-gray-500 dark:text-gray-400">性别</div>
-                      <div className="text-gray-900 dark:text-white">{parsedInfo?.gender || '未知'}</div>
+                      <div className="text-fg-muted">性别</div>
+                      <div className="text-fg">{parsedInfo?.gender || '未知'}</div>
 
-                      <div className="text-gray-500 dark:text-gray-400">电话</div>
-                      <div className="text-gray-900 dark:text-white">{displayPhone}</div>
+                      <div className="text-fg-muted">电话</div>
+                      <div className="text-fg">{displayPhone}</div>
 
-                      <div className="text-gray-500 dark:text-gray-400">邮箱</div>
-                      <div className="text-gray-900 dark:text-white">{displayEmail}</div>
+                      <div className="text-fg-muted">邮箱</div>
+                      <div className="text-fg">{displayEmail}</div>
 
-                      <div className="text-gray-500 dark:text-gray-400">所在地</div>
-                      <div className="text-gray-900 dark:text-white">{displayLocation}</div>
+                      <div className="text-fg-muted">所在地</div>
+                      <div className="text-fg">{displayLocation}</div>
 
-                      <div className="text-gray-500 dark:text-gray-400">在职状态</div>
-                      <div className={`text-gray-900 ${parsedInfo?.currentlyEmployed === '在职' ? 'text-emerald-600' : 'text-amber-600'}`}>{parsedInfo?.currentlyEmployed || '未知'}</div>
+                      <div className="text-fg-muted">在职状态</div>
+                      <div className={`text-fg ${parsedInfo?.currentlyEmployed === '在职' ? 'text-emerald-600' : 'text-amber-600'}`}>{parsedInfo?.currentlyEmployed || '未知'}</div>
 
                       {(parsedInfo?.school || parsedInfo?.highestEducation || parsedInfo?.major) && (
                         <>
-                          <div className="text-gray-500 dark:text-gray-400">教育背景</div>
-                          <div className="text-gray-900 dark:text-white">
+                          <div className="text-fg-muted">教育背景</div>
+                          <div className="text-fg">
                             {[
                               parsedInfo?.school,
                               parsedInfo?.highestEducation,
@@ -922,15 +922,15 @@ export const CandidateDetailModal = ({ isOpen, onClose, candidate, positionDetai
 
                       {parsedInfo?.expectedSalary && (
                         <>
-                          <div className="text-gray-500 dark:text-gray-400">期望薪资</div>
-                          <div className="text-gray-900 dark:text-white">{parsedInfo.expectedSalary}</div>
+                          <div className="text-fg-muted">期望薪资</div>
+                          <div className="text-fg">{parsedInfo.expectedSalary}</div>
                         </>
                       )}
                     </div>
 
                     {candidate?.honors && candidate.honors.length > 0 && (
                       <div className="mt-4">
-                        <div className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">证书荣誉</div>
+                        <div className="text-sm font-medium text-fg-muted mb-2">证书荣誉</div>
                         <div className="flex flex-wrap gap-2">
                           {candidate.honors.map((h, i) => (
                             <span key={i} className="px-2 py-1 bg-amber-50 text-amber-700 rounded text-xs">{h}</span>
@@ -941,7 +941,7 @@ export const CandidateDetailModal = ({ isOpen, onClose, candidate, positionDetai
                   </div>
 
                   <div className="w-[180px] flex flex-col items-center">
-                    <h3 className="text-base font-bold text-gray-900 dark:text-white w-full text-center">综合评分</h3>
+                    <h3 className="text-base font-bold text-fg w-full text-center">综合评分</h3>
                     <div className="h-[140px] w-[140px] -mt-2">
                       <ResponsiveContainer width="100%" height="100%">
                         <RadarChart cx="50%" cy="50%" outerRadius="60%" data={radarData}>
@@ -952,7 +952,7 @@ export const CandidateDetailModal = ({ isOpen, onClose, candidate, positionDetai
                       </ResponsiveContainer>
                     </div>
                     <div className="text-center mt-0">
-                      <div className="text-sm font-bold text-gray-900 dark:text-white">{totalScore}<span className="text-gray-500 dark:text-gray-400 text-xs font-normal">/100</span></div>
+                      <div className="text-sm font-bold text-fg">{totalScore}<span className="text-fg-muted text-xs font-normal">/100</span></div>
                       <div className="text-2xl font-bold text-[#1a4bc4] leading-none">{grade}</div>
                     </div>
                   </div>
@@ -960,22 +960,22 @@ export const CandidateDetailModal = ({ isOpen, onClose, candidate, positionDetai
 
                 {/* Background & Skills */}
                 <div>
-                  <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-3">专业技能</h3>
+                  <h3 className="text-lg font-bold text-fg mb-3">专业技能</h3>
                   <div className="flex flex-wrap gap-2">
                     {displaySkills.map((skill, i) => (
-                      <span key={i} className="px-3 py-1.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full text-xs font-medium">
+                      <span key={i} className="px-3 py-1.5 bg-surface-muted text-fg-secondary rounded-full text-xs font-medium">
                         {skill}
                       </span>
                     ))}
                     {displaySkills.length === 0 && (
-                      <span className="text-gray-500 dark:text-gray-400 text-sm">暂无技能信息</span>
+                      <span className="text-fg-muted text-sm">暂无技能信息</span>
                     )}
                   </div>
                 </div>
 
                 {/* Tags */}
                 <div>
-                  <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
+                  <h3 className="text-lg font-bold text-fg mb-3 flex items-center gap-2">
                     <Tag className="w-4 h-4 text-[#1a4bc4]" />
                     标签
                   </h3>
@@ -986,14 +986,14 @@ export const CandidateDetailModal = ({ isOpen, onClose, candidate, positionDetai
                       </span>
                     ))}
                     {displayTags.length === 0 && (
-                      <span className="text-gray-500 dark:text-gray-400 text-sm">暂无标签</span>
+                      <span className="text-fg-muted text-sm">暂无标签</span>
                     )}
                   </div>
                 </div>
 
                 {/* Experience */}
                 <div>
-                  <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-3">工作经验</h3>
+                  <h3 className="text-lg font-bold text-fg mb-3">工作经验</h3>
                   {displayExperience.length > 0 ? (
                     <div className="space-y-4 pl-2">
                       {displayExperience.map((exp, i) => {
@@ -1002,23 +1002,23 @@ export const CandidateDetailModal = ({ isOpen, onClose, candidate, positionDetai
                           return (
                             <div key={i} className="relative pl-6 border-l-2 border-[#1a4bc4]/30">
                               <div className="absolute w-3 h-3 bg-[#1a4bc4] rounded-full -left-[7px] top-1.5 ring-4 ring-white"></div>
-                              <div className="text-sm text-gray-900 dark:text-white font-medium">{e.company}</div>
+                              <div className="text-sm text-fg font-medium">{e.company}</div>
                               {e.role && <div className="text-sm text-[#1a4bc4] font-medium mt-0.5">{e.role}</div>}
-                              {e.period && <div className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{e.period}</div>}
-                              {e.desc && <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 leading-relaxed">{e.desc}</div>}
+                              {e.period && <div className="text-xs text-fg-faint mt-0.5">{e.period}</div>}
+                              {e.desc && <div className="text-xs text-fg-muted mt-1 leading-relaxed">{e.desc}</div>}
                             </div>
                           );
                         }
                         return (
                           <div key={i} className="relative pl-6 border-l-2 border-[#1a4bc4]/30">
                             <div className="absolute w-3 h-3 bg-[#1a4bc4] rounded-full -left-[7px] top-1.5 ring-4 ring-white"></div>
-                            <div className="text-sm text-gray-900 dark:text-white font-medium">{exp as string}</div>
+                            <div className="text-sm text-fg font-medium">{exp as string}</div>
                           </div>
                         );
                       })}
                     </div>
                   ) : (
-                    <div className="text-gray-500 dark:text-gray-400 text-sm">暂无工作经验信息</div>
+                    <div className="text-fg-muted text-sm">暂无工作经验信息</div>
                   )}
                 </div>
 
@@ -1032,22 +1032,22 @@ export const CandidateDetailModal = ({ isOpen, onClose, candidate, positionDetai
                   <div className="flex flex-col items-center">
                     <div className={`w-24 h-24 rounded-full border-4 ${candidate?.scoreColor || 'border-[#0EA5E9]'} flex items-center justify-center`}>
                       <div className="text-center">
-                        <div className="text-2xl font-bold text-gray-900 dark:text-white">{totalScore}</div>
-                        <div className="text-[10px] text-gray-500 dark:text-gray-400">/100</div>
+                        <div className="text-2xl font-bold text-fg">{totalScore}</div>
+                        <div className="text-[10px] text-fg-muted">/100</div>
                       </div>
                     </div>
                     <div className="mt-2 text-lg font-bold text-[#1a4bc4]">{grade}</div>
                   </div>
                   <div className="flex-1">
-                    <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">Fit Score 综合评分</h3>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                    <h3 className="text-lg font-bold text-fg mb-2">Fit Score 综合评分</h3>
+                    <p className="text-sm text-fg-muted">
                       基于岗位「{candidate?.positionName || '未关联'}」的标准配置自动评分
                     </p>
                     <div className="mt-3 flex gap-2">
-                      <span className="text-xs px-2 py-1 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 rounded">
+                      <span className="text-xs px-2 py-1 bg-surface-muted text-fg-secondary rounded">
                         {candidate?.positionName || '未关联岗位'}
                       </span>
-                      <span className="text-xs px-2 py-1 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 rounded">
+                      <span className="text-xs px-2 py-1 bg-surface-muted text-fg-secondary rounded">
                         {candidate?.source}
                       </span>
                     </div>
@@ -1056,8 +1056,8 @@ export const CandidateDetailModal = ({ isOpen, onClose, candidate, positionDetai
 
                 {/* Radar Chart */}
                 {radarData.length > 0 && (
-                  <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-6 flex flex-col items-center">
-                    <h4 className="text-sm font-bold text-gray-900 dark:text-white mb-4">评分维度雷达图</h4>
+                  <div className="bg-surface-muted rounded-xl p-6 flex flex-col items-center">
+                    <h4 className="text-sm font-bold text-fg mb-4">评分维度雷达图</h4>
                     <div className="h-[200px] w-[200px]">
                       <ResponsiveContainer width="100%" height="100%">
                         <RadarChart cx="50%" cy="50%" outerRadius="70%" data={radarData}>
@@ -1073,17 +1073,17 @@ export const CandidateDetailModal = ({ isOpen, onClose, candidate, positionDetai
                 {/* Dimension Details */}
                 {scoreResult && scoreResult.dimensionScores.length > 0 && (
                   <div>
-                    <h4 className="text-sm font-bold text-gray-900 dark:text-white mb-3">维度得分详情</h4>
+                    <h4 className="text-sm font-bold text-fg mb-3">维度得分详情</h4>
                     <div className="space-y-3">
                       {scoreResult.dimensionScores.map((ds, i) => {
                         const pct = ds.maxScore > 0 ? Math.round((ds.score / ds.maxScore) * 100) : 0;
                         return (
-                          <div key={i} className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
+                          <div key={i} className="bg-surface-muted rounded-lg p-3">
                             <div className="flex items-center justify-between mb-1.5">
-                              <span className="text-sm font-medium text-gray-900 dark:text-white">{ds.dimension}</span>
-                              <span className="text-sm text-gray-600 dark:text-gray-300">
+                              <span className="text-sm font-medium text-fg">{ds.dimension}</span>
+                              <span className="text-sm text-fg-secondary">
                                 {ds.score}/{ds.maxScore}
-                                <span className="text-gray-400 dark:text-gray-500 ml-1">(权重 {ds.weight}%)</span>
+                                <span className="text-fg-faint ml-1">(权重 {ds.weight}%)</span>
                               </span>
                             </div>
                             <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
@@ -1115,12 +1115,12 @@ export const CandidateDetailModal = ({ isOpen, onClose, candidate, positionDetai
                       ))}
                       {/* Unmatched profile keywords */}
                       {scoreResult.debugInfo.profileDimension.unmatched.map((kw, i) => (
-                        <span key={`u${i}`} className="text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 font-medium line-through">
+                        <span key={`u${i}`} className="text-xs px-2 py-0.5 rounded-full bg-surface-muted text-fg-faint font-medium line-through">
                           ✗ {kw}
                         </span>
                       ))}
                       {scoreResult.debugInfo.profileDimension.matched.length === 0 && scoreResult.debugInfo.profileDimension.unmatched.length === 0 && (
-                        <span className="text-xs text-gray-400 dark:text-gray-500">暂无画像关键词</span>
+                        <span className="text-xs text-fg-faint">暂无画像关键词</span>
                       )}
                     </div>
                   </div>
@@ -1129,27 +1129,27 @@ export const CandidateDetailModal = ({ isOpen, onClose, candidate, positionDetai
                 {/* 各维度关键词细项 */}
                 {scoreResult?.debugInfo?.dimensionDetails && scoreResult.debugInfo.dimensionDetails.length > 0 && (
                   <div>
-                    <h4 className="text-sm font-bold text-gray-900 dark:text-white mb-3">各维度关键词</h4>
+                    <h4 className="text-sm font-bold text-fg mb-3">各维度关键词</h4>
                     <div className="space-y-3">
                       {scoreResult.debugInfo.dimensionDetails.map((dd, i) => (
-                        <div key={i} className="border border-gray-200 dark:border-gray-700 rounded-lg p-3">
+                        <div key={i} className="border border-border rounded-lg p-3">
                           <div className="flex items-center justify-between mb-2">
-                            <span className="text-sm font-semibold text-gray-900 dark:text-white">{dd.dimension}</span>
-                            <span className="text-xs font-medium text-gray-500 dark:text-gray-400">{dd.score} 分</span>
+                            <span className="text-sm font-semibold text-fg">{dd.dimension}</span>
+                            <span className="text-xs font-medium text-fg-muted">{dd.score} 分</span>
                           </div>
                           <div className="flex flex-wrap gap-1.5">
                             {dd.keywords.map((kw, j) => {
                               const isMatched = dd.matched.includes(kw);
                               return (
                                 <span key={j} className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                                  isMatched ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-400'
+                                  isMatched ? 'bg-emerald-100 text-emerald-700' : 'bg-surface-muted text-fg-faint'
                                 }`}>
                                   {isMatched ? '✓' : '✗'} {kw}
                                 </span>
                               );
                             })}
                             {dd.keywords.length === 0 && (
-                              <span className="text-xs text-gray-400 dark:text-gray-500">无关键词配置</span>
+                              <span className="text-xs text-fg-faint">无关键词配置</span>
                             )}
                           </div>
                         </div>
@@ -1159,10 +1159,10 @@ export const CandidateDetailModal = ({ isOpen, onClose, candidate, positionDetai
                 )}
 
                 {!scoreResult && (
-                  <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-8 text-center">
-                    <AlertCircle className="w-8 h-8 text-gray-400 dark:text-gray-500 mx-auto mb-3" />
-                    <p className="text-gray-500 dark:text-gray-400 text-sm">该候选人未关联岗位配置，无法计算 Fit Score。</p>
-                    <p className="text-gray-400 dark:text-gray-500 text-xs mt-1">请导入简历时选择岗位，或在人才库中关联岗位。</p>
+                  <div className="bg-surface-muted rounded-xl p-8 text-center">
+                    <AlertCircle className="w-8 h-8 text-fg-faint mx-auto mb-3" />
+                    <p className="text-fg-muted text-sm">该候选人未关联岗位配置，无法计算 Fit Score。</p>
+                    <p className="text-fg-faint text-xs mt-1">请导入简历时选择岗位，或在人才库中关联岗位。</p>
                   </div>
                 )}
               </div>
@@ -1171,25 +1171,25 @@ export const CandidateDetailModal = ({ isOpen, onClose, candidate, positionDetai
             {activeTab === 'outreach' && (
               <div className="py-6 space-y-6">
                 {outreachLoading ? (
-                  <div className="py-12 text-center text-gray-500 dark:text-gray-400">加载中...</div>
+                  <div className="py-12 text-center text-fg-muted">加载中...</div>
                 ) : outreachRecords.length === 0 && contactRecords.length === 0 ? (
-                  <div className="py-12 text-center text-gray-500 dark:text-gray-400">暂无沟通和联系记录</div>
+                  <div className="py-12 text-center text-fg-muted">暂无沟通和联系记录</div>
                 ) : (
                   <>
                     {/* Outreach records */}
                     {outreachRecords.length > 0 && (
                       <div>
-                        <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">沟通记录</h4>
+                        <h4 className="text-sm font-semibold text-fg-secondary mb-3">沟通记录</h4>
                         <div className="space-y-3">
                           {outreachRecords.map((record) => (
-                            <div key={record.id} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                            <div key={record.id} className="border border-border rounded-lg p-4">
                               <div className="flex items-center justify-between mb-2">
                                 <span className={`px-2 py-0.5 rounded text-xs font-medium ${
                                   record.channel === 'phone' ? 'bg-blue-100 text-blue-700' :
                                   record.channel === 'wechat' ? 'bg-emerald-100 text-emerald-700' :
                                   record.channel === 'email' ? 'bg-indigo-100 text-indigo-700' :
                                   record.channel === 'interview' ? 'bg-amber-100 text-amber-700' :
-                                  'bg-gray-100 text-gray-700'
+                                  'bg-surface-muted text-fg-secondary'
                                 }`}>
                                   {record.channel === 'phone' ? '电话' : record.channel === 'wechat' ? '微信' : record.channel === 'email' ? '邮件' : record.channel === 'interview' ? '面试' : '其他'}
                                 </span>
@@ -1202,9 +1202,9 @@ export const CandidateDetailModal = ({ isOpen, onClose, candidate, positionDetai
                                 </span>
                               </div>
                               {record.content && (
-                                <div className="text-sm text-gray-600 dark:text-gray-300 mb-2 line-clamp-2">{record.content}</div>
+                                <div className="text-sm text-fg-secondary mb-2 line-clamp-2">{record.content}</div>
                               )}
-                              <div className="text-xs text-gray-400 dark:text-gray-500">{new Date(record.createdAt).toLocaleString('zh-CN')}</div>
+                              <div className="text-xs text-fg-faint">{new Date(record.createdAt).toLocaleString('zh-CN')}</div>
                             </div>
                           ))}
                         </div>
@@ -1214,7 +1214,7 @@ export const CandidateDetailModal = ({ isOpen, onClose, candidate, positionDetai
                     {/* Contact tracking records */}
                     {contactRecords.length > 0 && (
                       <div>
-                        <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">联系推进记录</h4>
+                        <h4 className="text-sm font-semibold text-fg-secondary mb-3">联系推进记录</h4>
                         <div className="space-y-3">
                           {contactRecords.map((contact) => {
                             const statusOpt = [
@@ -1223,31 +1223,31 @@ export const CandidateDetailModal = ({ isOpen, onClose, candidate, positionDetai
                               {value: 'responded', label: '已回复', color: 'bg-emerald-100 text-emerald-700'},
                               {value: 'interview_scheduled', label: '已安排面试', color: 'bg-purple-100 text-purple-700'},
                               {value: 'hired', label: '已入职', color: 'bg-green-100 text-green-700'},
-                              {value: 'rejected', label: '已拒绝', color: 'bg-gray-100 text-gray-500'},
+                              {value: 'rejected', label: '已拒绝', color: 'bg-surface-muted text-fg-muted'},
                             ].find(s => s.value === contact.status);
                             const channelLabel: Record<string, string> = {wechat: '微信', email: '邮件', phone: '电话'};
                             return (
-                              <div key={contact.id} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                              <div key={contact.id} className="border border-border rounded-lg p-4">
                                 <div className="flex items-center justify-between mb-2">
                                   <div className="flex items-center gap-2">
-                                    <span className={`px-2 py-0.5 rounded text-xs font-medium ${statusOpt?.color ?? 'bg-gray-100 text-gray-700'}`}>
+                                    <span className={`px-2 py-0.5 rounded text-xs font-medium ${statusOpt?.color ?? 'bg-surface-muted text-fg-secondary'}`}>
                                       {statusOpt?.label ?? contact.status}
                                     </span>
-                                    <span className="px-2 py-0.5 rounded text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
+                                    <span className="px-2 py-0.5 rounded text-xs font-medium bg-surface-muted text-fg-secondary">
                                       {channelLabel[contact.channel] ?? contact.channel}
                                     </span>
                                   </div>
-                                  <span className="text-xs text-gray-400">{new Date(contact.createdAt).toLocaleString('zh-CN')}</span>
+                                  <span className="text-xs text-fg-faint">{new Date(contact.createdAt).toLocaleString('zh-CN')}</span>
                                 </div>
-                                <div className="text-sm text-gray-700 dark:text-gray-300">
+                                <div className="text-sm text-fg-secondary">
                                   {contact.positionName && <span>岗位：{contact.positionName}</span>}
-                                  {contact.projectName && <span className="ml-3 text-gray-500">项目：{contact.projectName}</span>}
+                                  {contact.projectName && <span className="ml-3 text-fg-muted">项目：{contact.projectName}</span>}
                                 </div>
                                 {contact.reason && (
-                                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">{contact.reason}</div>
+                                  <div className="text-xs text-fg-muted mt-1">{contact.reason}</div>
                                 )}
                                 {contact.outreachPerson && (
-                                  <div className="text-xs text-gray-400 mt-1">推进人：{contact.outreachPerson}</div>
+                                  <div className="text-xs text-fg-faint mt-1">推进人：{contact.outreachPerson}</div>
                                 )}
                               </div>
                             );
@@ -1261,7 +1261,7 @@ export const CandidateDetailModal = ({ isOpen, onClose, candidate, positionDetai
             )}
 
             {activeTab === 'notes' && (
-              <div className="py-12 text-center text-gray-500 dark:text-gray-400">
+              <div className="py-12 text-center text-fg-muted">
                 此标签页内容尚未实现
               </div>
             )}
@@ -1272,28 +1272,28 @@ export const CandidateDetailModal = ({ isOpen, onClose, candidate, positionDetai
       {/* Outreach Modal */}
       {showOutreachModal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-[420px] max-w-[90vw] p-6">
+          <div className="bg-surface rounded-xl shadow-2xl w-[420px] max-w-[90vw] p-6">
             <div className="flex items-center justify-between mb-5">
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white">发起外联</h3>
-              <button onClick={() => setShowOutreachModal(false)} className="text-gray-400 dark:text-gray-500 hover:text-gray-600">
+              <h3 className="text-lg font-bold text-fg">发起外联</h3>
+              <button onClick={() => setShowOutreachModal(false)} className="text-fg-faint hover:text-fg-secondary">
                 <X className="w-5 h-5" />
               </button>
             </div>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">邮箱地址</label>
+                <label className="block text-sm font-medium text-fg-secondary mb-1.5">邮箱地址</label>
                 <input
                   type="email"
                   value={outreachEmail}
                   onChange={e => setOutreachEmail(e.target.value)}
                   placeholder="请输入候选人邮箱"
-                  className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
+                  className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">附件选项</label>
+                <label className="block text-sm font-medium text-fg-secondary mb-1.5">附件选项</label>
                 <div className="flex flex-col gap-2">
-                  <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                  <label className="flex items-center gap-2 text-sm text-fg-secondary">
                     <input
                       type="checkbox"
                       checked={outreachIncludeResume}
@@ -1302,7 +1302,7 @@ export const CandidateDetailModal = ({ isOpen, onClose, candidate, positionDetai
                     />
                     原始简历
                   </label>
-                  <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                  <label className="flex items-center gap-2 text-sm text-fg-secondary">
                     <input
                       type="checkbox"
                       checked={outreachIncludeReport}
@@ -1322,7 +1322,7 @@ export const CandidateDetailModal = ({ isOpen, onClose, candidate, positionDetai
             <div className="flex justify-end gap-3 mt-6">
               <button
                 onClick={() => setShowOutreachModal(false)}
-                className="px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors"
+                className="px-4 py-2 border border-border rounded-lg text-sm text-fg-secondary hover:bg-surface-muted transition-colors"
               >
                 取消
               </button>
@@ -1340,9 +1340,9 @@ export const CandidateDetailModal = ({ isOpen, onClose, candidate, positionDetai
       {/* Preview Modal */}
       {showPreviewModal && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-6">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-3xl max-h-[85vh] flex flex-col">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+          <div className="bg-surface rounded-xl shadow-2xl w-full max-w-3xl max-h-[85vh] flex flex-col">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+              <h3 className="text-lg font-bold text-fg">
                 {previewType === 'resume' ? '原始简历' : '匹配评估报告'}
               </h3>
               <div className="flex items-center gap-3">
@@ -1356,44 +1356,44 @@ export const CandidateDetailModal = ({ isOpen, onClose, candidate, positionDetai
                     <button onClick={downloadEvaluationPDF} className="text-sm text-[#1a4bc4] hover:underline">
                       下载 PDF
                     </button>
-                    <span className="text-gray-300">|</span>
+                    <span className="text-fg-faint">|</span>
                     <button onClick={downloadEvaluationPNG} className="text-sm text-[#1a4bc4] hover:underline">
                       下载 PNG
                     </button>
                   </div>
                 )}
-                <button onClick={() => setShowPreviewModal(false)} className="text-gray-400 dark:text-gray-500 hover:text-gray-600">
+                <button onClick={() => setShowPreviewModal(false)} className="text-fg-faint hover:text-fg-secondary">
                   <X className="w-5 h-5" />
                 </button>
               </div>
             </div>
             <div className="flex-1 overflow-y-auto p-6">
               {previewType === 'resume' ? (
-                <div className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+                <div className="text-sm text-fg-secondary whitespace-pre-wrap">
                   {parsedInfo?.rawText || '暂无简历内容'}
                 </div>
               ) : (
-                <div ref={evaluationRef} className="bg-white dark:bg-gray-800">
+                <div ref={evaluationRef} className="bg-surface">
                   {/* Full evaluation report — always rendered for preview & download */}
                   <div className="space-y-6">
                     {/* Score Overview */}
-                    <div className="flex items-center gap-6 pb-4 border-b border-gray-200 dark:border-gray-700">
+                    <div className="flex items-center gap-6 pb-4 border-b border-border">
                       <div className="flex flex-col items-center">
                         <div className={`w-24 h-24 rounded-full border-4 ${candidate?.scoreColor || 'border-[#0EA5E9]'} flex items-center justify-center`}>
                           <div className="text-center">
-                            <div className="text-2xl font-bold text-gray-900 dark:text-white">{totalScore}</div>
-                            <div className="text-[10px] text-gray-500 dark:text-gray-400">/100</div>
+                            <div className="text-2xl font-bold text-fg">{totalScore}</div>
+                            <div className="text-[10px] text-fg-muted">/100</div>
                           </div>
                         </div>
                         <div className="mt-2 text-lg font-bold text-[#1a4bc4]">{grade}</div>
                       </div>
                       <div className="flex-1">
-                        <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">Fit Score 综合评分</h3>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                        <h3 className="text-lg font-bold text-fg mb-2">Fit Score 综合评分</h3>
+                        <p className="text-sm text-fg-muted">
                           基于岗位「{candidate?.positionName || '未关联'}」的标准配置自动评分
                         </p>
                         <div className="mt-3 flex gap-2">
-                          <span className="text-xs px-2 py-1 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 rounded">
+                          <span className="text-xs px-2 py-1 bg-surface-muted text-fg-secondary rounded">
                             {candidate?.positionName || '未关联岗位'}
                           </span>
                         </div>
@@ -1402,8 +1402,8 @@ export const CandidateDetailModal = ({ isOpen, onClose, candidate, positionDetai
 
                     {/* Radar chart */}
                     {radarData.length > 0 && (
-                      <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-6">
-                        <h4 className="text-sm font-bold text-gray-900 dark:text-white mb-4">评分维度雷达图</h4>
+                      <div className="bg-surface-muted rounded-xl p-6">
+                        <h4 className="text-sm font-bold text-fg mb-4">评分维度雷达图</h4>
                         <ResponsiveContainer width="100%" height={280}>
                           <RadarChart data={radarData}>
                             <PolarGrid gridType="polygon" />
@@ -1417,17 +1417,17 @@ export const CandidateDetailModal = ({ isOpen, onClose, candidate, positionDetai
                     {/* Dimension score details with progress bars */}
                     {scoreResult && scoreResult.dimensionScores.length > 0 && (
                       <div>
-                        <h4 className="text-sm font-bold text-gray-900 dark:text-white mb-3">维度得分详情</h4>
+                        <h4 className="text-sm font-bold text-fg mb-3">维度得分详情</h4>
                         <div className="space-y-3">
                           {scoreResult.dimensionScores.map((ds, i) => {
                             const pct = ds.maxScore > 0 ? Math.round((ds.score / ds.maxScore) * 100) : 0;
                             return (
-                              <div key={i} className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
+                              <div key={i} className="bg-surface-muted rounded-lg p-3">
                                 <div className="flex items-center justify-between mb-1.5">
-                                  <span className="text-sm font-medium text-gray-900 dark:text-white">{ds.dimension}</span>
-                                  <span className="text-sm text-gray-600 dark:text-gray-300">
+                                  <span className="text-sm font-medium text-fg">{ds.dimension}</span>
+                                  <span className="text-sm text-fg-secondary">
                                     {ds.score}/{ds.maxScore}
-                                    <span className="text-gray-400 dark:text-gray-500 ml-1">(权重 {ds.weight}%)</span>
+                                    <span className="text-fg-faint ml-1">(权重 {ds.weight}%)</span>
                                   </span>
                                 </div>
                                 <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
@@ -1460,7 +1460,7 @@ export const CandidateDetailModal = ({ isOpen, onClose, candidate, positionDetai
                               </span>
                             ))}
                             {pd.unmatched.map((kw, i) => (
-                              <span key={`u${i}`} className="text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 font-medium line-through">
+                              <span key={`u${i}`} className="text-xs px-2 py-0.5 rounded-full bg-surface-muted text-fg-faint font-medium line-through">
                                 ✗ {kw}
                               </span>
                             ))}
@@ -1472,19 +1472,19 @@ export const CandidateDetailModal = ({ isOpen, onClose, candidate, positionDetai
                     {/* Per-dimension keyword chips */}
                     {scoreResult?.debugInfo?.dimensionDetails && scoreResult.debugInfo.dimensionDetails.length > 0 && (
                       <div>
-                        <h4 className="text-sm font-bold text-gray-900 dark:text-white mb-3">各维度关键词</h4>
+                        <h4 className="text-sm font-bold text-fg mb-3">各维度关键词</h4>
                         <div className="space-y-3">
                           {scoreResult.debugInfo.dimensionDetails.map((dim, i) => (
-                            <div key={i} className="border border-gray-200 dark:border-gray-700 rounded-lg p-3">
+                            <div key={i} className="border border-border rounded-lg p-3">
                               <div className="flex items-center justify-between mb-2">
-                                <span className="text-sm font-semibold text-gray-900 dark:text-white">{dim.dimension}</span>
-                                <span className="text-xs font-medium text-gray-500 dark:text-gray-400">{dim.score} 分</span>
+                                <span className="text-sm font-semibold text-fg">{dim.dimension}</span>
+                                <span className="text-xs font-medium text-fg-muted">{dim.score} 分</span>
                               </div>
                               <div className="flex flex-wrap gap-1.5">
                                 {dim.keywords.map((kw, j) => {
                                   const isMatched = dim.matched.includes(kw);
                                   return (
-                                    <span key={j} className={`text-xs px-2 py-0.5 rounded-full font-medium ${isMatched ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-400'}`}>
+                                    <span key={j} className={`text-xs px-2 py-0.5 rounded-full font-medium ${isMatched ? 'bg-emerald-100 text-emerald-700' : 'bg-surface-muted text-fg-faint'}`}>
                                       {isMatched ? '✓' : '✗'} {kw}
                                     </span>
                                   );
@@ -1498,7 +1498,7 @@ export const CandidateDetailModal = ({ isOpen, onClose, candidate, positionDetai
 
                     {/* No score result fallback */}
                     {!scoreResult && (
-                      <div className="text-center text-gray-400 dark:text-gray-500 py-12">
+                      <div className="text-center text-fg-faint py-12">
                         该候选人未关联岗位配置，无法生成评估报告。
                       </div>
                     )}

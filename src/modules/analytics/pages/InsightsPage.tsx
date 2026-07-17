@@ -57,8 +57,8 @@ export const InsightsPage = () => {
     >
       <div className="flex items-end justify-between">
         <div>
-          <h1 className="text-[26px] font-bold text-gray-900 mb-1">数据洞察</h1>
-          <p className="text-[13px] text-gray-500">聚合候选人漏斗、来源质量和 AI 代理效率，方便快速定位问题。</p>
+          <h1 className="text-[26px] font-bold text-fg mb-1">数据洞察</h1>
+          <p className="text-[13px] text-fg-muted">聚合候选人漏斗、来源质量和 AI 代理效率，方便快速定位问题。</p>
         </div>
         <div className="flex flex-col items-end gap-3">
           <div className="flex items-center gap-2">
@@ -69,7 +69,7 @@ export const InsightsPage = () => {
                 loadPositions(e.target.value);
                 setSelectedPositionId('');
               }}
-              className="px-3 py-2 border border-gray-200 rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4] bg-white min-w-[180px]"
+              className="px-3 py-2 border border-border rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4] bg-surface min-w-[180px]"
             >
               <option value="">全部项目</option>
               {projects.map((project) => (
@@ -82,7 +82,7 @@ export const InsightsPage = () => {
               value={selectedPositionId}
               onChange={(e) => setSelectedPositionId(e.target.value)}
               disabled={!selectedProjectId}
-              className="px-3 py-2 border border-gray-200 rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4] bg-white min-w-[160px]"
+              className="px-3 py-2 border border-border rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4] bg-surface min-w-[160px]"
             >
               <option value="">全部岗位</option>
               {positions.map((position) => (
@@ -93,7 +93,7 @@ export const InsightsPage = () => {
             </select>
           </div>
           <div className="flex items-center gap-3">
-            <div className="flex bg-white border border-gray-200 rounded-lg overflow-hidden text-[13px] font-medium">
+            <div className="flex bg-surface border border-border rounded-lg overflow-hidden text-[13px] font-medium">
               {[
                 {label: '近7天', value: '7days' as TimeRange},
                 {label: '近30天', value: '30days' as TimeRange},
@@ -104,7 +104,7 @@ export const InsightsPage = () => {
                   key={item.value}
                   onClick={() => setTimeRange(item.value)}
                   className={`px-4 py-2 transition-colors ${
-                    timeRange === item.value ? 'bg-gray-50 text-gray-900 border-x border-gray-200' : 'text-gray-500 hover:bg-gray-50'
+                    timeRange === item.value ? 'bg-surface-muted text-fg border-x border-border' : 'text-fg-muted hover:bg-surface-muted'
                   }`}
                 >
                   {item.label}
@@ -117,14 +117,14 @@ export const InsightsPage = () => {
                   type="date"
                   value={customStartDate}
                   onChange={(e) => setCustomStartDate(e.target.value)}
-                  className="px-3 py-2 border border-gray-200 rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
+                  className="px-3 py-2 border border-border rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
                 />
-                <span className="text-gray-500">至</span>
+                <span className="text-fg-muted">至</span>
                 <input
                   type="date"
                   value={customEndDate}
                   onChange={(e) => setCustomEndDate(e.target.value)}
-                  className="px-3 py-2 border border-gray-200 rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
+                  className="px-3 py-2 border border-border rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
                 />
               </div>
             )}
@@ -180,14 +180,14 @@ export const InsightsPage = () => {
           const Icon = metricIconMap[item.icon];
 
           return (
-            <div key={item.label} className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
+            <div key={item.label} className="bg-surface rounded-xl p-4 border border-border shadow-sm">
               <div className="flex items-center justify-between mb-3">
-                <div className="text-[12px] text-gray-500">{item.label}</div>
+                <div className="text-[12px] text-fg-muted">{item.label}</div>
                 <Icon className="w-4 h-4 text-[#1a4bc4]" />
               </div>
               <div className="flex items-baseline gap-1">
-                <span className="text-[28px] leading-none font-bold text-gray-900">{item.value}</span>
-                {item.suffix ? <span className="text-[13px] text-gray-500">{item.suffix}</span> : null}
+                <span className="text-[28px] leading-none font-bold text-fg">{item.value}</span>
+                {item.suffix ? <span className="text-[13px] text-fg-muted">{item.suffix}</span> : null}
               </div>
               <div className="mt-3 flex items-center text-[12px] text-emerald-600 font-medium">
                 <ArrowUp className="w-3.5 h-3.5 mr-1" />
@@ -199,7 +199,7 @@ export const InsightsPage = () => {
       </div>
 
       {isLoading ? (
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-10 flex items-center justify-center text-gray-500">
+        <div className="bg-surface rounded-2xl border border-border shadow-sm p-10 flex items-center justify-center text-fg-muted">
           <Loader2 className="w-5 h-5 mr-2 animate-spin" />
           正在加载洞察数据...
         </div>
@@ -210,8 +210,8 @@ export const InsightsPage = () => {
       ) : (
         <div className="space-y-5">
           <div className="grid grid-cols-1 xl:grid-cols-[0.95fr_1.05fr] gap-5">
-            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5">
-              <h2 className="text-[16px] font-bold text-gray-900 mb-5">招募漏斗</h2>
+            <div className="bg-surface rounded-2xl border border-border shadow-sm p-5">
+              <h2 className="text-[16px] font-bold text-fg mb-5">招募漏斗</h2>
               {/* True funnel: trapezoid color shape + text overlay */}
               <div className="flex items-start gap-3">
                 <div className="flex-1 flex flex-col items-center" style={{minHeight: 300}}>
@@ -254,11 +254,11 @@ export const InsightsPage = () => {
                     return (
                       <div key={step.label} className="flex items-center" style={{height: 48, marginTop: index === 0 ? 0 : -1}}>
                         {conv !== null ? (
-                          <span className={`text-[12px] font-bold whitespace-nowrap ${isLow ? 'text-red-500' : 'text-gray-400'}`}>
+                          <span className={`text-[12px] font-bold whitespace-nowrap ${isLow ? 'text-red-500' : 'text-fg-faint'}`}>
                             {isLow ? '⚠ ' : ''}{conv}%
                           </span>
                         ) : (
-                          <span className="text-[12px] text-gray-300">—</span>
+                          <span className="text-[12px] text-fg-faint">—</span>
                         )}
                       </div>
                     );
@@ -266,11 +266,11 @@ export const InsightsPage = () => {
                 </div>
               </div>
               {data.funnel.length > 1 && data.funnel[0].value > 0 && (
-                <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between text-[12px]">
-                  <span className="text-gray-500">整体转化率</span>
+                <div className="mt-4 pt-3 border-t border-border-subtle flex items-center justify-between text-[12px]">
+                  <span className="text-fg-muted">整体转化率</span>
                   <span className="font-bold text-[#1a4bc4]">
                     {Math.round((data.funnel[data.funnel.length - 1].value / data.funnel[0].value) * 100)}%
-                    <span className="font-normal text-gray-400 ml-1">
+                    <span className="font-normal text-fg-faint ml-1">
                       ({data.funnel[data.funnel.length - 1].value}/{data.funnel[0].value})
                     </span>
                   </span>
@@ -278,10 +278,10 @@ export const InsightsPage = () => {
               )}
             </div>
 
-            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5">
-              <h2 className="text-[16px] font-bold text-gray-900 mb-5">候选人来源质量对比</h2>
+            <div className="bg-surface rounded-2xl border border-border shadow-sm p-5">
+              <h2 className="text-[16px] font-bold text-fg mb-5">候选人来源质量对比</h2>
               {data.channels.length === 0 ? (
-                <div className="text-[13px] text-gray-400 text-center py-8">暂无来源数据</div>
+                <div className="text-[13px] text-fg-faint text-center py-8">暂无来源数据</div>
               ) : (
                 <div className="space-y-4">
                   {data.channels.map((channel) => {
@@ -289,13 +289,13 @@ export const InsightsPage = () => {
                     return (
                       <div key={channel.name}>
                         <div className="flex items-center justify-between mb-2">
-                          <div className="text-[13px] font-medium text-gray-700">{channel.name}</div>
+                          <div className="text-[13px] font-medium text-fg-secondary">{channel.name}</div>
                           <div className="flex items-center gap-3 text-[12px]">
-                            <span className="text-gray-500">{channel.count} 人</span>
+                            <span className="text-fg-muted">{channel.count} 人</span>
                             <span className="font-medium text-[#1a4bc4]">均分 {channel.avgScore}</span>
                           </div>
                         </div>
-                        <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
+                        <div className="h-3 bg-surface-muted rounded-full overflow-hidden">
                           <div
                             className="h-full bg-gradient-to-r from-[#1a4bc4] to-[#3b82f6] rounded-full transition-all"
                             style={{width: `${(channel.count / maxCount) * 100}%`}}
@@ -309,26 +309,26 @@ export const InsightsPage = () => {
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5">
-            <h2 className="text-[16px] font-bold text-gray-900 mb-5">AI 代理效率对比</h2>
+          <div className="bg-surface rounded-2xl border border-border shadow-sm p-5">
+            <h2 className="text-[16px] font-bold text-fg mb-5">AI 代理效率对比</h2>
             {data.agents.length === 0 ? (
-              <div className="text-[13px] text-gray-400 text-center py-8">暂无代理数据</div>
+              <div className="text-[13px] text-fg-faint text-center py-8">暂无代理数据</div>
             ) : (
               <div className="space-y-4">
                 {data.agents.map((agent) => (
-                  <div key={agent.name} className="bg-gray-50 rounded-xl p-4">
+                  <div key={agent.name} className="bg-surface-muted rounded-xl p-4">
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-2">
-                        <span className="text-[13px] font-medium text-gray-900">{agent.name}</span>
+                        <span className="text-[13px] font-medium text-fg">{agent.name}</span>
                         <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
                           agent.status === 'running' ? 'bg-emerald-100 text-emerald-700' :
                           agent.status === 'paused' ? 'bg-amber-100 text-amber-700' :
-                          'bg-gray-100 text-gray-600'
+                          'bg-surface-muted text-fg-secondary'
                         }`}>
                           {agent.status === 'running' ? '运行中' : agent.status === 'paused' ? '已暂停' : '待启动'}
                         </span>
                       </div>
-                      <span className="text-[12px] text-gray-500">已处理 {agent.totalProcessed} 项</span>
+                      <span className="text-[12px] text-fg-muted">已处理 {agent.totalProcessed} 项</span>
                     </div>
                     <div className="flex items-center gap-3">
                       <div className="flex-1">
@@ -339,8 +339,8 @@ export const InsightsPage = () => {
                           />
                         </div>
                       </div>
-                      <span className="text-[13px] font-bold text-gray-700 w-14 text-right">{agent.adoptionRate}%</span>
-                      <span className="text-[11px] text-gray-400">采纳率</span>
+                      <span className="text-[13px] font-bold text-fg-secondary w-14 text-right">{agent.adoptionRate}%</span>
+                      <span className="text-[11px] text-fg-faint">采纳率</span>
                     </div>
                   </div>
                 ))}

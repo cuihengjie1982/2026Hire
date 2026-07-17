@@ -82,36 +82,36 @@ export const PositionDialog = ({
       <motion.div
         initial={{opacity: 0, scale: 0.95}}
         animate={{opacity: 1, scale: 1}}
-        className="bg-white rounded-xl shadow-xl w-full max-w-md p-6"
+        className="bg-surface rounded-xl shadow-xl w-full max-w-md p-6"
       >
         <div className="flex items-center justify-between mb-6">
-          <h3 className="text-lg font-bold text-gray-900">新建岗位</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+          <h3 className="text-lg font-bold text-fg">新建岗位</h3>
+          <button onClick={onClose} className="text-fg-faint hover:text-fg-secondary">
             <X className="w-5 h-5" />
           </button>
         </div>
         <div className="space-y-4">
           <div>
-            <label className="block text-[13px] font-medium text-gray-700 mb-1">岗位名称 *</label>
+            <label className="block text-[13px] font-medium text-fg-secondary mb-1">岗位名称 *</label>
             <input
               type="text"
               value={formData.name}
               onChange={(e) => setFormData({...formData, name: e.target.value})}
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
+              className="w-full px-3 py-2 border border-border rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
               placeholder="如：MWV-全身动捕演员"
             />
           </div>
           <div>
-            <label className="block text-[13px] font-medium text-gray-700 mb-1">关联项目 *</label>
+            <label className="block text-[13px] font-medium text-fg-secondary mb-1">关联项目 *</label>
             {selectedProjectId ? (
-              <div className="px-3 py-2 border border-gray-200 rounded-lg text-[13px] bg-gray-50 text-gray-700">
+              <div className="px-3 py-2 border border-border rounded-lg text-[13px] bg-surface-muted text-fg-secondary">
                 已选择项目（项目ID：{selectedProjectId}）
               </div>
             ) : (
               <select
                 value={formData.projectId}
                 onChange={(e) => setFormData({...formData, projectId: e.target.value})}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4] bg-white"
+                className="w-full px-3 py-2 border border-border rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4] bg-surface"
               >
                 <option value="">请选择项目</option>
                 {projects.map((p) => (
@@ -122,22 +122,22 @@ export const PositionDialog = ({
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-[13px] font-medium text-gray-700 mb-1">需求人数</label>
+              <label className="block text-[13px] font-medium text-fg-secondary mb-1">需求人数</label>
               <NumericScoreInput
                 value={formData.requiredCount === '' ? 0 : Number(formData.requiredCount) || 0}
                 onChange={(n) => setFormData({...formData, requiredCount: n > 0 ? String(n) : ''})}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
+                className="w-full px-3 py-2 border border-border rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
                 placeholder="如：5"
                 min={0}
                 max={9999}
               />
             </div>
             <div>
-              <label className="block text-[13px] font-medium text-gray-700 mb-1">交付周期（天）</label>
+              <label className="block text-[13px] font-medium text-fg-secondary mb-1">交付周期（天）</label>
               <NumericScoreInput
                 value={formData.deliveryDays === '' ? 0 : Number(formData.deliveryDays) || 0}
                 onChange={(n) => setFormData({...formData, deliveryDays: n > 0 ? String(n) : ''})}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
+                className="w-full px-3 py-2 border border-border rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
                 placeholder="如：30"
                 min={0}
                 max={9999}
@@ -145,7 +145,7 @@ export const PositionDialog = ({
             </div>
           </div>
           <div>
-            <label className="block text-[13px] font-medium text-gray-700 mb-1">岗位类型</label>
+            <label className="block text-[13px] font-medium text-fg-secondary mb-1">岗位类型</label>
             <div className="flex flex-wrap gap-2">
               {CATEGORY_OPTIONS.map((opt) => (
                 <label
@@ -153,7 +153,7 @@ export const PositionDialog = ({
                   className={`flex items-center gap-1.5 px-3 py-2 border rounded-lg cursor-pointer transition-colors ${
                     formData.category === opt.value
                       ? 'border-[#1a4bc4] bg-[#EBF5FF] text-[#1a4bc4]'
-                      : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                      : 'border-border text-fg-secondary hover:bg-surface-muted'
                   }`}
                 >
                   <input
@@ -173,17 +173,17 @@ export const PositionDialog = ({
                 type="text"
                 value={formData.customCategory}
                 onChange={(e) => setFormData({...formData, customCategory: e.target.value})}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4] mt-2"
+                className="w-full px-3 py-2 border border-border rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4] mt-2"
                 placeholder="请输入自定义岗位类型"
               />
             )}
           </div>
           <div>
-            <label className="block text-[13px] font-medium text-gray-700 mb-1">描述</label>
+            <label className="block text-[13px] font-medium text-fg-secondary mb-1">描述</label>
             <textarea
               value={formData.description}
               onChange={(e) => setFormData({...formData, description: e.target.value})}
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4] resize-none"
+              className="w-full px-3 py-2 border border-border rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4] resize-none"
               rows={3}
               placeholder="岗位要求描述..."
             />
@@ -192,7 +192,7 @@ export const PositionDialog = ({
         <div className="flex gap-3 mt-6">
           <button
             onClick={onClose}
-            className="flex-1 px-4 py-2 border border-gray-200 text-gray-700 rounded-lg text-[13px] font-medium hover:bg-gray-50 transition-colors"
+            className="flex-1 px-4 py-2 border border-border text-fg-secondary rounded-lg text-[13px] font-medium hover:bg-surface-muted transition-colors"
           >
             取消
           </button>

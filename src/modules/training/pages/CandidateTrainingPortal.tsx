@@ -107,18 +107,18 @@ export const CandidateTrainingPortal = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+      <div className="min-h-screen bg-surface-muted flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-fg-faint" />
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-surface-muted flex items-center justify-center">
         <div className="text-center space-y-3">
           <AlertCircle className="w-12 h-12 text-red-400 mx-auto" />
-          <p className="text-gray-600">{error}</p>
+          <p className="text-fg-secondary">{error}</p>
         </div>
       </div>
     );
@@ -128,18 +128,18 @@ export const CandidateTrainingPortal = () => {
   const enrollments = data?.enrollments ?? [];
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-surface-muted">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200">
+      <div className="bg-surface border-b border-border">
         <div className="max-w-4xl mx-auto px-6 py-6">
           <div className="flex items-center gap-3 mb-2">
             <div className="p-2 bg-indigo-100 rounded-xl">
               <GraduationCap className="w-6 h-6 text-indigo-600" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-gray-900">培训学习中心</h1>
+              <h1 className="text-xl font-bold text-fg">培训学习中心</h1>
               {candidate && (
-                <p className="text-sm text-gray-500">欢迎，{candidate.name}</p>
+                <p className="text-sm text-fg-muted">欢迎，{candidate.name}</p>
               )}
             </div>
           </div>
@@ -150,24 +150,24 @@ export const CandidateTrainingPortal = () => {
       {enrollments.length > 0 && (
         <div className="max-w-4xl mx-auto px-6 pt-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <div className="bg-white rounded-xl border border-gray-200 p-4">
-              <p className="text-xs text-gray-500 mb-1">培训课程</p>
-              <p className="text-2xl font-bold text-gray-900">{enrollments.length}</p>
+            <div className="bg-surface rounded-xl border border-border p-4">
+              <p className="text-xs text-fg-muted mb-1">培训课程</p>
+              <p className="text-2xl font-bold text-fg">{enrollments.length}</p>
             </div>
-            <div className="bg-white rounded-xl border border-gray-200 p-4">
-              <p className="text-xs text-gray-500 mb-1">已完成</p>
+            <div className="bg-surface rounded-xl border border-border p-4">
+              <p className="text-xs text-fg-muted mb-1">已完成</p>
               <p className="text-2xl font-bold text-green-600">
                 {enrollments.filter(e => e.status === 'completed').length}
               </p>
             </div>
-            <div className="bg-white rounded-xl border border-gray-200 p-4">
-              <p className="text-xs text-gray-500 mb-1">学习中</p>
+            <div className="bg-surface rounded-xl border border-border p-4">
+              <p className="text-xs text-fg-muted mb-1">学习中</p>
               <p className="text-2xl font-bold text-amber-600">
                 {enrollments.filter(e => e.status === 'enrolled' || e.status === 'in_progress').length}
               </p>
             </div>
-            <div className="bg-white rounded-xl border border-gray-200 p-4">
-              <p className="text-xs text-gray-500 mb-1">平均分</p>
+            <div className="bg-surface rounded-xl border border-border p-4">
+              <p className="text-xs text-fg-muted mb-1">平均分</p>
               <p className="text-2xl font-bold text-indigo-600">
                 {(() => {
                   const scores = enrollments.filter(e => e.final_score != null).map(e => e.final_score!);
@@ -182,10 +182,10 @@ export const CandidateTrainingPortal = () => {
       {/* Enrollments list */}
       <div className="max-w-4xl mx-auto px-6 py-6 space-y-4">
         {enrollments.length === 0 ? (
-          <div className="bg-white rounded-2xl border border-gray-200 p-12 text-center">
-            <BookOpen className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-500">暂无培训记录</p>
-            <p className="text-sm text-gray-400 mt-1">联系您的招聘负责人获取培训安排</p>
+          <div className="bg-surface rounded-2xl border border-border p-12 text-center">
+            <BookOpen className="w-12 h-12 text-fg-faint mx-auto mb-3" />
+            <p className="text-fg-muted">暂无培训记录</p>
+            <p className="text-sm text-fg-faint mt-1">联系您的招聘负责人获取培训安排</p>
           </div>
         ) : (
           enrollments.map((enrollment, idx) => (
@@ -194,24 +194,24 @@ export const CandidateTrainingPortal = () => {
               initial={{opacity: 0, y: 12}}
               animate={{opacity: 1, y: 0}}
               transition={{delay: idx * 0.05}}
-              className="bg-white rounded-2xl border border-gray-200 overflow-hidden"
+              className="bg-surface rounded-2xl border border-border overflow-hidden"
             >
               {/* Card header */}
               <button
-                className="w-full text-left p-5 hover:bg-gray-50 transition-colors"
+                className="w-full text-left p-5 hover:bg-surface-muted transition-colors"
                 onClick={() => setExpandedId(expandedId === enrollment.id ? null : enrollment.id)}
               >
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
-                      <h3 className="font-semibold text-gray-900 truncate">{enrollment.course_title}</h3>
+                      <h3 className="font-semibold text-fg truncate">{enrollment.course_title}</h3>
                       <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[enrollment.status]}`}>
                         {STATUS_LABELS[enrollment.status]}
                       </span>
                     </div>
-                    <div className="flex items-center gap-3 text-xs text-gray-500">
+                    <div className="flex items-center gap-3 text-xs text-fg-muted">
                       <span>{enrollment.course_category}</span>
-                      <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${DIFFICULTY_COLORS[enrollment.difficulty] ?? 'bg-gray-100 text-gray-600'}`}>
+                      <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${DIFFICULTY_COLORS[enrollment.difficulty] ?? 'bg-surface-muted text-fg-secondary'}`}>
                         {enrollment.difficulty}
                       </span>
                       <span className="flex items-center gap-1">
@@ -221,7 +221,7 @@ export const CandidateTrainingPortal = () => {
                     </div>
                   </div>
                   <ChevronRight
-                    className={`w-5 h-5 text-gray-400 mt-1 transition-transform flex-shrink-0 ${
+                    className={`w-5 h-5 text-fg-faint mt-1 transition-transform flex-shrink-0 ${
                       expandedId === enrollment.id ? 'rotate-90' : ''
                     }`}
                   />
@@ -229,11 +229,11 @@ export const CandidateTrainingPortal = () => {
 
                 {/* Progress bar */}
                 <div className="mt-3">
-                  <div className="flex justify-between text-xs text-gray-500 mb-1">
+                  <div className="flex justify-between text-xs text-fg-muted mb-1">
                     <span>学习进度</span>
                     <span>{enrollment.progress_pct}%</span>
                   </div>
-                  <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                  <div className="w-full h-2 bg-surface-muted rounded-full overflow-hidden">
                     <motion.div
                       initial={{width: 0}}
                       animate={{width: `${enrollment.progress_pct}%`}}
@@ -252,35 +252,35 @@ export const CandidateTrainingPortal = () => {
                 <motion.div
                   initial={{height: 0, opacity: 0}}
                   animate={{height: 'auto', opacity: 1}}
-                  className="border-t border-gray-100 p-5 space-y-4 bg-gray-50/50"
+                  className="border-t border-border-subtle p-5 space-y-4 bg-surface-muted/50"
                 >
                   {/* Course description */}
                   {enrollment.course_description && (
                     <div>
-                      <p className="text-xs font-medium text-gray-500 mb-1">课程简介</p>
-                      <p className="text-sm text-gray-700">{enrollment.course_description}</p>
+                      <p className="text-xs font-medium text-fg-muted mb-1">课程简介</p>
+                      <p className="text-sm text-fg-secondary">{enrollment.course_description}</p>
                     </div>
                   )}
 
                   {/* Score comparison */}
                   <div className="grid grid-cols-3 gap-3">
-                    <div className="bg-white rounded-lg border border-gray-200 p-3 text-center">
-                      <p className="text-xs text-gray-500 mb-1">培训前面试分</p>
-                      <p className="text-lg font-bold text-gray-700">
+                    <div className="bg-surface rounded-lg border border-border p-3 text-center">
+                      <p className="text-xs text-fg-muted mb-1">培训前面试分</p>
+                      <p className="text-lg font-bold text-fg-secondary">
                         {enrollment.pre_interview_score != null ? enrollment.pre_interview_score : '-'}
                       </p>
                     </div>
-                    <div className="bg-white rounded-lg border border-gray-200 p-3 text-center">
-                      <p className="text-xs text-gray-500 mb-1">考核分</p>
+                    <div className="bg-surface rounded-lg border border-border p-3 text-center">
+                      <p className="text-xs text-fg-muted mb-1">考核分</p>
                       <p className={`text-lg font-bold ${
                         enrollment.final_score != null && enrollment.final_score >= 60 ? 'text-green-600' : 'text-red-600'
                       }`}>
                         {enrollment.final_score != null ? enrollment.final_score : '-'}
                       </p>
                     </div>
-                    <div className="bg-white rounded-lg border border-gray-200 p-3 text-center">
-                      <p className="text-xs text-gray-500 mb-1">培训后面试分</p>
-                      <p className="text-lg font-bold text-gray-700">
+                    <div className="bg-surface rounded-lg border border-border p-3 text-center">
+                      <p className="text-xs text-fg-muted mb-1">培训后面试分</p>
+                      <p className="text-lg font-bold text-fg-secondary">
                         {enrollment.post_interview_score != null ? enrollment.post_interview_score : '-'}
                       </p>
                     </div>
@@ -290,7 +290,7 @@ export const CandidateTrainingPortal = () => {
                   {enrollment.pre_interview_score != null && enrollment.post_interview_score != null && (
                     <div className="flex items-center gap-2 text-sm">
                       <TrendingUp className="w-4 h-4 text-green-500" />
-                      <span className="text-gray-600">提升：</span>
+                      <span className="text-fg-secondary">提升：</span>
                       <span className="font-semibold text-green-600">
                         +{(enrollment.post_interview_score - enrollment.pre_interview_score).toFixed(1)} 分
                       </span>
@@ -300,10 +300,10 @@ export const CandidateTrainingPortal = () => {
                   {/* Assessments */}
                   {enrollment.assessments.length > 0 && (
                     <div>
-                      <p className="text-xs font-medium text-gray-500 mb-2">考核记录</p>
+                      <p className="text-xs font-medium text-fg-muted mb-2">考核记录</p>
                       <div className="space-y-2">
                         {enrollment.assessments.map(a => (
-                          <div key={a.id} className="bg-white rounded-lg border border-gray-200 p-3">
+                          <div key={a.id} className="bg-surface rounded-lg border border-border p-3">
                             <div className="flex items-center justify-between mb-1">
                               <div className="flex items-center gap-2">
                                 {a.passed ? (
@@ -311,16 +311,16 @@ export const CandidateTrainingPortal = () => {
                                 ) : (
                                   <XCircle className="w-4 h-4 text-red-400" />
                                 )}
-                                <span className="text-sm font-medium text-gray-700">
+                                <span className="text-sm font-medium text-fg-secondary">
                                   {a.passed ? '通过' : '未通过'}
                                 </span>
                               </div>
-                              <span className="text-sm font-bold text-gray-900">{a.score} 分</span>
+                              <span className="text-sm font-bold text-fg">{a.score} 分</span>
                             </div>
                             {a.feedback && (
-                              <p className="text-xs text-gray-500 mt-1">{a.feedback}</p>
+                              <p className="text-xs text-fg-muted mt-1">{a.feedback}</p>
                             )}
-                            <p className="text-xs text-gray-400 mt-1">{formatDate(a.created_at)}</p>
+                            <p className="text-xs text-fg-faint mt-1">{formatDate(a.created_at)}</p>
                           </div>
                         ))}
                       </div>
@@ -330,8 +330,8 @@ export const CandidateTrainingPortal = () => {
                   {/* Notes */}
                   {enrollment.notes && (
                     <div>
-                      <p className="text-xs font-medium text-gray-500 mb-1">备注</p>
-                      <p className="text-sm text-gray-600">{enrollment.notes}</p>
+                      <p className="text-xs font-medium text-fg-muted mb-1">备注</p>
+                      <p className="text-sm text-fg-secondary">{enrollment.notes}</p>
                     </div>
                   )}
 
@@ -347,7 +347,7 @@ export const CandidateTrainingPortal = () => {
                   )}
 
                   {/* Dates */}
-                  <div className="flex gap-4 text-xs text-gray-400">
+                  <div className="flex gap-4 text-xs text-fg-faint">
                     <span>报名：{formatDate(enrollment.enrolled_at)}</span>
                     {enrollment.completed_at ? <span>完成：{formatDate(enrollment.completed_at)}</span> : null}
                   </div>
@@ -360,7 +360,7 @@ export const CandidateTrainingPortal = () => {
 
       {/* Footer */}
       <div className="max-w-4xl mx-auto px-6 pb-8 text-center">
-        <p className="text-xs text-gray-400">
+        <p className="text-xs text-fg-faint">
           EM-BOX 智能招聘管理系统 · 培训学习中心
         </p>
       </div>

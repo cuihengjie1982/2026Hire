@@ -39,10 +39,10 @@ export const ActionCaptionLiveCard: React.FC<{
             当前动作 · {formatTime(active.start)} - {formatTime(active.end)}
           </p>
           <p className="mt-1 text-base font-bold text-gray-950">{getCaptionTitle(active)}</p>
-          <p className="mt-1 text-sm leading-6 text-gray-700">{active.description || active.text}</p>
+          <p className="mt-1 text-sm leading-6 text-fg-secondary">{active.description || active.text}</p>
         </div>
         {typeof active.confidence === 'number' && (
-          <span className="shrink-0 rounded-full bg-white px-2 py-1 text-xs font-semibold text-blue-700">
+          <span className="shrink-0 rounded-full bg-surface px-2 py-1 text-xs font-semibold text-blue-700">
             {Math.round(active.confidence * 100)}%
           </span>
         )}
@@ -59,7 +59,7 @@ export const ActionCaptionsTab: React.FC<{
   if (!captions.length) {
     return (
       <div className="h-full overflow-y-auto p-4">
-        <div className="rounded-xl border border-gray-200 bg-gray-50 p-5 text-sm leading-6 text-gray-500">
+        <div className="rounded-xl border border-border bg-surface-muted p-5 text-sm leading-6 text-fg-muted">
           暂无动作流。管理员可在视频分享资料库中点击“动作流”生成。
         </div>
       </div>
@@ -68,13 +68,13 @@ export const ActionCaptionsTab: React.FC<{
 
   return (
     <div className="h-full overflow-y-auto">
-      <div className="sticky top-0 z-10 border-b border-gray-200 bg-white px-4 py-3">
+      <div className="sticky top-0 z-10 border-b border-border bg-surface px-4 py-3">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <p className="text-sm font-semibold text-gray-900">实时动作流</p>
-            <p className="mt-0.5 text-xs text-gray-500">{captions.length} 个动作片段，点击可跳转</p>
+            <p className="text-sm font-semibold text-fg">实时动作流</p>
+            <p className="mt-0.5 text-xs text-fg-muted">{captions.length} 个动作片段，点击可跳转</p>
           </div>
-          <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-600">
+          <span className="rounded-full bg-surface-muted px-2.5 py-1 text-xs font-medium text-fg-secondary">
             {formatTime(currentVideoTime)}
           </span>
         </div>
@@ -91,31 +91,31 @@ export const ActionCaptionsTab: React.FC<{
               className={`w-full text-left rounded-xl border p-4 transition-colors ${
                 active
                   ? 'border-blue-300 bg-blue-50 shadow-sm'
-                  : 'border-gray-200 bg-white hover:bg-gray-50'
+                  : 'border-border bg-surface hover:bg-surface-muted'
               }`}
             >
               <div className="flex items-start gap-3">
                 <div className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
-                  active ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-500'
+                  active ? 'bg-blue-600 text-white' : 'bg-surface-muted text-fg-muted'
                 }`}>
                   <Timer className="h-4 w-4" />
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-xs font-semibold text-gray-500">
+                    <span className="text-xs font-semibold text-fg-muted">
                       {formatTime(caption.start)} - {formatTime(caption.end)}
                     </span>
                     {typeof caption.confidence === 'number' && (
-                      <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-500">
+                      <span className="rounded-full bg-surface-muted px-2 py-0.5 text-[11px] font-medium text-fg-muted">
                         置信度 {Math.round(caption.confidence * 100)}%
                       </span>
                     )}
                   </div>
                   <p className="mt-1 text-sm font-bold text-gray-950">{getCaptionTitle(caption)}</p>
-                  <p className="mt-1 text-sm leading-6 text-gray-600">{caption.description || caption.text}</p>
+                  <p className="mt-1 text-sm leading-6 text-fg-secondary">{caption.description || caption.text}</p>
 
                   {(caption.handAction || caption.result || caption.objects?.length) && (
-                    <div className="mt-3 grid gap-2 text-xs text-gray-600">
+                    <div className="mt-3 grid gap-2 text-xs text-fg-secondary">
                       {caption.handAction && (
                         <p className="flex items-start gap-2">
                           <Hand className="mt-0.5 h-3.5 w-3.5 shrink-0 text-blue-600" />

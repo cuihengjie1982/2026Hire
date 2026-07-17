@@ -333,17 +333,17 @@ export const TalentPoolPage = () => {
     const v = (val: string | undefined) => val || '—';
 
     return (
-      <div key={candidate.id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md transition-shadow overflow-hidden">
+      <div key={candidate.id} className="bg-surface rounded-xl border border-border shadow-sm hover:shadow-md transition-shadow overflow-hidden">
         {/* ===== 模块1: 基本信息 ===== */}
         <div className="p-4">
-          <div className="text-[10px] text-gray-400 dark:text-gray-500 font-medium mb-2 tracking-wider">基本信息</div>
+          <div className="text-[10px] text-fg-faint font-medium mb-2 tracking-wider">基本信息</div>
           <div className="flex gap-3">
             {/* Photo */}
             <div className="flex-shrink-0">
               {photoUrl ? (
-                <img src={photoUrl} alt="" className="w-[56px] h-[68px] rounded-lg object-cover border border-gray-200 dark:border-gray-700" />
+                <img src={photoUrl} alt="" className="w-[56px] h-[68px] rounded-lg object-cover border border-border" />
               ) : (
-                <div className="w-[56px] h-[68px] rounded-lg bg-[#1a4bc4]/10 flex items-center justify-center border border-gray-200 dark:border-gray-700">
+                <div className="w-[56px] h-[68px] rounded-lg bg-[#1a4bc4]/10 flex items-center justify-center border border-border">
                   <span className="text-[#1a4bc4] text-lg font-bold">
                     {candidate.name ? candidate.name.slice(0, 2) : '?'}
                   </span>
@@ -355,7 +355,7 @@ export const TalentPoolPage = () => {
             <div className="flex-1 min-w-0 space-y-1">
               {/* Name + source badge + grade + score */}
               <div className="flex items-center gap-2">
-                <span className="font-bold text-gray-900 dark:text-white text-[15px]">{candidate.name}</span>
+                <span className="font-bold text-fg text-[15px]">{candidate.name}</span>
                 <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${candidate.sourceColor}`}>{candidate.source}</span>
                 {candidate.grade && (
                   <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold text-white ${candidate.gradeColor || 'bg-gray-400'}`}>
@@ -363,94 +363,94 @@ export const TalentPoolPage = () => {
                   </span>
                 )}
                 {candidate.fitScore?.[0] != null && candidate.fitScore[0] > 0 && (
-                  <span className="text-[10px] text-gray-500 dark:text-gray-400 font-medium tabular-nums">
+                  <span className="text-[10px] text-fg-muted font-medium tabular-nums">
                     {candidate.fitScore[0]}分
                   </span>
                 )}
               </div>
               {/* Age */}
-              <div className="flex items-center gap-1 text-[11px] text-gray-600 dark:text-gray-300">
-                <span className="text-gray-400 dark:text-gray-500 w-10 flex-shrink-0">年龄</span>
+              <div className="flex items-center gap-1 text-[11px] text-fg-secondary">
+                <span className="text-fg-faint w-10 flex-shrink-0">年龄</span>
                 <span>{v(p?.ageOrBirth)}</span>
               </div>
               {/* Phone */}
-              <div className="flex items-center gap-1 text-[11px] text-gray-600 dark:text-gray-300">
-                <Phone className="w-3 h-3 text-gray-400 dark:text-gray-500 flex-shrink-0" />
+              <div className="flex items-center gap-1 text-[11px] text-fg-secondary">
+                <Phone className="w-3 h-3 text-fg-faint flex-shrink-0" />
                 <span className="truncate">{v(p?.phone)}</span>
               </div>
               {/* Email */}
-              <div className="flex items-center gap-1 text-[11px] text-gray-600 dark:text-gray-300">
-                <Mail className="w-3 h-3 text-gray-400 dark:text-gray-500 flex-shrink-0" />
+              <div className="flex items-center gap-1 text-[11px] text-fg-secondary">
+                <Mail className="w-3 h-3 text-fg-faint flex-shrink-0" />
                 <span className="truncate">{v(p?.email)}</span>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="border-t border-gray-100 dark:border-gray-700" />
+        <div className="border-t border-border-subtle" />
 
         {/* ===== 模块2: 教育信息 ===== */}
         <div className="px-4 py-3">
-          <div className="text-[10px] text-gray-400 dark:text-gray-500 font-medium mb-2 tracking-wider">教育信息</div>
+          <div className="text-[10px] text-fg-faint font-medium mb-2 tracking-wider">教育信息</div>
           <div className="space-y-1 text-[11px]">
             {/* School */}
-            <div className="flex items-center gap-1 text-gray-600 dark:text-gray-300">
-              <GraduationCap className="w-3 h-3 text-gray-400 dark:text-gray-500 flex-shrink-0" />
-              <span className="text-gray-400 dark:text-gray-500 w-10 flex-shrink-0">学校</span>
+            <div className="flex items-center gap-1 text-fg-secondary">
+              <GraduationCap className="w-3 h-3 text-fg-faint flex-shrink-0" />
+              <span className="text-fg-faint w-10 flex-shrink-0">学校</span>
               <span className="truncate">{v(p?.school)}</span>
             </div>
             {/* Degree */}
-            <div className="flex items-center gap-1 text-gray-600 dark:text-gray-300">
-              <Award className="w-3 h-3 text-gray-400 dark:text-gray-500 flex-shrink-0" />
-              <span className="text-gray-400 dark:text-gray-500 w-10 flex-shrink-0">学历</span>
+            <div className="flex items-center gap-1 text-fg-secondary">
+              <Award className="w-3 h-3 text-fg-faint flex-shrink-0" />
+              <span className="text-fg-faint w-10 flex-shrink-0">学历</span>
               <span>{v(p?.highestEducation)}</span>
             </div>
             {/* Major */}
-            <div className="flex items-center gap-1 text-gray-600 dark:text-gray-300">
-              <span className="text-gray-400 dark:text-gray-500 w-[52px] flex-shrink-0 text-[11px]">专业</span>
+            <div className="flex items-center gap-1 text-fg-secondary">
+              <span className="text-fg-faint w-[52px] flex-shrink-0 text-[11px]">专业</span>
               <span className="truncate">{v(p?.major)}</span>
             </div>
             {/* Education time */}
-            <div className="flex items-center gap-1 text-gray-600 dark:text-gray-300">
-              <Clock className="w-3 h-3 text-gray-400 dark:text-gray-500 flex-shrink-0" />
-              <span className="text-gray-400 dark:text-gray-500 w-10 flex-shrink-0">时间</span>
+            <div className="flex items-center gap-1 text-fg-secondary">
+              <Clock className="w-3 h-3 text-fg-faint flex-shrink-0" />
+              <span className="text-fg-faint w-10 flex-shrink-0">时间</span>
               <span>{v(p?.education)}</span>
             </div>
           </div>
         </div>
 
-        <div className="border-t border-gray-100 dark:border-gray-700" />
+        <div className="border-t border-border-subtle" />
 
         {/* ===== 模块3: 相关信息 ===== */}
         <div className="px-4 py-3">
-          <div className="text-[10px] text-gray-400 dark:text-gray-500 font-medium mb-2 tracking-wider">相关信息</div>
+          <div className="text-[10px] text-fg-faint font-medium mb-2 tracking-wider">相关信息</div>
           <div className="space-y-1.5 text-[11px]">
             {/* Work experience */}
             <div className="flex items-start gap-1">
-              <Building2 className="w-3 h-3 text-gray-400 dark:text-gray-500 flex-shrink-0 mt-0.5" />
+              <Building2 className="w-3 h-3 text-fg-faint flex-shrink-0 mt-0.5" />
               <div className="min-w-0">
-                <span className="text-gray-700 dark:text-gray-300 truncate block">{v(lastCompany)}{lastRole ? ` · ${lastRole}` : ''}</span>
+                <span className="text-fg-secondary truncate block">{v(lastCompany)}{lastRole ? ` · ${lastRole}` : ''}</span>
               </div>
             </div>
             {/* 专业技能 */}
             {skillTags.length > 0 && (
               <div className="flex flex-wrap gap-1">
-                <Briefcase className="w-3 h-3 text-gray-400 dark:text-gray-500 flex-shrink-0 mt-0.5" />
+                <Briefcase className="w-3 h-3 text-fg-faint flex-shrink-0 mt-0.5" />
                 <div className="flex flex-wrap gap-1">
                   {skillTags.map((tag) => (
-                    <span key={tag} className="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded text-[10px]">{tag}</span>
+                    <span key={tag} className="px-1.5 py-0.5 bg-surface-muted text-fg-secondary rounded text-[10px]">{tag}</span>
                   ))}
                 </div>
               </div>
             )}
             {/* Salary + Location + Employment status */}
             <div className="flex items-center gap-3 flex-wrap">
-              <span className="flex items-center gap-1 text-gray-600 dark:text-gray-300">
-                <Banknote className="w-3 h-3 text-gray-400 dark:text-gray-500 flex-shrink-0" />
+              <span className="flex items-center gap-1 text-fg-secondary">
+                <Banknote className="w-3 h-3 text-fg-faint flex-shrink-0" />
                 {v(p?.expectedSalary)}
               </span>
-              <span className="flex items-center gap-1 text-gray-600 dark:text-gray-300">
-                <MapPin className="w-3 h-3 text-gray-400 dark:text-gray-500 flex-shrink-0" />
+              <span className="flex items-center gap-1 text-fg-secondary">
+                <MapPin className="w-3 h-3 text-fg-faint flex-shrink-0" />
                 {v(p?.location)}
               </span>
               {p?.currentlyEmployed && (
@@ -460,11 +460,11 @@ export const TalentPoolPage = () => {
           </div>
         </div>
 
-        <div className="border-t border-gray-100 dark:border-gray-700" />
+        <div className="border-t border-border-subtle" />
 
         {/* ===== 模块4: 标签 ===== */}
         <div className="px-4 py-3">
-          <div className="text-[10px] text-gray-400 dark:text-gray-500 font-medium mb-2 tracking-wider">标签</div>
+          <div className="text-[10px] text-fg-faint font-medium mb-2 tracking-wider">标签</div>
           {candidateTags.length > 0 ? (
             <div className="flex flex-wrap gap-1">
               {candidateTags.map((tag) => (
@@ -472,18 +472,18 @@ export const TalentPoolPage = () => {
               ))}
             </div>
           ) : (
-            <span className="text-[11px] text-gray-400 dark:text-gray-500">暂无标签</span>
+            <span className="text-[11px] text-fg-faint">暂无标签</span>
           )}
         </div>
 
-        <div className="border-t border-gray-100 dark:border-gray-700" />
+        <div className="border-t border-border-subtle" />
 
         {/* Action buttons */}
         <div className="px-4 py-2.5 flex gap-2">
-          <button onClick={() => setSelectedCandidate(candidate)} className="flex-1 px-3 py-1.5 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-[12px] font-medium hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
+          <button onClick={() => setSelectedCandidate(candidate)} className="flex-1 px-3 py-1.5 border border-border text-fg-secondary rounded-lg text-[12px] font-medium hover:bg-surface-muted transition-colors">
             查看详情
           </button>
-          <button onClick={() => handleOpenTagsModal(candidate)} className="flex-1 px-3 py-1.5 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-[12px] font-medium hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
+          <button onClick={() => handleOpenTagsModal(candidate)} className="flex-1 px-3 py-1.5 border border-border text-fg-secondary rounded-lg text-[12px] font-medium hover:bg-surface-muted transition-colors">
             增加标签
           </button>
           <button
@@ -513,7 +513,7 @@ export const TalentPoolPage = () => {
     const v = (val: string | undefined) => val || '—';
 
     return (
-      <div key={candidate.id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-3 hover:shadow-md transition-shadow">
+      <div key={candidate.id} className="bg-surface rounded-xl border border-border shadow-sm p-3 hover:shadow-md transition-shadow">
         <div className="flex items-center gap-3">
           {/* Photo thumbnail or batch checkbox */}
           <div className="flex-shrink-0">
@@ -522,13 +522,13 @@ export const TalentPoolPage = () => {
                 type="checkbox"
                 checked={selectedIds.has(candidate.id)}
                 onChange={() => toggleCandidateSelection(candidate.id)}
-                className="w-4 h-4 rounded border-gray-300 text-[#1a4bc4] focus:ring-[#1a4bc4] cursor-pointer"
+                className="w-4 h-4 rounded border-border text-[#1a4bc4] focus:ring-[#1a4bc4] cursor-pointer"
                 aria-label={`选择 ${candidate.name}`}
               />
             ) : photoUrl ? (
-              <img src={photoUrl} alt="" className="w-9 h-11 rounded object-cover border border-gray-200 dark:border-gray-700" />
+              <img src={photoUrl} alt="" className="w-9 h-11 rounded object-cover border border-border" />
             ) : (
-              <div className="w-9 h-11 rounded bg-[#1a4bc4]/10 flex items-center justify-center border border-gray-200 dark:border-gray-700">
+              <div className="w-9 h-11 rounded bg-[#1a4bc4]/10 flex items-center justify-center border border-border">
                 <span className="text-[#1a4bc4] text-[11px] font-bold">{candidate.name ? candidate.name.slice(0, 1) : '?'}</span>
               </div>
             )}
@@ -537,46 +537,46 @@ export const TalentPoolPage = () => {
           {/* Info columns - three sections inline */}
           <div className="flex-1 min-w-0 flex items-center gap-6 flex-wrap text-[12px]">
             {/* === 基本信息 === */}
-            <span className="font-bold text-gray-900 dark:text-white whitespace-nowrap">{candidate.name}</span>
+            <span className="font-bold text-fg whitespace-nowrap">{candidate.name}</span>
             {candidate.grade && (
               <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold text-white whitespace-nowrap ${candidate.gradeColor || 'bg-gray-400'}`}>
                 {candidate.grade}
               </span>
             )}
             {candidate.fitScore?.[0] != null && candidate.fitScore[0] > 0 && (
-              <span className="text-gray-500 dark:text-gray-400 whitespace-nowrap font-medium tabular-nums">
+              <span className="text-fg-muted whitespace-nowrap font-medium tabular-nums">
                 {candidate.fitScore[0]}分
               </span>
             )}
-            <span className="text-gray-500 dark:text-gray-400 whitespace-nowrap">{v(p?.ageOrBirth)}</span>
-            <span className="text-gray-500 dark:text-gray-400 whitespace-nowrap flex items-center gap-0.5">
-              <Phone className="w-3 h-3 text-gray-400 dark:text-gray-500" />
+            <span className="text-fg-muted whitespace-nowrap">{v(p?.ageOrBirth)}</span>
+            <span className="text-fg-muted whitespace-nowrap flex items-center gap-0.5">
+              <Phone className="w-3 h-3 text-fg-faint" />
               {v(p?.phone)}
             </span>
-            <span className="text-gray-500 dark:text-gray-400 whitespace-nowrap flex items-center gap-0.5">
-              <Mail className="w-3 h-3 text-gray-400 dark:text-gray-500" />
+            <span className="text-fg-muted whitespace-nowrap flex items-center gap-0.5">
+              <Mail className="w-3 h-3 text-fg-faint" />
               {v(p?.email)}
             </span>
 
             {/* === 教育信息 === */}
-            <span className="text-gray-500 dark:text-gray-400 whitespace-nowrap flex items-center gap-0.5">
-              <GraduationCap className="w-3 h-3 text-gray-400 dark:text-gray-500" />
+            <span className="text-fg-muted whitespace-nowrap flex items-center gap-0.5">
+              <GraduationCap className="w-3 h-3 text-fg-faint" />
               {v(p?.school)}
             </span>
-            <span className="text-gray-500 dark:text-gray-400 whitespace-nowrap">{v(p?.highestEducation)}</span>
-            <span className="text-gray-500 dark:text-gray-400 whitespace-nowrap">{v(p?.major)}</span>
+            <span className="text-fg-muted whitespace-nowrap">{v(p?.highestEducation)}</span>
+            <span className="text-fg-muted whitespace-nowrap">{v(p?.major)}</span>
 
             {/* === 相关信息 === */}
-            <span className="text-gray-500 dark:text-gray-400 truncate max-w-[200px] flex items-center gap-0.5">
-              <Building2 className="w-3 h-3 text-gray-400 dark:text-gray-500 flex-shrink-0" />
+            <span className="text-fg-muted truncate max-w-[200px] flex items-center gap-0.5">
+              <Building2 className="w-3 h-3 text-fg-faint flex-shrink-0" />
               {lastWorkDisplay}
             </span>
-            <span className="text-gray-500 dark:text-gray-400 whitespace-nowrap flex items-center gap-0.5">
-              <Banknote className="w-3 h-3 text-gray-400 dark:text-gray-500" />
+            <span className="text-fg-muted whitespace-nowrap flex items-center gap-0.5">
+              <Banknote className="w-3 h-3 text-fg-faint" />
               {v(p?.expectedSalary)}
             </span>
-            <span className="text-gray-500 dark:text-gray-400 whitespace-nowrap flex items-center gap-0.5">
-              <MapPin className="w-3 h-3 text-gray-400 dark:text-gray-500" />
+            <span className="text-fg-muted whitespace-nowrap flex items-center gap-0.5">
+              <MapPin className="w-3 h-3 text-fg-faint" />
               {v(p?.location)}
             </span>
             {p?.currentlyEmployed && (
@@ -586,7 +586,7 @@ export const TalentPoolPage = () => {
             {/* === 标签 === */}
             {candidateTags.length > 0 && (
               <span className="flex items-center gap-1 flex-wrap">
-                <Tag className="w-3 h-3 text-gray-400 dark:text-gray-500 flex-shrink-0" />
+                <Tag className="w-3 h-3 text-fg-faint flex-shrink-0" />
                 {candidateTags.map((tag) => (
                   <span key={tag} className="px-1.5 py-0.5 bg-blue-50 dark:bg-blue-900/30 text-[#1a4bc4] rounded text-[10px] whitespace-nowrap">{tag}</span>
                 ))}
@@ -597,10 +597,10 @@ export const TalentPoolPage = () => {
           {/* Actions */}
           {!batchMode && (
             <div className="flex-shrink-0 flex items-center gap-2">
-              <button onClick={() => setSelectedCandidate(candidate)} className="px-3 py-1.5 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-[12px] font-medium hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
+              <button onClick={() => setSelectedCandidate(candidate)} className="px-3 py-1.5 border border-border text-fg-secondary rounded-lg text-[12px] font-medium hover:bg-surface-muted transition-colors">
                 查看详情
               </button>
-              <button onClick={() => handleOpenTagsModal(candidate)} className="px-3 py-1.5 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-[12px] font-medium hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
+              <button onClick={() => handleOpenTagsModal(candidate)} className="px-3 py-1.5 border border-border text-fg-secondary rounded-lg text-[12px] font-medium hover:bg-surface-muted transition-colors">
                 增加标签
               </button>
               <button
@@ -643,8 +643,8 @@ export const TalentPoolPage = () => {
       {/* Header */}
       <div className="flex items-end justify-between">
         <div>
-          <h1 className="text-[26px] font-bold text-gray-900 dark:text-white mb-1">人才库</h1>
-          <p className="text-[13px] text-gray-500 dark:text-gray-400">管理所有候选人，集中查看和导入简历。</p>
+          <h1 className="text-[26px] font-bold text-fg mb-1">人才库</h1>
+          <p className="text-[13px] text-fg-muted">管理所有候选人，集中查看和导入简历。</p>
         </div>
         <button
           onClick={() => setShowImportModal(true)}
@@ -657,46 +657,46 @@ export const TalentPoolPage = () => {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-4">
+        <div className="bg-surface rounded-xl border border-border shadow-sm p-4">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-[12px] text-gray-500 dark:text-gray-400">总人才数</span>
+            <span className="text-[12px] text-fg-muted">总人才数</span>
             <Users className="w-4 h-4 text-[#1a4bc4]" />
           </div>
-          <div className="text-[28px] leading-none font-bold text-gray-900 dark:text-white">
+          <div className="text-[28px] leading-none font-bold text-fg">
             {loading ? '-' : stats?.totalCount}
           </div>
         </div>
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-4">
+        <div className="bg-surface rounded-xl border border-border shadow-sm p-4">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-[12px] text-gray-500 dark:text-gray-400">本月新增</span>
+            <span className="text-[12px] text-fg-muted">本月新增</span>
             <UserPlus className="w-4 h-4 text-emerald-500" />
           </div>
-          <div className="text-[28px] leading-none font-bold text-gray-900 dark:text-white">
+          <div className="text-[28px] leading-none font-bold text-fg">
             {loading ? '-' : stats?.monthlyNew}
           </div>
         </div>
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-4">
+        <div className="bg-surface rounded-xl border border-border shadow-sm p-4">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-[12px] text-gray-500 dark:text-gray-400">待审核</span>
+            <span className="text-[12px] text-fg-muted">待审核</span>
             <Clock className="w-4 h-4 text-amber-500" />
           </div>
-          <div className="text-[28px] leading-none font-bold text-gray-900 dark:text-white">
+          <div className="text-[28px] leading-none font-bold text-fg">
             {loading ? '-' : stats?.pendingReview}
           </div>
         </div>
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-4">
+        <div className="bg-surface rounded-xl border border-border shadow-sm p-4">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-[12px] text-gray-500 dark:text-gray-400">A 级人才</span>
+            <span className="text-[12px] text-fg-muted">A 级人才</span>
             <Star className="w-4 h-4 text-amber-400" />
           </div>
-          <div className="text-[28px] leading-none font-bold text-gray-900 dark:text-white">
+          <div className="text-[28px] leading-none font-bold text-fg">
             {loading ? '-' : stats?.gradeDistribution.A}
           </div>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2 border-b border-gray-200 dark:border-gray-700 pb-2">
+      <div className="flex gap-2 border-b border-border pb-2">
         {TABS.map((tab) => (
           <button
             key={tab}
@@ -705,7 +705,7 @@ export const TalentPoolPage = () => {
               setExpandedGroups(new Set());
             }}
             className={`px-4 py-2 text-[13px] font-medium transition-colors relative ${
-              activeTab === tab ? 'text-[#1a4bc4]' : 'text-gray-500 hover:text-gray-700'
+              activeTab === tab ? 'text-[#1a4bc4]' : 'text-fg-muted hover:text-fg-secondary'
             }`}
           >
             {tab}
@@ -722,13 +722,13 @@ export const TalentPoolPage = () => {
       {/* Search and View Controls */}
       <div className="flex items-center gap-3">
         <div className="relative flex-1 min-w-0">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-gray-500" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-fg-faint" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="搜索候选人..."
-            className="w-full pl-10 pr-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
+            className="w-full pl-10 pr-4 py-2 border border-border rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
           />
         </div>
         {batchMode && (
@@ -736,7 +736,7 @@ export const TalentPoolPage = () => {
             <button
               onClick={handleOpenBatchTagsModal}
               disabled={selectedIds.size === 0}
-              className="flex-shrink-0 px-3 py-2 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-[13px] font-medium hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-shrink-0 px-3 py-2 border border-border text-fg-secondary rounded-lg text-[13px] font-medium hover:bg-surface-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               增加标签
             </button>
@@ -755,7 +755,7 @@ export const TalentPoolPage = () => {
           className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-2 border rounded-lg text-[13px] font-medium transition-colors ${
             batchMode
               ? 'border-[#1a4bc4] bg-[#1a4bc4]/10 text-[#1a4bc4]'
-              : 'border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/30'
+              : 'border-border text-fg-secondary hover:bg-surface-muted'
           }`}
         >
           <CheckSquare className="w-4 h-4" />
@@ -765,18 +765,18 @@ export const TalentPoolPage = () => {
           )}
         </button>
         {/* View Toggle */}
-        <div className="flex-shrink-0 flex items-center border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+        <div className="flex-shrink-0 flex items-center border border-border rounded-lg overflow-hidden">
           <button
             onClick={() => !batchMode && setViewMode('grid')}
             disabled={batchMode}
-            className={`p-2 transition-colors ${viewMode === 'grid' && !batchMode ? 'bg-[#1a4bc4] text-white' : 'bg-white text-gray-500 hover:bg-gray-50'} disabled:opacity-50 disabled:cursor-not-allowed`}
+            className={`p-2 transition-colors ${viewMode === 'grid' && !batchMode ? 'bg-[#1a4bc4] text-white' : 'bg-surface text-fg-muted hover:bg-surface-muted'} disabled:opacity-50 disabled:cursor-not-allowed`}
             title="网格视图"
           >
             <LayoutGrid className="w-4 h-4" />
           </button>
           <button
             onClick={() => setViewMode('list')}
-            className={`p-2 transition-colors ${viewMode === 'list' || batchMode ? 'bg-[#1a4bc4] text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}
+            className={`p-2 transition-colors ${viewMode === 'list' || batchMode ? 'bg-[#1a4bc4] text-white' : 'bg-surface text-fg-muted hover:bg-surface-muted'}`}
             title="列表视图"
           >
             <List className="w-4 h-4" />
@@ -803,17 +803,17 @@ export const TalentPoolPage = () => {
         // Grouped view
         <div className="space-y-3">
           {groupedData.map((group) => (
-            <div key={group.key} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+            <div key={group.key} className="bg-surface rounded-xl border border-border shadow-sm overflow-hidden">
               <button
                 onClick={() => toggleGroup(group.key)}
-                className="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors"
+                className="w-full px-6 py-4 flex items-center justify-between hover:bg-surface-muted transition-colors"
               >
                 <div className="flex items-center gap-3">
-                  <span className="text-[16px] font-bold text-gray-900 dark:text-white">{group.label}</span>
-                  <span className="text-[12px] text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded">{group.count} 人</span>
+                  <span className="text-[16px] font-bold text-fg">{group.label}</span>
+                  <span className="text-[12px] text-fg-muted bg-surface-muted px-2 py-0.5 rounded">{group.count} 人</span>
                 </div>
                 <ChevronRight
-                  className={`w-5 h-5 text-gray-400 transition-transform ${expandedGroups.has(group.key) ? 'rotate-90' : ''}`}
+                  className={`w-5 h-5 text-fg-faint transition-transform ${expandedGroups.has(group.key) ? 'rotate-90' : ''}`}
                 />
               </button>
               {expandedGroups.has(group.key) && (
@@ -833,22 +833,22 @@ export const TalentPoolPage = () => {
       )}
 
       {filteredCandidates.length === 0 && !loading && (
-        <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+        <div className="text-center py-12 text-fg-muted">
           {searchQuery ? '未找到匹配的候选人' : '暂无候选人数据'}
         </div>
       )}
 
       {/* Pagination */}
       {activeTab === '全部' && totalCount > 0 && (
-        <div className="flex items-center justify-between pt-4 border-t border-gray-100 dark:border-gray-700">
+        <div className="flex items-center justify-between pt-4 border-t border-border-subtle">
           <div className="flex items-center gap-4">
-            <span className="text-sm text-gray-500 dark:text-gray-400">
+            <span className="text-sm text-fg-muted">
               显示 {startIndex + 1}-{endIndex}，共 {totalCount} 条
             </span>
             <select
               value={pageSize}
               onChange={(e) => setPageSize(Number(e.target.value) as PageSize)}
-              className="px-3 py-1.5 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
+              className="px-3 py-1.5 border border-border rounded-lg text-sm text-fg-secondary focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
             >
               {PAGE_SIZE_OPTIONS.map((size) => (
                 <option key={size} value={size}>
@@ -863,7 +863,7 @@ export const TalentPoolPage = () => {
             <button
               onClick={() => setCurrentPage(1)}
               disabled={currentPage === 1}
-              className="p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="p-2 rounded-lg text-fg-muted hover:bg-surface-muted disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <ChevronsLeft className="w-4 h-4" />
             </button>
@@ -871,7 +871,7 @@ export const TalentPoolPage = () => {
             <button
               onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
               disabled={currentPage === 1}
-              className="p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="p-2 rounded-lg text-fg-muted hover:bg-surface-muted disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
@@ -879,7 +879,7 @@ export const TalentPoolPage = () => {
             {/* Page numbers */}
             {getPageNumbers().map((page, idx) =>
               page === 'ellipsis' ? (
-                <span key={`ellipsis-${idx}`} className="px-2 text-gray-400 dark:text-gray-500">
+                <span key={`ellipsis-${idx}`} className="px-2 text-fg-faint">
                   ...
                 </span>
               ) : (
@@ -889,7 +889,7 @@ export const TalentPoolPage = () => {
                   className={`w-9 h-9 rounded-lg text-sm font-medium transition-colors ${
                     currentPage === page
                       ? 'bg-[#1a4bc4] text-white'
-                      : 'text-gray-700 hover:bg-gray-100'
+                      : 'text-fg-secondary hover:bg-surface-muted'
                   }`}
                 >
                   {page}
@@ -901,7 +901,7 @@ export const TalentPoolPage = () => {
             <button
               onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
               disabled={currentPage === totalPages}
-              className="p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="p-2 rounded-lg text-fg-muted hover:bg-surface-muted disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <ChevronRight className="w-4 h-4" />
             </button>
@@ -909,7 +909,7 @@ export const TalentPoolPage = () => {
             <button
               onClick={() => setCurrentPage(totalPages)}
               disabled={currentPage === totalPages}
-              className="p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="p-2 rounded-lg text-fg-muted hover:bg-surface-muted disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <ChevronsRight className="w-4 h-4" />
             </button>
@@ -933,27 +933,27 @@ export const TalentPoolPage = () => {
             initial={{scale: 0.95, opacity: 0}}
             animate={{scale: 1, opacity: 1}}
             exit={{scale: 0.95, opacity: 0}}
-            className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md p-6"
+            className="bg-surface rounded-xl shadow-xl w-full max-w-md p-6"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex justify-between items-center mb-6">
               <div>
-                <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+                <h3 className="text-xl font-bold text-fg">
                   {tagsModalBatch ? '批量增加标签' : '管理技能标签'}
                 </h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                <p className="text-sm text-fg-muted mt-1">
                   {tagsModalBatch
                     ? `已选 ${selectedIds.size} 位候选人`
                     : tagsModalCandidate?.name}
                 </p>
               </div>
-              <button onClick={closeTagsModal} className="p-2 text-gray-400 dark:text-gray-500 hover:text-gray-600 hover:bg-gray-100 rounded-lg">
+              <button onClick={closeTagsModal} className="p-2 text-fg-faint hover:text-fg-secondary hover:bg-surface-muted rounded-lg">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             {/* Existing tags */}
-            <div className="flex flex-wrap gap-2 mb-4 min-h-[40px] p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+            <div className="flex flex-wrap gap-2 mb-4 min-h-[40px] p-3 bg-surface-muted rounded-lg">
               {customTags.map((tag) => (
                 <span
                   key={tag}
@@ -966,7 +966,7 @@ export const TalentPoolPage = () => {
                 </span>
               ))}
               {customTags.length === 0 && (
-                <span className="text-sm text-gray-400 dark:text-gray-500">暂无标签，请添加</span>
+                <span className="text-sm text-fg-faint">暂无标签，请添加</span>
               )}
             </div>
 
@@ -978,7 +978,7 @@ export const TalentPoolPage = () => {
                 onChange={(e) => setNewTagInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleAddTag()}
                 placeholder="输入新标签，按回车添加"
-                className="flex-1 px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
+                className="flex-1 px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
               />
               <button
                 onClick={handleAddTag}
@@ -1000,7 +1000,7 @@ export const TalentPoolPage = () => {
               </button>
               <button
                 onClick={closeTagsModal}
-                className="px-4 py-2 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700/30"
+                className="px-4 py-2 border border-border text-fg-secondary rounded-lg text-sm font-medium hover:bg-surface-muted"
               >
                 取消
               </button>

@@ -102,12 +102,12 @@ export default function ExcelImportDialog({open, onClose, onComplete}: ExcelImpo
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={handleClose}>
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[80vh] overflow-auto" onClick={e => e.stopPropagation()}>
+      <div className="bg-surface rounded-2xl shadow-xl w-full max-w-2xl max-h-[80vh] overflow-auto" onClick={e => e.stopPropagation()}>
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-          <h3 className="text-lg font-semibold text-gray-800">导入 Excel</h3>
-          <button onClick={handleClose} className="p-1 hover:bg-gray-100 rounded-lg">
-            <X className="w-5 h-5 text-gray-400" />
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border-subtle">
+          <h3 className="text-lg font-semibold text-fg">导入 Excel</h3>
+          <button onClick={handleClose} className="p-1 hover:bg-surface-muted rounded-lg">
+            <X className="w-5 h-5 text-fg-faint" />
           </button>
         </div>
 
@@ -118,7 +118,7 @@ export default function ExcelImportDialog({open, onClose, onComplete}: ExcelImpo
               <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-medium ${
                 step === s ? 'bg-[#1a4bc4] text-white' :
                 (['upload', 'preview', 'result'].indexOf(step) > i) ? 'bg-green-100 text-green-600' :
-                'bg-gray-100 text-gray-400'
+                'bg-surface-muted text-fg-faint'
               }`}>
                 {(['upload', 'preview', 'result'].indexOf(step) > i) ? <CheckCircle className="w-4 h-4" /> : i + 1}
               </div>
@@ -126,7 +126,7 @@ export default function ExcelImportDialog({open, onClose, onComplete}: ExcelImpo
             </React.Fragment>
           ))}
         </div>
-        <div className="px-6 pb-2 flex items-center gap-2 text-xs text-gray-400">
+        <div className="px-6 pb-2 flex items-center gap-2 text-xs text-fg-faint">
           <span className="w-7 text-center">上传</span>
           <span className="flex-1" />
           <span className="w-7 text-center">预览</span>
@@ -140,12 +140,12 @@ export default function ExcelImportDialog({open, onClose, onComplete}: ExcelImpo
             <div
               onDrop={handleDrop}
               onDragOver={e => e.preventDefault()}
-              className="mt-4 border-2 border-dashed border-gray-200 rounded-xl p-8 text-center hover:border-[#1a4bc4]/50 transition-colors cursor-pointer"
+              className="mt-4 border-2 border-dashed border-border rounded-xl p-8 text-center hover:border-[#1a4bc4]/50 transition-colors cursor-pointer"
               onClick={() => fileInputRef.current?.click()}
             >
-              <Upload className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-              <p className="text-sm text-gray-600">拖拽 Excel 文件到此处，或点击选择</p>
-              <p className="text-xs text-gray-400 mt-1">支持 .xlsx / .xls 格式</p>
+              <Upload className="w-10 h-10 text-fg-faint mx-auto mb-3" />
+              <p className="text-sm text-fg-secondary">拖拽 Excel 文件到此处，或点击选择</p>
+              <p className="text-xs text-fg-faint mt-1">支持 .xlsx / .xls 格式</p>
               <input
                 ref={fileInputRef}
                 type="file"
@@ -164,16 +164,16 @@ export default function ExcelImportDialog({open, onClose, onComplete}: ExcelImpo
             <div className="mt-4 space-y-4">
               <div className="flex items-center gap-2 text-sm">
                 <FileSpreadsheet className="w-4 h-4 text-green-500" />
-                <span className="text-gray-700 font-medium">{file?.name}</span>
-                <span className="text-gray-400">({previewRows.length > 0 ? `${previewRows.length}+ 行` : '空文件'})</span>
+                <span className="text-fg-secondary font-medium">{file?.name}</span>
+                <span className="text-fg-faint">({previewRows.length > 0 ? `${previewRows.length}+ 行` : '空文件'})</span>
               </div>
 
-              <div className="border border-gray-200 rounded-lg overflow-auto max-h-60">
+              <div className="border border-border rounded-lg overflow-auto max-h-60">
                 <table className="w-full text-xs">
                   <thead>
-                    <tr className="bg-gray-50">
+                    <tr className="bg-surface-muted">
                       {previewHeaders.map(h => (
-                        <th key={h} className="px-3 py-2 text-left font-medium text-gray-500 whitespace-nowrap border-r border-gray-100 last:border-r-0">
+                        <th key={h} className="px-3 py-2 text-left font-medium text-fg-muted whitespace-nowrap border-r border-border-subtle last:border-r-0">
                           {h}
                         </th>
                       ))}
@@ -183,7 +183,7 @@ export default function ExcelImportDialog({open, onClose, onComplete}: ExcelImpo
                     {previewRows.map((row, i) => (
                       <tr key={i} className="border-t border-gray-50">
                         {previewHeaders.map(h => (
-                          <td key={h} className="px-3 py-1.5 text-gray-700 whitespace-nowrap border-r border-gray-50 last:border-r-0 max-w-[150px] truncate">
+                          <td key={h} className="px-3 py-1.5 text-fg-secondary whitespace-nowrap border-r border-gray-50 last:border-r-0 max-w-[150px] truncate">
                             {String(row[h] ?? '')}
                           </td>
                         ))}
@@ -193,7 +193,7 @@ export default function ExcelImportDialog({open, onClose, onComplete}: ExcelImpo
                 </table>
               </div>
 
-              <p className="text-xs text-gray-400">
+              <p className="text-xs text-fg-faint">
                 系统将自动匹配已知列（如"姓名"、"邮箱"），未匹配的列将创建为自定义字段。
               </p>
 
@@ -206,7 +206,7 @@ export default function ExcelImportDialog({open, onClose, onComplete}: ExcelImpo
                   {importing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
                   {importing ? '导入中...' : '开始导入'}
                 </button>
-                <button onClick={() => setStep('upload')} className="px-4 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50">
+                <button onClick={() => setStep('upload')} className="px-4 py-2.5 border border-border rounded-lg text-sm text-fg-secondary hover:bg-surface-muted">
                   返回
                 </button>
               </div>

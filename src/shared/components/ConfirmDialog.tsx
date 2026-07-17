@@ -35,22 +35,22 @@ const variantConfig: Record<
 > = {
   danger: {
     icon: AlertTriangle,
-    iconColor: 'text-red-600',
-    iconBg: 'bg-red-100',
+    iconColor: 'text-red-600 dark:text-red-400',
+    iconBg: 'bg-red-100 dark:bg-red-900/30',
     buttonBg: 'bg-red-600',
     buttonHoverBg: 'hover:bg-red-700',
   },
   warning: {
     icon: AlertCircle,
-    iconColor: 'text-amber-600',
-    iconBg: 'bg-amber-100',
+    iconColor: 'text-amber-600 dark:text-amber-400',
+    iconBg: 'bg-amber-100 dark:bg-amber-900/30',
     buttonBg: 'bg-amber-600',
     buttonHoverBg: 'hover:bg-amber-700',
   },
   info: {
     icon: Info,
-    iconColor: 'text-blue-600',
-    iconBg: 'bg-blue-100',
+    iconColor: 'text-blue-600 dark:text-blue-400',
+    iconBg: 'bg-blue-100 dark:bg-blue-900/30',
     buttonBg: 'bg-blue-600',
     buttonHoverBg: 'hover:bg-blue-700',
   },
@@ -158,7 +158,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
             transition={{ duration: 0.15 }}
-            className="relative bg-white rounded-xl shadow-xl w-full max-w-md p-6 mx-4"
+            className="relative bg-surface rounded-xl shadow-xl w-full max-w-md p-6 mx-4"
           >
             {/* Icon */}
             <div className={`flex items-center justify-center w-12 h-12 rounded-full ${config.iconBg} mb-4`}>
@@ -168,7 +168,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
             {/* Title */}
             <h3
               id="confirm-dialog-title"
-              className="text-lg font-bold text-gray-900 mb-2"
+              className="text-lg font-bold text-fg mb-2"
             >
               {title}
             </h3>
@@ -176,7 +176,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
             {/* Message */}
             <p
               id="confirm-dialog-message"
-              className="text-sm text-gray-600 leading-relaxed mb-6"
+              className="text-sm text-fg-secondary leading-relaxed mb-6"
             >
               {message}
             </p>
@@ -186,7 +186,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
               <button
                 ref={cancelButtonRef}
                 onClick={onCancel}
-                className="px-4 py-2 border border-gray-200 hover:bg-gray-50 rounded-lg text-sm font-medium text-gray-700 transition-colors"
+                className="px-4 py-2 border border-border hover:bg-surface-muted rounded-lg text-sm font-medium text-fg-secondary transition-colors"
               >
                 {cancelText}
               </button>

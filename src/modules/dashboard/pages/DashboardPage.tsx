@@ -317,7 +317,7 @@ export const DashboardPage = () => {
     excellent: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
     good: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
     qualified: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
-    pending: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400',
+    pending: 'bg-surface-muted text-fg-muted',
     rejected: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
   };
 
@@ -338,8 +338,8 @@ export const DashboardPage = () => {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">欢迎回来，{userName}</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+          <h1 className="text-2xl font-bold text-fg">欢迎回来，{userName}</h1>
+          <p className="text-sm text-fg-muted mt-1">
             <Calendar className="w-4 h-4 inline mr-1 -mt-0.5" />
             {new Date().toLocaleDateString('zh-CN', {year: 'numeric', month: 'long', day: 'numeric', weekday: 'long'})}
           </p>
@@ -356,7 +356,7 @@ export const DashboardPage = () => {
                 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all
                 ${timeRange === range && !showCustomPicker
                   ? 'bg-[#1a4bc4] text-white shadow-sm'
-                  : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
+                  : 'bg-surface text-fg-secondary border border-border hover:border-border'
                 }
               `}
             >
@@ -372,7 +372,7 @@ export const DashboardPage = () => {
                 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1
                 ${showCustomPicker
                   ? 'bg-[#1a4bc4] text-white shadow-sm'
-                  : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
+                  : 'bg-surface text-fg-secondary border border-border hover:border-border'
                 }
               `}
             >
@@ -387,31 +387,31 @@ export const DashboardPage = () => {
                   animate={{opacity: 1, y: 0, scale: 1}}
                   exit={{opacity: 0, y: -4, scale: 0.97}}
                   transition={{duration: 0.12}}
-                  className="absolute right-0 top-full mt-2 w-64 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-600 shadow-xl p-4 z-30"
+                  className="absolute right-0 top-full mt-2 w-64 bg-surface rounded-xl border border-border shadow-xl p-4 z-30"
                 >
                   <div className="space-y-3">
                     <div>
-                      <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">起始日期</label>
+                      <label className="block text-xs font-medium text-fg-muted mb-1">起始日期</label>
                       <input
                         type="date"
                         value={customStart}
                         max={customEnd}
                         onChange={(e) => setCustomStart(e.target.value)}
-                        className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]/30 focus:border-[#1a4bc4] transition-colors"
+                        className="w-full px-3 py-2 rounded-lg border border-border bg-surface-muted text-sm text-fg focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]/30 focus:border-[#1a4bc4] transition-colors"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">结束日期</label>
+                      <label className="block text-xs font-medium text-fg-muted mb-1">结束日期</label>
                       <input
                         type="date"
                         value={customEnd}
                         min={customStart}
                         onChange={(e) => setCustomEnd(e.target.value)}
-                        className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]/30 focus:border-[#1a4bc4] transition-colors"
+                        className="w-full px-3 py-2 rounded-lg border border-border bg-surface-muted text-sm text-fg focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]/30 focus:border-[#1a4bc4] transition-colors"
                       />
                     </div>
                     <div className="pt-1 flex items-center justify-between">
-                      <span className="text-[10px] text-gray-400 dark:text-gray-500">
+                      <span className="text-[10px] text-fg-faint">
                         {formatRangeLabel(getDateRange('custom', new Date(customStart), new Date(customEnd)))}
                       </span>
                       <button
@@ -430,7 +430,7 @@ export const DashboardPage = () => {
       </div>
 
       {/* Active range indicator */}
-      <div className="flex items-center gap-2 text-xs text-gray-400 dark:text-gray-500">
+      <div className="flex items-center gap-2 text-xs text-fg-faint">
         <Clock className="w-3.5 h-3.5" />
         <span>
           当前查看: {formatRangeLabel(dateRange)}
@@ -442,9 +442,9 @@ export const DashboardPage = () => {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {loading ? (
           Array.from({length: 4}).map((_, i) => (
-            <div key={i} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 animate-pulse">
-              <div className="h-4 w-20 bg-gray-100 dark:bg-gray-700 rounded mb-3" />
-              <div className="h-8 w-16 bg-gray-100 dark:bg-gray-700 rounded" />
+            <div key={i} className="bg-surface rounded-xl border border-border p-5 animate-pulse">
+              <div className="h-4 w-20 bg-surface-muted rounded mb-3" />
+              <div className="h-8 w-16 bg-surface-muted rounded" />
             </div>
           ))
         ) : (
@@ -453,10 +453,10 @@ export const DashboardPage = () => {
             return (
               <div
                 key={stat.label}
-                className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 hover:shadow-md transition-shadow"
+                className="bg-surface rounded-xl border border-border p-5 hover:shadow-md transition-shadow"
               >
                 <div className="flex items-center justify-between mb-3">
-                  <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <span className="text-xs font-medium text-fg-muted uppercase tracking-wider">
                     {stat.label}
                   </span>
                   <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${stat.iconBg}`}>
@@ -465,7 +465,7 @@ export const DashboardPage = () => {
                 </div>
                 <p className={`text-2xl font-bold ${stat.color}`}>{stat.value}</p>
                 {stat.change && (
-                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">{stat.change}</p>
+                  <p className="text-xs text-fg-faint mt-1">{stat.change}</p>
                 )}
               </div>
             );
@@ -478,7 +478,7 @@ export const DashboardPage = () => {
         <div className="lg:col-span-2 space-y-6">
           {/* Quick Actions */}
           <div>
-            <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">快捷操作</h2>
+            <h2 className="text-sm font-semibold text-fg-secondary mb-3">快捷操作</h2>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {quickActions.map((action) => {
                 const Icon = action.icon;
@@ -497,11 +497,11 @@ export const DashboardPage = () => {
           </div>
 
           {/* Recent Interviews (filtered) */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-gray-700">
-              <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+          <div className="bg-surface rounded-xl border border-border">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border-subtle">
+              <h2 className="text-sm font-semibold text-fg-secondary">
                 面试结果
-                <span className="text-gray-400 dark:text-gray-500 font-normal ml-1">
+                <span className="text-fg-faint font-normal ml-1">
                   ({RANGE_LABELS[timeRange]})
                 </span>
               </h2>
@@ -513,30 +513,30 @@ export const DashboardPage = () => {
               </button>
             </div>
             {recentInterviews.length === 0 ? (
-              <div className="px-5 py-10 text-center text-gray-400 dark:text-gray-500">
+              <div className="px-5 py-10 text-center text-fg-faint">
                 <Video className="w-10 h-10 mx-auto mb-2 opacity-40" />
                 <p className="text-sm">
                   {loading ? '加载中...' : `${RANGE_LABELS[timeRange]}暂无面试记录`}
                 </p>
               </div>
             ) : (
-              <div className="divide-y divide-gray-50 dark:divide-gray-700/50">
+              <div className="divide-y divide-border-subtle">
                 {recentInterviews.map((r) => (
                   <div
                     key={r.id}
-                    className="flex items-center gap-4 px-5 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors cursor-pointer"
+                    className="flex items-center gap-4 px-5 py-3 hover:bg-surface-muted transition-colors cursor-pointer"
                     onClick={() => navigate('/interviews/results')}
                   >
-                    <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-sm font-bold text-gray-600 dark:text-gray-300">
+                    <div className="w-10 h-10 rounded-full bg-surface-muted flex items-center justify-center text-sm font-bold text-fg-secondary">
                       {(r.candidateName || '?')[0]}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{r.candidateName}</p>
-                      <p className="text-xs text-gray-400 dark:text-gray-500 truncate">{r.position} · {r.templateName}</p>
+                      <p className="text-sm font-medium text-fg truncate">{r.candidateName}</p>
+                      <p className="text-xs text-fg-faint truncate">{r.position} · {r.templateName}</p>
                     </div>
                     <div className="text-right shrink-0">
-                      <p className="text-sm font-bold text-gray-900 dark:text-white">{r.totalScore}分</p>
-                      <span className={`inline-block text-[10px] font-medium px-2 py-0.5 rounded-full ${gradeColorMap[r.grade] || 'bg-gray-100 text-gray-600'}`}>
+                      <p className="text-sm font-bold text-fg">{r.totalScore}分</p>
+                      <span className={`inline-block text-[10px] font-medium px-2 py-0.5 rounded-full ${gradeColorMap[r.grade] || 'bg-surface-muted text-fg-secondary'}`}>
                         {gradeLabelMap[r.grade] || r.grade}
                       </span>
                     </div>
@@ -549,13 +549,13 @@ export const DashboardPage = () => {
 
         {/* Right: Today's Tasks */}
         <div className="space-y-6">
-          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
-            <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700">
-              <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300">今日待办</h2>
+          <div className="bg-surface rounded-xl border border-border">
+            <div className="px-5 py-4 border-b border-border-subtle">
+              <h2 className="text-sm font-semibold text-fg-secondary">今日待办</h2>
             </div>
-            <div className="divide-y divide-gray-50 dark:divide-gray-700/50">
+            <div className="divide-y divide-border-subtle">
               {todayTasks.length === 0 ? (
-                <div className="px-5 py-10 text-center text-gray-400 dark:text-gray-500">
+                <div className="px-5 py-10 text-center text-fg-faint">
                   <CheckCircle2 className="w-10 h-10 mx-auto mb-2 opacity-40" />
                   <p className="text-sm">{loading ? '加载中...' : '暂无待办事项'}</p>
                 </div>
@@ -566,17 +566,17 @@ export const DashboardPage = () => {
                 return (
                   <div
                     key={task.id}
-                    className="flex items-start gap-3 px-5 py-3.5 hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors cursor-pointer"
+                    className="flex items-start gap-3 px-5 py-3.5 hover:bg-surface-muted transition-colors cursor-pointer"
                     onClick={() => navigate(task.path)}
                   >
-                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${task.status === 'done' ? 'bg-emerald-100 dark:bg-emerald-900/30' : 'bg-gray-100 dark:bg-gray-700'}`}>
-                      <Icon className={`w-4 h-4 ${task.status === 'done' ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-500 dark:text-gray-400'}`} />
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${task.status === 'done' ? 'bg-emerald-100 dark:bg-emerald-900/30' : 'bg-surface-muted'}`}>
+                      <Icon className={`w-4 h-4 ${task.status === 'done' ? 'text-emerald-600 dark:text-emerald-400' : 'text-fg-muted'}`} />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className={`text-sm font-medium ${task.status === 'done' ? 'text-gray-400 dark:text-gray-500 line-through' : 'text-gray-900 dark:text-white'}`}>
+                      <p className={`text-sm font-medium ${task.status === 'done' ? 'text-fg-faint line-through' : 'text-fg'}`}>
                         {task.title}
                       </p>
-                      <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{task.subtitle}</p>
+                      <p className="text-xs text-fg-faint mt-0.5">{task.subtitle}</p>
                     </div>
                     <span className={`shrink-0 inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full ${style.badge}`}>
                       <span className={`w-1.5 h-1.5 rounded-full ${style.dot}`} />
@@ -590,8 +590,8 @@ export const DashboardPage = () => {
           </div>
 
           {/* Navigation Shortcuts */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
-            <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">常用功能</h2>
+          <div className="bg-surface rounded-xl border border-border p-5">
+            <h2 className="text-sm font-semibold text-fg-secondary mb-3">常用功能</h2>
             <div className="grid grid-cols-2 gap-2">
               {[
                 {label: '候选人搜索', icon: Search, path: '/candidates'},
@@ -604,9 +604,9 @@ export const DashboardPage = () => {
                   <button
                     key={item.label}
                     onClick={() => navigate(item.path)}
-                    className="flex items-center gap-2 px-3 py-2.5 rounded-lg border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:border-gray-300 dark:hover:border-gray-500 transition-all text-xs font-medium"
+                    className="flex items-center gap-2 px-3 py-2.5 rounded-lg border border-border text-fg-secondary hover:bg-surface-muted hover:border-border transition-all text-xs font-medium"
                   >
-                    <Icon className="w-4 h-4 text-gray-400 dark:text-gray-500" />
+                    <Icon className="w-4 h-4 text-fg-faint" />
                     {item.label}
                   </button>
                 );

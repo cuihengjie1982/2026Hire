@@ -238,7 +238,7 @@ export const AIVideoInterviewPage = () => {
       <div className="min-h-screen bg-[#1E1B2E] flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="w-8 h-8 text-[#6366F1] animate-spin mx-auto mb-4" />
-          <p className="text-gray-400">正在加载面试题目...</p>
+          <p className="text-white/50">正在加载面试题目...</p>
         </div>
       </div>
     );
@@ -250,7 +250,7 @@ export const AIVideoInterviewPage = () => {
       <div className="min-h-screen bg-[#1E1B2E] flex items-center justify-center">
         <div className="text-center">
           <h2 className="text-2xl font-bold text-white mb-2">暂无面试题目</h2>
-          <p className="text-gray-400 mb-6">请先在 AI 面试中心配置面试模板并添加题目</p>
+          <p className="text-white/50 mb-6">请先在 AI 面试中心配置面试模板并添加题目</p>
           <button
             onClick={returnToSessionManagement}
             className="bg-[#6366F1] hover:bg-[#4F46E5] text-white px-6 py-2.5 rounded-lg font-medium transition-colors"
@@ -1004,26 +1004,26 @@ export const AIVideoInterviewPage = () => {
         </div>
 
         {/* Right - Question Panel */}
-        <div className="w-[420px] bg-white border-l border-gray-200 flex flex-col flex-shrink-0">
+        <div className="w-[420px] bg-surface border-l border-border flex flex-col flex-shrink-0">
           {/* Question Header */}
-          <div className="p-6 border-b border-gray-100">
+          <div className="p-6 border-b border-border-subtle">
             <div className="flex items-center space-x-2 mb-4">
               <span className="text-sm font-medium text-[#6366F1] bg-[#6366F1]/10 px-2.5 py-1 rounded">
                 Q{currentQuestionIdx + 1}
               </span>
-              <span className="text-gray-400 text-sm">/ 共 {questions.length} 题</span>
+              <span className="text-fg-faint text-sm">/ 共 {questions.length} 题</span>
             </div>
-            <h2 className="text-gray-900 font-bold text-xl mb-3">{currentQ?.title}</h2>
-            <p className="text-gray-600 text-base leading-relaxed">{currentQ?.text}</p>
+            <h2 className="text-fg font-bold text-xl mb-3">{currentQ?.title}</h2>
+            <p className="text-fg-secondary text-base leading-relaxed">{currentQ?.text}</p>
           </div>
 
           {/* Timer Display — recording time + silence indicator */}
-          <div className="px-5 py-4 border-b border-gray-100">
+          <div className="px-5 py-4 border-b border-border-subtle">
             <div className="flex items-center justify-between">
-              <span className="text-gray-400 text-xs">
+              <span className="text-fg-faint text-xs">
                 {isRecording ? '录制中' : '等待录制'}
               </span>
-              <span className={`text-2xl font-mono font-bold ${isRecording ? 'text-[#6366F1]' : 'text-gray-400'}`}>
+              <span className={`text-2xl font-mono font-bold ${isRecording ? 'text-[#6366F1]' : 'text-fg-faint'}`}>
                 {formatTime(recordTime)}
               </span>
             </div>
@@ -1043,21 +1043,21 @@ export const AIVideoInterviewPage = () => {
               </div>
             )}
             {isRecording && silenceSeconds === 0 && (
-              <p className="mt-2 text-gray-300 text-xs">检测到声音，正在录制...</p>
+              <p className="mt-2 text-fg-faint text-xs">检测到声音，正在录制...</p>
             )}
           </div>
 
           {/* Tips Section */}
-          <div className="px-5 py-3 border-b border-gray-100">
+          <div className="px-5 py-3 border-b border-border-subtle">
             <button
               onClick={() => setShowTips(!showTips)}
-              className="flex items-center space-x-2 text-gray-400 hover:text-gray-600 text-xs transition-colors"
+              className="flex items-center space-x-2 text-fg-faint hover:text-fg-secondary text-xs transition-colors"
             >
               <ChevronDown className={`w-3 h-3 transition-transform ${showTips ? 'rotate-180' : ''}`} />
               <span>答题提示</span>
             </button>
             {showTips && (
-              <div className="mt-2 text-gray-500 text-xs leading-relaxed bg-gray-50 rounded-lg p-3">
+              <div className="mt-2 text-fg-muted text-xs leading-relaxed bg-surface-muted rounded-lg p-3">
                 请在录制前认真阅读题目要求，确保回答内容完整。建议先思考再作答，注意控制时间。
               </div>
             )}
@@ -1065,7 +1065,7 @@ export const AIVideoInterviewPage = () => {
 
           {/* Question List */}
           <div className="flex-1 overflow-y-auto p-4 space-y-2">
-            <p className="text-gray-400 text-sm mb-3 px-1">题目列表</p>
+            <p className="text-fg-faint text-sm mb-3 px-1">题目列表</p>
             {questions.map((q, idx) => {
               const score = answerScores.get(idx);
               return (
@@ -1084,8 +1084,8 @@ export const AIVideoInterviewPage = () => {
                     idx === currentQuestionIdx
                       ? 'bg-[#6366F1]/10 text-[#6366F1] font-medium border border-[#6366F1]/20'
                       : idx < currentQuestionIdx
-                        ? 'text-gray-500 hover:bg-gray-50'
-                        : 'text-gray-300 cursor-not-allowed'
+                        ? 'text-fg-muted hover:bg-surface-muted'
+                        : 'text-fg-faint cursor-not-allowed'
                   }`}
                 >
                   <span className="mr-3 flex-shrink-0">
@@ -1109,14 +1109,14 @@ export const AIVideoInterviewPage = () => {
                     )}
                   </span>
                   <span className="truncate flex-1">Q{idx + 1} {q.title}</span>
-                  <span className="text-gray-400 ml-3 flex-shrink-0 text-sm">{formatTime(q.timeLimit)}</span>
+                  <span className="text-fg-faint ml-3 flex-shrink-0 text-sm">{formatTime(q.timeLimit)}</span>
                 </button>
               );
             })}
           </div>
 
           {/* Action Buttons */}
-          <div className="p-4 border-t border-gray-100 space-y-2.5">
+          <div className="p-4 border-t border-border-subtle space-y-2.5">
             {!isRecording && overlayState === 'none' && (
               <button
                 onClick={handleStartRecording}
@@ -1140,7 +1140,7 @@ export const AIVideoInterviewPage = () => {
                 {currentQuestionIdx < questions.length - 1 ? (
                   <button
                     onClick={handleNextQuestion}
-                    className="flex items-center space-x-1 text-gray-400 hover:text-gray-600 text-xs font-medium transition-colors"
+                    className="flex items-center space-x-1 text-fg-faint hover:text-fg-secondary text-xs font-medium transition-colors"
                   >
                     <span>跳过此题</span>
                     <ChevronRight className="w-3 h-3" />
@@ -1153,7 +1153,7 @@ export const AIVideoInterviewPage = () => {
                     <span>结束面试</span>
                   </button>
                 )}
-                <span className="text-gray-300 text-xs">
+                <span className="text-fg-faint text-xs">
                   当前第 {currentQuestionIdx + 1} 题 / 共 {questions.length} 题
                 </span>
               </div>

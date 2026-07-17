@@ -24,7 +24,7 @@ const VoiceInputButton: FC<VoiceInputButtonProps> = ({
         type="button"
         disabled
         title="您的浏览器不支持语音输入"
-        className={`flex-shrink-0 w-10 h-10 rounded-xl bg-gray-100 text-gray-300 flex items-center justify-center cursor-not-allowed ${className}`}
+        className={`flex-shrink-0 w-10 h-10 rounded-xl bg-surface-muted text-fg-faint flex items-center justify-center cursor-not-allowed ${className}`}
       >
         <MicOff className="w-4 h-4" />
       </button>
@@ -54,7 +54,7 @@ const VoiceInputButton: FC<VoiceInputButtonProps> = ({
       onClick={onStart}
       disabled={disabled}
       title="语音输入（点击开始，再次点击结束）"
-      className={`flex-shrink-0 w-10 h-10 rounded-xl bg-gray-100 text-gray-500 flex items-center justify-center hover:bg-gray-200 hover:text-[#1a4bc4] disabled:opacity-50 disabled:cursor-not-allowed transition-colors ${className}`}
+      className={`flex-shrink-0 w-10 h-10 rounded-xl bg-surface-muted text-fg-muted flex items-center justify-center hover:bg-surface-muted hover:text-[#1a4bc4] disabled:opacity-50 disabled:cursor-not-allowed transition-colors ${className}`}
     >
       <Mic className="w-4 h-4" />
     </button>

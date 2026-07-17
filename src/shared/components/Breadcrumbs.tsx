@@ -34,7 +34,7 @@ export const Breadcrumbs = () => {
   trail.push(currentId);
 
   return (
-    <nav className="flex items-center gap-1.5 text-xs px-6 pt-4 pb-0 text-gray-500 dark:text-gray-400">
+    <nav className="flex items-center gap-1.5 text-xs px-6 pt-4 pb-0 text-fg-muted">
       <button
         onClick={() => navigate('/')}
         className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
@@ -49,9 +49,9 @@ export const Breadcrumbs = () => {
 
         return (
           <span key={pageId} className="flex items-center gap-1.5">
-            <ChevronRight className="w-3 h-3 text-gray-300 dark:text-gray-600" />
+            <ChevronRight className="w-3 h-3 text-fg-faint" />
             {isLast ? (
-              <span className="font-medium text-gray-900 dark:text-white">{title}</span>
+              <span className="font-medium text-fg">{title}</span>
             ) : (
               <button
                 onClick={() => navigate(route)}

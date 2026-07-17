@@ -69,9 +69,6 @@ export const handleContacts = async (req: Request, _userId: string, _userRole: s
     if (method === 'PATCH') {
       const body = await req.json() as Record<string, unknown>;
       const { id, status, outreachPerson, channel, reason } = body;
-      // #region agent log
-      console.log('[debug-a35f32] PATCH contacts body:', JSON.stringify({ id, status, outreachPerson, channel, reason, statusType: typeof status }));
-      // #endregion
       if (!id) return jsonRes({ error: { code: 'VALIDATION_ERROR', message: 'id is required' } }, 400);
 
       const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };

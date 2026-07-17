@@ -134,7 +134,7 @@ export const NumericScoreInput = ({
         }}
       />
       {!disabled && (
-        <div className="absolute right-1 top-1 bottom-1 flex flex-col justify-center border-l border-gray-200 dark:border-gray-600 pl-0.5">
+        <div className="absolute right-1 top-1 bottom-1 flex flex-col justify-center border-l border-border pl-0.5">
           <button
             type="button"
             tabIndex={-1}
@@ -145,7 +145,7 @@ export const NumericScoreInput = ({
               inputRef.current?.focus();
               applyStep(wheelStep);
             }}
-            className="flex items-center justify-center w-4 h-3.5 text-gray-400 hover:text-[#6366F1] disabled:opacity-30 disabled:pointer-events-none transition-colors"
+            className="flex items-center justify-center w-4 h-3.5 text-fg-faint hover:text-[#6366F1] disabled:opacity-30 disabled:pointer-events-none transition-colors"
           >
             <ChevronUp className="w-3 h-3" strokeWidth={2.5} />
           </button>
@@ -159,7 +159,7 @@ export const NumericScoreInput = ({
               inputRef.current?.focus();
               applyStep(-wheelStep);
             }}
-            className="flex items-center justify-center w-4 h-3.5 text-gray-400 hover:text-[#6366F1] disabled:opacity-30 disabled:pointer-events-none transition-colors"
+            className="flex items-center justify-center w-4 h-3.5 text-fg-faint hover:text-[#6366F1] disabled:opacity-30 disabled:pointer-events-none transition-colors"
           >
             <ChevronDown className="w-3 h-3" strokeWidth={2.5} />
           </button>

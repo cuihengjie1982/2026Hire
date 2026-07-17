@@ -70,8 +70,8 @@ export const AIQAChatTab: React.FC<AIQAChatTabProps> = ({transcript, courseTitle
             <div className="w-12 h-12 rounded-2xl bg-emerald-100 flex items-center justify-center">
               <MessageSquare className="w-6 h-6 text-emerald-500" />
             </div>
-            <p className="font-medium text-gray-700">AI 问答助手</p>
-            <p className="text-xs text-gray-400 px-8">
+            <p className="font-medium text-fg-secondary">AI 问答助手</p>
+            <p className="text-xs text-fg-faint px-8">
               基于视频内容回答您的学习问题。输入问题并发送，AI 将参考文字稿为您提供解答。
             </p>
           </div>
@@ -82,10 +82,10 @@ export const AIQAChatTab: React.FC<AIQAChatTabProps> = ({transcript, courseTitle
             <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm ${
               msg.role === 'user'
                 ? 'bg-indigo-500 text-white rounded-br-md'
-                : 'bg-gray-100 text-gray-800 rounded-bl-md'
+                : 'bg-surface-muted text-fg rounded-bl-md'
             }`}>
               <p className="whitespace-pre-wrap">{msg.content}</p>
-              <p className={`text-xs mt-1 ${msg.role === 'user' ? 'text-indigo-200' : 'text-gray-400'}`}>
+              <p className={`text-xs mt-1 ${msg.role === 'user' ? 'text-indigo-200' : 'text-fg-faint'}`}>
                 {formatTime(msg.videoTime)}
               </p>
             </div>
@@ -93,7 +93,7 @@ export const AIQAChatTab: React.FC<AIQAChatTabProps> = ({transcript, courseTitle
         ))}
 
         {loading && (
-          <div className="flex items-center gap-2 text-gray-400 text-sm">
+          <div className="flex items-center gap-2 text-fg-faint text-sm">
             <Loader2 className="w-4 h-4 animate-spin" />
             AI 思考中...
           </div>
@@ -101,7 +101,7 @@ export const AIQAChatTab: React.FC<AIQAChatTabProps> = ({transcript, courseTitle
       </div>
 
       {/* Input */}
-      <div className={`p-3 border-t border-gray-200 transition-colors ${inputFocus ? 'bg-indigo-50' : 'bg-gray-50'}`}>
+      <div className={`p-3 border-t border-border transition-colors ${inputFocus ? 'bg-indigo-50' : 'bg-surface-muted'}`}>
         <div className="flex gap-2">
           <input
             value={input}
@@ -110,7 +110,7 @@ export const AIQAChatTab: React.FC<AIQAChatTabProps> = ({transcript, courseTitle
             onFocus={() => setInputFocus(true)}
             onBlur={() => setInputFocus(false)}
             placeholder="输入问题，按 Enter 发送..."
-            className="flex-1 px-3 py-2 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="flex-1 px-3 py-2 border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             disabled={loading}
           />
           <button
@@ -121,7 +121,7 @@ export const AIQAChatTab: React.FC<AIQAChatTabProps> = ({transcript, courseTitle
             发送
           </button>
         </div>
-        <p className="text-xs text-gray-400 mt-1 px-1">
+        <p className="text-xs text-fg-faint mt-1 px-1">
           当前视频时间：{formatTime(currentVideoTime)} · Shift+Enter 换行
         </p>
       </div>

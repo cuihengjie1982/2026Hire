@@ -288,9 +288,9 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(({
 
       {errorMessage && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/70 px-4">
-          <div className="max-w-sm rounded-lg bg-white p-4 text-center shadow-xl">
-            <p className="text-sm font-medium text-gray-900">视频暂时无法播放</p>
-            <p className="mt-1 text-xs leading-5 text-gray-500">{errorMessage}</p>
+          <div className="max-w-sm rounded-lg bg-surface p-4 text-center shadow-xl">
+            <p className="text-sm font-medium text-fg">视频暂时无法播放</p>
+            <p className="mt-1 text-xs leading-5 text-fg-muted">{errorMessage}</p>
             <a
               href={src}
               target="_blank"

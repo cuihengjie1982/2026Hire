@@ -164,13 +164,13 @@ const ConversationInterviewManagementPage = () => {
   const canCreate = baseCanCreate && (!sendSms || Boolean(selectedSmsTemplate));
 
   if (loading) {
-    return <div className="p-6 text-sm text-gray-500">加载中...</div>;
+    return <div className="p-6 text-sm text-fg-muted">加载中...</div>;
   }
 
   return (
     <div className="p-6 space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-gray-900">会话式面试管理</h2>
+        <h2 className="text-lg font-semibold text-fg">会话式面试管理</h2>
         <button
           type="button"
           onClick={() => { void openModal(); }}
@@ -182,7 +182,7 @@ const ConversationInterviewManagementPage = () => {
       </div>
 
       {sessions.length === 0 ? (
-        <div className="text-center py-12 text-gray-400">
+        <div className="text-center py-12 text-fg-faint">
           <MessageCircle className="w-12 h-12 mx-auto mb-3 opacity-30" />
           <p className="text-sm">暂无会话式面试记录</p>
           <p className="text-xs mt-1">点击「发起面试」创建新的会话式面试</p>
@@ -191,29 +191,29 @@ const ConversationInterviewManagementPage = () => {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-gray-200">
-                <th className="text-left py-3 px-4 font-medium text-gray-500">候选人</th>
-                <th className="text-left py-3 px-4 font-medium text-gray-500">岗位</th>
-                <th className="text-left py-3 px-4 font-medium text-gray-500">面试模板</th>
-                <th className="text-left py-3 px-4 font-medium text-gray-500">状态</th>
-                <th className="text-left py-3 px-4 font-medium text-gray-500">时间</th>
-                <th className="text-right py-3 px-4 font-medium text-gray-500">操作</th>
+              <tr className="border-b border-border">
+                <th className="text-left py-3 px-4 font-medium text-fg-muted">候选人</th>
+                <th className="text-left py-3 px-4 font-medium text-fg-muted">岗位</th>
+                <th className="text-left py-3 px-4 font-medium text-fg-muted">面试模板</th>
+                <th className="text-left py-3 px-4 font-medium text-fg-muted">状态</th>
+                <th className="text-left py-3 px-4 font-medium text-fg-muted">时间</th>
+                <th className="text-right py-3 px-4 font-medium text-fg-muted">操作</th>
               </tr>
             </thead>
             <tbody>
               {sessions.map(s => (
-                <tr key={s.id} className="border-b border-gray-100 hover:bg-gray-50">
+                <tr key={s.id} className="border-b border-border-subtle hover:bg-surface-muted">
                   <td className="py-3 px-4">
-                    <div className="font-medium text-gray-900">{s.candidateName}</div>
-                    <div className="text-xs text-gray-400">{s.candidateEmail}</div>
+                    <div className="font-medium text-fg">{s.candidateName}</div>
+                    <div className="text-xs text-fg-faint">{s.candidateEmail}</div>
                   </td>
-                  <td className="py-3 px-4 text-gray-600">{s.position}</td>
-                  <td className="py-3 px-4 text-gray-600">{s.templateName}</td>
+                  <td className="py-3 px-4 text-fg-secondary">{s.position}</td>
+                  <td className="py-3 px-4 text-fg-secondary">{s.templateName}</td>
                   <td className="py-3 px-4">
                     <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-medium ${
                       s.status === 'completed' ? 'bg-green-100 text-green-700' :
                       s.status === 'in_progress' ? 'bg-blue-100 text-blue-700' :
-                      s.status === 'pending' ? 'bg-gray-100 text-gray-600' :
+                      s.status === 'pending' ? 'bg-surface-muted text-fg-secondary' :
                       'bg-red-100 text-red-700'
                     }`}>
                       {s.status === 'completed' ? '已完成' :
@@ -222,7 +222,7 @@ const ConversationInterviewManagementPage = () => {
                        s.status === 'cancelled' ? '已取消' : s.status}
                     </span>
                   </td>
-                  <td className="py-3 px-4 text-gray-500 text-xs">{s.startTime}</td>
+                  <td className="py-3 px-4 text-fg-muted text-xs">{s.startTime}</td>
                   <td className="py-3 px-4 text-right">
                     <div className="flex items-center justify-end gap-2">
                       {s.status === 'pending' || s.status === 'in_progress' ? (
@@ -232,12 +232,12 @@ const ConversationInterviewManagementPage = () => {
                         </button>
                       ) : (
                         <button onClick={() => handleEnter(s)}
-                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors">
+                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium text-fg-secondary bg-surface-muted hover:bg-surface-muted transition-colors">
                           <Eye className="w-3 h-3" />查看
                         </button>
                       )}
                       <button onClick={() => handleDelete(s.id)}
-                        className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors">
+                        className="p-1.5 rounded-lg text-fg-faint hover:text-red-500 hover:bg-red-50 transition-colors">
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
@@ -252,12 +252,12 @@ const ConversationInterviewManagementPage = () => {
       {/* ── Create Session Modal ── */}
       <ModalPortal open={showModal}>
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6 space-y-5">
+          <div className="bg-surface rounded-2xl shadow-xl max-w-lg w-full p-6 space-y-5">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-gray-900">
+              <h3 className="text-lg font-semibold text-fg">
                 {step === 'select' ? '发起会话式面试' : '面试已创建'}
               </h3>
-              <button onClick={handleCloseModal} className="p-1 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100">
+              <button onClick={handleCloseModal} className="p-1 rounded-lg text-fg-faint hover:text-fg-secondary hover:bg-surface-muted">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -276,16 +276,16 @@ const ConversationInterviewManagementPage = () => {
 
                 {/* Template selection — conversational templates only */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">面试模板（仅显示对话式模板）</label>
+                  <label className="block text-sm font-medium text-fg-secondary mb-1.5">面试模板（仅显示对话式模板）</label>
                   <select value={selectedTemplateId} onChange={(e) => setSelectedTemplateId(e.target.value)}
-                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]/20">
+                    className="w-full border border-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]/20">
                     <option value="">请选择面试模板</option>
                     {conversationalTemplates.map(t => (
                       <option key={t.id} value={t.id}>{t.name}</option>
                     ))}
                   </select>
                   {conversationalTemplates.length === 0 && (
-                    <p className="mt-1 text-xs text-gray-400">暂无对话式面试模板，请先在「模板管理」中创建</p>
+                    <p className="mt-1 text-xs text-fg-faint">暂无对话式面试模板，请先在「模板管理」中创建</p>
                   )}
                 </div>
 
@@ -293,16 +293,16 @@ const ConversationInterviewManagementPage = () => {
                 <div className="flex items-center gap-3">
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input type="checkbox" checked={sendSms} onChange={(e) => setSendSms(e.target.checked)} className="sr-only peer" />
-                    <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#1a4bc4]" />
+                    <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-surface after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#1a4bc4]" />
                   </label>
-                  <span className="text-sm text-gray-700">发送短信通知候选人</span>
+                  <span className="text-sm text-fg-secondary">发送短信通知候选人</span>
                 </div>
 
                 {sendSms && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1.5">短信模板</label>
+                    <label className="block text-sm font-medium text-fg-secondary mb-1.5">短信模板</label>
                     <select value={selectedSmsTemplate} onChange={(e) => setSelectedSmsTemplate(e.target.value)}
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]/20">
+                      className="w-full border border-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]/20">
                       <option value="">请选择短信模板</option>
                       {smsTemplates.map(t => (
                         <option key={t.id} value={t.id}>{t.name}</option>
@@ -321,31 +321,31 @@ const ConversationInterviewManagementPage = () => {
                   {creating ? '创建中...' : '创建面试'}
                 </button>
                 {createDisabledReason && (
-                  <p className="text-xs text-gray-400 text-center -mt-3">{createDisabledReason}</p>
+                  <p className="text-xs text-fg-faint text-center -mt-3">{createDisabledReason}</p>
                 )}
               </>
             ) : (
               <>
-                <div className="bg-gray-50 rounded-xl p-4 space-y-3">
+                <div className="bg-surface-muted rounded-xl p-4 space-y-3">
                   <div className="flex items-center gap-2 text-sm">
                     <Link className="w-4 h-4 text-[#1a4bc4]" />
-                    <span className="font-medium text-gray-900">面试链接</span>
+                    <span className="font-medium text-fg">面试链接</span>
                   </div>
                   <div className="flex gap-2">
                     <input type="text" readOnly value={createdLink}
-                      className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-xs text-gray-600 bg-white" />
+                      className="flex-1 border border-border rounded-lg px-3 py-2 text-xs text-fg-secondary bg-surface" />
                     <button onClick={handleCopyLink}
                       className="flex-shrink-0 px-3 py-2 rounded-lg text-xs font-medium text-white bg-[#1a4bc4] hover:bg-[#1e3a8a] transition-colors inline-flex items-center gap-1">
                       {copied ? <><Check className="w-3.5 h-3.5" />已复制</> : <><Copy className="w-3.5 h-3.5" />复制</>}
                     </button>
                   </div>
-                  <p className="text-xs text-gray-400">
+                  <p className="text-xs text-fg-faint">
                     将此链接发送给候选人，候选人点击即可进入面试（无需登录）
                   </p>
                 </div>
 
                 <button onClick={handleCloseModal}
-                  className="w-full py-2.5 rounded-xl text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors">
+                  className="w-full py-2.5 rounded-xl text-sm font-medium text-fg-secondary bg-surface-muted hover:bg-surface-muted transition-colors">
                   关闭
                 </button>
               </>

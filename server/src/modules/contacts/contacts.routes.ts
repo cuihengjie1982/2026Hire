@@ -82,9 +82,6 @@ router.post('/', async (req, res, next) => {
 router.patch('/', async (req, res, next) => {
   try {
     const {id, status, outreachPerson, channel, reason} = req.body;
-    // #region agent log
-    fetch('http://127.0.0.1:7854/ingest/be9f27ce-5c59-41c9-a632-43d870814038',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'a35f32'},body:JSON.stringify({sessionId:'a35f32',location:'contacts.routes.ts:PATCH',message:'Express PATCH contacts',data:{body:req.body},timestamp:Date.now(),hypothesisId:'H3'})}).catch(()=>{});
-    // #endregion
     if (!id) {
       res.status(400).json({error: {code: 'VALIDATION_ERROR', message: 'Contact id is required'}});
       return;
@@ -131,7 +128,7 @@ router.patch('/', async (req, res, next) => {
     params.push(id);
 
     const row = await queryOne(
-      `UPDATE contacts SET ${updates.join(', ')} WHERE id = $${paramIndex} RETURNING *`,
+      `UPDATE contacts SET ${updates.join(', ')} WHERE id = $${params.length} RETURNING *`,
       params,
     );
     if (!row) {
