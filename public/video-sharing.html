@@ -37,6 +37,7 @@
         font-size: 15px;
       }
       .filters { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; }
+      .category-filters { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; }
       .filter {
         border: 1px solid #dbe3ef;
         border-radius: 999px;
@@ -48,6 +49,18 @@
         white-space: nowrap;
       }
       .filter.active { background: #111827; border-color: #111827; color: #fff; }
+      .category-filter {
+        min-height: 36px;
+        border: 1px solid #bfdbfe;
+        border-radius: 8px;
+        background: #eff6ff;
+        color: #1e3a8a;
+        padding: 8px 12px;
+        font-size: 13px;
+        font-weight: 700;
+        white-space: nowrap;
+      }
+      .category-filter.active { background: #1d4ed8; border-color: #1d4ed8; color: #fff; }
       .message {
         margin: 12px 0;
         padding: 14px;
@@ -157,6 +170,7 @@
       </section>
 
       <section class="toolbar">
+        <div id="category-filters" class="category-filters" role="tablist" aria-label="视频分类"></div>
         <input id="search" class="search" type="search" placeholder="搜索标题、课程、分类" />
         <div class="filters" role="tablist">
           <button class="filter active" type="button" data-filter="all">全部</button>
@@ -176,7 +190,9 @@
         var listEl = document.getElementById('list');
         var messageEl = document.getElementById('message');
         var searchEl = document.getElementById('search');
+        var categoryFiltersEl = document.getElementById('category-filters');
         var activeFilter = 'all';
+        var activeCategory = 'positive';
         var assets = [];
 
         function getStoredToken() {
@@ -346,15 +362,50 @@
           document.getElementById('stat-doc').textContent = String(assets.filter(function (a) { return a.kind === 'document'; }).length);
         }
 
+        function categoryGroup(asset) {
+          if (asset.kind !== 'video') return 'other';
+          if (asset.category === '正向视频') return 'positive';
+          if (asset.category === '负向视频' || asset.category === '负面视频') return 'negative';
+          return 'other';
+        }
+
+        function renderCategoryFilters() {
+          var categories = [
+            {id: 'positive', label: '正向视频'},
+            {id: 'negative', label: '负向视频'}
+          ];
+          var otherCount = assets.filter(function (asset) { return categoryGroup(asset) === 'other'; }).length;
+          if (otherCount) categories.push({id: 'other', label: '其他资料'});
+          if (!categories.some(function (category) { return category.id === activeCategory; })) activeCategory = 'positive';
+          categoryFiltersEl.innerHTML = '';
+          for (var i = 0; i < categories.length; i += 1) {
+            var category = categories[i];
+            var count = assets.filter(function (asset) { return categoryGroup(asset) === category.id; }).length;
+            var button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'category-filter' + (activeCategory === category.id ? ' active' : '');
+            button.setAttribute('data-category', category.id);
+            button.setAttribute('aria-pressed', activeCategory === category.id ? 'true' : 'false');
+            button.textContent = category.label + ' ' + count;
+            button.addEventListener('click', function () {
+              activeCategory = this.getAttribute('data-category') || 'positive';
+              renderCategoryFilters();
+              render();
+            });
+            categoryFiltersEl.appendChild(button);
+          }
+        }
+
         function render() {
           var query = (searchEl.value || '').trim().toLowerCase();
           var filtered = assets.filter(function (asset) {
+            var inCategory = categoryGroup(asset) === activeCategory;
             var kindMatched = activeFilter === 'all'
               || asset.kind === activeFilter
               || (activeFilter === 'pdf' && asset.extension === 'pdf')
               || (activeFilter === 'word' && (asset.extension === 'doc' || asset.extension === 'docx'));
             var queryMatched = !query || asset.searchText.indexOf(query) !== -1;
-            return kindMatched && queryMatched;
+            return inCategory && kindMatched && queryMatched;
           });
           listEl.innerHTML = '';
           if (!filtered.length) {
@@ -416,6 +467,7 @@
           function (data) {
             assets = normalizeCourses(data);
             updateStats();
+            renderCategoryFilters();
             messageEl.textContent = assets.length ? '请选择需要学习的资料。' : '暂无可打开的培训资料。';
             render();
           },

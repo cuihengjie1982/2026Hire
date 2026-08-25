@@ -31,6 +31,7 @@ import {
   subscribeActionCaptionJobs,
   type ActionCaptionJob,
 } from '../actionCaptionJobs';
+import {CATEGORY_COLORS, TRAINING_CATEGORIES} from '../courseCategories';
 import type {LearningPath} from '../types';
 
 type TabId = 'courses' | 'enrollments' | 'analysis' | 'effectiveness' | 'paths';
@@ -42,14 +43,6 @@ const TABS: {id: TabId; label: string; icon: React.ElementType}[] = [
   {id: 'analysis', label: '薄弱分析', icon: Target},
   {id: 'effectiveness', label: '效果统计', icon: TrendingUp},
 ];
-
-const CATEGORY_COLORS: Record<string, string> = {
-  '沟通表达': 'bg-blue-100 text-blue-700',
-  '专业能力': 'bg-purple-100 text-purple-700',
-  '应变能力': 'bg-orange-100 text-orange-700',
-  '综合素质': 'bg-emerald-100 text-emerald-700',
-  '综合': 'bg-surface-muted text-fg-secondary',
-};
 
 const STATUS_LABELS: Record<string, {label: string; color: string}> = {
   enrolled: {label: '已报名', color: 'bg-surface-muted text-fg-secondary'},
@@ -1610,11 +1603,7 @@ export const CreateCourseModal = ({initial, onClose, onSubmit, defaultContentTyp
               <label className="block text-sm font-medium text-fg-secondary mb-1">分类维度</label>
               <select value={category} onChange={e => setCategory(e.target.value)}
                 className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]">
-                <option value="沟通表达">沟通表达</option>
-                <option value="专业能力">专业能力</option>
-                <option value="应变能力">应变能力</option>
-                <option value="综合素质">综合素质</option>
-                <option value="综合">综合</option>
+                {TRAINING_CATEGORIES.map(item => <option key={item} value={item}>{item}</option>)}
               </select>
             </div>
             <div>
