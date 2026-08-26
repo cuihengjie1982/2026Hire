@@ -26,7 +26,8 @@ async function loadPlayer(play = vi.fn().mockResolvedValue(undefined)) {
   });
   const video = window.document.querySelector('video')!;
   Object.defineProperties(video, {
-    play: { value: play }, pause: { value: vi.fn() }, load: { value: vi.fn() },
+    play: { value: play }, pause: { value: vi.fn() },
+    load: { value: vi.fn(() => { video.currentTime = 0; }) },
     error: { configurable: true, value: { code: 4 } },
     paused: { configurable: true, value: true },
   });
@@ -39,6 +40,21 @@ async function loadPlayer(play = vi.fn().mockResolvedValue(undefined)) {
     message: window.document.getElementById('message')!,
     error: () => video.dispatchEvent(new window.Event('error')),
   };
+}
+
+async function loadStalledPlayer() {
+  const player = await loadPlayer();
+  vi.useFakeTimers();
+  player.button.click();
+  Object.defineProperties(player.video, {
+    paused: { value: false },
+    readyState: { configurable: true, value: 2 },
+    seeking: { configurable: true, value: false },
+  });
+  player.video.currentTime = 5;
+  player.video.dispatchEvent(new player.window.Event('timeupdate'));
+  player.video.dispatchEvent(new player.window.Event('waiting'));
+  return player;
 }
 
 afterEach(() => { for (const dom of windows.splice(0)) dom.window.close(); vi.useRealTimers(); });
@@ -130,5 +146,98 @@ describe('public player source transitions', () => {
     Object.defineProperty(video, 'duration', { value: 100 });
     video.dispatchEvent(new window.Event('loadedmetadata'));
     expect(video.currentTime).toBe(30);
+  });
+});
+
+describe('public player stall watchdog', () => {
+  it.each([
+    ['progress', 200], ['progress', 1700],
+    ['seeked', 200], ['seeked', 1700],
+    ['timeupdate', 200], ['timeupdate', 1700],
+  ])('keeps the deadline after %s at %i ms without clock advancement', async (event, delay) => {
+    const { window, video, play } = await loadStalledPlayer();
+    await vi.advanceTimersByTimeAsync(delay);
+    video.dispatchEvent(new window.Event(event));
+    await vi.advanceTimersByTimeAsync(8699 - delay);
+    expect(video.src).toBe(variant);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(video.src).toBe(raw);
+    expect(play).toHaveBeenCalledTimes(2);
+    video.currentTime = 0;
+    Object.defineProperty(video, 'duration', { value: 100 });
+    video.dispatchEvent(new window.Event('loadedmetadata'));
+    expect(video.currentTime).toBe(5);
+    await vi.advanceTimersByTimeAsync(8000);
+    expect(video.src).toBe(proxy);
+  });
+
+  it('does not let readiness notifications cancel a stalled clock deadline', async () => {
+    const { window, video } = await loadStalledPlayer();
+    await vi.advanceTimersByTimeAsync(700);
+    for (const event of ['playing', 'canplay', 'canplaythrough']) {
+      video.dispatchEvent(new window.Event(event));
+    }
+    await vi.advanceTimersByTimeAsync(8000);
+    expect(video.src).toBe(raw);
+  });
+
+  it.each([2, 30])('keeps a stalled seek to %i seconds as the fallback position', async (position) => {
+    const { window, video } = await loadStalledPlayer();
+    await vi.advanceTimersByTimeAsync(700);
+    Object.defineProperty(video, 'seeking', { value: true });
+    video.currentTime = position;
+    video.dispatchEvent(new window.Event('seeking'));
+    video.dispatchEvent(new window.Event('timeupdate'));
+    Object.defineProperty(video, 'seeking', { value: false });
+    video.dispatchEvent(new window.Event('seeked'));
+    video.dispatchEvent(new window.Event('timeupdate'));
+    await vi.advanceTimersByTimeAsync(8000);
+    expect(video.src).toBe(raw);
+    video.currentTime = 0;
+    Object.defineProperty(video, 'duration', { value: 100 });
+    video.dispatchEvent(new window.Event('loadedmetadata'));
+    expect(video.currentTime).toBe(position);
+    video.dispatchEvent(new window.Event('seeked'));
+    video.dispatchEvent(new window.Event('timeupdate'));
+    await vi.advanceTimersByTimeAsync(8000);
+    expect(video.src).toBe(proxy);
+  });
+
+  it('does not postpone the deadline on repeated waiting and progress events', async () => {
+    const { window, video } = await loadStalledPlayer();
+    await vi.advanceTimersByTimeAsync(700);
+    for (let i = 0; i < 7; i += 1) {
+      await vi.advanceTimersByTimeAsync(1000);
+      video.dispatchEvent(new window.Event('waiting'));
+      video.dispatchEvent(new window.Event('progress'));
+    }
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(video.src).toBe(raw);
+  });
+
+  it('clears the watchdog when playback actually advances', async () => {
+    const { window, video, button, message } = await loadStalledPlayer();
+    await vi.advanceTimersByTimeAsync(700);
+    video.currentTime = 5.25;
+    video.dispatchEvent(new window.Event('timeupdate'));
+    expect(vi.getTimerCount()).toBe(0);
+    expect(button.classList.contains('hidden')).toBe(true);
+    expect(message.textContent).not.toContain('缓冲');
+    await vi.advanceTimersByTimeAsync(9000);
+    expect(video.src).toBe(variant);
+  });
+
+  it.each(['pause', 'ended'])('clears the watchdog on intentional %s', async (event) => {
+    const { window, video, button } = await loadStalledPlayer();
+    await vi.advanceTimersByTimeAsync(700);
+    Object.defineProperties(video, {
+      paused: { value: true }, ended: { configurable: true, value: event === 'ended' },
+    });
+    video.dispatchEvent(new window.Event(event));
+    expect(vi.getTimerCount()).toBe(0);
+    video.dispatchEvent(new window.Event('waiting'));
+    await vi.advanceTimersByTimeAsync(9000);
+    expect(video.src).toBe(variant);
+    expect(button.textContent).toBe(event === 'pause' ? '继续播放' : '重新播放');
   });
 });

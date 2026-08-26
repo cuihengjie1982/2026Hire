@@ -900,18 +900,23 @@
         }
 
         function hidePlaybackOverlay(message) {
-          clearPlaybackTimers();
           playButtonEl.classList.add('hidden');
           actionsEl.classList.add('hidden');
           if (message) setMessage(message);
         }
 
-        function updatePlaybackStateFromProgress() {
+        function updatePlaybackStateFromProgress(event) {
           updateLiveCaption();
           var current = videoEl.currentTime || 0;
+          // Seeking changes the clock without proving that playback has resumed.
+          if (videoEl.seeking || (event && event.type === 'seeked')) {
+            lastPlaybackTime = current;
+            return;
+          }
           var hasAdvanced = current > lastPlaybackTime + 0.05;
-          if (current > lastPlaybackTime) lastPlaybackTime = current;
-          if (!videoEl.paused && !videoEl.ended && (hasAdvanced || videoEl.readyState >= 2)) {
+          if (hasAdvanced || current < lastPlaybackTime) lastPlaybackTime = current;
+          if (!videoEl.paused && !videoEl.ended && hasAdvanced) {
+            clearPlaybackTimers();
             hidePlaybackOverlay('视频正在播放。');
           }
         }
@@ -981,12 +986,13 @@
         function armPlaybackTimeout() {
           if (playTimeout) window.clearTimeout(playTimeout);
           var version = sourceVersion;
-          var startTime = videoEl.currentTime || 0;
+          lastPlaybackTime = videoEl.currentTime || 0;
           playTimeout = window.setTimeout(function () {
             if (version !== sourceVersion) return;
-            var hasStarted = !videoEl.paused && !videoEl.ended && videoEl.currentTime > startTime + 0.05;
+            playTimeout = null;
+            var hasStarted = !videoEl.paused && !videoEl.ended && !videoEl.seeking && videoEl.currentTime > lastPlaybackTime + 0.05;
             if (hasStarted) {
-              hidePlaybackOverlay('视频正在播放。');
+              updatePlaybackStateFromProgress();
               return;
             }
             if (switchToFallbackVideo('当前视频线路加载较慢。')) return;
@@ -1106,17 +1112,19 @@
 
         videoEl.addEventListener('waiting', function () {
           if (videoEl.paused || videoEl.ended) return;
-          if (bufferingTimer) window.clearTimeout(bufferingTimer);
+          if (bufferingTimer || playTimeout) return;
+          lastPlaybackTime = videoEl.currentTime || 0;
           bufferingTimer = window.setTimeout(function () {
+            bufferingTimer = null;
             if (videoEl.paused || videoEl.ended) return;
-            if (!videoEl.paused && !videoEl.ended && videoEl.currentTime > lastPlaybackTime + 0.05) {
+            if (!videoEl.seeking && videoEl.currentTime > lastPlaybackTime + 0.05) {
               updatePlaybackStateFromProgress();
               return;
             }
             playButtonEl.textContent = '正在缓冲...';
             playButtonEl.classList.remove('hidden');
             setMessage('视频正在缓冲，请稍候。');
-            if (requestedPlayback && !videoEl.paused) armPlaybackTimeout();
+            if (requestedPlayback && !videoEl.paused && !playTimeout) armPlaybackTimeout();
           }, 700);
         });
 
@@ -1133,16 +1141,15 @@
           if (!videoEl.paused) hidePlaybackOverlay('视频正在播放。');
         });
 
-        videoEl.addEventListener('progress', function () {
-          if (!videoEl.paused && videoEl.readyState >= 2) hidePlaybackOverlay('视频正在播放。');
-        });
-
+        videoEl.addEventListener('progress', updatePlaybackStateFromProgress);
         videoEl.addEventListener('timeupdate', updatePlaybackStateFromProgress);
+        videoEl.addEventListener('seeking', updatePlaybackStateFromProgress);
         videoEl.addEventListener('seeked', updatePlaybackStateFromProgress);
 
         videoEl.addEventListener('loadedmetadata', function () {
           if (resumeTime > 0 && isFinite(videoEl.duration)) {
             videoEl.currentTime = Math.min(resumeTime, Math.max(0, videoEl.duration - 0.1));
+            lastPlaybackTime = videoEl.currentTime;
             resumeTime = 0;
           }
         });
