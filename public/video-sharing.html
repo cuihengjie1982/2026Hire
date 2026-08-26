@@ -37,7 +37,7 @@
         font-size: 15px;
       }
       .filters { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; }
-      .category-filters { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; }
+      .category-filters { display: flex; gap: 8px; padding-bottom: 2px; }
       .filter {
         border: 1px solid #dbe3ef;
         border-radius: 999px;
@@ -50,17 +50,25 @@
       }
       .filter.active { background: #111827; border-color: #111827; color: #fff; }
       .category-filter {
-        min-height: 36px;
-        border: 1px solid #bfdbfe;
+        display: flex;
+        flex: 1 1 0;
+        align-items: center;
+        justify-content: center;
+        min-width: 0;
+        height: 44px;
+        min-height: 44px;
+        border: 1px solid #cbd5e1;
         border-radius: 8px;
-        background: #eff6ff;
-        color: #1e3a8a;
+        background: #fff;
+        color: #334155;
         padding: 8px 12px;
         font-size: 13px;
         font-weight: 700;
         white-space: nowrap;
       }
-      .category-filter.active { background: #1d4ed8; border-color: #1d4ed8; color: #fff; }
+      .category-filter[data-category="positive"].active { background: #047857; border-color: #047857; color: #fff; }
+      .category-filter[data-category="negative"].active { background: #be123c; border-color: #be123c; color: #fff; }
+      .category-filter[data-category="other"].active { background: #334155; border-color: #334155; color: #fff; }
       .message {
         margin: 12px 0;
         padding: 14px;
@@ -114,12 +122,14 @@
         display: inline-block;
         margin-top: 9px;
         border-radius: 6px;
-        background: #eff6ff;
-        color: #1d4ed8;
+        border: 1px solid transparent;
         padding: 3px 8px;
         font-size: 12px;
         font-weight: 700;
       }
+      .tag-positive { background: #ecfdf5; border-color: #a7f3d0; color: #047857; }
+      .tag-negative { background: #fff1f2; border-color: #fecdd3; color: #be123c; }
+      .tag-other { background: #f1f5f9; border-color: #cbd5e1; color: #475569; }
       .actions {
         display: grid;
         grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -150,6 +160,7 @@
       .empty { text-align: center; color: #64748b; padding: 40px 12px; }
       @media (min-width: 720px) {
         .toolbar { grid-template-columns: 1fr auto; align-items: center; }
+        .category-filters { grid-column: 1 / -1; }
         .list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       }
     </style>
@@ -435,7 +446,9 @@
             card.querySelector('.title').textContent = asset.title;
             card.querySelector('.meta').textContent = asset.kindLabel + ' · ' + (asset.extension || 'file') + ' · ' + asset.sourceLabel;
             card.querySelector('.course').textContent = asset.courseTitle;
-            card.querySelector('.tag').textContent = asset.category;
+            var tag = card.querySelector('.tag');
+            tag.className = 'tag tag-' + categoryGroup(asset);
+            tag.textContent = asset.category;
             var links = card.querySelectorAll('a.button');
             links[0].href = openUrl;
             links[1].href = courseUrl;
