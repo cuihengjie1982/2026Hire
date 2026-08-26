@@ -4,15 +4,20 @@
   var storagePrefix = '/storage/v1/object/public/training-materials/';
   var proxyPrefix = '/training-media/';
   var variantPrefix = 'materials/ios-compatible/';
+  var containerVariantPrefix = 'materials/ios-compatible-containers/';
+
+  function isVariantObjectName(path) {
+    return typeof path === 'string' && (path.indexOf(variantPrefix) === 0 || path.indexOf(containerVariantPrefix) === 0);
+  }
 
   function variantObjectName(path) {
     if (typeof path !== 'string' || path.indexOf('materials/') !== 0 ||
-        path.indexOf(variantPrefix) === 0 || /(^|\/)\.\.?($|\/)|[\\\x00-\x1f]/.test(path) ||
+        isVariantObjectName(path) || /(^|\/)\.\.?($|\/)|[\\\x00-\x1f]/.test(path) ||
         !/\.(mp4|m4v|mov|webm|avi|mkv)$/i.test(path)) {
       throw new Error('Not an original training video object');
     }
     var name = path.slice('materials/'.length);
-    return variantPrefix + name + (/\.mp4$/i.test(name) ? '' : '.mp4');
+    return /\.mp4$/i.test(name) ? variantPrefix + name : containerVariantPrefix + name + '.mp4';
   }
 
   function objectName(url, origin) {
@@ -58,6 +63,7 @@
 
   root.TrainingVideoCompatibility = {
     variantObjectName: variantObjectName,
+    isVariantObjectName: isVariantObjectName,
     variantUrl: variantUrl,
     objectName: objectName,
     originalUrl: originalUrl,

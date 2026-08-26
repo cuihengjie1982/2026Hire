@@ -23,7 +23,12 @@ describe('shared video compatibility addresses', () => {
     expect(api.variantUrl(proxy, origin)).toBe(variant);
   });
   it('retains encoded file names and converts other containers without collisions', () => {
-    expect(api.variantUrl(`${root}materials/%E6%93%A6%20%E6%A1%8C.mov?x=1`, origin)).toBe(`${root}materials/ios-compatible/%E6%93%A6%20%E6%A1%8C.mov.mp4`);
+    expect(api.variantUrl(`${root}materials/%E6%93%A6%20%E6%A1%8C.mov?x=1`, origin)).toBe(`${root}materials/ios-compatible-containers/%E6%93%A6%20%E6%A1%8C.mov.mp4`);
+  });
+  it.each(['mov', 'webm', 'm4v', 'avi', 'mkv'])('separates %s originals from MP4s with the same multi-extension basename', extension => {
+    const source = `materials/nested/example.${extension}`;
+    expect(api.variantObjectName(source)).not.toBe(api.variantObjectName(`${source}.mp4`));
+    expect(api.variantObjectName(`${source}.mp4`)).toBe(`materials/ios-compatible/nested/example.${extension}.mp4`);
   });
   it('does not generate variants for foreign URLs, documents, or existing variants', () => {
     expect(api.variantUrl('https://example.org/video.mp4', origin)).toBe('');
@@ -32,7 +37,7 @@ describe('shared video compatibility addresses', () => {
     expect(api.variantUrl('https://evil.example/storage/v1/object/public/training-materials/materials/a.mp4', origin)).toBe('');
   });
   it('rejects invalid storage object names', () => {
-    for (const path of ['other/video.mp4', 'materials/../video.mp4', 'materials/ios-compatible/a.mp4', 'materials/a.pdf']) {
+    for (const path of ['other/video.mp4', 'materials/../video.mp4', 'materials/ios-compatible/a.mp4', 'materials/ios-compatible-containers/a.mov.mp4', 'materials/a.pdf']) {
       expect(() => api.variantObjectName(path)).toThrow();
     }
   });

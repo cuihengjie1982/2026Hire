@@ -65,8 +65,34 @@ function assertUnchanged(before, after) {
   }
 }
 
+function fingerprintMatches(expected, actual) {
+  return Boolean(expected?.etag && expected.size > 0 && expected.etag === actual?.etag && expected.size === actual.size);
+}
+
+export function createVariantProvenance(job, source, output) {
+  return { version: 1, objectName: job.objectName, target: variantObjectName(job.objectName),
+    source: { etag: source.etag, size: source.size }, output: { etag: output.etag, size: output.size } };
+}
+
+function reportProvenance(job, previous) {
+  if (!previous || previous.objectName !== job.objectName || previous.target !== variantObjectName(job.objectName) ||
+      !fingerprintMatches(previous.originalBefore, previous.originalAfter) ||
+      !canReuseVerification(previous, previous.originalAfter, previous.output)) return null;
+  return createVariantProvenance(job, previous.originalAfter, previous.output);
+}
+
+function assertProvenanceSource(record, job, source) {
+  if (!record) throw new Error('Variant provenance missing; refusing to adopt an unverified existing copy');
+  if (record.version !== 1 || record.objectName !== job.objectName || record.target !== variantObjectName(job.objectName) ||
+      !fingerprintMatches(record.source, source)) throw new Error('Variant provenance source mismatch; original may have changed');
+}
+
+function assertProvenanceOutput(record, output) {
+  if (!fingerprintMatches(record.output, output)) throw new Error('Variant provenance output mismatch; compatible copy may have changed');
+}
+
 export function canReuseVerification(previous, original, remote) {
-  return Boolean(previous && ['created', 'skipped'].includes(previous.status) &&
+  return Boolean(previous && remote?.etag && remote.size > 0 && ['created', 'skipped'].includes(previous.status) &&
     previous.originalAfter?.etag === original.etag && previous.originalAfter?.size === original.size &&
     previous.output?.etag === remote.etag && previous.output?.size === remote.size &&
     remote.etag && remote.size > 0 && previous.output.faststart && previous.output.range &&
@@ -78,19 +104,25 @@ export async function processVideo(job, io) {
   try {
     const originalBefore = await io.sourceState();
     if (await io.exists(target)) {
+      const persisted = await io.readProvenance(target);
+      const provenance = persisted ?? reportProvenance(job, io.previous);
+      assertProvenanceSource(provenance, job, originalBefore);
       const output = await io.verifyRemote(target);
+      assertProvenanceOutput(provenance, output);
       const originalAfter = await io.sourceState();
       assertUnchanged(originalBefore, originalAfter);
+      if (!persisted) await io.writeProvenance(target, provenance);
       return { objectName: job.objectName, target, status: 'skipped', originalBefore, originalAfter, output };
     }
     await io.download();
     await io.encode();
     await io.validateLocal();
     assertUnchanged(originalBefore, await io.sourceState());
-    await io.upload(target);
+    await io.upload(target, originalBefore);
     const output = await io.verifyRemote(target);
     const originalAfter = await io.sourceState();
     assertUnchanged(originalBefore, originalAfter);
+    await io.writeProvenance(target, createVariantProvenance(job, originalBefore, output));
     return { objectName: job.objectName, target, status: 'created', originalBefore, originalAfter, output };
   } finally {
     await io.cleanup();
@@ -140,6 +172,35 @@ export async function variantExists(client, target) {
     throw new Error(`Variant lookup failed: ${error.message}`);
   }
   return Boolean(data);
+}
+
+export async function readVariantProvenance(client, target) {
+  const bucket = client.storage.from(BUCKET);
+  const { data, error } = await bucket.download(`${target}.source.json`);
+  if (!error) {
+    if (data.size > 8192) throw new Error('Variant provenance record too large');
+    return JSON.parse(await data.text());
+  }
+  if (error.status !== 404 && !(error.status === 400 && error.message === 'Object not found')) {
+    throw new Error(`Variant provenance lookup failed: ${error.message}`);
+  }
+  // TUS stores source identity atomically with the file, so a later report-write failure is recoverable.
+  const info = await bucket.info(target);
+  if (info.error) throw new Error(`Variant metadata lookup failed: ${info.error.message}`);
+  const uploaded = info.data.metadata?.trainingVideoSource;
+  if (!uploaded) return null;
+  if (uploaded.outputSize !== info.data.size || !info.data.etag) throw new Error('Variant provenance output size mismatch');
+  const etag = info.data.etag.startsWith('"') ? info.data.etag : JSON.stringify(info.data.etag);
+  return { version: uploaded.version, objectName: uploaded.objectName, target: uploaded.target,
+    source: uploaded.source, output: { etag, size: info.data.size } };
+}
+
+export async function writeVariantProvenance(client, target, record) {
+  if (variantObjectName(record.objectName) !== target) throw new Error('Invalid provenance target');
+  const { error } = await client.storage.from(BUCKET).upload(`${target}.source.json`, Buffer.from(JSON.stringify(record)), {
+    contentType: 'text/plain', cacheControl: '31536000', upsert: false,
+  });
+  if (error) throw new Error(`Variant provenance save failed: ${error.message}`);
 }
 
 async function checkedFetch(url, options = {}) {
@@ -192,8 +253,8 @@ async function verifyRemote(path, expectedSize) {
   return { ...state, range: true, faststart: true, probe };
 }
 
-async function tusUpload(file, objectName) {
-  if (!objectName.startsWith('materials/ios-compatible/')) throw new Error('Upload target must be a compatible variant');
+export async function tusUpload(file, objectName, job, source) {
+  if (variantObjectName(job.objectName) !== objectName) throw new Error('Upload target must be a compatible variant');
   const size = (await stat(file)).size;
   const stream = createReadStream(file);
   await new Promise((resolveUpload, rejectUpload) => {
@@ -206,7 +267,10 @@ async function tusUpload(file, objectName) {
       uploadDataDuringCreation: true,
       storeFingerprintForResuming: false,
       headers: { authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`, 'x-upsert': 'false' },
-      metadata: { bucketName: BUCKET, objectName, contentType: 'video/mp4', cacheControl: '31536000' },
+      metadata: { bucketName: BUCKET, objectName, contentType: 'video/mp4', cacheControl: '31536000',
+        metadata: JSON.stringify({ trainingVideoSource: {
+          version: 1, objectName: job.objectName, target: objectName, source, outputSize: size,
+        } }) },
       onError(error) {
         clearTimeout(timer);
         stream.destroy();
@@ -224,15 +288,18 @@ async function tusUpload(file, objectName) {
   });
 }
 
-async function makeIO(client, job, previous) {
+async function makeIO(client, job, previous, forceVerification) {
   const dir = await mkdtemp(join(tmpdir(), 'training-compatible-'));
   const input = join(dir, 'source');
   const output = join(dir, 'compatible.mp4');
   let encodedSize;
   let originalState;
   return {
+    previous,
     sourceState: async () => { originalState = await sourceState(job.url); return originalState; },
     exists: target => variantExists(client, target),
+    readProvenance: target => readVariantProvenance(client, target),
+    writeProvenance: (target, record) => writeVariantProvenance(client, target, record),
     download: async () => {
       const res = await checkedFetch(job.url, { timeout: 20 * 60_000 });
       const size = Number(res.headers.get('content-length'));
@@ -251,9 +318,9 @@ async function makeIO(client, job, previous) {
       encodedSize = (await stat(output)).size;
       return probe;
     },
-    upload: target => tusUpload(output, target),
+    upload: (target, source) => tusUpload(output, target, job, source),
     verifyRemote: async target => {
-      if (previous && !encodedSize) {
+      if (previous && !encodedSize && !forceVerification) {
         const remote = await sourceState(media.originalUrl(target));
         if (canReuseVerification(previous, originalState, remote)) return { ...previous.output, reusedVerification: true };
       }
@@ -271,10 +338,8 @@ async function main() {
   if (!jobs.length) throw new Error('No matching original videos found');
   const reportPath = option('--report') ?? join(tmpdir(), 'training-video-compatibility-report.json');
   let previousResults = [];
-  if (!args.includes('--verify-existing')) {
-    try { previousResults = JSON.parse(await readFile(reportPath, 'utf8')).results ?? []; }
-    catch (error) { if (error.code !== 'ENOENT') console.warn('Previous verification report unavailable; performing full verification.'); }
-  }
+  try { previousResults = JSON.parse(await readFile(reportPath, 'utf8')).results ?? []; }
+  catch (error) { if (error.code !== 'ENOENT') console.warn('Previous verification report unavailable; requiring persisted source provenance.'); }
   const report = { startedAt: new Date().toISOString(), total: jobs.length, results: [] };
   console.log(`Found ${jobs.length} original videos; originals will not be modified.`);
   if (args.includes('--dry-run')) {
@@ -285,7 +350,7 @@ async function main() {
     console.log(`[${report.results.length + 1}/${jobs.length}] ${job.objectName}`);
     try {
       const previous = previousResults.find(r => r.objectName === job.objectName);
-      const result = await processVideo(job, await makeIO(client, job, previous));
+      const result = await processVideo(job, await makeIO(client, job, previous, args.includes('--verify-existing')));
       report.results.push(result);
       console.log(`  ${result.status}: H.264, faststart, Range verified`);
     } catch (error) {
