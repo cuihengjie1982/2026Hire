@@ -37,7 +37,7 @@
 - Produces `TRAINING_CATEGORIES: readonly string[]` and `CATEGORY_COLORS: Record<string, string>` for the management page.
 - Public page owns `activeCategory = 'positive'`; maps explicit category strings to `positive`, `negative`, or `other`. Mobile has no mixed default list; no classification guessed from ordinary course titles.
 
-- [ ] Add tests for both new dropdown options and retained legacy categories, and execute the actual public page script in jsdom with positive, negative, ordinary-video, PDF fixtures.
+- [x] Add tests for both new dropdown options and retained legacy categories, and execute the actual public page script in jsdom with positive, negative, ordinary-video, PDF fixtures.
 
 ```ts
 expect(TRAINING_CATEGORIES).toEqual(expect.arrayContaining(['正向视频', '负向视频', '沟通表达', '专业能力', '综合']));
@@ -49,8 +49,8 @@ expect(document.querySelector('#list')!.textContent).toContain('负向示范');
 expect(document.querySelector('#list')!.textContent).not.toContain('正向示范');
 ```
 
-- [ ] Run `npx vitest run src/modules/training/courseCategories.test.ts src/modules/training/publicVideoSharing.test.ts` and confirm the missing behavior fails.
-- [ ] Implement constants/dropdown/colors; add category selectors before search, with counts, selected states, conditional other selector, category tags, responsive fixed-height controls. Keep existing file-type filters, copy/open links, search, pagination, document preview, and auth behavior.
+- [x] Run `npx vitest run src/modules/training/courseCategories.test.ts src/modules/training/publicVideoSharing.test.ts` and confirm the missing behavior fails.
+- [x] Implement constants/dropdown/colors; add category selectors before search, with counts, selected states, conditional other selector, category tags, responsive fixed-height controls. Keep existing file-type filters, copy/open links, search, pagination, document preview, and auth behavior.
 
 ```js
 function categoryGroup(asset) {
@@ -63,8 +63,8 @@ function categoryGroup(asset) {
 var inCategory = activeCategory === 'all' || categoryGroup(asset) === activeCategory;
 ```
 
-- [ ] Test category switching, counts, absence of other when empty, search within category, documents in other, loading/error states. Run targeted tests and `npm run lint`; report pre-existing lint issues separately.
-- [ ] Commit only the listed files with `feat: separate positive and negative shared videos`.
+- [x] Test category switching, counts, absence of other when empty, search within category, documents in other, loading/error states. Run targeted tests and `npm run lint`; report pre-existing lint issues separately.
+- [x] Commit only the listed files with `feat: separate positive and negative shared videos`.
 
 ### Task 2: Compatible Media Worker and Player Queue
 
@@ -80,9 +80,9 @@ var inCategory = activeCategory === 'all' || categoryGroup(asset) === activeCate
 **Interfaces:**
 - Classic script exposes `globalThis.TrainingVideoCompatibility` with `variantUrl(rawUrl, origin)`, `candidates(rawUrl, {origin, userAgent, touchPoints})`.
 - Worker exports `variantObjectName(path)`, `ffmpegArgs(input, output)`, `isCompatibleProbe(probe)`, `processVideo(job, dependencies)`; script CLI reads service-role key from environment only and paginates active course records.
-- Input object paths are confined to the configured project's public `training-materials/materials/`; output lives only in `materials/ios-compatible/`.
+- Input object paths are confined to the configured project's public `training-materials/materials/`; MP4 output lives in `materials/ios-compatible/`, other supported containers in the disjoint `materials/ios-compatible-containers/` namespace. Source identity is bound through immutable provenance.
 
-- [ ] Add failing behavior tests for deterministic paths, encoded names, unsupported hosts/paths, iOS/Android/desktop candidate order and deduplication, media error fallback, user-gesture denial, and stale play rejection after source change.
+- [x] Add failing behavior tests for deterministic paths, encoded names, unsupported hosts/paths, iOS/Android/desktop candidate order and deduplication, media error fallback, user-gesture denial, and stale play rejection after source change.
 
 ```ts
 const raw = 'https://eqdfyhqeqkbjvivscjau.supabase.co/storage/v1/object/public/training-materials/materials/example.mp4';
@@ -90,7 +90,7 @@ expect(api.variantUrl(raw, 'https://hire.cmbpo.com')).toContain('/materials/ios-
 expect(api.candidates(raw, {origin: 'https://hire.cmbpo.com', userAgent: 'iPhone MicroMessenger', touchPoints: 1})[0]).toContain('/ios-compatible/');
 ```
 
-- [ ] Add worker tests for required FFmpeg options, one-job idempotent skip, validation failure never uploading, and failure propagation. Run all new tests to observe red state.
+- [x] Add worker tests for required FFmpeg options, one-job idempotent skip, validation failure never uploading, and failure propagation. Run all new tests to observe red state.
 
 ```ts
 expect(ffmpegArgs('input.mp4', 'output.mp4')).toEqual(expect.arrayContaining(['libx264', 'yuv420p', '+faststart', 'avc1', '4.1', 'aac']));
@@ -98,10 +98,10 @@ expect(variantObjectName('materials/example.mp4')).toBe('materials/ios-compatibl
 expect(() => variantObjectName('materials/ios-compatible/example.mp4')).toThrow();
 ```
 
-- [ ] Implement classic helper and queue. iOS: variant/raw/proxy; other WeChat: proxy/raw/variant; desktop: raw/proxy/variant. Preserve original URL for captions and fallback link. Exhaustion shows retry; retry restarts candidates. `NotAllowedError` prompts a tap without consuming a source; stale `AbortError` is ignored. Playback time advancement clears buffering state. Stall timeout moves to next source without changing course identity.
-- [ ] Implement worker with sequential per-file temporary directories, FFprobe validation, CRF 23 `libx264` veryfast, fps capped at 30, aspect-preserving even-dimension scale, maxrate/bufsize compatible with Level 4.1, AAC-LC, faststart, immutable TUS upload with 6 MiB chunks and finite retries. Check original ETag/length before and after; verify remote length, H.264 metadata and initial moov. Existing valid variants skip; a failed object does not block subsequent jobs.
-- [ ] Add least-privilege Actions workflow with read-only contents permissions, concurrency group and 6-hour timeout, Node 22, FFmpeg install, `npm ci --ignore-scripts`, schedule/manual trigger, explicit checkout of `ylif4-fix`. Default-branch scheduler must be installed separately with permission because GitHub ignores schedules in non-default branches.
-- [ ] Run `npx vitest run src/modules/training/videoCompatibility.test.ts src/modules/training/publicVideoPlayer.test.ts scripts/training-video-compatibility.test.ts`; encode/probe a synthetic short sample as real FFmpeg smoke test; commit `fix: add iOS-compatible media variants and playback fallback`.
+- [x] Implement classic helper and queue. iOS: variant/raw/proxy; other WeChat: proxy/raw/variant; desktop: raw/proxy/variant. Preserve original URL for captions and fallback link. Exhaustion shows retry; retry restarts candidates. `NotAllowedError` prompts a tap without consuming a source; stale `AbortError` is ignored. Playback time advancement clears buffering state. Stall timeout moves to next source without changing course identity.
+- [x] Implement worker with sequential per-file temporary directories, FFprobe validation, CRF 23 `libx264` veryfast, fps capped at 30, aspect-preserving even-dimension scale, maxrate/bufsize compatible with Level 4.1, AAC-LC, faststart, immutable TUS upload with 6 MiB chunks and finite retries. Check original ETag/length before and after; verify remote length, H.264 metadata and initial moov. Existing valid variants skip; a failed object does not block subsequent jobs.
+- [x] Add least-privilege Actions workflow with read-only contents permissions, concurrency group and 6-hour timeout, Node 22, FFmpeg install, `npm ci --ignore-scripts`, schedule/manual trigger, explicit checkout of `ylif4-fix`. Default-branch scheduler must be installed separately with permission because GitHub ignores schedules in non-default branches.
+- [x] Run `npx vitest run src/modules/training/videoCompatibility.test.ts src/modules/training/publicVideoPlayer.test.ts scripts/training-video-compatibility.test.ts`; encode/probe a synthetic short sample as real FFmpeg smoke test; commit `fix: add iOS-compatible media variants and playback fallback`.
 
 ### Task 3: Production Backfill, Full Verification and Deployment
 
@@ -115,7 +115,7 @@ expect(() => variantObjectName('materials/ios-compatible/example.mp4')).toThrow(
 - Backfill `inferCategory(course)` returns explicit positive/negative only when video section prefixes agree; conflicting/absent evidence returns null.
 - Backfill CLI defaults dry-run; `--apply` writes only `category` with a compare-and-swap filter using the old category. Snapshot entire old course data locally before writes and verify every other column is unchanged.
 
-- [ ] Add tests and run red for prefix rules, conflicting prefixes and no evidence. Implement classification and safe backfill.
+- [x] Add tests and run red for prefix rules, conflicting prefixes and no evidence. Implement classification and safe backfill.
 
 ```ts
 expect(inferCategory({content:[{contentType:'video',sectionTitle:'正向视频-擦桌子'}]})).toBe('正向视频');
@@ -123,8 +123,18 @@ expect(inferCategory({content:[{contentType:'video',sectionTitle:'负面视频-�
 expect(inferCategory({content:[{contentType:'text',sectionTitle:'普通文档'}]})).toBeNull();
 ```
 
-- [ ] Retrieve current project credentials into a protected temporary location, set the Actions secret through stdin, and never print credential values. Fetch latest course/source snapshot. Run backfill dry-run, confirm 24 positive/13 negative, apply and compare all other fields.
-- [ ] Run the compatible worker first for `1787647686320-9911fd35.mp4`, verify the sample, then run remaining jobs. Ensure every original retains its ETag/size and every variant passes remote validation. Write a machine-readable report and verify 37 successful variants.
-- [ ] Run full `npm test`, `npm run lint`, `npm run build`; inspect any baseline failures. Run Playwright Chromium/WebKit public-page and player tests at desktop/mobile sizes, capture screenshots, check layout overflow, clicks, category separation, no login redirects, and network responses.
-- [ ] Push `ylif4-fix`; link the existing Vercel `2026-hire` project and deploy that branch. Do not deploy Supabase functions unless changed. Verify production HTML/version, category counts, original course links and representative Range responses.
-- [ ] Install only the scheduler workflow on default branch with explicit permission and without redeploying the old main application; confirm Actions execution and future schedule. Document schedule delay, safe retry, secret management and rollback. Report exact verified results and the remaining physical-iPhone WeChat verification limitation.
+- [x] Retrieve current project credentials into a protected temporary location, set the Actions secret through stdin, and never print credential values. Fetch latest course/source snapshot. Run backfill dry-run, confirm 24 positive/13 negative, apply and compare all other fields.
+- [x] Run the compatible worker first for `1787647686320-9911fd35.mp4`, verify the sample, then run remaining jobs. Ensure every original retains its ETag/size and every variant passes remote validation. Write a machine-readable report and verify 37 successful variants.
+- [x] Run full `npm test`, `npm run lint`, `npm run build`; inspect any baseline failures. Run Playwright Chromium/WebKit public-page and player tests at desktop/mobile sizes, capture screenshots, check layout overflow, clicks, category separation, no login redirects, and network responses.
+- [x] Push `ylif4-fix`; link the existing Vercel `2026-hire` project and deploy that branch. Do not deploy Supabase functions unless changed. Verify production HTML/version, category counts, original course links and representative Range responses.
+- [x] Install only the scheduler workflow on default branch with explicit permission and without redeploying the old main application; confirm Actions execution and future schedule. Document schedule delay, safe retry, secret management and rollback. Report exact verified results and the remaining physical-iPhone WeChat verification limitation.
+
+## Release Evidence
+
+- Application commits through `106cdc3` pushed to `ylif4-fix` and deployed to the existing Vercel project; the production branch setting is now `ylif4-fix`.
+- Default `main` received only scheduler commit `db673ea` with `[skip ci]`; old application deployment was not triggered.
+- Full suite: 263 passed, 1 skipped. Production build passed. The 21 pre-existing TypeScript errors remain outside this change.
+- Final local media report: 37/37 verified, with unchanged original ETag/size, H.264, faststart and Range support. Course categories: 24 positive, 13 negative; other content/configuration fields unchanged.
+- Formal-domain Chromium/WebKit acceptance passed all five desktop/mobile configurations using real APIs and media. A loopback CONNECT address mapping worked around this test machine's DNS/connectivity issue without replacing responses or disabling TLS checks.
+- GitHub independent worker run [32915880254](https://github.com/cuihengjie1982/2026Hire/actions/runs/32915880254) completed successfully in 5m44s and saved its report/cache. The half-hour schedule is active; timing and inactivity limits are documented in the operations guide.
+- Physical iPhone WeChat acceptance is still a user-device follow-up; browser emulation does not certify every real device/network.
