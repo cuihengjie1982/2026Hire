@@ -353,6 +353,7 @@
       </section>
     </main>
 
+    <script src="/training-video-compatibility.js"></script>
     <script>
       (function () {
         var params = new URLSearchParams(window.location.search);
@@ -414,8 +415,13 @@
         var playTimeout = null;
         var bufferingTimer = null;
         var lastPlaybackTime = 0;
-        var fallbackVideoUrl = '';
-        var triedFallbackVideoUrl = false;
+        var videoCandidates = [];
+        var videoCandidateIndex = 0;
+        var sourceVersion = 0;
+        var playAttempt = 0;
+        var requestedPlayback = false;
+        var exhaustedCandidates = false;
+        var resumeTime = 0;
         var actionCaptions = [];
 
         function setMessage(text) {
@@ -518,30 +524,39 @@
 
         function selectVideoUrl(rawUrl) {
           var proxyUrl = toProxyUrl(rawUrl);
-          if (isWeChatBrowser() && proxyUrl) {
-            fallbackVideoUrl = rawUrl && proxyUrl !== rawUrl ? rawUrl : '';
-            return proxyUrl;
-          }
-          if (isIOSDevice()) {
-            fallbackVideoUrl = proxyUrl && proxyUrl !== rawUrl ? proxyUrl : '';
-            return rawUrl;
-          }
-          fallbackVideoUrl = rawUrl && proxyUrl !== rawUrl ? rawUrl : '';
-          return proxyUrl || rawUrl;
+          videoCandidates = window.TrainingVideoCompatibility
+            ? window.TrainingVideoCompatibility.candidates(rawUrl, {
+              origin: window.location.origin,
+              userAgent: navigator.userAgent || '',
+              touchPoints: navigator.maxTouchPoints || (isIOSDevice() ? 2 : 0)
+            })
+            : [rawUrl, proxyUrl].filter(function (url, index, urls) { return url && urls.indexOf(url) === index; });
+          videoCandidateIndex = 0;
+          exhaustedCandidates = false;
+          return videoCandidates[0] || '';
+        }
+
+        function loadCandidate(index) {
+          clearPlaybackTimers();
+          sourceVersion += 1;
+          videoCandidateIndex = index;
+          lastPlaybackTime = 0;
+          videoEl.pause();
+          videoEl.src = videoCandidates[index];
+          videoEl.load();
         }
 
         function switchToFallbackVideo(reason) {
-          if (!fallbackVideoUrl || triedFallbackVideoUrl) return false;
-          triedFallbackVideoUrl = true;
-          clearPlaybackTimers();
-          videoEl.pause();
-          videoEl.src = fallbackVideoUrl;
-          openVideoEl.href = fallbackVideoUrl;
-          videoEl.load();
-          playButtonEl.textContent = '播放备用线路';
+          if (videoCandidateIndex + 1 >= videoCandidates.length) {
+            exhaustedCandidates = true;
+            return false;
+          }
+          resumeTime = videoEl.currentTime || resumeTime;
+          loadCandidate(videoCandidateIndex + 1);
+          playButtonEl.textContent = '播放视频';
           playButtonEl.classList.remove('hidden');
-          actionsEl.classList.remove('hidden');
-          setMessage(reason + ' 已切换备用视频线路，请再点一次播放。');
+          setMessage(reason + ' 已切换视频线路。');
+          if (requestedPlayback) startPlayback();
           return true;
         }
 
@@ -963,33 +978,65 @@
           return '视频暂时无法播放，请稍后重试。';
         }
 
-        function attemptPlay() {
+        function armPlaybackTimeout() {
+          if (playTimeout) window.clearTimeout(playTimeout);
+          var version = sourceVersion;
+          var startTime = videoEl.currentTime || 0;
+          playTimeout = window.setTimeout(function () {
+            if (version !== sourceVersion) return;
+            var hasStarted = !videoEl.paused && !videoEl.ended && videoEl.currentTime > startTime + 0.05;
+            if (hasStarted) {
+              hidePlaybackOverlay('视频正在播放。');
+              return;
+            }
+            if (switchToFallbackVideo('当前视频线路加载较慢。')) return;
+            actionsEl.classList.remove('hidden');
+            playButtonEl.classList.remove('hidden');
+            playButtonEl.textContent = '重新播放';
+            setMessage('视频加载超时，请重新播放或打开原视频。');
+          }, 8000);
+        }
+
+        function startPlayback() {
           if (!videoEl.src) return;
           clearPlaybackTimers();
           actionsEl.classList.add('hidden');
           playButtonEl.textContent = '正在缓冲...';
+          playButtonEl.classList.remove('hidden');
           setMessage('正在加载视频，如果网络较慢请稍候。');
-          if (videoEl.readyState === 0) videoEl.load();
-          var startTime = videoEl.currentTime || 0;
-          playTimeout = window.setTimeout(function () {
-            var hasStarted = !videoEl.ended && (videoEl.currentTime > startTime + 0.05 || videoEl.readyState >= 3);
-            if (!hasStarted) {
-              if (switchToFallbackVideo('当前视频线路加载较慢。')) return;
-              actionsEl.classList.remove('hidden');
-              playButtonEl.textContent = '重新播放';
-              setMessage('视频还在加载或网络较慢，请重试；如果仍不播放，可以使用下方兜底按钮。');
-            }
-          }, 8000);
+          armPlaybackTimeout();
+          var version = sourceVersion;
+          var attempt = ++playAttempt;
           var playResult = videoEl.play();
           if (playResult && typeof playResult.catch === 'function') {
-            playResult.catch(function () {
+            playResult.catch(function (error) {
+              // A source change rejects the previous play promise asynchronously.
+              if (version !== sourceVersion || attempt !== playAttempt) return;
               clearPlaybackTimers();
+              if (error && (error.name === 'NotAllowedError' || error.name === 'AbortError')) {
+                requestedPlayback = false;
+                playButtonEl.textContent = '播放视频';
+                playButtonEl.classList.remove('hidden');
+                setMessage('请点击播放按钮继续。');
+                return;
+              }
               if (switchToFallbackVideo('当前视频线路无法播放。')) return;
               actionsEl.classList.remove('hidden');
+              playButtonEl.classList.remove('hidden');
               playButtonEl.textContent = '重新播放';
               setMessage(describeVideoError());
             });
           }
+        }
+
+        function attemptPlay() {
+          requestedPlayback = true;
+          if (exhaustedCandidates && videoCandidates.length) {
+            exhaustedCandidates = false;
+            resumeTime = videoEl.currentTime || resumeTime;
+            loadCandidate(0);
+          }
+          startPlayback();
         }
 
         if (!courseId || !token) {
@@ -1021,16 +1068,15 @@
               renderDocumentMode(course);
               return;
             }
-            videoEl.src = videoUrl;
-            videoEl.load();
-            openVideoEl.href = videoUrl;
+            loadCandidate(0);
+            openVideoEl.href = rawVideoUrl;
             playerEl.classList.remove('hidden');
             tabsEl.classList.remove('hidden');
             renderActionCaptions(course, rawVideoUrl);
             renderTranscript(course);
             renderNotes();
             switchTab(actionCaptions.length ? 'actions' : 'transcript');
-            setMessage('请点击视频上的播放按钮开始学习。iPhone 微信不允许带声音视频自动播放，这是系统限制。');
+            setMessage('视频已就绪。');
           })
           .catch(function (error) {
             titleEl.textContent = '培训链接不可用';
@@ -1038,10 +1084,10 @@
           });
 
         playButtonEl.addEventListener('click', attemptPlay);
-        videoEl.addEventListener('click', attemptPlay);
 
         videoEl.addEventListener('play', function () {
-          hidePlaybackOverlay('视频正在播放。');
+          requestedPlayback = true;
+          if (!playTimeout) armPlaybackTimeout();
         });
 
         videoEl.addEventListener('playing', function () {
@@ -1049,15 +1095,20 @@
         });
 
         videoEl.addEventListener('pause', function () {
-          if (!videoEl.ended) {
+          if (videoEl.paused && !videoEl.ended) {
+            clearPlaybackTimers();
+            requestedPlayback = false;
             playButtonEl.textContent = '继续播放';
             playButtonEl.classList.remove('hidden');
+            setMessage('视频已暂停。');
           }
         });
 
         videoEl.addEventListener('waiting', function () {
+          if (videoEl.paused || videoEl.ended) return;
           if (bufferingTimer) window.clearTimeout(bufferingTimer);
           bufferingTimer = window.setTimeout(function () {
+            if (videoEl.paused || videoEl.ended) return;
             if (!videoEl.paused && !videoEl.ended && videoEl.currentTime > lastPlaybackTime + 0.05) {
               updatePlaybackStateFromProgress();
               return;
@@ -1065,6 +1116,7 @@
             playButtonEl.textContent = '正在缓冲...';
             playButtonEl.classList.remove('hidden');
             setMessage('视频正在缓冲，请稍候。');
+            if (requestedPlayback && !videoEl.paused) armPlaybackTimeout();
           }, 700);
         });
 
@@ -1088,10 +1140,28 @@
         videoEl.addEventListener('timeupdate', updatePlaybackStateFromProgress);
         videoEl.addEventListener('seeked', updatePlaybackStateFromProgress);
 
+        videoEl.addEventListener('loadedmetadata', function () {
+          if (resumeTime > 0 && isFinite(videoEl.duration)) {
+            videoEl.currentTime = Math.min(resumeTime, Math.max(0, videoEl.duration - 0.1));
+            resumeTime = 0;
+          }
+        });
+
+        videoEl.addEventListener('ended', function () {
+          clearPlaybackTimers();
+          requestedPlayback = false;
+          resumeTime = 0;
+          lastPlaybackTime = 0;
+          playButtonEl.textContent = '重新播放';
+          playButtonEl.classList.remove('hidden');
+          setMessage('视频播放完毕。');
+        });
+
         videoEl.addEventListener('error', function () {
           clearPlaybackTimers();
           if (switchToFallbackVideo('视频加载失败。')) return;
           actionsEl.classList.remove('hidden');
+          playButtonEl.classList.remove('hidden');
           playButtonEl.textContent = '重新播放';
           setMessage(describeVideoError());
         });
