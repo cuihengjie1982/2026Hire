@@ -43,8 +43,8 @@ export const IntegrationsPage = () => {
     >
       <div className="flex items-end justify-between">
         <div>
-          <h1 className="text-[26px] font-bold text-gray-900 dark:text-white mb-1">集成管理</h1>
-          <p className="text-[13px] text-gray-500 dark:text-gray-400">统一管理内部系统与外部服务的连接状态。</p>
+          <h1 className="text-[26px] font-bold text-fg mb-1">集成管理</h1>
+          <p className="text-[13px] text-fg-muted">统一管理内部系统与外部服务的连接状态。</p>
         </div>
       </div>
 
@@ -53,19 +53,19 @@ export const IntegrationsPage = () => {
           const Icon = metricIconMap[item.icon];
 
           return (
-            <div key={item.label} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-4">
+            <div key={item.label} className="bg-surface rounded-xl border border-border shadow-sm p-4">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-[12px] text-gray-500 dark:text-gray-400">{item.label}</span>
+                <span className="text-[12px] text-fg-muted">{item.label}</span>
                 <Icon className="w-4 h-4 text-[#1a4bc4]" />
               </div>
-              <div className="text-[28px] leading-none font-bold text-gray-900 dark:text-white">{item.value}</div>
+              <div className="text-[28px] leading-none font-bold text-fg">{item.value}</div>
             </div>
           );
         })}
       </div>
 
       {isLoading ? (
-        <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm p-10 flex items-center justify-center text-gray-500 dark:text-gray-400">
+        <div className="bg-surface rounded-2xl border border-border shadow-sm p-10 flex items-center justify-center text-fg-muted">
           <Loader2 className="w-5 h-5 mr-2 animate-spin" />
           正在加载集成配置...
         </div>
@@ -77,14 +77,14 @@ export const IntegrationsPage = () => {
         <div className="grid grid-cols-1 xl:grid-cols-[1.15fr_0.85fr] gap-5">
           <div className="space-y-4">
             {data.connections.map((item) => (
-              <div key={item.id} className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm p-5">
+              <div key={item.id} className="bg-surface rounded-2xl border border-border shadow-sm p-5">
                 <div className="flex items-start justify-between mb-4">
                   <div>
                     <div className="flex items-center gap-2 mb-1">
                       <Link2 className="w-4 h-4 text-[#1a4bc4]" />
-                      <h2 className="text-[16px] font-bold text-gray-900 dark:text-white">{item.name}</h2>
+                      <h2 className="text-[16px] font-bold text-fg">{item.name}</h2>
                     </div>
-                    <div className="text-[12px] text-gray-500 dark:text-gray-400">{item.endpoint}</div>
+                    <div className="text-[12px] text-fg-muted">{item.endpoint}</div>
                   </div>
                   <span className={`px-3 py-1 rounded-full text-[11px] font-medium ${item.status === 'connected' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
                     {item.status === 'connected' ? '已连接' : '待检查'}
@@ -92,17 +92,17 @@ export const IntegrationsPage = () => {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-[13px]">
-                  <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-3">
-                    <div className="text-[12px] text-gray-500 dark:text-gray-400 mb-1">同步频率</div>
-                    <div className="font-medium text-gray-900 dark:text-white">{item.sync}</div>
+                  <div className="bg-surface-muted rounded-xl p-3">
+                    <div className="text-[12px] text-fg-muted mb-1">同步频率</div>
+                    <div className="font-medium text-fg">{item.sync}</div>
                   </div>
-                  <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-3">
-                    <div className="text-[12px] text-gray-500 dark:text-gray-400 mb-1">上次同步</div>
-                    <div className="font-medium text-gray-900 dark:text-white">{item.lastSync}</div>
+                  <div className="bg-surface-muted rounded-xl p-3">
+                    <div className="text-[12px] text-fg-muted mb-1">上次同步</div>
+                    <div className="font-medium text-fg">{item.lastSync}</div>
                   </div>
-                  <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-3">
-                    <div className="text-[12px] text-gray-500 dark:text-gray-400 mb-1">同步摘要</div>
-                    <div className="font-medium text-gray-900 dark:text-white">{item.summary}</div>
+                  <div className="bg-surface-muted rounded-xl p-3">
+                    <div className="text-[12px] text-fg-muted mb-1">同步摘要</div>
+                    <div className="font-medium text-fg">{item.summary}</div>
                   </div>
                 </div>
 
@@ -119,7 +119,7 @@ export const IntegrationsPage = () => {
                       }, 1500);
                     }}
                     disabled={syncingId === item.id}
-                    className="px-4 py-2 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/30 rounded-lg text-[13px] font-medium text-gray-700 dark:text-gray-300 transition-colors disabled:opacity-50"
+                    className="px-4 py-2 border border-border hover:bg-surface-muted rounded-lg text-[13px] font-medium text-fg-secondary transition-colors disabled:opacity-50"
                   >
                     {syncingId === item.id ? (
                       <span className="inline-flex items-center gap-1.5">
@@ -135,19 +135,19 @@ export const IntegrationsPage = () => {
             ))}
           </div>
 
-          <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm p-5">
-            <h2 className="text-[16px] font-bold text-gray-900 dark:text-white mb-4">连接健康概览</h2>
+          <div className="bg-surface rounded-2xl border border-border shadow-sm p-5">
+            <h2 className="text-[16px] font-bold text-fg mb-4">连接健康概览</h2>
             <div className="space-y-4">
               {data.healthChecks.map((item) => (
-                <div key={item.label} className="flex items-center justify-between py-3 border-b border-gray-100 dark:border-gray-700 last:border-b-0">
-                  <div className="text-[13px] text-gray-600 dark:text-gray-300">{item.label}</div>
+                <div key={item.label} className="flex items-center justify-between py-3 border-b border-border-subtle last:border-b-0">
+                  <div className="text-[13px] text-fg-secondary">{item.label}</div>
                   <div
                     className={`text-[13px] font-medium ${
                       item.tone === 'success'
                         ? 'text-emerald-600'
                         : item.tone === 'warning'
                           ? 'text-amber-600'
-                          : 'text-gray-900'
+                          : 'text-fg'
                     }`}
                   >
                     {item.value}
@@ -172,15 +172,15 @@ export const IntegrationsPage = () => {
 
       {mappingConnection && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-lg p-6">
+          <div className="bg-surface rounded-xl shadow-xl w-full max-w-lg p-6">
             <div className="flex items-center justify-between mb-5">
-              <h3 className="text-[18px] font-bold text-gray-900 dark:text-white">字段映射 - {mappingConnection.name}</h3>
-              <button onClick={() => setMappingConnection(null)} className="text-gray-400 dark:text-gray-500 hover:text-gray-600 transition-colors">
+              <h3 className="text-[18px] font-bold text-fg">字段映射 - {mappingConnection.name}</h3>
+              <button onClick={() => setMappingConnection(null)} className="text-fg-faint hover:text-fg-secondary transition-colors">
                 <X className="w-5 h-5" />
               </button>
             </div>
             <div className="space-y-2">
-              <div className="grid grid-cols-[1fr_auto_1fr] gap-2 text-[12px] font-medium text-gray-500 dark:text-gray-400 px-3 py-2 bg-gray-50 dark:bg-gray-800 rounded-lg">
+              <div className="grid grid-cols-[1fr_auto_1fr] gap-2 text-[12px] font-medium text-fg-muted px-3 py-2 bg-surface-muted rounded-lg">
                 <span>源字段</span>
                 <span></span>
                 <span>目标字段</span>
@@ -191,14 +191,14 @@ export const IntegrationsPage = () => {
                 { source: '岗位', target: 'position' },
               ]).map((mapping, idx) => (
                 <div key={idx} className="grid grid-cols-[1fr_auto_1fr] gap-2 items-center text-[13px]">
-                  <div className="px-3 py-2 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700 text-gray-700 dark:text-gray-300">{mapping.source}</div>
-                  <ArrowRight className="w-4 h-4 text-gray-400 dark:text-gray-500" />
-                  <div className="px-3 py-2 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700 text-gray-700 dark:text-gray-300 font-mono text-[12px]">{mapping.target}</div>
+                  <div className="px-3 py-2 bg-surface-muted rounded-lg border border-border-subtle text-fg-secondary">{mapping.source}</div>
+                  <ArrowRight className="w-4 h-4 text-fg-faint" />
+                  <div className="px-3 py-2 bg-surface-muted rounded-lg border border-border-subtle text-fg-secondary font-mono text-[12px]">{mapping.target}</div>
                 </div>
               ))}
             </div>
             <div className="flex justify-end mt-5">
-              <button onClick={() => setMappingConnection(null)} className="px-4 py-2 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/30 rounded-lg text-[13px] font-medium text-gray-700 dark:text-gray-300 transition-colors">
+              <button onClick={() => setMappingConnection(null)} className="px-4 py-2 border border-border hover:bg-surface-muted rounded-lg text-[13px] font-medium text-fg-secondary transition-colors">
                 关闭
               </button>
             </div>

@@ -16,6 +16,11 @@ const ProjectManagePage = lazy(() =>
     default: module.ProjectManagePage,
   })),
 );
+const PositionConfigRoute = lazy(() =>
+  import('../../modules/positions/pages/PositionConfigRoute').then((module) => ({
+    default: module.PositionConfigRoute,
+  })),
+);
 const CandidateCenterPage = lazy(() =>
   import('../../modules/candidates/pages/CandidateCenterPage').then((module) => ({
     default: module.CandidateCenterPage,
@@ -85,6 +90,9 @@ const CandidateInterviewEntry = lazy(() =>
 const PublicConversationInterviewPage = lazy(() =>
   import('../../modules/interviews/pages/PublicConversationInterviewPage').then(m => ({default: m.default})),
 );
+const InterviewPreviewPage = lazy(() =>
+  import('../../modules/interviews/pages/InterviewPreviewPage').then(m => ({default: m.InterviewPreviewPage})),
+);
 
 const RouteLoadingFallback = () => (
   <motion.div
@@ -92,14 +100,14 @@ const RouteLoadingFallback = () => (
     animate={{opacity: 1, y: 0}}
     className="max-w-[1500px] mx-auto w-full p-6"
   >
-    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-4">
-      <div className="h-7 w-44 rounded-lg bg-gray-100 animate-pulse" />
+    <div className="bg-surface rounded-2xl border border-border shadow-sm p-6 space-y-4">
+      <div className="h-7 w-44 rounded-lg bg-surface-muted animate-pulse" />
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="h-28 rounded-xl bg-gray-100 animate-pulse" />
-        <div className="h-28 rounded-xl bg-gray-100 animate-pulse delay-75" />
-        <div className="h-28 rounded-xl bg-gray-100 animate-pulse delay-150" />
+        <div className="h-28 rounded-xl bg-surface-muted animate-pulse" />
+        <div className="h-28 rounded-xl bg-surface-muted animate-pulse delay-75" />
+        <div className="h-28 rounded-xl bg-surface-muted animate-pulse delay-150" />
       </div>
-      <div className="h-72 rounded-2xl bg-gray-100 animate-pulse" />
+      <div className="h-72 rounded-2xl bg-surface-muted animate-pulse" />
     </div>
   </motion.div>
 );
@@ -118,9 +126,11 @@ export const AppRouter = ({onLogout}: {onLogout: () => void}) => (
         <Route element={<DashboardLayout onLogout={onLogout} />}>
           <Route path="/" element={withPageGuard(<DashboardPage />, '工作台')} />
           <Route path="/projects" element={withPageGuard(<ProjectManagePage />, '项目管理')} />
+          <Route path="/positions/config" element={withPageGuard(<PositionConfigRoute />, '岗位配置')} />
           <Route path="/candidates" element={withPageGuard(<CandidateCenterPage />, '候选人中心')} />
           <Route path="/pipeline" element={withPageGuard(<PipelinePage />, '招聘推进')} />
           <Route path="/interviews" element={withPageGuard(<InterviewCenterPage />, 'AI 面试中心')} />
+          <Route path="/interviews/preview" element={withPageGuard(<InterviewPreviewPage />, '面试预览')} />
           <Route path="/approvals" element={withPageGuard(<ApprovalsRoute />, '审批中心')} />
           <Route path="/training" element={withPageGuard(<TrainingAcademyPage />, '培训学堂')} />
           <Route path="/video-sharing" element={withPageGuard(<TrainingVideoSharePage />, '视频分享')} />

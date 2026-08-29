@@ -1,14 +1,13 @@
-import {fetchJson} from '../../shared/lib/apiClient';
-import {USE_MOCK_API, API_BASE_URL, getAuthToken} from '../../shared/lib/runtime';
+import {buildEdgeFunctionUrl} from '../../shared/lib/apiClient';
+import {USE_MOCK_API, getAuthToken} from '../../shared/lib/runtime';
 import {permissionsFixture, rolePermissionsFixture, notificationSettingsFixture, currentUserFixture} from './fixtures';
 import {type User, type Permission, type RolePermission, type NotificationSetting, type TeamMemberInvite, type UserRole} from './types';
 
 const USER_ROLES: UserRole[] = ['admin', 'recruiter', 'hiring_manager', 'viewer', 'video_viewer'];
 
 const efetch = async <T>(path: string, method = 'GET', body?: Record<string, unknown>): Promise<T> => {
-  const base = USE_MOCK_API ? '' : API_BASE_URL;
   const token = getAuthToken();
-  const res = await fetch(`${base}/functions/v1/embox-api${path}`, {
+  const res = await fetch(buildEdgeFunctionUrl(path), {
     method,
     headers: {
       'Content-Type': 'application/json',

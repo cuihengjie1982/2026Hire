@@ -2,7 +2,7 @@ import {createContext, useContext, useState, useEffect, ReactNode} from 'react';
 import {listProjects} from '../../modules/projects/api';
 import {type Project} from '../../modules/projects/types';
 import {getCurrentUser} from '../../modules/settings/api';
-import {getAuthToken, SELECTED_PROJECT_STORAGE_KEY} from '../../shared/lib/runtime';
+import {USE_MOCK_API, getAuthToken, SELECTED_PROJECT_STORAGE_KEY} from '../../shared/lib/runtime';
 
 interface ProjectContextValue {
   selectedProject: Project | null;
@@ -23,7 +23,7 @@ export const ProjectProvider = ({children}: {children: ReactNode}) => {
 
     const loadProjects = async () => {
       try {
-        if (!getAuthToken()) {
+        if (!getAuthToken() && !USE_MOCK_API) {
           setProjects([]);
           setSelectedProject(null);
           return;

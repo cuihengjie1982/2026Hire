@@ -36,9 +36,9 @@ export const LearningTabPanel: React.FC<LearningTabPanelProps> = ({
   const tabs = visibleTabs ? TABS.filter(tab => visibleTabs.includes(tab.id)) : TABS;
 
   return (
-    <div className="flex flex-col h-full bg-white rounded-xl border border-gray-200 overflow-hidden">
+    <div className="flex flex-col h-full bg-surface rounded-xl border border-border overflow-hidden">
       {/* Tab bar */}
-      <div className="flex border-b border-gray-200">
+      <div className="flex border-b border-border">
         {tabs.map(tab => {
           const Icon = tab.icon;
           return (
@@ -48,7 +48,7 @@ export const LearningTabPanel: React.FC<LearningTabPanelProps> = ({
               className={`flex-1 flex items-center justify-center gap-1.5 py-3 text-xs font-medium border-b-2 transition-colors ${
                 activeTab === tab.id
                   ? 'border-indigo-500 text-indigo-600 bg-indigo-50/50'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                  : 'border-transparent text-fg-muted hover:text-fg-secondary hover:bg-surface-muted'
               }`}
             >
               <Icon className="w-3.5 h-3.5" />

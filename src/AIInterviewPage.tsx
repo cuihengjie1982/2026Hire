@@ -1,4 +1,5 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { Search, Plus, Box, PlayCircle, ChevronDown, CheckCircle2, Circle, ChevronRight, Edit2, Trash2, Minus, X, Users, Clock, CheckSquare, Send, FileText, BarChart2, Play, Pause, AlertCircle, Eye, Loader2, Upload } from 'lucide-react';
 import { navigateToPage } from './navigation';
@@ -13,20 +14,15 @@ import {
 } from './modules/interviews/api';
 import { type InterviewTemplateSummary, type InterviewTemplateDetail, type InterviewQuestion, type ScoringConfig, type GradeRule, type ScoringDimension, type ConversationalConfig, type InterviewMode } from './modules/interviews/types';
 import { ConfirmDialog } from './shared/components/ConfirmDialog';
+import { NumericScoreInput } from './shared/components/NumericScoreInput';
+import { createNextGradeRule, updateGradeRule } from './modules/positions/gradeRulesLink';
 import { listPositions } from './modules/positions/api';
 import { type PositionSummary } from './modules/positions/types';
 
-// Import page components
-import { InterviewManagementPage } from './modules/interviews/pages/InterviewManagementPage';
-import { InterviewResultsPage } from './modules/interviews/pages/InterviewResultsPage';
-import { InterviewAnalyticsPage } from './modules/interviews/pages/InterviewAnalyticsPage';
-
-type TabType = 'config' | 'management' | 'results' | 'analytics';
-
 export const AIInterviewPage = () => {
+  const navigate = useNavigate();
   const [templates, setTemplates] = useState<InterviewTemplateSummary[]>([]);
   const [activeTemplateId, setActiveTemplateId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<TabType>('config');
   const [isEditing, setIsEditing] = useState(false);
   const [showTemplateDialog, setShowTemplateDialog] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<InterviewTemplateSummary | null>(null);
@@ -43,14 +39,7 @@ export const AIInterviewPage = () => {
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   // Editable questions state (local copy for editing)
-  const [editQuestions, setEditQuestions] = useState<{
-    title: string; prompt: string; timeLimitSeconds: number;
-    group: string; followUps: string[];
-    scoringGuide: {standard: string; rubric: {label: string; score: string}[]};
-    linkedDimensions: string[];
-    questionType?: string;
-    triggerCondition?: Record<string, unknown>;
-  }[]>([]);
+  const [editQuestions, setEditQuestions] = useState<Omit<InterviewQuestion, 'id' | 'order'>[]>([]);
 
   // Scoring config state
   const [editScoringConfig, setEditScoringConfig] = useState<ScoringConfig>({dimensions: [], baseScore: 50, baseRequirements: []});
@@ -646,52 +635,23 @@ export const AIInterviewPage = () => {
     }
 
     // Navigate to video interview with template ID
-    const route = '/interviews/preview?templateId=' + activeTemplateId;
-    window.history.pushState({}, '', route);
-    window.dispatchEvent(new PopStateEvent('popstate'));
+    navigate(`/interviews/preview?templateId=${activeTemplateId}`);
   };
-
-  // Tab configuration
-  const tabs = [
-    { id: 'config' as TabType, label: '面试配置' },
-    { id: 'management' as TabType, label: '面试管理' },
-    { id: 'results' as TabType, label: '面试结果' },
-    { id: 'analytics' as TabType, label: '数据分析' },
-  ];
-
-  // Tab change handler for sub-pages
-  const handleTabChange = useCallback((tab: TabType) => {
-    setActiveTab(tab);
-  }, []);
 
   // Filtered templates based on search
   const filteredTemplates = templates.filter(tpl =>
     tpl.name.toLowerCase().includes(templateSearch.toLowerCase())
   );
 
-  // Render different content based on active tab
-  const renderContent = () => {
-    switch (activeTab) {
-      case 'management':
-        return <InterviewManagementPage isEmbedded onTabChange={handleTabChange} />;
-      case 'results':
-        return <InterviewResultsPage isEmbedded onTabChange={handleTabChange} />;
-      case 'analytics':
-        return <InterviewAnalyticsPage isEmbedded onTabChange={handleTabChange} />;
-      default:
-        return renderConfigContent();
-    }
-  };
-
   const renderConfigContent = () => {
     if (!selectedTemplate) {
       return (
         <div className="flex flex-1">
           {/* Left Column - Template Library */}
-          <div className="w-[280px] bg-white dark:bg-gray-800 border-r border-gray-100 dark:border-gray-700 flex flex-col">
-            <div className="p-5 border-b border-gray-100 dark:border-gray-700">
+          <div className="w-[280px] bg-surface border-r border-border-subtle flex flex-col">
+            <div className="p-5 border-b border-border-subtle">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="font-bold text-gray-900 dark:text-white text-lg">面试模板库</h2>
+                <h2 className="font-bold text-fg text-lg">面试模板库</h2>
                 <button onClick={handleOpenCreateTemplate} className="p-1.5 bg-[#22d3ee] hover:bg-[#06b6d4] text-white rounded-lg transition-colors" title="新建面试模板">
                   <Plus className="w-4 h-4" />
                 </button>
@@ -702,14 +662,14 @@ export const AIInterviewPage = () => {
                   placeholder="搜索面试模板..."
                   value={templateSearch}
                   onChange={(e) => setTemplateSearch(e.target.value)}
-                  className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg pl-3 pr-8 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#22d3ee]/20 focus:border-[#22d3ee] transition-all placeholder-gray-400 dark:placeholder-gray-500 dark:text-white"
+                  className="w-full bg-surface-muted border border-border rounded-lg pl-3 pr-8 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#22d3ee]/20 focus:border-[#22d3ee] transition-all placeholder-fg-faint text-fg"
                 />
-                <Search className="w-4 h-4 text-gray-400 dark:text-gray-500 absolute right-3 top-3" />
+                <Search className="w-4 h-4 text-fg-faint absolute right-3 top-3" />
               </div>
             </div>
             <div className="flex-1" />
           </div>
-          <div className="flex-1 flex items-center justify-center text-gray-400 dark:text-gray-500">
+          <div className="flex-1 flex items-center justify-center text-fg-faint">
             <div className="text-center">
               <p className="text-lg font-medium mb-2">暂无面试模板</p>
               <p className="text-sm">请点击左上角 + 按钮创建</p>
@@ -722,10 +682,10 @@ export const AIInterviewPage = () => {
     return (
     <div className="flex flex-1">
       {/* Left Column - Template Library */}
-      <div className="w-[280px] bg-white dark:bg-gray-800 border-r border-gray-100 dark:border-gray-700 flex flex-col">
-        <div className="p-5 border-b border-gray-100 dark:border-gray-700">
+      <div className="w-[280px] bg-surface border-r border-border-subtle flex flex-col">
+        <div className="p-5 border-b border-border-subtle">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="font-bold text-gray-900 dark:text-white text-lg">面试模板库</h2>
+            <h2 className="font-bold text-fg text-lg">面试模板库</h2>
             <button onClick={handleOpenCreateTemplate} className="p-1.5 bg-[#22d3ee] hover:bg-[#06b6d4] text-white rounded-lg transition-colors" title="新建面试模板">
               <Plus className="w-4 h-4" />
             </button>
@@ -736,9 +696,9 @@ export const AIInterviewPage = () => {
               placeholder="搜索面试模板..."
               value={templateSearch}
               onChange={(e) => setTemplateSearch(e.target.value)}
-              className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg pl-3 pr-8 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#22d3ee]/20 focus:border-[#22d3ee] transition-all placeholder-gray-400 dark:placeholder-gray-500 dark:text-white"
+              className="w-full bg-surface-muted border border-border rounded-lg pl-3 pr-8 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#22d3ee]/20 focus:border-[#22d3ee] transition-all placeholder-fg-faint text-fg"
             />
-            <Search className="w-4 h-4 text-gray-400 dark:text-gray-500 absolute right-3 top-3" />
+            <Search className="w-4 h-4 text-fg-faint absolute right-3 top-3" />
           </div>
         </div>
 
@@ -750,7 +710,7 @@ export const AIInterviewPage = () => {
                 className={`w-full flex items-center justify-between px-3 py-3 rounded-lg text-sm transition-all ${
                   activeTemplateId === tpl.id
                     ? 'bg-[#cffafe] text-[#22d3ee] font-bold border border-[#a5f3fc]'
-                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/30 border border-transparent font-medium'
+                    : 'text-fg-secondary hover:bg-surface-muted border border-transparent font-medium'
                 }`}
               >
                 <span className="truncate pr-2 text-left">{tpl.name}</span>
@@ -760,8 +720,8 @@ export const AIInterviewPage = () => {
                 }`}></div>
               </button>
               <div className="absolute right-2 top-1/2 -translate-y-1/2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button onClick={() => handleOpenEditTemplate(tpl)} className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded">
-                  <Edit2 className="w-3 h-3 text-gray-500 dark:text-gray-400" />
+                <button onClick={() => handleOpenEditTemplate(tpl)} className="p-1 hover:bg-surface-muted rounded">
+                  <Edit2 className="w-3 h-3 text-fg-muted" />
                 </button>
                 <button onClick={() => setDeleteConfirmId(tpl.id)} className="p-1 hover:bg-red-100 rounded">
                   <Trash2 className="w-3 h-3 text-red-500" />
@@ -773,20 +733,30 @@ export const AIInterviewPage = () => {
       </div>
 
       {/* Right - Editor Area */}
-      <div className="flex-1 bg-white dark:bg-gray-800 overflow-y-auto custom-scrollbar relative flex">
-        <div className="flex-1 p-8 pb-32">
+      <div className="flex-1 bg-surface overflow-y-auto custom-scrollbar relative flex">
+        <div className="flex-1 p-8 pb-8">
           {/* Header */}
           <div className="flex items-center justify-between mb-2">
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{selectedTemplate.name}</h2>
+            <h2 className="text-2xl font-bold text-fg">{selectedTemplate.name}</h2>
             <div className="flex items-center space-x-2">
               {!isEditing ? (
-                <button
-                  onClick={() => setIsEditing(true)}
-                  className="flex items-center px-4 py-2 bg-[#22d3ee] hover:bg-[#06b6d4] text-white rounded-lg text-sm font-medium transition-colors"
-                >
-                  <Edit2 className="w-4 h-4 mr-1.5" />
-                  编辑题目
-                </button>
+                <>
+                  <button
+                    onClick={handleStartPreview}
+                    disabled={!activeTemplateId}
+                    className="flex items-center px-4 py-2 border border-border hover:bg-surface-muted text-fg-secondary rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                  >
+                    <PlayCircle className="w-4 h-4 mr-1.5" />
+                    预览面试
+                  </button>
+                  <button
+                    onClick={() => setIsEditing(true)}
+                    className="flex items-center px-4 py-2 bg-[#22d3ee] hover:bg-[#06b6d4] text-white rounded-lg text-sm font-medium transition-colors"
+                  >
+                    <Edit2 className="w-4 h-4 mr-1.5" />
+                    编辑题目
+                  </button>
+                </>
               ) : (
                 <>
                   <button
@@ -815,7 +785,7 @@ export const AIInterviewPage = () => {
                         setEditConversationalConfig(templateDetail.template.conversationalConfig ?? { maxDurationMinutes: 30, icebreakerMessage: '', closingMessage: '', allowCandidateQuestions: false, candidateQuestionPrompt: '你对这个职位或我们公司有什么问题想问吗？', maxFollowUpsPerTopic: 2, transcriptLanguage: 'zh-CN' });
                       }
                     }}
-                    className="flex items-center px-4 py-2 border border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/30 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium transition-colors"
+                    className="flex items-center px-4 py-2 border border-border hover:bg-surface-muted text-fg-secondary rounded-lg text-sm font-medium transition-colors"
                   >
                     取消
                   </button>
@@ -823,9 +793,9 @@ export const AIInterviewPage = () => {
               )}
             </div>
           </div>
-          <div className="text-sm text-gray-500 dark:text-gray-400 mb-8 pb-4 border-b border-gray-100 dark:border-gray-700">
+          <div className="text-sm text-fg-muted mb-8 pb-4 border-b border-border-subtle">
             面试配置 / {selectedTemplate.name}
-            <span className="ml-3 text-gray-400 dark:text-gray-500">| {selectedTemplate.interviewMode !== 'audio_sequential' ? '话题数' : '题目数'}: {editQuestions.length} | 时长: {selectedTemplate.durationMinutes}分钟 | 模式: {selectedTemplate.interviewMode === 'text_chat_conversational' ? '文本对话式' : selectedTemplate.interviewMode === 'video_conversational' ? '视频数字人' : '音频逐题'}</span>
+            <span className="ml-3 text-fg-faint">| {selectedTemplate.interviewMode !== 'audio_sequential' ? '话题数' : '题目数'}: {editQuestions.length} | 时长: {selectedTemplate.durationMinutes}分钟 | 模式: {selectedTemplate.interviewMode === 'text_chat_conversational' ? '文本对话式' : selectedTemplate.interviewMode === 'video_conversational' ? '视频数字人' : '音频逐题'}</span>
           </div>
 
           {/* Conversational Config Section — only for conversational modes */}
@@ -838,50 +808,58 @@ export const AIInterviewPage = () => {
               <div className="space-y-4 pr-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm text-gray-700 mb-1">面试时长上限（分钟）</label>
+                    <label className="block text-sm text-fg-secondary mb-1">面试时长上限（分钟）</label>
                     {isEditing ? (
-                      <input type="number" value={editConversationalConfig.maxDurationMinutes ?? 30}
-                        onChange={(e) => setEditConversationalConfig(prev => ({...prev, maxDurationMinutes: parseInt(e.target.value) || 30}))}
-                        className="w-full border border-gray-200 rounded px-3 py-2 text-sm" min={5} max={120} />
+                      <NumericScoreInput
+                        value={editConversationalConfig.maxDurationMinutes ?? 30}
+                        onChange={(n) => setEditConversationalConfig(prev => ({...prev, maxDurationMinutes: n}))}
+                        className="w-full border border-border rounded px-3 py-2 text-sm"
+                        min={5}
+                        max={120}
+                      />
                     ) : (
-                      <span className="text-gray-900">{editConversationalConfig.maxDurationMinutes ?? 30} 分钟</span>
+                      <span className="text-fg">{editConversationalConfig.maxDurationMinutes ?? 30} 分钟</span>
                     )}
                   </div>
                   <div>
-                    <label className="block text-sm text-gray-700 mb-1">每个话题最多追问次数</label>
+                    <label className="block text-sm text-fg-secondary mb-1">每个话题最多追问次数</label>
                     {isEditing ? (
-                      <input type="number" value={editConversationalConfig.maxFollowUpsPerTopic ?? 2}
-                        onChange={(e) => setEditConversationalConfig(prev => ({...prev, maxFollowUpsPerTopic: parseInt(e.target.value) || 2}))}
-                        className="w-full border border-gray-200 rounded px-3 py-2 text-sm" min={0} max={10} />
+                      <NumericScoreInput
+                        value={editConversationalConfig.maxFollowUpsPerTopic ?? 2}
+                        onChange={(n) => setEditConversationalConfig(prev => ({...prev, maxFollowUpsPerTopic: n}))}
+                        className="w-full border border-border rounded px-3 py-2 text-sm"
+                        min={0}
+                        max={10}
+                      />
                     ) : (
-                      <span className="text-gray-900">{editConversationalConfig.maxFollowUpsPerTopic ?? 2} 次</span>
+                      <span className="text-fg">{editConversationalConfig.maxFollowUpsPerTopic ?? 2} 次</span>
                     )}
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm text-gray-700 mb-1">破冰消息（AI 面试官的开场白）</label>
+                  <label className="block text-sm text-fg-secondary mb-1">破冰消息（AI 面试官的开场白）</label>
                   {isEditing ? (
                     <textarea value={editConversationalConfig.icebreakerMessage ?? ''}
                       onChange={(e) => setEditConversationalConfig(prev => ({...prev, icebreakerMessage: e.target.value}))}
-                      className="w-full border border-gray-200 rounded px-3 py-2 text-sm resize-none" rows={2}
+                      className="w-full border border-border rounded px-3 py-2 text-sm resize-none" rows={2}
                       placeholder="你好！欢迎参加今天的面试。我是 AI 面试官小e，很高兴认识你。请先简单介绍一下你自己。" />
                   ) : (
-                    <span className="text-gray-900">{editConversationalConfig.icebreakerMessage || '（使用默认破冰消息）'}</span>
+                    <span className="text-fg">{editConversationalConfig.icebreakerMessage || '（使用默认破冰消息）'}</span>
                   )}
                 </div>
                 <div>
-                  <label className="block text-sm text-gray-700 mb-1">结束消息</label>
+                  <label className="block text-sm text-fg-secondary mb-1">结束消息</label>
                   {isEditing ? (
                     <textarea value={editConversationalConfig.closingMessage ?? ''}
                       onChange={(e) => setEditConversationalConfig(prev => ({...prev, closingMessage: e.target.value}))}
-                      className="w-full border border-gray-200 rounded px-3 py-2 text-sm resize-none" rows={2}
+                      className="w-full border border-border rounded px-3 py-2 text-sm resize-none" rows={2}
                       placeholder="感谢你参加今天的面试！我们会尽快反馈结果。" />
                   ) : (
-                    <span className="text-gray-900">{editConversationalConfig.closingMessage || '（使用默认结束语）'}</span>
+                    <span className="text-fg">{editConversationalConfig.closingMessage || '（使用默认结束语）'}</span>
                   )}
                 </div>
                 <div className="flex items-center gap-6">
-                  <label className="flex items-center space-x-2 text-sm text-gray-700">
+                  <label className="flex items-center space-x-2 text-sm text-fg-secondary">
                     <input type="checkbox" checked={editConversationalConfig.allowCandidateQuestions ?? false}
                       onChange={(e) => setEditConversationalConfig(prev => ({...prev, allowCandidateQuestions: e.target.checked}))}
                       disabled={!isEditing} className="rounded text-[#22d3ee]" />
@@ -889,14 +867,14 @@ export const AIInterviewPage = () => {
                   </label>
                   {editConversationalConfig.allowCandidateQuestions && (
                     <div className="flex-1">
-                      <label className="block text-xs text-gray-500 mb-1">候选人提问引导语</label>
+                      <label className="block text-xs text-fg-muted mb-1">候选人提问引导语</label>
                       {isEditing ? (
                         <input type="text" value={editConversationalConfig.candidateQuestionPrompt ?? ''}
                           onChange={(e) => setEditConversationalConfig(prev => ({...prev, candidateQuestionPrompt: e.target.value}))}
-                          className="w-full border border-gray-200 rounded px-3 py-2 text-sm"
+                          className="w-full border border-border rounded px-3 py-2 text-sm"
                           placeholder="你对这个职位或我们公司有什么问题想问吗？" />
                       ) : (
-                        <span className="text-gray-900 text-sm">{editConversationalConfig.candidateQuestionPrompt || '（使用默认）'}</span>
+                        <span className="text-fg text-sm">{editConversationalConfig.candidateQuestionPrompt || '（使用默认）'}</span>
                       )}
                     </div>
                   )}
@@ -914,9 +892,9 @@ export const AIInterviewPage = () => {
 
             <div className="space-y-4 pr-4">
               {editQuestions.map((q, qIdx) => (
-                <div key={qIdx} className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
-                  <div className="bg-gray-50 dark:bg-gray-800 px-4 py-2 flex justify-between items-center border-b border-gray-200 dark:border-gray-700">
-                    <span className="font-bold text-gray-900 dark:text-white text-sm">
+                <div key={qIdx} className="border border-border rounded-lg overflow-hidden">
+                  <div className="bg-surface-muted px-4 py-2 flex justify-between items-center border-b border-border">
+                    <span className="font-bold text-fg text-sm">
                       {selectedTemplate.interviewMode !== 'audio_sequential' ? '话题' : '题目'} {qIdx + 1}: {q.title}
                     </span>
                     {isEditing && (
@@ -925,102 +903,101 @@ export const AIInterviewPage = () => {
                       </button>
                     )}
                   </div>
-                  <div className="p-4 bg-white space-y-2 text-sm">
+                  <div className="p-4 bg-surface space-y-2 text-sm">
                     {/* Question type selector — only in conversational mode */}
                     {selectedTemplate.interviewMode !== 'audio_sequential' && (
                       <div className="flex items-center">
-                        <span className="text-gray-500 w-24">话题类型:</span>
+                        <span className="text-fg-muted w-24">话题类型:</span>
                         {isEditing ? (
                           <select
                             value={(q as Record<string, unknown>).questionType as string ?? 'core'}
-                            onChange={(e) => handleQuestionChange(qIdx, 'questionType', e.target.value)}
-                            className="border border-gray-200 rounded px-2 py-1 text-sm"
+                            onChange={(e) => handleQuestionChange(qIdx, 'questionType', e.target.value as InterviewQuestion['questionType'])}
+                            className="border border-border rounded px-2 py-1 text-sm"
                           >
                             <option value="core">核心话题</option>
                             <option value="follow_up_pool">追问池</option>
                             <option value="candidate_qa">候选人问答</option>
                           </select>
                         ) : (
-                          <span className="text-gray-900">{
+                          <span className="text-fg">{
                             {core: '核心话题', follow_up_pool: '追问池', candidate_qa: '候选人问答'}[(q as Record<string, unknown>).questionType as string] ?? '核心话题'
                           }</span>
                         )}
                       </div>
                     )}
                     <div className="flex items-center">
-                      <span className="text-gray-500 w-24">{selectedTemplate.interviewMode !== 'audio_sequential' ? '话题名称:' : '题目名称:'}</span>
+                      <span className="text-fg-muted w-24">{selectedTemplate.interviewMode !== 'audio_sequential' ? '话题名称:' : '题目名称:'}</span>
                       {isEditing ? (
                         <input
                           type="text"
                           value={q.title ?? ""}
                           onChange={(e) => handleQuestionChange(qIdx, 'title', e.target.value)}
-                          className="flex-1 border border-gray-200 rounded px-2 py-1 text-sm"
+                          className="flex-1 border border-border rounded px-2 py-1 text-sm"
                         />
                       ) : (
-                        <span className="text-gray-900 font-medium">{q.title}</span>
+                        <span className="text-fg font-medium">{q.title}</span>
                       )}
                     </div>
                     <div className="flex items-start">
-                      <span className="text-gray-500 w-24">{selectedTemplate.interviewMode !== 'audio_sequential' ? '话题引导:' : '题目内容:'}</span>
+                      <span className="text-fg-muted w-24">{selectedTemplate.interviewMode !== 'audio_sequential' ? '话题引导:' : '题目内容:'}</span>
                       {isEditing ? (
                         <div className="flex-1">
                           <textarea
                             value={q.prompt ?? ""}
                             onChange={(e) => handleQuestionChange(qIdx, 'prompt', e.target.value)}
-                            className="w-full border border-gray-200 rounded px-2 py-1 text-sm resize-none"
+                            className="w-full border border-border rounded px-2 py-1 text-sm resize-none"
                             rows={2}
                           />
                           {selectedTemplate.interviewMode !== 'audio_sequential' && (
-                            <p className="text-xs text-gray-400 mt-1">这是给 AI 面试官看的话题引导，不是给候选人看的逐字稿。AI 会根据这段话理解要考察什么，然后自然地提问。</p>
+                            <p className="text-xs text-fg-faint mt-1">这是给 AI 面试官看的话题引导，不是给候选人看的逐字稿。AI 会根据这段话理解要考察什么，然后自然地提问。</p>
                           )}
                         </div>
                       ) : (
-                        <span className="text-gray-900">{q.prompt}</span>
+                        <span className="text-fg">{q.prompt}</span>
                       )}
                     </div>
                     {/* Time limit — only for audio sequential mode */}
                     {selectedTemplate.interviewMode === 'audio_sequential' && (
                     <div className="flex items-center">
-                      <span className="text-gray-500 w-24">答题时限:</span>
+                      <span className="text-fg-muted w-24">答题时限:</span>
                       {isEditing ? (
                         <div className="flex items-center space-x-1">
-                          <input
-                            type="number"
+                          <NumericScoreInput
                             value={q.timeLimitSeconds}
-                            onChange={(e) => handleQuestionChange(qIdx, 'timeLimitSeconds', parseInt(e.target.value) || 60)}
-                            className="border border-gray-200 rounded px-2 py-1 text-sm w-20"
+                            onChange={(n) => handleQuestionChange(qIdx, 'timeLimitSeconds', n)}
+                            className="border border-border rounded px-2 py-1 text-sm w-20"
                             min={30}
                             max={600}
                           />
-                          <span className="text-gray-500 text-xs">秒</span>
+                          <span className="text-fg-muted text-xs">秒</span>
                         </div>
                       ) : (
-                        <span className="text-gray-900 font-medium">{formatTimeDisplay(q.timeLimitSeconds)}</span>
+                        <span className="text-fg font-medium">{formatTimeDisplay(q.timeLimitSeconds)}</span>
                       )}
                     </div>
                     )}
                     {/* Group */}
                     <div className="flex items-center">
-                      <span className="text-gray-500 w-24">题目分组:</span>
+                      <span className="text-fg-muted w-24">题目分组:</span>
                       {isEditing ? (
                         <input
                           type="text"
                           value={q.group ?? ""}
                           onChange={(e) => handleQuestionChange(qIdx, 'group', e.target.value)}
-                          className="flex-1 border border-gray-200 rounded px-2 py-1 text-sm"
+                          className="flex-1 border border-border rounded px-2 py-1 text-sm"
                           placeholder="如：专业能力验证"
                         />
                       ) : (
-                        <span className="text-gray-900">{q.group || '\u2014'}</span>
+                        <span className="text-fg">{q.group || '\u2014'}</span>
                       )}
                     </div>
                     {/* Linked Dimensions */}
                     <div className="flex items-start">
-                      <span className="text-gray-500 w-24">关联维度:</span>
+                      <span className="text-fg-muted w-24">关联维度:</span>
                       {isEditing ? (
                         <div className="flex-1 flex flex-wrap gap-1">
                           {safeScoringConfigDims.map(dim => (
-                            <label key={dim.id} className="flex items-center space-x-1 bg-gray-50 rounded px-2 py-0.5 text-xs">
+                            <label key={dim.id} className="flex items-center space-x-1 bg-surface-muted rounded px-2 py-0.5 text-xs">
                               <input
                                 type="checkbox"
                                 checked={(q.linkedDimensions ?? []).includes(dim.id)}
@@ -1034,16 +1011,16 @@ export const AIInterviewPage = () => {
                               <span>{dim.name}</span>
                             </label>
                           ))}
-                          {safeScoringConfigDims.length === 0 && <span className="text-gray-400 text-xs">请先在评分配置中添加评分维度</span>}
+                          {safeScoringConfigDims.length === 0 && <span className="text-fg-faint text-xs">请先在评分配置中添加评分维度</span>}
                         </div>
                       ) : (
-                        <span className="text-gray-900">{(q.linkedDimensions ?? []).map(id => safeScoringConfigDims.find(d => d.id === id)?.name).filter(Boolean).join('\u3001') || '\u2014'}</span>
+                        <span className="text-fg">{(q.linkedDimensions ?? []).map(id => safeScoringConfigDims.find(d => d.id === id)?.name).filter(Boolean).join('\u3001') || '\u2014'}</span>
                       )}
                     </div>
                     {/* Follow-ups */}
                     {(isEditing || (q.followUps?.length ?? 0) > 0) && (
                       <div className="flex items-start">
-                        <span className="text-gray-500 w-24">追问:</span>
+                        <span className="text-fg-muted w-24">追问:</span>
                         <div className="flex-1 space-y-1">
                           {(q.followUps ?? []).map((fu, fuIdx) => (
                             <div key={fuIdx} className="flex items-center gap-1">
@@ -1053,7 +1030,7 @@ export const AIInterviewPage = () => {
                                     type="text"
                                     value={typeof fu === 'string' ? fu : (fu as Record<string, unknown>)?.prompt as string ?? ''}
                                     onChange={(e) => handleFollowUpChange(qIdx, fuIdx, e.target.value)}
-                                    className="flex-1 border border-gray-200 rounded px-2 py-1 text-sm"
+                                    className="flex-1 border border-border rounded px-2 py-1 text-sm"
                                     placeholder={`追问${fuIdx + 1}`}
                                   />
                                   <button onClick={() => handleRemoveFollowUp(qIdx, fuIdx)} className="p-0.5 hover:bg-red-100 rounded">
@@ -1061,7 +1038,7 @@ export const AIInterviewPage = () => {
                                   </button>
                                 </>
                               ) : (
-                                <span className="text-gray-700">{typeof fu === 'string' ? fu : (fu as Record<string, unknown>)?.prompt as string ?? ''}</span>
+                                <span className="text-fg-secondary">{typeof fu === 'string' ? fu : (fu as Record<string, unknown>)?.prompt as string ?? ''}</span>
                               )}
                             </div>
                           ))}
@@ -1076,14 +1053,14 @@ export const AIInterviewPage = () => {
                     {/* Scoring Guide — only for audio sequential mode */}
                     {selectedTemplate.interviewMode === 'audio_sequential' && (isEditing || (q.scoringGuide?.rubric?.length ?? 0) > 0) && (
                       <div className="flex items-start">
-                        <span className="text-gray-500 w-24">评分指引:</span>
+                        <span className="text-fg-muted w-24">评分指引:</span>
                         <div className="flex-1 space-y-1">
                           {isEditing && (
                             <input
                               type="text"
                               value={q.scoringGuide?.standard ?? ""}
                               onChange={(e) => handleQuestionChange(qIdx, 'scoringGuide', {...(q.scoringGuide ?? {standard: "", rubric: []}), standard: e.target.value})}
-                              className="w-full border border-gray-200 rounded px-2 py-1 text-sm mb-1"
+                              className="w-full border border-border rounded px-2 py-1 text-sm mb-1"
                               placeholder="评分标准说明"
                             />
                           )}
@@ -1095,14 +1072,14 @@ export const AIInterviewPage = () => {
                                     type="text"
                                     value={r.label ?? ""}
                                     onChange={(e) => handleRubricChange(qIdx, rIdx, 'label', e.target.value)}
-                                    className="flex-1 border border-gray-200 rounded px-1.5 py-0.5 text-xs"
+                                    className="flex-1 border border-border rounded px-1.5 py-0.5 text-xs"
                                     placeholder="表现描述"
                                   />
                                   <input
                                     type="text"
                                     value={r.score ?? ""}
                                     onChange={(e) => handleRubricChange(qIdx, rIdx, 'score', e.target.value)}
-                                    className="w-24 border border-gray-200 rounded px-1.5 py-0.5 text-xs"
+                                    className="w-24 border border-border rounded px-1.5 py-0.5 text-xs"
                                     placeholder="判定/分值"
                                   />
                                   <button onClick={() => handleRemoveRubric(qIdx, rIdx)} className="p-0.5 hover:bg-red-100 rounded">
@@ -1110,7 +1087,7 @@ export const AIInterviewPage = () => {
                                   </button>
                                 </>
                               ) : (
-                                <span className="text-gray-700">{r.label} \u2192 {r.score}</span>
+                                <span className="text-fg-secondary">{r.label} \u2192 {r.score}</span>
                               )}
                             </div>
                           ))}
@@ -1157,7 +1134,7 @@ export const AIInterviewPage = () => {
               )}
 
               {editQuestions.length === 0 && !isEditing && (
-                <div className="text-center py-8 text-gray-400">
+                <div className="text-center py-8 text-fg-faint">
                   <FileText className="w-10 h-10 mx-auto mb-3 opacity-50" />
                   <p className="text-sm">暂无题目，请点击「编辑题目」添加</p>
                 </div>
@@ -1173,9 +1150,9 @@ export const AIInterviewPage = () => {
             </div>
             <div className="space-y-6 pr-4">
               {/* Scoring Dimensions */}
-              <div className="border border-gray-200 rounded-lg overflow-hidden">
-                <div className="bg-gray-50 px-4 py-2 flex justify-between items-center border-b border-gray-200">
-                  <span className="font-bold text-gray-900 text-sm">评分维度</span>
+              <div className="border border-border rounded-lg overflow-hidden">
+                <div className="bg-surface-muted px-4 py-2 flex justify-between items-center border-b border-border">
+                  <span className="font-bold text-fg text-sm">评分维度</span>
                   {isEditing && (
                     <button
                       onClick={() => setEditScoringConfig(prev => ({
@@ -1188,16 +1165,16 @@ export const AIInterviewPage = () => {
                     </button>
                   )}
                 </div>
-                <div className="p-4 bg-white">
+                <div className="p-4 bg-surface">
                   {safeScoringConfigDims.length === 0 ? (
-                    <div className="text-center py-4 text-gray-400 text-sm">
+                    <div className="text-center py-4 text-fg-faint text-sm">
                       {isEditing ? '点击上方「添加维度」配置评分维度' : '暂未配置评分维度'}
                     </div>
                   ) : (
                     <div className="space-y-2">
                       {safeScoringConfigDims.map((dim, dIdx) => (
                         <div key={dim.id} className="flex items-center gap-2">
-                          <span className="text-gray-500 text-xs w-8">维度{dIdx + 1}</span>
+                          <span className="text-fg-muted text-xs w-8">维度{dIdx + 1}</span>
                           {isEditing ? (
                             <>
                               <input
@@ -1208,21 +1185,21 @@ export const AIInterviewPage = () => {
                                   dims[dIdx] = {...dims[dIdx], name: e.target.value};
                                   setEditScoringConfig(prev => ({...prev, dimensions: dims}));
                                 }}
-                                className="flex-1 border border-gray-200 rounded px-2 py-1 text-sm"
+                                className="flex-1 border border-border rounded px-2 py-1 text-sm"
                                 placeholder="维度名称，如：经验对口度"
                               />
-                              <input
-                                type="number"
+                              <NumericScoreInput
                                 value={dim.maxScore}
-                                onChange={(e) => {
+                                onChange={(n) => {
                                   const dims = [...safeScoringConfigDims];
-                                  dims[dIdx] = {...dims[dIdx], maxScore: parseInt(e.target.value) || 0};
+                                  dims[dIdx] = {...dims[dIdx], maxScore: n};
                                   setEditScoringConfig(prev => ({...prev, dimensions: dims}));
                                 }}
-                                className="w-20 border border-gray-200 rounded px-2 py-1 text-sm"
+                                className="w-20 border border-border rounded px-2 py-1 text-sm"
                                 min={0}
+                                max={100}
                               />
-                              <span className="text-gray-500 text-xs">分</span>
+                              <span className="text-fg-muted text-xs">分</span>
                               <button
                                 onClick={() => setEditScoringConfig(prev => ({
                                   ...prev, dimensions: (prev.dimensions ?? []).filter((_, i) => i !== dIdx)
@@ -1233,7 +1210,7 @@ export const AIInterviewPage = () => {
                               </button>
                             </>
                           ) : (
-                            <span className="text-gray-900 text-sm">{dim.name}（满分 {dim.maxScore} 分）</span>
+                            <span className="text-fg text-sm">{dim.name}（满分 {dim.maxScore} 分）</span>
                           )}
                         </div>
                       ))}
@@ -1244,27 +1221,27 @@ export const AIInterviewPage = () => {
 
               {/* Base Score + Requirements — only for audio sequential mode */}
               {selectedTemplate.interviewMode === 'audio_sequential' && (
-              <div className="border border-gray-200 rounded-lg overflow-hidden">
-                <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
-                  <span className="font-bold text-gray-900 text-sm">基础分与必备项</span>
+              <div className="border border-border rounded-lg overflow-hidden">
+                <div className="bg-surface-muted px-4 py-2 border-b border-border">
+                  <span className="font-bold text-fg text-sm">基础分与必备项</span>
                 </div>
-                <div className="p-4 bg-white space-y-3">
+                <div className="p-4 bg-surface space-y-3">
                   <div className="flex items-center gap-2">
-                    <span className="text-gray-700 text-sm w-20">基础分:</span>
+                    <span className="text-fg-secondary text-sm w-20">基础分:</span>
                     {isEditing ? (
-                      <input
-                        type="number"
+                      <NumericScoreInput
                         value={safeScoringConfig.baseScore}
-                        onChange={(e) => setEditScoringConfig(prev => ({...prev, baseScore: parseInt(e.target.value) || 0}))}
-                        className="w-20 border border-gray-200 rounded px-2 py-1 text-sm"
+                        onChange={(n) => setEditScoringConfig(prev => ({...prev, baseScore: n}))}
+                        className="w-20 border border-border rounded px-2 py-1 text-sm"
                         min={0}
+                        max={100}
                       />
                     ) : (
-                      <span className="text-gray-900 font-medium">{safeScoringConfig.baseScore} 分</span>
+                      <span className="text-fg font-medium">{safeScoringConfig.baseScore} 分</span>
                     )}
                   </div>
                   <div>
-                    <span className="text-gray-700 text-sm">必备项（通过必备项才获得基础分）:</span>
+                    <span className="text-fg-secondary text-sm">必备项（通过必备项才获得基础分）:</span>
                     <div className="mt-2 space-y-1">
                       {safeScoringConfigReqs.map((req, rIdx) => (
                         <div key={rIdx} className="flex items-center gap-2">
@@ -1278,7 +1255,7 @@ export const AIInterviewPage = () => {
                                   reqs[rIdx] = e.target.value;
                                   setEditScoringConfig(prev => ({...prev, baseRequirements: reqs}));
                                 }}
-                                className="flex-1 border border-gray-200 rounded px-2 py-1 text-sm"
+                                className="flex-1 border border-border rounded px-2 py-1 text-sm"
                                 placeholder="必备项名称"
                               />
                               <button
@@ -1291,7 +1268,7 @@ export const AIInterviewPage = () => {
                               </button>
                             </>
                           ) : (
-                            <span className="text-gray-900 text-sm flex items-center gap-1">
+                            <span className="text-fg text-sm flex items-center gap-1">
                               <CheckCircle2 className="w-3 h-3 text-green-500" /> {req}
                             </span>
                           )}
@@ -1314,21 +1291,21 @@ export const AIInterviewPage = () => {
               )}
 
               {/* Grade Rules */}
-              <div className="border border-gray-200 rounded-lg overflow-hidden">
-                <div className="bg-gray-50 px-4 py-2 flex justify-between items-center border-b border-gray-200">
-                  <span className="font-bold text-gray-900 text-sm">档位规则</span>
+              <div className="border border-border rounded-lg overflow-hidden">
+                <div className="bg-surface-muted px-4 py-2 flex justify-between items-center border-b border-border">
+                  <span className="font-bold text-fg text-sm">档位规则</span>
                   {isEditing && (
                     <button
-                      onClick={() => setEditGradeRules(prev => [...(prev ?? []), {grade: '', minScore: 0, maxScore: 0, label: ''}])}
+                      onClick={() => setEditGradeRules(prev => [...(prev ?? []), createNextGradeRule<GradeRule>(prev ?? [])])}
                       className="text-[#22d3ee] text-xs flex items-center gap-0.5"
                     >
                       <Plus className="w-3 h-3" /> 添加档位
                     </button>
                   )}
                 </div>
-                <div className="p-4 bg-white">
+                <div className="p-4 bg-surface">
                   {safeGradeRules.length === 0 ? (
-                    <div className="text-center py-4 text-gray-400 text-sm">
+                    <div className="text-center py-4 text-fg-faint text-sm">
                       {isEditing ? '点击上方「添加档位」配置分数档位规则' : '暂未配置档位规则'}
                     </div>
                   ) : (
@@ -1337,7 +1314,7 @@ export const AIInterviewPage = () => {
                         <div key={rIdx} className="flex items-center gap-2">
                           {isEditing ? (
                             <>
-                              <span className="text-gray-500 text-xs w-8">档位{rIdx + 1}</span>
+                              <span className="text-fg-muted text-xs w-8">档位{rIdx + 1}</span>
                               <input
                                 type="text"
                                 value={rule.grade ?? ""}
@@ -1346,33 +1323,25 @@ export const AIInterviewPage = () => {
                                   rules[rIdx] = {...rules[rIdx], grade: e.target.value};
                                   setEditGradeRules(rules);
                                 }}
-                                className="w-16 border border-gray-200 rounded px-2 py-1 text-sm"
+                                className="w-16 border border-border rounded px-2 py-1 text-sm"
                                 placeholder="等级"
                               />
-                              <input
-                                type="number"
+                              <NumericScoreInput
                                 value={rule.minScore}
-                                onChange={(e) => {
-                                  const rules = [...safeGradeRules];
-                                  rules[rIdx] = {...rules[rIdx], minScore: parseInt(e.target.value) || 0};
-                                  setEditGradeRules(rules);
-                                }}
-                                className="w-16 border border-gray-200 rounded px-2 py-1 text-sm"
+                                onChange={(n) => setEditGradeRules(prev => updateGradeRule<GradeRule>(prev ?? [], rIdx, 'minScore', n))}
+                                className="w-16 border border-border rounded px-2 py-1 text-sm"
                                 min={0}
+                                max={100}
                               />
-                              <span className="text-gray-400 text-xs">-</span>
-                              <input
-                                type="number"
+                              <span className="text-fg-faint text-xs">-</span>
+                              <NumericScoreInput
                                 value={rule.maxScore}
-                                onChange={(e) => {
-                                  const rules = [...safeGradeRules];
-                                  rules[rIdx] = {...rules[rIdx], maxScore: parseInt(e.target.value) || 0};
-                                  setEditGradeRules(rules);
-                                }}
-                                className="w-16 border border-gray-200 rounded px-2 py-1 text-sm"
+                                onChange={(n) => setEditGradeRules(prev => updateGradeRule<GradeRule>(prev ?? [], rIdx, 'maxScore', n))}
+                                className="w-16 border border-border rounded px-2 py-1 text-sm"
                                 min={0}
+                                max={100}
                               />
-                              <span className="text-gray-500 text-xs">分</span>
+                              <span className="text-fg-muted text-xs">分</span>
                               <input
                                 type="text"
                                 value={rule.label ?? ""}
@@ -1381,7 +1350,7 @@ export const AIInterviewPage = () => {
                                   rules[rIdx] = {...rules[rIdx], label: e.target.value};
                                   setEditGradeRules(rules);
                                 }}
-                                className="w-20 border border-gray-200 rounded px-2 py-1 text-sm"
+                                className="w-20 border border-border rounded px-2 py-1 text-sm"
                                 placeholder="标签"
                               />
                               <button
@@ -1392,7 +1361,7 @@ export const AIInterviewPage = () => {
                               </button>
                             </>
                           ) : (
-                            <span className="text-gray-900 text-sm">
+                            <span className="text-fg text-sm">
                               <span className="font-bold">{rule.grade || '\u2014'}</span>
                               {' '}({rule.minScore}-{rule.maxScore}分) {rule.label}
                             </span>
@@ -1415,17 +1384,17 @@ export const AIInterviewPage = () => {
             {selectedTemplate.interviewMode !== 'audio_sequential' ? (
               <div className="px-2 space-y-4">
                 <div>
-                  <label className="block text-sm text-gray-700 mb-1">转写语言</label>
+                  <label className="block text-sm text-fg-secondary mb-1">转写语言</label>
                   {isEditing ? (
                     <select value={editConversationalConfig.transcriptLanguage ?? 'zh-CN'}
                       onChange={(e) => setEditConversationalConfig(prev => ({...prev, transcriptLanguage: e.target.value}))}
-                      className="border border-gray-200 rounded px-3 py-2 text-sm">
+                      className="border border-border rounded px-3 py-2 text-sm">
                       <option value="zh-CN">中文</option>
                       <option value="en">English</option>
                       <option value="ja">日本語</option>
                     </select>
                   ) : (
-                    <span className="text-gray-900">{{'zh-CN': '中文', 'en': 'English', 'ja': '日本語'}[editConversationalConfig.transcriptLanguage ?? 'zh-CN']}</span>
+                    <span className="text-fg">{{'zh-CN': '中文', 'en': 'English', 'ja': '日本語'}[editConversationalConfig.transcriptLanguage ?? 'zh-CN']}</span>
                   )}
                 </div>
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-800">
@@ -1442,19 +1411,19 @@ export const AIInterviewPage = () => {
             <div className="grid grid-cols-2 gap-8 px-2">
               <div className="space-y-4">
                 <div>
-                  <div className="font-bold text-gray-900 text-sm mb-2">开场设置</div>
-                  <label className="flex items-center space-x-2 text-sm text-gray-700 mb-3">
+                  <div className="font-bold text-fg text-sm mb-2">开场设置</div>
+                  <label className="flex items-center space-x-2 text-sm text-fg-secondary mb-3">
                     <input type="checkbox" checked={autoPlayWelcome} onChange={() => setAutoPlayWelcome(!autoPlayWelcome)} className="rounded text-[#22d3ee] focus:ring-[#22d3ee]" />
                     <span>自动播放欢迎视频</span>
                   </label>
                   <div className="flex items-start">
-                    <span className="w-16 text-gray-700 font-medium text-sm mt-1">欢迎语:</span>
-                    <textarea className="flex-1 border border-gray-200 rounded-md p-2 text-sm text-gray-700 h-20 resize-none bg-gray-50" value={welcomeMessage} onChange={(e) => setWelcomeMessage(e.target.value)}></textarea>
+                    <span className="w-16 text-fg-secondary font-medium text-sm mt-1">欢迎语:</span>
+                    <textarea className="flex-1 border border-border rounded-md p-2 text-sm text-fg-secondary h-20 resize-none bg-surface-muted" value={welcomeMessage} onChange={(e) => setWelcomeMessage(e.target.value)}></textarea>
                   </div>
                 </div>
                 <div className="flex items-center">
-                  <span className="w-16 text-gray-700 font-medium text-sm">准备时间:</span>
-                  <select value={prepTime} onChange={(e) => setPrepTime(e.target.value)} className="border border-gray-200 rounded-md px-3 py-1.5 text-sm w-32 outline-none">
+                  <span className="w-16 text-fg-secondary font-medium text-sm">准备时间:</span>
+                  <select value={prepTime} onChange={(e) => setPrepTime(e.target.value)} className="border border-border rounded-md px-3 py-1.5 text-sm w-32 outline-none">
                     <option value="15">15秒/阅读题目</option>
                     <option value="30">30秒/阅读题目</option>
                     <option value="60">60秒/阅读题目</option>
@@ -1463,20 +1432,20 @@ export const AIInterviewPage = () => {
               </div>
               <div className="space-y-4">
                 <div>
-                  <div className="font-bold text-gray-900 text-sm mb-2">答题设置</div>
+                  <div className="font-bold text-fg text-sm mb-2">答题设置</div>
                   <div className="flex items-center mb-2">
-                    <span className="w-24 text-gray-700 font-medium text-sm">每题答题时长:</span>
-                    <span className="text-gray-900 text-sm">按题目设定</span>
+                    <span className="w-24 text-fg-secondary font-medium text-sm">每题答题时长:</span>
+                    <span className="text-fg text-sm">按题目设定</span>
                   </div>
                   <div className="flex items-center mb-2">
-                    <span className="w-24 text-gray-700 font-medium text-sm">允许重新录制:</span>
-                    <span className="text-gray-900 text-sm">是</span>
+                    <span className="w-24 text-fg-secondary font-medium text-sm">允许重新录制:</span>
+                    <span className="text-fg text-sm">是</span>
                   </div>
                   <div className="flex items-center mb-3">
-                    <span className="w-24 text-gray-700 font-medium text-sm">最多重录次数:</span>
-                    <span className="text-gray-900 text-sm">2次</span>
+                    <span className="w-24 text-fg-secondary font-medium text-sm">最多重录次数:</span>
+                    <span className="text-fg text-sm">2次</span>
                   </div>
-                  <label className="flex items-center space-x-2 text-sm text-gray-700">
+                  <label className="flex items-center space-x-2 text-sm text-fg-secondary">
                     <input type="checkbox" checked={forceAnswer} onChange={() => setForceAnswer(!forceAnswer)} className="rounded text-[#22d3ee]" />
                     <span>强制答题: 必须回答所有题目</span>
                   </label>
@@ -1496,7 +1465,7 @@ export const AIInterviewPage = () => {
       <div className="min-h-screen bg-gradient-to-br from-[#F5F3FF] to-[#EBE0FF] dark:from-gray-900 dark:to-gray-800 flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="w-8 h-8 text-[#22d3ee] animate-spin mx-auto mb-4" />
-          <p className="text-gray-600 dark:text-gray-400">正在加载面试配置...</p>
+          <p className="text-fg-muted">正在加载面试配置...</p>
         </div>
       </div>
     );
@@ -1509,87 +1478,19 @@ export const AIInterviewPage = () => {
         <div className="w-8 h-8 bg-gradient-to-br from-[#1a4bc4] to-[#6366F1] rounded flex items-center justify-center mr-3">
           <Box className="w-5 h-5 text-white" />
         </div>
-        <span className="text-xl font-bold text-gray-900 dark:text-white">EM-BOX recruiting platform</span>
+        <span className="text-xl font-bold text-fg">EM-BOX recruiting platform</span>
       </div>
 
       {/* Page Header */}
       <div className="text-center mb-8">
-        <h1 className="text-[44px] font-extrabold text-gray-900 dark:text-white tracking-tight mb-4">AI面试中心</h1>
-        <p className="text-[20px] text-gray-700 dark:text-gray-300">配置智能面试题库与评分规则</p>
-      </div>
-
-      {/* Main Navigation Tabs */}
-      <div className="flex justify-center space-x-4 mb-8">
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`px-6 py-2.5 rounded-lg text-lg font-bold transition-colors ${
-              activeTab === tab.id
-                ? 'bg-[#22d3ee] text-white shadow-md'
-                : 'bg-transparent text-gray-700 dark:text-gray-300 hover:bg-white/50 dark:hover:bg-gray-700/50 border border-transparent'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
+        <h1 className="text-[44px] font-extrabold text-fg tracking-tight mb-4">AI面试中心</h1>
+        <p className="text-[20px] text-fg-secondary">配置智能面试题库与评分规则</p>
       </div>
 
       {/* Main Content Area */}
-      <div className="max-w-[1600px] w-full mx-auto bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-2xl shadow-xl flex flex-1 mb-8 overflow-hidden border border-white dark:border-gray-700">
-        {renderContent()}
+      <div className="max-w-[1600px] w-full mx-auto bg-surface/90 backdrop-blur-sm rounded-2xl shadow-xl flex flex-1 mb-8 overflow-hidden border border-border">
+        {renderConfigContent()}
       </div>
-
-      {/* Bottom Actions - only show in config mode */}
-      {activeTab === 'config' && (
-        <div className="absolute bottom-0 left-0 w-full bg-white border-t border-gray-100 p-4 px-8 flex items-center space-x-4 shadow-[0_-4px_10px_rgb(0,0,0,0.02)]">
-          {isEditing ? (
-            <>
-              <button
-                onClick={handleSaveQuestions}
-                disabled={saving}
-                className="bg-[#22d3ee] hover:bg-[#06b6d4] text-white px-6 py-2 rounded-lg font-bold text-sm transition-colors disabled:opacity-50"
-              >
-                {saving ? '保存中...' : '保存配置'}
-              </button>
-              <button
-                onClick={() => {
-                  setIsEditing(false);
-                  if (templateDetail) {
-                    setEditQuestions((templateDetail.questions ?? []).map(q => ({
-                      title: q.title, prompt: q.prompt, timeLimitSeconds: q.timeLimitSeconds,
-                      group: q.group ?? '', followUps: q.followUps ?? [],
-                      scoringGuide: q.scoringGuide ?? {standard: '', rubric: []},
-                      linkedDimensions: q.linkedDimensions ?? [],
-                    })));
-                    setEditScoringConfig(templateDetail.template.scoringConfig ?? {dimensions: [], baseScore: 50, baseRequirements: []});
-                    setEditGradeRules(templateDetail.template.gradeRules ?? []);
-                  }
-                }}
-                className="border border-gray-300 hover:bg-gray-50 text-gray-700 px-6 py-2 rounded-lg font-bold text-sm transition-colors"
-              >
-                取消
-              </button>
-            </>
-          ) : (
-            <>
-              <button
-                onClick={handleStartPreview}
-                disabled={!activeTemplateId}
-                className="bg-[#22d3ee] hover:bg-[#06b6d4] text-white px-6 py-2 rounded-lg font-bold text-sm transition-colors disabled:opacity-50"
-              >
-                预览面试
-              </button>
-              <button
-                onClick={() => setIsEditing(true)}
-                className="border border-gray-300 hover:bg-gray-50 text-gray-700 px-6 py-2 rounded-lg font-bold text-sm transition-colors"
-              >
-                编辑题目
-              </button>
-            </>
-          )}
-        </div>
-      )}
 
       {/* Create/Edit Template Dialog */}
       {showTemplateDialog && (
@@ -1597,31 +1498,31 @@ export const AIInterviewPage = () => {
           <motion.div
             initial={{opacity: 0, scale: 0.95}}
             animate={{opacity: 1, scale: 1}}
-            className="bg-white rounded-xl shadow-xl w-full max-w-md p-6"
+            className="bg-surface rounded-xl shadow-xl w-full max-w-md p-6"
           >
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-bold text-gray-900">{editingTemplate ? '编辑面试模板' : '新建面试模板'}</h3>
-              <button onClick={() => setShowTemplateDialog(false)} className="text-gray-400 hover:text-gray-600">
+              <h3 className="text-lg font-bold text-fg">{editingTemplate ? '编辑面试模板' : '新建面试模板'}</h3>
+              <button onClick={() => setShowTemplateDialog(false)} className="text-fg-faint hover:text-fg-secondary">
                 <X className="w-5 h-5" />
               </button>
             </div>
             <div className="space-y-4">
               <div>
-                <label className="block text-[13px] font-medium text-gray-700 mb-1">模板名称 *</label>
+                <label className="block text-[13px] font-medium text-fg-secondary mb-1">模板名称 *</label>
                 <input
                   type="text"
                   value={templateFormData.name}
                   onChange={(e) => setTemplateFormData({...templateFormData, name: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#22d3ee]"
+                  className="w-full px-3 py-2 border border-border rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#22d3ee]"
                   placeholder="如：MWV-全身动捕演员面试"
                 />
               </div>
               <div>
-                <label className="block text-[13px] font-medium text-gray-700 mb-1">适用岗位</label>
+                <label className="block text-[13px] font-medium text-fg-secondary mb-1">适用岗位</label>
                 <select
                   value={templateFormData.positionId}
                   onChange={(e) => setTemplateFormData({...templateFormData, positionId: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#22d3ee] bg-white"
+                  className="w-full px-3 py-2 border border-border rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#22d3ee] bg-surface"
                 >
                   <option value="">不关联岗位</option>
                   {positions.map(pos => (
@@ -1630,11 +1531,11 @@ export const AIInterviewPage = () => {
                 </select>
               </div>
               <div>
-                <label className="block text-[13px] font-medium text-gray-700 mb-1">面试模式</label>
+                <label className="block text-[13px] font-medium text-fg-secondary mb-1">面试模式</label>
                 <select
                   value={templateFormData.interviewMode}
                   onChange={(e) => setTemplateFormData({...templateFormData, interviewMode: e.target.value as InterviewMode})}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#22d3ee] bg-white"
+                  className="w-full px-3 py-2 border border-border rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#22d3ee] bg-surface"
                 >
                   <option value="audio_sequential">音频逐题面试（传统模式）</option>
                   <option value="text_chat_conversational">文本对话式面试（AI 自适应追问）</option>
@@ -1642,11 +1543,11 @@ export const AIInterviewPage = () => {
                 </select>
               </div>
               <div>
-                <label className="block text-[13px] font-medium text-gray-700 mb-1">模板状态</label>
+                <label className="block text-[13px] font-medium text-fg-secondary mb-1">模板状态</label>
                 <select
                   value={templateFormData.status}
                   onChange={(e) => setTemplateFormData({...templateFormData, status: e.target.value as 'draft' | 'active' | 'inactive'})}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-[13px] text-sm focus:outline-none focus:ring-2 focus:ring-[#22d3ee] bg-white"
+                  className="w-full px-3 py-2 border border-border rounded-lg text-[13px] text-sm focus:outline-none focus:ring-2 focus:ring-[#22d3ee] bg-surface"
                 >
                   <option value="draft">草稿</option>
                   <option value="active">启用</option>
@@ -1657,7 +1558,7 @@ export const AIInterviewPage = () => {
             <div className="flex gap-3 mt-6">
               <button
                 onClick={() => setShowTemplateDialog(false)}
-                className="flex-1 px-4 py-2 border border-gray-200 text-gray-700 rounded-lg text-[13px] font-medium hover:bg-gray-50 transition-colors"
+                className="flex-1 px-4 py-2 border border-border text-fg-secondary rounded-lg text-[13px] font-medium hover:bg-surface-muted transition-colors"
               >
                 取消
               </button>

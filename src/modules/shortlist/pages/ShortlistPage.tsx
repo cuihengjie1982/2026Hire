@@ -1,10 +1,9 @@
 import {useEffect, useState} from 'react';
 import {motion, AnimatePresence} from 'motion/react';
-import {CheckCircle2, Mail, Star, X, Send, Link2} from 'lucide-react';
-import {listShortlist, promoteShortlistEntry, sendShortlistInterviewInvite} from '../api';
+import {CheckCircle2, Mail, Star, X, Send, Link2, Trash2} from 'lucide-react';
+import {listShortlist, promoteShortlistEntry, sendShortlistInterviewInvite, removeFromShortlist} from '../api';
 import {type ShortlistEntry} from '../types';
 import {type ContactChannel} from '../../contacts/types';
-import {createContact} from '../../contacts/api';
 import {CandidateDetailModal} from '../../../CandidateDetailModal';
 import type {CandidateCard} from '../../talent/types';
 import type {PositionDetail} from '../../positions/types';
@@ -34,6 +33,7 @@ export const ShortlistPage = () => {
   const [inviteEmailError, setInviteEmailError] = useState('');
   const [inviteTemplates, setInviteTemplates] = useState<InterviewTemplateSummary[]>([]);
   const [inviteTemplateId, setInviteTemplateId] = useState('');
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
   // Cache candidate data to avoid repeated API calls
   const [candidatesCache, setCandidatesCache] = useState<Record<string, CandidateCard>>({});
 
@@ -140,18 +140,12 @@ export const ShortlistPage = () => {
     if (!selectedEntry || !promoteForm.reason.trim()) return;
     setSubmitting(true);
     try {
-      await createContact({
-        candidateId: selectedEntry.candidateId,
-        candidateName: selectedEntry.candidateName,
-        positionId: selectedEntry.positionId,
-        positionName: selectedEntry.positionName,
-        projectId: selectedEntry.projectId,
-        projectName: selectedEntry.projectName,
+      await promoteShortlistEntry(selectedEntry.id, {
+        nextStep: '发起外联',
         outreachPerson: getUserName() ?? '未知用户',
         channel: promoteForm.channel,
         reason: promoteForm.reason,
       });
-      await promoteShortlistEntry(selectedEntry.id, '发起外联');
       await loadData();
       setShowPromoteDialog(false);
       setSelectedEntry(null);
@@ -160,8 +154,21 @@ export const ShortlistPage = () => {
       setTimeout(() => setPromoteSuccess(false), 5000);
     } catch (e) {
       console.error('Failed to promote:', e);
+      setToastMessage(e instanceof Error ? e.message : '推进失败，请重试');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleRemoveFromShortlist = async (item: ShortlistEntry) => {
+    if (!window.confirm(`确定将「${item.candidateName}」从入围名单中移除吗？`)) return;
+    try {
+      await removeFromShortlist(item.id);
+      await loadData();
+      setToastMessage(`已移除：${item.candidateName}`);
+    } catch (e) {
+      console.error('Failed to remove from shortlist:', e);
+      setToastMessage(e instanceof Error ? e.message : '移除失败，请重试');
     }
   };
 
@@ -176,6 +183,14 @@ export const ShortlistPage = () => {
       exit={{opacity: 0, y: -10}}
       className="max-w-[1500px] mx-auto w-full p-6 space-y-5"
     >
+      {toastMessage && (
+        <div className="fixed top-4 right-4 z-50 bg-gray-900 text-white px-4 py-3 rounded-lg shadow-lg text-[13px] font-medium flex items-center gap-2">
+          {toastMessage}
+          <button onClick={() => setToastMessage(null)} className="ml-2 text-fg-faint hover:text-white">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
       {/* Success banner */}
       {promoteSuccess && (
         <div className="flex items-center gap-3 px-4 py-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg">
@@ -195,8 +210,8 @@ export const ShortlistPage = () => {
 
       <div className="flex items-end justify-between">
         <div>
-          <h1 className="text-[26px] font-bold text-gray-900 dark:text-white mb-1">入围名单</h1>
-          <p className="text-[13px] text-gray-500 dark:text-gray-400">集中处理高优先级候选人，减少在搜索页和面试页之间来回切换。</p>
+          <h1 className="text-[26px] font-bold text-fg mb-1">入围名单</h1>
+          <p className="text-[13px] text-fg-muted">集中处理高优先级候选人，减少在搜索页和面试页之间来回切换。</p>
         </div>
         <button
           onClick={() => {
@@ -231,53 +246,53 @@ export const ShortlistPage = () => {
         ].map((item) => {
           const Icon = item.icon;
           return (
-            <div key={item.label} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-4">
+            <div key={item.label} className="bg-surface rounded-xl border border-border shadow-sm p-4">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-[12px] text-gray-500 dark:text-gray-400">{item.label}</span>
+                <span className="text-[12px] text-fg-muted">{item.label}</span>
                 <Icon className="w-4 h-4 text-[#1a4bc4]" />
               </div>
-              <div className="text-[28px] leading-none font-bold text-gray-900 dark:text-white">{item.value}</div>
+              <div className="text-[28px] leading-none font-bold text-fg">{item.value}</div>
             </div>
           );
         })}
       </div>
 
       {loading ? (
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-10 flex items-center justify-center text-gray-500 dark:text-gray-400">
+        <div className="bg-surface rounded-xl border border-border shadow-sm p-10 flex items-center justify-center text-fg-muted">
           正在加载入围名单...
         </div>
       ) : entries.length === 0 ? (
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-10 flex items-center justify-center text-gray-500 dark:text-gray-400">
+        <div className="bg-surface rounded-xl border border-border shadow-sm p-10 flex items-center justify-center text-fg-muted">
           暂无入围候选人，请在候选人搜索页添加
         </div>
       ) : (
         Object.entries(groupedByPosition).map(([positionId, group]) => {
           const typedGroup = group as {positionName: string; projectName: string; entries: ShortlistEntry[]};
           return (
-            <div key={positionId} className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
-              <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between bg-gray-50 dark:bg-gray-700/50">
+            <div key={positionId} className="bg-surface rounded-2xl border border-border shadow-sm overflow-hidden">
+              <div className="px-6 py-4 border-b border-border-subtle flex items-center justify-between bg-surface-muted/50">
                 <div>
-                  <h2 className="text-[16px] font-bold text-gray-900 dark:text-white">{typedGroup.positionName}</h2>
-                  <span className="text-[12px] text-gray-500 dark:text-gray-400">{typedGroup.projectName}</span>
+                  <h2 className="text-[16px] font-bold text-fg">{typedGroup.positionName}</h2>
+                  <span className="text-[12px] text-fg-muted">{typedGroup.projectName}</span>
                 </div>
-                <div className="text-[12px] text-gray-500 dark:text-gray-400">{typedGroup.entries.length} 人</div>
+                <div className="text-[12px] text-fg-muted">{typedGroup.entries.length} 人</div>
               </div>
-              <div className="divide-y divide-gray-100 dark:divide-gray-700/50">
+              <div className="divide-y divide-border-subtle">
                 {typedGroup.entries.map((item) => (
                 <div key={item.id} className="px-6 py-4 grid grid-cols-1 xl:grid-cols-[1.2fr_1fr_0.5fr_0.8fr_0.9fr] gap-4 items-center">
                   <div>
-                    <div className="font-bold text-gray-900 dark:text-white mb-1">{item.candidateName}</div>
-                    <div className="text-[12px] text-gray-500 dark:text-gray-400">{item.role}</div>
+                    <div className="font-bold text-fg mb-1">{item.candidateName}</div>
+                    <div className="text-[12px] text-fg-muted">{item.role}</div>
                   </div>
-                  <div className="text-[13px] text-gray-700 dark:text-gray-300">下一步：<span className="font-medium text-gray-900 dark:text-white">{item.nextStep}</span></div>
-                  <div className="text-[13px] text-gray-900 dark:text-white font-medium">{item.fitScore}</div>
+                  <div className="text-[13px] text-fg-secondary">下一步：<span className="font-medium text-fg">{item.nextStep}</span></div>
+                  <div className="text-[13px] text-fg font-medium">{item.fitScore}</div>
                   <div>
                     <span className={`inline-flex w-7 h-7 items-center justify-center rounded text-[12px] font-bold text-white ${item.grade === 'A' ? 'bg-[#10B981]' : 'bg-[#1a4bc4]'}`}>
                       {item.grade}
                     </span>
                   </div>
                   <div className="flex justify-start xl:justify-end space-x-2">
-                    <button onClick={() => handleViewDetail(item)} className="px-3 py-2 border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg text-[12px] font-medium text-gray-700 dark:text-gray-300 transition-colors">
+                    <button onClick={() => handleViewDetail(item)} className="px-3 py-2 border border-border hover:bg-surface-muted rounded-lg text-[12px] font-medium text-fg-secondary transition-colors">
                       查看详情
                     </button>
                     <button
@@ -313,6 +328,13 @@ export const ShortlistPage = () => {
                     >
                       推进
                     </button>
+                    <button
+                      onClick={() => handleRemoveFromShortlist(item)}
+                      className="px-2 py-2 border border-red-200 text-red-500 rounded-lg hover:bg-red-50 transition-colors"
+                      title="从入围名单移除"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
               ))}
@@ -329,29 +351,29 @@ export const ShortlistPage = () => {
         <motion.div
           initial={{opacity: 0, scale: 0.95}}
           animate={{opacity: 1, scale: 1}}
-          className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md p-6"
+          className="bg-surface rounded-xl shadow-xl w-full max-w-md p-6"
         >
           <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-bold text-gray-900 dark:text-white">推进候选人</h3>
-            <button onClick={() => setShowPromoteDialog(false)} className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300">
+            <h3 className="text-lg font-bold text-fg">推进候选人</h3>
+            <button onClick={() => setShowPromoteDialog(false)} className="text-fg-faint hover:text-fg-secondary">
               <X className="w-5 h-5" />
             </button>
           </div>
           <div className="space-y-4">
             <div>
-              <label className="block text-[13px] font-medium text-gray-700 dark:text-gray-300 mb-1">候选人</label>
-              <div className="px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg text-[13px] bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white">
+              <label className="block text-[13px] font-medium text-fg-secondary mb-1">候选人</label>
+              <div className="px-3 py-2 border border-border rounded-lg text-[13px] bg-surface-muted text-fg">
                 {selectedEntry.candidateName}
               </div>
             </div>
             <div>
-              <label className="block text-[13px] font-medium text-gray-700 dark:text-gray-300 mb-1">推进人</label>
-              <div className="px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg text-[13px] bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white">
+              <label className="block text-[13px] font-medium text-fg-secondary mb-1">推进人</label>
+              <div className="px-3 py-2 border border-border rounded-lg text-[13px] bg-surface-muted text-fg">
                 {getUserName() ?? '未知用户'}
               </div>
             </div>
             <div>
-              <label className="block text-[13px] font-medium text-gray-700 dark:text-gray-300 mb-1">联系渠道</label>
+              <label className="block text-[13px] font-medium text-fg-secondary mb-1">联系渠道</label>
               <div className="flex gap-2">
                 {(['wechat', 'email', 'phone'] as const).map((ch) => (
                   <button
@@ -360,7 +382,7 @@ export const ShortlistPage = () => {
                     className={`px-4 py-2 rounded-lg text-[13px] font-medium transition-colors ${
                       promoteForm.channel === ch
                         ? 'bg-[#1a4bc4] text-white'
-                        : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                        : 'bg-surface-muted text-fg-secondary hover:bg-surface-muted'
                     }`}
                   >
                     {ch === 'wechat' ? '微信' : ch === 'email' ? '邮件' : '电话'}
@@ -369,11 +391,11 @@ export const ShortlistPage = () => {
               </div>
             </div>
             <div>
-              <label className="block text-[13px] font-medium text-gray-700 dark:text-gray-300 mb-1">推进理由</label>
+              <label className="block text-[13px] font-medium text-fg-secondary mb-1">推进理由</label>
               <textarea
                 value={promoteForm.reason}
                 onChange={(e) => setPromoteForm({...promoteForm, reason: e.target.value})}
-                className="w-full px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4] resize-none bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                className="w-full px-3 py-2 border border-border rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4] resize-none bg-surface-muted text-fg"
                 rows={3}
                 placeholder="请输入推进理由..."
               />
@@ -382,7 +404,7 @@ export const ShortlistPage = () => {
           <div className="flex gap-3 mt-6">
             <button
               onClick={() => setShowPromoteDialog(false)}
-              className="flex-1 px-4 py-2 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-[13px] font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+              className="flex-1 px-4 py-2 border border-border text-fg-secondary rounded-lg text-[13px] font-medium hover:bg-surface-muted transition-colors"
             >
               取消
             </button>
@@ -404,29 +426,29 @@ export const ShortlistPage = () => {
         <motion.div
           initial={{opacity: 0, scale: 0.95}}
           animate={{opacity: 1, scale: 1}}
-          className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md p-6"
+          className="bg-surface rounded-xl shadow-xl w-full max-w-md p-6"
         >
           <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-bold text-gray-900 dark:text-white">发送面试邀请</h3>
-            <button onClick={() => setShowInterviewInviteDialog(false)} className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300">
+            <h3 className="text-lg font-bold text-fg">发送面试邀请</h3>
+            <button onClick={() => setShowInterviewInviteDialog(false)} className="text-fg-faint hover:text-fg-secondary">
               <X className="w-5 h-5" />
             </button>
           </div>
           <div className="space-y-4">
             <div>
-              <label className="block text-[13px] font-medium text-gray-700 dark:text-gray-300 mb-1">候选人</label>
-              <div className="px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg text-[13px] bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white">
+              <label className="block text-[13px] font-medium text-fg-secondary mb-1">候选人</label>
+              <div className="px-3 py-2 border border-border rounded-lg text-[13px] bg-surface-muted text-fg">
                 {inviteEntry.candidateName}
               </div>
             </div>
             <div>
-              <label className="block text-[13px] font-medium text-gray-700 dark:text-gray-300 mb-1">岗位</label>
-              <div className="px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg text-[13px] bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white">
+              <label className="block text-[13px] font-medium text-fg-secondary mb-1">岗位</label>
+              <div className="px-3 py-2 border border-border rounded-lg text-[13px] bg-surface-muted text-fg">
                 {inviteEntry.positionName}
               </div>
             </div>
             <div>
-              <label className="block text-[13px] font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label className="block text-[13px] font-medium text-fg-secondary mb-1">
                 候选人邮箱 <span className="text-red-500">*</span>
               </label>
               <input
@@ -440,20 +462,20 @@ export const ShortlistPage = () => {
                   }
                 }}
                 placeholder="请输入候选人邮箱地址"
-                className="w-full px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#22d3ee] resize-none bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                className="w-full px-3 py-2 border border-border rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#22d3ee] resize-none bg-surface-muted text-fg"
               />
               {inviteEmailError && (
                 <div className="mt-1 text-[12px] text-red-600 dark:text-red-400">{inviteEmailError}</div>
               )}
             </div>
             <div>
-              <label className="block text-[13px] font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label className="block text-[13px] font-medium text-fg-secondary mb-1">
                 面试模板 <span className="text-red-500">*</span>
               </label>
               <select
                 value={inviteTemplateId}
                 onChange={(e) => setInviteTemplateId(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#22d3ee] bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                className="w-full px-3 py-2 border border-border rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#22d3ee] bg-surface-muted text-fg"
               >
                 <option value="">请选择面试模板</option>
                 {inviteTemplates.map((t) => (
@@ -464,8 +486,8 @@ export const ShortlistPage = () => {
               </select>
             </div>
             <div>
-              <label className="block text-[13px] font-medium text-gray-700 dark:text-gray-300 mb-1">面试链接</label>
-              <div className="px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg text-[13px] bg-[#cffafe] dark:bg-cyan-900/30 text-[#0c2b7a] dark:text-cyan-300 flex items-center">
+              <label className="block text-[13px] font-medium text-fg-secondary mb-1">面试链接</label>
+              <div className="px-3 py-2 border border-border rounded-lg text-[13px] bg-[#cffafe] dark:bg-cyan-900/30 text-[#0c2b7a] dark:text-cyan-300 flex items-center">
                 <Link2 className="w-4 h-4 mr-2" />
                 /interviews/preview?candidate={inviteEntry.candidateId}&position={inviteEntry.positionId}
               </div>
@@ -481,7 +503,7 @@ export const ShortlistPage = () => {
                 setInviteEmail('');
                 setInviteEmailError('');
               }}
-              className="flex-1 px-4 py-2 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-[13px] font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+              className="flex-1 px-4 py-2 border border-border text-fg-secondary rounded-lg text-[13px] font-medium hover:bg-surface-muted transition-colors"
             >
               取消
             </button>

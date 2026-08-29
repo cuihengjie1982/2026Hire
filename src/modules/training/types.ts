@@ -1,3 +1,7 @@
+import type {VideoPolarity, VideoReviewStatus, VideoSeverity, VideoTaxonomyOption} from './videoTaxonomy';
+
+export type {VideoPolarity, VideoReviewStatus, VideoSeverity, VideoTaxonomy, VideoTaxonomyOption} from './videoTaxonomy';
+
 export interface TrainingCourse {
   id: string;
   title: string;
@@ -11,6 +15,16 @@ export interface TrainingCourse {
   positionId?: string;
   positionName?: string;
   competencyDimension?: string;
+  videoPolarity?: VideoPolarity;
+  taskCategoryId?: string | null;
+  taskCategory?: VideoTaxonomyOption;
+  videoSceneId?: string | null;
+  scene?: VideoTaxonomyOption;
+  qualityTagIds?: string[];
+  qualityTags?: VideoTaxonomyOption[];
+  videoSeverity?: VideoSeverity | null;
+  videoReviewNote?: string | null;
+  videoReviewStatus?: VideoReviewStatus | null;
   publicShareToken?: string;
   publicSharePath?: string;
   isActive: boolean;

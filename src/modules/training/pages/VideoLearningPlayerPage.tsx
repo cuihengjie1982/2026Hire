@@ -1,7 +1,8 @@
 import {useEffect, useState} from 'react';
 import {useSearchParams} from 'react-router-dom';
 import {Loader2, AlertCircle} from 'lucide-react';
-import {USE_MOCK_API, API_BASE_URL} from '../../../shared/lib/runtime';
+import {USE_MOCK_API} from '../../../shared/lib/runtime';
+import {buildEdgeFunctionUrl} from '../../../shared/lib/apiClient';
 import {VideoLearningAssistant} from '../components/VideoLearningAssistant/VideoLearningAssistant';
 import {listCourses} from '../api';
 import type {TrainingCourse} from '../types';
@@ -70,10 +71,9 @@ export const VideoLearningPlayerPage = () => {
     qs.set('enrollmentId', enrollmentId);
     const queryString = qs.toString();
 
-    const base = USE_MOCK_API ? '' : API_BASE_URL;
     const url = USE_MOCK_API
       ? `/api/training/portal/${encodeURIComponent(candidateId)}?${queryString}`
-      : `${base}/functions/v1/embox-api/training/portal/${encodeURIComponent(candidateId)}?${queryString}`;
+      : `${buildEdgeFunctionUrl(`/training/portal/${encodeURIComponent(candidateId)}`)}?${queryString}`;
 
     fetch(url)
       .then(r => {
@@ -89,18 +89,18 @@ export const VideoLearningPlayerPage = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+      <div className="min-h-screen bg-surface-muted flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-fg-faint" />
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-surface-muted flex items-center justify-center">
         <div className="text-center space-y-3">
           <AlertCircle className="w-12 h-12 text-red-400 mx-auto" />
-          <p className="text-gray-600">{error}</p>
+          <p className="text-fg-secondary">{error}</p>
         </div>
       </div>
     );
@@ -114,10 +114,10 @@ export const VideoLearningPlayerPage = () => {
   // Candidate mode
   if (!portalData) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-surface-muted flex items-center justify-center">
         <div className="text-center space-y-3">
           <AlertCircle className="w-12 h-12 text-red-400 mx-auto" />
-          <p className="text-gray-600">加载失败</p>
+          <p className="text-fg-secondary">加载失败</p>
         </div>
       </div>
     );

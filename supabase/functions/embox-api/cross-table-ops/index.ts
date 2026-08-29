@@ -91,24 +91,17 @@ export const shortlistInterviewInvite = async (req: Request, _userId: string, _u
   }
 };
 
-// POST /cross-table-ops/shortlist-promote
-export const shortlistPromote = async (req: Request, _userId: string, _userRole: string): Promise<Response> => {
-  try {
-    const supabase = createSupabaseAdmin(req);
-    const { shortlistEntryId, nextStep } = await req.json() as Record<string, unknown>;
-    if (!shortlistEntryId || !nextStep) return jsonRes({ error: { code: 'VALIDATION_ERROR', message: 'shortlistEntryId and nextStep are required' } }, 400);
-
-    const { data } = await supabase.from('shortlist_entries')
-      .update({ next_step: String(nextStep) })
-      .eq('id', String(shortlistEntryId))
-      .select('*').single();
-
-    if (!data) return jsonRes({ error: { code: 'NOT_FOUND', message: `Shortlist entry (${shortlistEntryId}) not found` } }, 404);
-    return jsonRes(data);
-  } catch (e) {
-    console.error('[cross-table-ops]', e);
-    return jsonRes({ error: { code: 'INTERNAL_ERROR', message: 'An internal error occurred' } }, 500);
-  }
+// POST /cross-table-ops/shortlist-promote — deprecated; use POST /api/shortlist/:id/promote
+export const shortlistPromote = async (_req: Request, _userId: string, _userRole: string): Promise<Response> => {
+  return jsonRes(
+    {
+      error: {
+        code: 'DEPRECATED',
+        message: 'Use POST /api/shortlist/:id/promote instead (supports atomic outreach + contact creation)',
+      },
+    },
+    410,
+  );
 };
 
 // POST /cross-table-ops/approval-decide

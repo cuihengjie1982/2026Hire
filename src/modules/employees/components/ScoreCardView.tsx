@@ -27,7 +27,7 @@ function ScoreNumber({value, label, icon: Icon, color}: {
 }
 
 function GradeBadge({grade}: {grade: string | null}) {
-  if (!grade) return <span className="text-gray-400">-</span>;
+  if (!grade) return <span className="text-fg-faint">-</span>;
   const colors: Record<string, string> = {
     S: 'bg-yellow-100 text-yellow-700 border-yellow-300',
     A: 'bg-green-100 text-green-700 border-green-300',
@@ -71,15 +71,15 @@ export default function ScoreCardView({employeeId}: ScoreCardViewProps) {
     }
   };
 
-  if (loading) return <div className="text-xs text-gray-400 py-2">加载评分卡...</div>;
+  if (loading) return <div className="text-xs text-fg-faint py-2">加载评分卡...</div>;
 
   if (!card) {
     return (
-      <div className="mt-3 border-t border-gray-200 pt-3">
+      <div className="mt-3 border-t border-border pt-3">
         <div className="flex items-center justify-between mb-2">
-          <h4 className="text-sm font-semibold text-gray-700">综合评分</h4>
+          <h4 className="text-sm font-semibold text-fg-secondary">综合评分</h4>
         </div>
-        <div className="text-center py-4 text-sm text-gray-400">
+        <div className="text-center py-4 text-sm text-fg-faint">
           暂无评分数据
           <button onClick={handleRecompute} disabled={refreshing}
             className="ml-2 text-blue-500 hover:underline disabled:opacity-50 text-xs">
@@ -91,9 +91,9 @@ export default function ScoreCardView({employeeId}: ScoreCardViewProps) {
   }
 
   return (
-    <div className="mt-3 border-t border-gray-200 pt-3">
+    <div className="mt-3 border-t border-border pt-3">
       <div className="flex items-center justify-between mb-3">
-        <h4 className="text-sm font-semibold text-gray-700">综合评分</h4>
+        <h4 className="text-sm font-semibold text-fg-secondary">综合评分</h4>
         <button onClick={handleRecompute} disabled={refreshing}
           className="flex items-center gap-1 text-xs text-[#1a4bc4] hover:underline disabled:opacity-50">
           {refreshing ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
@@ -102,13 +102,13 @@ export default function ScoreCardView({employeeId}: ScoreCardViewProps) {
       </div>
 
       {/* Composite score + grade */}
-      <div className="flex items-center gap-4 mb-4 bg-gray-50 rounded-xl p-4">
+      <div className="flex items-center gap-4 mb-4 bg-surface-muted rounded-xl p-4">
         <div className="text-center">
-          <div className="text-3xl font-bold text-gray-800">{card.compositeScore?.toFixed(1) ?? '-'}</div>
-          <div className="text-xs text-gray-500 mt-1">综合评分</div>
+          <div className="text-3xl font-bold text-fg">{card.compositeScore?.toFixed(1) ?? '-'}</div>
+          <div className="text-xs text-fg-muted mt-1">综合评分</div>
         </div>
         <GradeBadge grade={card.compositeGrade} />
-        <div className="flex-1 text-xs text-gray-400">
+        <div className="flex-1 text-xs text-fg-faint">
           加权公式：30% 面试 + 30% 培训 + 40% 绩效
         </div>
       </div>
@@ -137,7 +137,7 @@ export default function ScoreCardView({employeeId}: ScoreCardViewProps) {
 
       {/* Training completion */}
       {card.trainingCompletionRate != null && (
-        <div className="mt-3 flex items-center gap-2 text-xs text-gray-500">
+        <div className="mt-3 flex items-center gap-2 text-xs text-fg-muted">
           <Target className="w-3.5 h-3.5" />
           培训完成率：{card.trainingCompletionRate.toFixed(0)}%
           {card.trainingCoursesTotal > 0 && (

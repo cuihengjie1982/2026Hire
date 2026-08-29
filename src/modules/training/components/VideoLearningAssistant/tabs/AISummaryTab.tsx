@@ -33,8 +33,8 @@ export const AISummaryTab: React.FC<AISummaryTabProps> = ({content, courseTitle}
             <Sparkles className="w-7 h-7 text-indigo-500" />
           </div>
           <div>
-            <p className="font-semibold text-gray-800">AI 智能摘要</p>
-            <p className="text-sm text-gray-500 mt-1">基于视频内容自动生成学习摘要</p>
+            <p className="font-semibold text-fg">AI 智能摘要</p>
+            <p className="text-sm text-fg-muted mt-1">基于视频内容自动生成学习摘要</p>
           </div>
           <button
             onClick={handleSummarize}
@@ -44,7 +44,7 @@ export const AISummaryTab: React.FC<AISummaryTabProps> = ({content, courseTitle}
             <Sparkles className="w-4 h-4" />
             生成摘要
           </button>
-          {!content && <p className="text-xs text-gray-400">暂无文字稿内容</p>}
+          {!content && <p className="text-xs text-fg-faint">暂无文字稿内容</p>}
         </div>
       )}
 
@@ -52,7 +52,7 @@ export const AISummaryTab: React.FC<AISummaryTabProps> = ({content, courseTitle}
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center space-y-3">
             <Loader2 className="w-8 h-8 animate-spin text-indigo-500 mx-auto" />
-            <p className="text-sm text-gray-500">AI 正在生成摘要...</p>
+            <p className="text-sm text-fg-muted">AI 正在生成摘要...</p>
           </div>
         </div>
       )}
@@ -70,11 +70,11 @@ export const AISummaryTab: React.FC<AISummaryTabProps> = ({content, courseTitle}
               <Sparkles className="w-4 h-4" />
               <span className="text-sm font-medium">AI 摘要</span>
             </div>
-            <button onClick={handleSummarize} className="text-xs text-gray-400 hover:text-gray-600">
+            <button onClick={handleSummarize} className="text-xs text-fg-faint hover:text-fg-secondary">
               重新生成
             </button>
           </div>
-          <div className="prose prose-sm max-w-none text-gray-700 whitespace-pre-wrap text-sm leading-relaxed
+          <div className="prose prose-sm max-w-none text-fg-secondary whitespace-pre-wrap text-sm leading-relaxed
             bg-gradient-to-br from-indigo-50 to-purple-50 rounded-xl p-4 border border-indigo-100">
             {summary}
           </div>

@@ -5,7 +5,7 @@
 // MinerU 文档解析如果 Token 可用，仍然从前端直接调用（MinerU Token 是 JWT，风险可控）。
 
 import {API_BASE_URL, USE_MOCK_API, getAuthToken} from './runtime';
-import {fetchJson} from './apiClient';
+import {buildEdgeFunctionUrl, fetchJson} from './apiClient';
 
 // pdfjs-dist worker — 使用 Vite ?url 导入本地 worker，避免 CDN 下载挂起
 import pdfjsWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
@@ -341,7 +341,7 @@ export const parseResumeWithMinerU = async (
           proxyFormData.append('file', file);
 
           // Phase 1: Start extraction (upload file)
-          const startResponse = await fetch(`${API_BASE_URL}/functions/v1/embox-api/mineru-proxy/parse`, {
+          const startResponse = await fetch(buildEdgeFunctionUrl('/mineru-proxy/parse'), {
             method: 'POST',
             headers: {
               'Authorization': `Bearer ${token}`,
@@ -383,7 +383,7 @@ export const parseResumeWithMinerU = async (
             for (let i = 0; i < maxPolls; i++) {
               await new Promise(r => setTimeout(r, 3000));
 
-              const pollResponse = await fetch(`${API_BASE_URL}/functions/v1/embox-api/mineru-proxy/poll`, {
+              const pollResponse = await fetch(buildEdgeFunctionUrl('/mineru-proxy/poll'), {
                 method: 'POST',
                 headers: {
                   'Authorization': `Bearer ${token}`,

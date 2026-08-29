@@ -102,7 +102,7 @@ export const ApprovalsPage = () => {
       case 'rejected':
         return { bg: 'bg-red-100', text: 'text-red-700', border: 'border-red-200' };
       default:
-        return { bg: 'bg-gray-100', text: 'text-gray-700', border: 'border-gray-200' };
+        return { bg: 'bg-surface-muted', text: 'text-fg-secondary', border: 'border-border' };
     }
   };
 
@@ -149,38 +149,38 @@ export const ApprovalsPage = () => {
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
-      className="flex flex-col h-full bg-[#f8fafc] dark:bg-gray-900 relative w-full overflow-y-auto custom-scrollbar"
+      className="flex flex-col h-full bg-page relative w-full overflow-y-auto custom-scrollbar"
     >
       <div className="max-w-6xl mx-auto w-full p-8 md:p-12 mb-20">
         <div className="mb-8">
-          <h1 className="text-[32px] font-bold text-gray-900 dark:text-white tracking-tight mb-2">审批中心</h1>
-          <p className="text-gray-500 dark:text-gray-400 text-base">管理面试结果审批</p>
+          <h1 className="text-[32px] font-bold text-fg tracking-tight mb-2">审批中心</h1>
+          <p className="text-fg-muted text-base">管理面试结果审批</p>
         </div>
 
         {/* Stats */}
         <div className="flex items-center space-x-8 mb-8">
-          <div className="flex items-center text-lg font-bold text-gray-900 dark:text-white">
+          <div className="flex items-center text-lg font-bold text-fg">
             待审批 <span className="ml-2 w-6 h-6 text-xs bg-[#1a4bc4] text-white rounded-full flex items-center justify-center">{pendingCount}</span>
           </div>
-          <div className="flex items-center text-base text-gray-500 dark:text-gray-400">
+          <div className="flex items-center text-base text-fg-muted">
             已通过 <span className="ml-1 text-emerald-600 font-bold">{approvedList.length}</span>
           </div>
-          <div className="flex items-center text-base text-gray-500 dark:text-gray-400">
+          <div className="flex items-center text-base text-fg-muted">
             已驳回 <span className="ml-1 text-red-500 font-bold">{rejectedList.length}</span>
           </div>
-          <div className="flex items-center text-base text-gray-500 dark:text-gray-400">
-            通过率 <span className="ml-1 text-gray-900 dark:text-white font-bold">{interviewTotalCount > 0 ? Math.round((interviewPassCount / interviewTotalCount) * 100) : 0}%</span>
+          <div className="flex items-center text-base text-fg-muted">
+            通过率 <span className="ml-1 text-fg font-bold">{interviewTotalCount > 0 ? Math.round((interviewPassCount / interviewTotalCount) * 100) : 0}%</span>
           </div>
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 mb-8 bg-gray-100 dark:bg-gray-800 rounded-xl p-1 w-fit">
+        <div className="flex gap-1 mb-8 bg-surface-muted rounded-xl p-1 w-fit">
           <button
             onClick={() => setActiveTab('pending')}
             className={`px-6 py-2.5 rounded-lg text-sm font-bold transition-all ${
               activeTab === 'pending'
-                ? 'bg-white text-gray-900 shadow-sm'
-                : 'text-gray-500 hover:text-gray-700'
+                ? 'bg-surface text-fg shadow-sm'
+                : 'text-fg-muted hover:text-fg-secondary'
             }`}
           >
             待审批 {pendingCount > 0 && <span className="ml-1 text-xs bg-red-500 text-white px-1.5 py-0.5 rounded-full">{pendingCount}</span>}
@@ -189,8 +189,8 @@ export const ApprovalsPage = () => {
             onClick={() => setActiveTab('approved')}
             className={`px-6 py-2.5 rounded-lg text-sm font-bold transition-all ${
               activeTab === 'approved'
-                ? 'bg-white text-gray-900 shadow-sm'
-                : 'text-gray-500 hover:text-gray-700'
+                ? 'bg-surface text-fg shadow-sm'
+                : 'text-fg-muted hover:text-fg-secondary'
             }`}
           >
             已通过 ({approvedList.length})
@@ -206,13 +206,13 @@ export const ApprovalsPage = () => {
               exit={{ opacity: 0, x: 10 }}
             >
               {/* Pending Approvals */}
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6">待审批面试结果</h2>
+              <h2 className="text-xl font-bold text-fg mb-6">待审批面试结果</h2>
               {loadingInterviews ? (
-                <div className="bg-white dark:bg-gray-800 rounded-xl border border-[#e0f2fe] p-10 text-center text-gray-500 dark:text-gray-400">
+                <div className="bg-surface rounded-xl border border-[#e0f2fe] p-10 text-center text-fg-muted">
                   加载中...
                 </div>
               ) : pendingInterviews.filter(i => i.status === 'pending').length === 0 ? (
-                <div className="bg-white dark:bg-gray-800 rounded-xl border border-[#e0f2fe] p-10 text-center text-gray-500 dark:text-gray-400">
+                <div className="bg-surface rounded-xl border border-[#e0f2fe] p-10 text-center text-fg-muted">
                   暂无待审批的面试结果
                 </div>
               ) : (
@@ -220,7 +220,7 @@ export const ApprovalsPage = () => {
                   {pendingInterviews.filter(i => i.status === 'pending').map(item => {
                     const gradeStyle = getGradeStyle(item.interviewGrade);
                     return (
-                      <div key={item.id} className={`bg-white border ${gradeStyle.border} shadow-sm rounded-2xl overflow-hidden`}>
+                      <div key={item.id} className={`bg-surface border ${gradeStyle.border} shadow-sm rounded-2xl overflow-hidden`}>
                         <div className="p-6">
                           <div className="flex items-start justify-between mb-4">
                             <div className="flex items-center gap-4">
@@ -228,8 +228,8 @@ export const ApprovalsPage = () => {
                                 <User className="w-6 h-6 text-white" />
                               </div>
                               <div>
-                                <div className="font-bold text-gray-900 dark:text-white text-lg">{item.candidateName}</div>
-                                <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                                <div className="font-bold text-fg text-lg">{item.candidateName}</div>
+                                <div className="flex items-center gap-2 text-sm text-fg-muted">
                                   <Mail className="w-3.5 h-3.5" />
                                   {item.candidateEmail || '-'}
                                 </div>
@@ -237,25 +237,25 @@ export const ApprovalsPage = () => {
                             </div>
                             <div className="text-right">
                               <div className="text-3xl font-bold text-[#22d3ee]">{item.interviewScore}</div>
-                              <div className="text-sm text-gray-500 dark:text-gray-400">综合得分</div>
+                              <div className="text-sm text-fg-muted">综合得分</div>
                             </div>
                           </div>
 
                           <div className="grid grid-cols-3 gap-4 mb-4">
-                            <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
-                              <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">应聘岗位</div>
-                              <div className="font-medium text-gray-900 dark:text-white text-sm">{item.positionName || '-'}</div>
+                            <div className="bg-surface-muted rounded-lg p-3">
+                              <div className="text-xs text-fg-muted mb-1">应聘岗位</div>
+                              <div className="font-medium text-fg text-sm">{item.positionName || '-'}</div>
                             </div>
-                            <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
-                              <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">面试时间</div>
-                              <div className="font-medium text-gray-900 dark:text-white text-sm flex items-center gap-1">
+                            <div className="bg-surface-muted rounded-lg p-3">
+                              <div className="text-xs text-fg-muted mb-1">面试时间</div>
+                              <div className="font-medium text-fg text-sm flex items-center gap-1">
                                 <Calendar className="w-3.5 h-3.5" />
                                 {formatDate(item.interviewDate)}
                               </div>
                             </div>
-                            <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
-                              <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">面试时长</div>
-                              <div className="font-medium text-gray-900 dark:text-white text-sm flex items-center gap-1">
+                            <div className="bg-surface-muted rounded-lg p-3">
+                              <div className="text-xs text-fg-muted mb-1">面试时长</div>
+                              <div className="font-medium text-fg text-sm flex items-center gap-1">
                                 <Clock className="w-3.5 h-3.5" />
                                 {item.interviewDuration}分钟
                               </div>
@@ -268,7 +268,7 @@ export const ApprovalsPage = () => {
                               <span className={`px-3 py-1.5 rounded-full text-sm font-bold ${gradeStyle.bg} ${gradeStyle.text}`}>
                                 {getGradeLabel(item.interviewGrade)}
                               </span>
-                              <span className="text-sm text-gray-600 dark:text-gray-300">{item.interviewGradeLabel}</span>
+                              <span className="text-sm text-fg-secondary">{item.interviewGradeLabel}</span>
                             </div>
                             <button
                               onClick={() => setSelectedInterview(selectedInterview?.id === item.id ? null : item)}
@@ -288,20 +288,20 @@ export const ApprovalsPage = () => {
                                 exit={{ height: 0, opacity: 0 }}
                                 className="overflow-hidden"
                               >
-                                <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-4 mb-4">
-                                  <div className="font-bold text-gray-900 dark:text-white text-sm mb-3">各维度得分</div>
+                                <div className="bg-surface-muted rounded-xl p-4 mb-4">
+                                  <div className="font-bold text-fg text-sm mb-3">各维度得分</div>
                                   <div className="space-y-2">
                                     {item.dimensionScores.map((dim, idx) => (
                                       <div key={idx} className="flex items-center gap-3">
-                                        <div className="w-20 text-sm text-gray-600 dark:text-gray-300">{dim.name}</div>
+                                        <div className="w-20 text-sm text-fg-secondary">{dim.name}</div>
                                         <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
                                           <div
                                             className="h-full bg-gradient-to-r from-[#22d3ee] to-[#06b6d4] rounded-full"
                                             style={{ width: `${dim.score}%` }}
                                           />
                                         </div>
-                                        <div className="w-12 text-sm font-medium text-gray-900 dark:text-white text-right">{dim.score}分</div>
-                                        <div className="w-12 text-xs text-gray-400 dark:text-gray-500 text-right">权重{dim.weight}%</div>
+                                        <div className="w-12 text-sm font-medium text-fg text-right">{dim.score}分</div>
+                                        <div className="w-12 text-xs text-fg-faint text-right">权重{dim.weight}%</div>
                                       </div>
                                     ))}
                                   </div>
@@ -322,7 +322,7 @@ export const ApprovalsPage = () => {
                             </button>
                             <button
                               onClick={() => setShowRejectDialog(item.id)}
-                              className="flex-1 bg-white dark:bg-gray-800 hover:bg-red-50 text-red-500 py-3 rounded-xl font-bold transition-colors text-base border border-red-200 flex items-center justify-center gap-2"
+                              className="flex-1 bg-surface hover:bg-red-50 text-red-500 py-3 rounded-xl font-bold transition-colors text-base border border-red-200 flex items-center justify-center gap-2"
                             >
                               <XCircle className="w-5 h-5" />
                               驳回
@@ -337,15 +337,15 @@ export const ApprovalsPage = () => {
                               initial={{ height: 0, opacity: 0 }}
                               animate={{ height: 'auto', opacity: 1 }}
                               exit={{ height: 0, opacity: 0 }}
-                              className="border-t border-gray-100 dark:border-gray-700 overflow-hidden"
+                              className="border-t border-border-subtle overflow-hidden"
                             >
                               <div className="p-6 bg-red-50">
-                                <div className="font-bold text-gray-900 dark:text-white text-sm mb-3">驳回原因</div>
+                                <div className="font-bold text-fg text-sm mb-3">驳回原因</div>
                                 <textarea
                                   value={rejectComment}
                                   onChange={(e) => setRejectComment(e.target.value)}
                                   placeholder="请输入驳回原因（必填）"
-                                  className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-300 resize-none"
+                                  className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-300 resize-none"
                                   rows={3}
                                 />
                                 <div className="flex gap-3 mt-3">
@@ -354,7 +354,7 @@ export const ApprovalsPage = () => {
                                       setShowRejectDialog(null);
                                       setRejectComment('');
                                     }}
-                                    className="flex-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 py-2 rounded-lg font-medium text-sm hover:bg-gray-50 dark:hover:bg-gray-700/30"
+                                    className="flex-1 bg-surface border border-border text-fg-secondary py-2 rounded-lg font-medium text-sm hover:bg-surface-muted"
                                   >
                                     取消
                                   </button>
@@ -387,66 +387,66 @@ export const ApprovalsPage = () => {
             >
               {/* Approved list header */}
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white">已通过候选人</h2>
+                <h2 className="text-xl font-bold text-fg">已通过候选人</h2>
                 <div className="relative">
                   <input
                     type="text"
                     placeholder="搜索候选人、岗位..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg pl-4 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#22d3ee]/20 focus:border-[#22d3ee] w-64 transition-all placeholder-gray-400"
+                    className="bg-surface border border-border rounded-lg pl-4 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#22d3ee]/20 focus:border-[#22d3ee] w-64 transition-all placeholder-fg-faint"
                   />
                 </div>
               </div>
 
               {/* Summary cards */}
               <div className="grid grid-cols-3 gap-4 mb-6">
-                <div className="bg-white dark:bg-gray-800 border border-emerald-200 rounded-xl p-4 flex items-center gap-3">
+                <div className="bg-surface border border-emerald-200 rounded-xl p-4 flex items-center gap-3">
                   <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center">
                     <UserCheck className="w-5 h-5 text-emerald-600" />
                   </div>
                   <div>
-                    <div className="text-2xl font-bold text-gray-900 dark:text-white">{approvedList.length}</div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400">通过总数</div>
+                    <div className="text-2xl font-bold text-fg">{approvedList.length}</div>
+                    <div className="text-xs text-fg-muted">通过总数</div>
                   </div>
                 </div>
-                <div className="bg-white dark:bg-gray-800 border border-cyan-200 rounded-xl p-4 flex items-center gap-3">
+                <div className="bg-surface border border-cyan-200 rounded-xl p-4 flex items-center gap-3">
                   <div className="w-10 h-10 bg-cyan-100 rounded-lg flex items-center justify-center">
                     <TrendingUp className="w-5 h-5 text-cyan-600" />
                   </div>
                   <div>
-                    <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                    <div className="text-2xl font-bold text-fg">
                       {approvedList.length > 0 ? Math.round(approvedList.reduce((sum, i) => sum + i.interviewScore, 0) / approvedList.length) : 0}
                     </div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400">平均得分</div>
+                    <div className="text-xs text-fg-muted">平均得分</div>
                   </div>
                 </div>
-                <div className="bg-white dark:bg-gray-800 border border-blue-200 rounded-xl p-4 flex items-center gap-3">
+                <div className="bg-surface border border-blue-200 rounded-xl p-4 flex items-center gap-3">
                   <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
                     <Users className="w-5 h-5 text-blue-600" />
                   </div>
                   <div>
-                    <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                    <div className="text-2xl font-bold text-fg">
                       {new Set(approvedList.map(i => i.positionName).filter(Boolean)).size}
                     </div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400">涉及岗位</div>
+                    <div className="text-xs text-fg-muted">涉及岗位</div>
                   </div>
                 </div>
               </div>
 
               {/* Approved list */}
               {loadingInterviews ? (
-                <div className="bg-white dark:bg-gray-800 rounded-xl border border-[#e0f2fe] p-10 text-center text-gray-500 dark:text-gray-400">
+                <div className="bg-surface rounded-xl border border-[#e0f2fe] p-10 text-center text-fg-muted">
                   加载中...
                 </div>
               ) : filteredApproved.length === 0 ? (
-                <div className="bg-white dark:bg-gray-800 rounded-xl border border-[#e0f2fe] p-10 text-center text-gray-500 dark:text-gray-400">
+                <div className="bg-surface rounded-xl border border-[#e0f2fe] p-10 text-center text-fg-muted">
                   {searchQuery ? '没有匹配的候选人' : '暂无已通过的候选人'}
                 </div>
               ) : (
-                <div className="bg-white dark:bg-gray-800 border border-[#e0f2fe] rounded-2xl overflow-hidden shadow-sm">
+                <div className="bg-surface border border-[#e0f2fe] rounded-2xl overflow-hidden shadow-sm">
                   <table className="w-full text-left">
-                    <thead className="bg-gray-50/80 text-gray-500 dark:text-gray-400 text-sm border-b border-gray-100 dark:border-gray-700">
+                    <thead className="bg-surface-muted/80 text-fg-muted text-sm border-b border-border-subtle">
                       <tr>
                         <th className="py-4 px-6 font-medium">候选人</th>
                         <th className="py-4 px-6 font-medium">岗位</th>
@@ -458,35 +458,35 @@ export const ApprovalsPage = () => {
                         <th className="py-4 px-6 font-medium">操作</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-100 text-sm">
+                    <tbody className="divide-y divide-border-subtle text-sm">
                       {filteredApproved.slice((approvedPage - 1) * PAGE_SIZE, approvedPage * PAGE_SIZE).map((item) => {
                         const gradeStyle = getGradeStyle(item.interviewGrade);
                         return (
-                          <tr key={item.id} className="hover:bg-gray-50/50 transition-colors">
+                          <tr key={item.id} className="hover:bg-surface-muted/50 transition-colors">
                             <td className="py-4 px-6">
                               <div className="flex items-center gap-3">
                                 <div className="w-8 h-8 bg-gradient-to-br from-emerald-400 to-emerald-500 rounded-full flex items-center justify-center">
                                   <User className="w-4 h-4 text-white" />
                                 </div>
                                 <div>
-                                  <div className="font-bold text-gray-900 dark:text-white">{item.candidateName}</div>
-                                  <div className="text-xs text-gray-500 dark:text-gray-400">{item.candidateEmail || '-'}</div>
+                                  <div className="font-bold text-fg">{item.candidateName}</div>
+                                  <div className="text-xs text-fg-muted">{item.candidateEmail || '-'}</div>
                                 </div>
                               </div>
                             </td>
-                            <td className="py-4 px-6 text-gray-700 dark:text-gray-300">{item.positionName || '-'}</td>
+                            <td className="py-4 px-6 text-fg-secondary">{item.positionName || '-'}</td>
                             <td className="py-4 px-6">
                               <span className="font-bold text-[#22d3ee] text-lg">{item.interviewScore}</span>
-                              <span className="text-gray-400 dark:text-gray-500 text-xs ml-1">分</span>
+                              <span className="text-fg-faint text-xs ml-1">分</span>
                             </td>
                             <td className="py-4 px-6">
                               <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${gradeStyle.bg} ${gradeStyle.text}`}>
                                 {getGradeLabel(item.interviewGrade)}
                               </span>
                             </td>
-                            <td className="py-4 px-6 text-gray-600 dark:text-gray-300">{formatDate(item.interviewDate)}</td>
-                            <td className="py-4 px-6 text-gray-600 dark:text-gray-300">{item.approverName || '-'}</td>
-                            <td className="py-4 px-6 text-gray-600 dark:text-gray-300">{formatDate(item.decidedAt || item.createdAt)}</td>
+                            <td className="py-4 px-6 text-fg-secondary">{formatDate(item.interviewDate)}</td>
+                            <td className="py-4 px-6 text-fg-secondary">{item.approverName || '-'}</td>
+                            <td className="py-4 px-6 text-fg-secondary">{formatDate(item.decidedAt || item.createdAt)}</td>
                             <td className="py-4 px-6">
                               <div className="flex items-center gap-2">
                                 {item.status === 'hired' ? (
@@ -530,11 +530,11 @@ export const ApprovalsPage = () => {
 
         {/* Approval History (always visible at bottom) */}
         <div className="mt-12">
-          <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6">审批记录</h2>
-          <div className="bg-white dark:bg-gray-800 border border-[#e0f2fe] rounded-2xl overflow-hidden shadow-sm">
+          <h2 className="text-xl font-bold text-fg mb-6">审批记录</h2>
+          <div className="bg-surface border border-[#e0f2fe] rounded-2xl overflow-hidden shadow-sm">
             <div className="overflow-x-auto">
               <table className="w-full text-left">
-                <thead className="bg-gray-50/80 text-gray-500 dark:text-gray-400 text-sm border-b border-gray-100 dark:border-gray-700">
+                <thead className="bg-surface-muted/80 text-fg-muted text-sm border-b border-border-subtle">
                   <tr>
                     <th className="py-4 px-6 font-medium">时间</th>
                     <th className="py-4 px-6 font-medium">候选人</th>
@@ -547,17 +547,17 @@ export const ApprovalsPage = () => {
                     <th className="py-4 px-6 font-medium">操作</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100 text-sm">
+                <tbody className="divide-y divide-border-subtle text-sm">
                   {allHistory.slice((historyPage - 1) * PAGE_SIZE, historyPage * PAGE_SIZE).map((record) => {
                     const gradeStyle = getGradeStyle(record.interviewGrade);
                     return (
-                      <tr key={record.id} className="hover:bg-gray-50/50 transition-colors">
-                        <td className="py-4 px-6 text-gray-600 dark:text-gray-300">{formatDate(record.decidedAt || record.createdAt)}</td>
+                      <tr key={record.id} className="hover:bg-surface-muted/50 transition-colors">
+                        <td className="py-4 px-6 text-fg-secondary">{formatDate(record.decidedAt || record.createdAt)}</td>
                         <td className="py-4 px-6">
-                          <div className="font-medium text-gray-900 dark:text-white">{record.candidateName}</div>
-                          <div className="text-xs text-gray-500 dark:text-gray-400">{record.candidateEmail || '-'}</div>
+                          <div className="font-medium text-fg">{record.candidateName}</div>
+                          <div className="text-xs text-fg-muted">{record.candidateEmail || '-'}</div>
                         </td>
-                        <td className="py-4 px-6 text-gray-700 dark:text-gray-300">{record.positionName || '-'}</td>
+                        <td className="py-4 px-6 text-fg-secondary">{record.positionName || '-'}</td>
                         <td className="py-4 px-6">
                           <span className="font-bold text-[#22d3ee]">{record.interviewScore}</span>分
                         </td>
@@ -566,7 +566,7 @@ export const ApprovalsPage = () => {
                             {getGradeLabel(record.interviewGrade)}
                           </span>
                         </td>
-                        <td className="py-4 px-6 text-gray-600 dark:text-gray-300">{record.approverName || '-'}</td>
+                        <td className="py-4 px-6 text-fg-secondary">{record.approverName || '-'}</td>
                         <td className="py-4 px-6">
                           {record.status === 'hired' ? (
                             <div className="inline-flex items-center gap-1 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 px-3 py-1 rounded-full text-xs font-bold">
@@ -590,7 +590,7 @@ export const ApprovalsPage = () => {
                             </div>
                           )}
                         </td>
-                        <td className="py-4 px-6 text-gray-600 dark:text-gray-300 max-w-[200px] truncate" title={record.decidedComment}>
+                        <td className="py-4 px-6 text-fg-secondary max-w-[200px] truncate" title={record.decidedComment}>
                           {record.decidedComment || '-'}
                         </td>
                         <td className="py-4 px-6">
@@ -621,7 +621,7 @@ export const ApprovalsPage = () => {
                               </button>
                             </div>
                           ) : (
-                            <span className="text-gray-400 dark:text-gray-500 text-xs">-</span>
+                            <span className="text-fg-faint text-xs">-</span>
                           )}
                         </td>
                       </tr>

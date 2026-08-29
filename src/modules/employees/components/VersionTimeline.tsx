@@ -97,17 +97,17 @@ export default function VersionTimeline({employeeId}: VersionTimelineProps) {
     <div className="space-y-3">
       {/* Header with filter */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2 text-sm text-gray-500">
+        <div className="flex items-center gap-2 text-sm text-fg-muted">
           <Clock className="w-4 h-4" />
           <span>共 {total} 条变更记录</span>
         </div>
         {fieldLabels.length > 1 && (
           <div className="flex items-center gap-1.5">
-            <Filter className="w-3.5 h-3.5 text-gray-400" />
+            <Filter className="w-3.5 h-3.5 text-fg-faint" />
             <select
               value={fieldFilter}
               onChange={e => setFieldFilter(e.target.value)}
-              className="text-xs border border-gray-200 rounded px-2 py-1 bg-white"
+              className="text-xs border border-border rounded px-2 py-1 bg-surface"
             >
               <option value="all">全部字段</option>
               {fieldLabels.map(label => (
@@ -128,10 +128,10 @@ export default function VersionTimeline({employeeId}: VersionTimelineProps) {
             <div key={date} className="mb-4">
               {/* Date header */}
               <div className="flex items-center gap-2 mb-2 -ml-6">
-                <div className="w-5 h-5 rounded-full bg-gray-100 border-2 border-white shadow-sm flex items-center justify-center">
+                <div className="w-5 h-5 rounded-full bg-surface-muted border-2 border-white shadow-sm flex items-center justify-center">
                   <div className="w-1.5 h-1.5 rounded-full bg-gray-400" />
                 </div>
-                <span className="text-xs font-medium text-gray-500 bg-gray-50 px-2 py-0.5 rounded">
+                <span className="text-xs font-medium text-fg-muted bg-surface-muted px-2 py-0.5 rounded">
                   {formatDate(date)}
                 </span>
               </div>
@@ -154,20 +154,20 @@ export default function VersionTimeline({employeeId}: VersionTimelineProps) {
                     {/* Timeline dot */}
                     <div className="absolute -left-3.5 top-3 w-2.5 h-2.5 rounded-full border-2 border-white shadow-sm bg-blue-300" />
 
-                    <div className="bg-white border border-gray-100 rounded-lg p-3 shadow-sm hover:shadow transition-shadow">
+                    <div className="bg-surface border border-border-subtle rounded-lg p-3 shadow-sm hover:shadow transition-shadow">
                       <div className="flex items-center justify-between mb-1">
                         <div className="flex items-center gap-2">
                           <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${actionInfo.color}`}>
                             {actionInfo.label}
                           </span>
                           {entry.fieldLabel && (
-                            <span className="text-sm font-medium text-gray-700">{entry.fieldLabel}</span>
+                            <span className="text-sm font-medium text-fg-secondary">{entry.fieldLabel}</span>
                           )}
                           {isCreate && (
-                            <span className="text-sm text-gray-600">创建了员工档案</span>
+                            <span className="text-sm text-fg-secondary">创建了员工档案</span>
                           )}
                         </div>
-                        <span className="text-[11px] text-gray-400">{formatTime(entry.changedAt)}</span>
+                        <span className="text-[11px] text-fg-faint">{formatTime(entry.changedAt)}</span>
                       </div>
 
                       {/* Show diff for update actions */}
@@ -177,7 +177,7 @@ export default function VersionTimeline({employeeId}: VersionTimelineProps) {
                             <span className="bg-red-50 text-red-600 px-1.5 py-0.5 rounded line-through max-w-[200px] truncate">
                               {formatValue(entry.oldValue)}
                             </span>
-                            <span className="text-gray-300">→</span>
+                            <span className="text-fg-faint">→</span>
                             <span className="bg-green-50 text-green-600 px-1.5 py-0.5 rounded max-w-[200px] truncate">
                               {formatValue(entry.newValue)}
                             </span>
@@ -193,9 +193,9 @@ export default function VersionTimeline({employeeId}: VersionTimelineProps) {
                             </button>
                           )}
                           {isExpanded && (
-                            <div className="mt-2 text-xs space-y-1 bg-gray-50 rounded p-2">
-                              <div><span className="text-gray-500">原值：</span>{formatValue(entry.oldValue)}</div>
-                              <div><span className="text-gray-500">新值：</span>{formatValue(entry.newValue)}</div>
+                            <div className="mt-2 text-xs space-y-1 bg-surface-muted rounded p-2">
+                              <div><span className="text-fg-muted">原值：</span>{formatValue(entry.oldValue)}</div>
+                              <div><span className="text-fg-muted">新值：</span>{formatValue(entry.newValue)}</div>
                             </div>
                           )}
                         </div>
@@ -203,7 +203,7 @@ export default function VersionTimeline({employeeId}: VersionTimelineProps) {
 
                       {/* Changed by */}
                       {entry.changedByEmail && (
-                        <div className="mt-1.5 flex items-center gap-1 text-[11px] text-gray-400">
+                        <div className="mt-1.5 flex items-center gap-1 text-[11px] text-fg-faint">
                           <User className="w-3 h-3" />
                           <span>{entry.changedByEmail}</span>
                         </div>
@@ -217,7 +217,7 @@ export default function VersionTimeline({employeeId}: VersionTimelineProps) {
         </AnimatePresence>
 
         {filteredEntries.length === 0 && !loading && (
-          <div className="text-center py-6 text-sm text-gray-400">
+          <div className="text-center py-6 text-sm text-fg-faint">
             暂无变更记录
           </div>
         )}

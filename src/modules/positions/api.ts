@@ -1,10 +1,9 @@
-import {getItemsFromPayload, getValueFromPayload, cached, invalidateCache} from '../../shared/lib/apiClient';
-import {USE_MOCK_API, API_BASE_URL, getAuthToken, getUserName} from '../../shared/lib/runtime';
+import {buildEdgeFunctionUrl, getItemsFromPayload, getValueFromPayload, cached, invalidateCache} from '../../shared/lib/apiClient';
+import {USE_MOCK_API, getAuthToken, getUserName} from '../../shared/lib/runtime';
 import {type CreatePositionInput, type PositionDetail, type PositionSummary, type UpdatePositionInput, type ScoringRule, type GradeRule, type BaseScoreConfig, type ProfileRule} from './types';
 
 const efetch = async <T>(path: string, method = 'GET', body?: Record<string, unknown>): Promise<T> => {
-  const base = USE_MOCK_API ? '' : API_BASE_URL;
-  const res = await fetch(`${base}/functions/v1/embox-api${path}`, {
+  const res = await fetch(buildEdgeFunctionUrl(path), {
     method,
     headers: {
       'Content-Type': 'application/json',

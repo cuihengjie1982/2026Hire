@@ -74,11 +74,11 @@ export const TranscriptTab: React.FC<TranscriptTabProps> = ({sections, onSeek, c
     <div className="flex flex-col h-full">
       {/* Section selector */}
       {sections.length > 1 && (
-        <div className="px-4 py-2 border-b border-gray-100 flex gap-2 overflow-x-auto">
+        <div className="px-4 py-2 border-b border-border-subtle flex gap-2 overflow-x-auto">
           {sections.filter(s => s.contentType === 'text').map((s, i) => (
             <button key={i} onClick={() => setActiveSection(i)}
               className={`text-xs px-3 py-1 rounded-full whitespace-nowrap transition-colors ${
-                activeSection === i ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                activeSection === i ? 'bg-indigo-100 text-indigo-700' : 'bg-surface-muted text-fg-muted hover:bg-surface-muted'
               }`}>
               {s.sectionTitle}
             </button>
@@ -90,8 +90,8 @@ export const TranscriptTab: React.FC<TranscriptTabProps> = ({sections, onSeek, c
       <div className="flex-1 overflow-y-auto p-4 space-y-1">
         {entries.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center space-y-2">
-            <p className="text-gray-400 text-sm">暂无文字稿</p>
-            <p className="text-xs text-gray-300">请在课程内容中添加文字章节</p>
+            <p className="text-fg-faint text-sm">暂无文字稿</p>
+            <p className="text-xs text-fg-faint">请在课程内容中添加文字章节</p>
           </div>
         ) : (
           entries.map((entry, idx) => {
@@ -101,16 +101,16 @@ export const TranscriptTab: React.FC<TranscriptTabProps> = ({sections, onSeek, c
                 key={idx}
                 onClick={() => handleTimeClick(entry.timestamp)}
                 className={`w-full text-left px-3 py-2 rounded-lg transition-colors group ${
-                  isActive ? 'bg-indigo-50 border border-indigo-200' : 'hover:bg-gray-50'
+                  isActive ? 'bg-indigo-50 border border-indigo-200' : 'hover:bg-surface-muted'
                 }`}
               >
                 <div className="flex items-start gap-2">
                   <span className={`shrink-0 text-xs font-mono font-medium px-1.5 py-0.5 rounded ${
-                    isActive ? 'bg-indigo-500 text-white' : 'bg-gray-100 text-gray-500 group-hover:bg-indigo-100 group-hover:text-indigo-600'
+                    isActive ? 'bg-indigo-500 text-white' : 'bg-surface-muted text-fg-muted group-hover:bg-indigo-100 group-hover:text-indigo-600'
                   }`}>
                     {formatTimestamp(entry.timestamp)}
                   </span>
-                  <span className={`text-sm ${isActive ? 'text-indigo-800 font-medium' : 'text-gray-700'}`}>
+                  <span className={`text-sm ${isActive ? 'text-indigo-800 font-medium' : 'text-fg-secondary'}`}>
                     {entry.text}
                   </span>
                 </div>

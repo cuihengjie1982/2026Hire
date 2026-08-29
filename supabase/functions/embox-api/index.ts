@@ -48,7 +48,7 @@ const loadHandlers = async (): Promise<RouteHandler[]> => {
   // SMS Gateway
   const { sendSmsHandler, listTemplates, createTemplate } = await import('./sms-gateway/index.ts');
   // Training Academy
-  const { handleCourses, handleEnrollments, handleAnalytics, getTrainingStats, exportEnrollmentsCsv, portalHandler, shareLinkHandler, publicVideoCourseHandler, handlePaths, createSignedMaterialUpload, uploadMaterial, batchEnroll, handleNotes, handleTrainingAi } = await import('./training/index.ts');
+  const { handleCourses, handleVideoTaxonomy, handleEnrollments, handleAnalytics, getTrainingStats, exportEnrollmentsCsv, portalHandler, shareLinkHandler, publicVideoCourseHandler, handlePaths, createSignedMaterialUpload, uploadMaterial, batchEnroll, handleNotes, handleTrainingAi } = await import('./training/index.ts');
   // Stats (sidebar counts + unified search)
   const { sidebarStats, searchStats, dashboardStats } = await import('./stats/index.ts');
   // Shortlist (pipeline)
@@ -137,9 +137,14 @@ const loadHandlers = async (): Promise<RouteHandler[]> => {
     { pattern: '/notifications/', methods: ['DELETE'], auth: 'any', handler: dismissNotification },
     { pattern: '/notifications', methods: ['GET'], auth: 'any', handler: listNotifications },
     // SMS Gateway
+    { pattern: '/api/sms-gateway/send', methods: ['POST'], auth: 'recruiter+', handler: sendSmsHandler },
+    { pattern: '/api/sms-gateway/templates', methods: ['GET'], auth: 'any', handler: listTemplates },
+    { pattern: '/api/sms-gateway/templates', methods: ['POST'], auth: 'admin', handler: createTemplate },
     { pattern: '/sms-gateway/send', methods: ['POST'], auth: 'recruiter+', handler: sendSmsHandler },
     { pattern: '/sms-gateway/templates', methods: ['GET'], auth: 'any', handler: listTemplates },
     { pattern: '/sms-gateway/templates', methods: ['POST'], auth: 'admin', handler: createTemplate },
+    // Video Sharing — configurable task categories and quality tags
+    { pattern: '/training/video-taxonomy', methods: ['GET', 'POST', 'PATCH', 'DELETE'], auth: 'recruiter+', handler: handleVideoTaxonomy },
     // Training Academy — Courses (admin/recruiter manage, all authenticated read)
     { pattern: '/training/courses', methods: ['GET'], auth: 'any', handler: handleCourses },
     { pattern: '/training/courses', methods: ['POST'], auth: 'recruiter+', handler: handleCourses },
@@ -195,9 +200,10 @@ const loadHandlers = async (): Promise<RouteHandler[]> => {
     // Approvals — recruiter+
     { pattern: '/approvals', methods: ['GET', 'POST', 'PATCH'], auth: 'recruiter+', handler: handleApprovals },
     // Outreach — recruiter+
+    { pattern: '/api/outreach', methods: ['GET', 'POST', 'PATCH', 'DELETE'], auth: 'recruiter+', handler: handleOutreach },
     { pattern: '/outreach', methods: ['GET', 'POST', 'PATCH', 'DELETE'], auth: 'recruiter+', handler: handleOutreach },
     // Contacts — recruiter+
-    { pattern: '/contacts', methods: ['GET', 'POST', 'PATCH'], auth: 'recruiter+', handler: handleContacts },
+    { pattern: '/contacts', methods: ['GET', 'POST', 'PATCH', 'DELETE'], auth: 'recruiter+', handler: handleContacts },
     // Conversational Interview — recruiter+
     { pattern: '/conversational-interview/sessions', methods: ['POST'], auth: 'recruiter+', handler: createConvSession },
     { pattern: '/conversational-interview/messages/stream', methods: ['GET'], auth: 'recruiter+', handler: streamMessages },

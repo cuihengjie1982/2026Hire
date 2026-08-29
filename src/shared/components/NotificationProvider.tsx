@@ -20,14 +20,12 @@ import {
   type ReactNode,
 } from 'react';
 import {useNavigate} from 'react-router-dom';
-import {fetchJson} from '../lib/apiClient';
-import {USE_MOCK_API, API_BASE_URL, getAuthToken} from '../lib/runtime';
+import {buildEdgeFunctionUrl} from '../lib/apiClient';
+import {USE_MOCK_API, getAuthToken} from '../lib/runtime';
 
 // ---------------------------------------------------------------------------
 // Edge Function notification API (production)
 // ---------------------------------------------------------------------------
-
-const EF_BASE = `${API_BASE_URL}/functions/v1/embox-api`;
 
 async function efFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const token = getAuthToken();
@@ -35,7 +33,7 @@ async function efFetch<T>(path: string, init?: RequestInit): Promise<T> {
   if (token) headers.set('Authorization', `Bearer ${token}`);
   if (init?.body && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
 
-  const res = await fetch(`${EF_BASE}${path}`, {...init, headers});
+  const res = await fetch(buildEdgeFunctionUrl(path), {...init, headers});
   if (res.status === 401) {
     // Token expired — dispatch a custom event so the auth layer can redirect to login
     window.dispatchEvent(new CustomEvent('auth:token-expired'));
@@ -101,7 +99,7 @@ const TYPE_COLOR: Record<NotificationType, string> = {
   interview: 'bg-purple-100 text-purple-600 dark:bg-purple-900/40 dark:text-purple-400',
   approval: 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-400',
   candidate: 'bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-400',
-  system: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
+  system: 'bg-surface-muted text-fg-muted',
   outreach: 'bg-amber-100 text-amber-600 dark:bg-amber-900/40 dark:text-amber-400',
 };
 
@@ -316,12 +314,12 @@ export const NotificationBell = () => {
             animate={{opacity: 1, y: 0, scale: 1}}
             exit={{opacity: 0, x: -8, scale: 0.95}}
             transition={{duration: 0.15}}
-            className="absolute left-full ml-2 bottom-0 w-[360px] max-h-[70vh] bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-xl overflow-hidden z-50"
+            className="absolute left-full ml-2 bottom-0 w-[360px] max-h-[70vh] bg-surface rounded-xl border border-border shadow-xl overflow-hidden z-50"
           >
             {/* Header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-700">
-              <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
-                通知 <span className="text-gray-400 font-normal">({unreadCount} 条未读)</span>
+            <div className="flex items-center justify-between px-4 py-3 border-b border-border-subtle">
+              <h3 className="text-sm font-semibold text-fg">
+                通知 <span className="text-fg-faint font-normal">({unreadCount} 条未读)</span>
               </h3>
               {unreadCount > 0 && (
                 <button
@@ -336,7 +334,7 @@ export const NotificationBell = () => {
             {/* List */}
             <div className="overflow-y-auto max-h-[380px] custom-scrollbar">
               {recentNotifications.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-12 text-gray-400">
+                <div className="flex flex-col items-center justify-center py-12 text-fg-faint">
                   <FileText className="w-10 h-10 mb-2 opacity-40" />
                   <p className="text-sm">暂无通知</p>
                 </div>
@@ -348,8 +346,8 @@ export const NotificationBell = () => {
                     <div
                       key={n.id}
                       className={`
-                        flex items-start gap-3 px-4 py-3 border-b border-gray-50 dark:border-gray-700/50 cursor-pointer
-                        transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/50
+                        flex items-start gap-3 px-4 py-3 border-b border-border-subtle cursor-pointer
+                        transition-colors hover:bg-surface-muted/50
                         ${!n.read ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''}
                       `}
                       onClick={() => handleNotificationClick(n)}
@@ -359,7 +357,7 @@ export const NotificationBell = () => {
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-2">
-                          <p className={`text-sm font-medium truncate ${!n.read ? 'text-gray-900 dark:text-white' : 'text-gray-600 dark:text-gray-300'}`}>
+                          <p className={`text-sm font-medium truncate ${!n.read ? 'text-fg' : 'text-fg-secondary'}`}>
                             {n.title}
                           </p>
                           <button
@@ -367,15 +365,15 @@ export const NotificationBell = () => {
                               e.stopPropagation();
                               dismissNotification(n.id);
                             }}
-                            className="shrink-0 p-0.5 text-gray-300 hover:text-gray-500 dark:text-gray-600 dark:hover:text-gray-400 transition-colors"
+                            className="shrink-0 p-0.5 text-fg-faint hover:text-fg-muted transition-colors"
                           >
                             <X className="w-3.5 h-3.5" />
                           </button>
                         </div>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-2">
+                        <p className="text-xs text-fg-muted mt-0.5 line-clamp-2">
                           {n.message}
                         </p>
-                        <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1">
+                        <p className="text-[10px] text-fg-faint mt-1">
                           {formatRelativeTime(n.time)}
                         </p>
                       </div>
@@ -389,13 +387,13 @@ export const NotificationBell = () => {
             </div>
 
             {/* Footer */}
-            <div className="px-4 py-2.5 border-t border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50">
+            <div className="px-4 py-2.5 border-t border-border-subtle bg-surface-muted/50">
               <button
                 onClick={() => {
                   // Navigate to a notifications view (for now, just close)
                   setOpen(false);
                 }}
-                className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 font-medium transition-colors"
+                className="text-xs text-fg-muted hover:text-fg-secondary font-medium transition-colors"
               >
                 查看全部通知
               </button>

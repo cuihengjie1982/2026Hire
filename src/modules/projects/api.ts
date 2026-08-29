@@ -1,11 +1,10 @@
-import {fetchJson, cached, invalidateCache} from '../../shared/lib/apiClient';
-import {USE_MOCK_API, API_BASE_URL, getAuthToken} from '../../shared/lib/runtime';
+import {buildEdgeFunctionUrl, cached, invalidateCache} from '../../shared/lib/apiClient';
+import {USE_MOCK_API, getAuthToken} from '../../shared/lib/runtime';
 import {projectStatsFixture, projectsFixture} from './fixtures';
 import {type Project, type ProjectStats, type ProjectStatus} from './types';
 
 const efetch = async <T>(path: string, method = 'GET', body?: Record<string, unknown>): Promise<T> => {
-  const base = USE_MOCK_API ? '' : API_BASE_URL;
-  const res = await fetch(`${base}/functions/v1/embox-api${path}`, {
+  const res = await fetch(buildEdgeFunctionUrl(path), {
     method,
     headers: {
       'Content-Type': 'application/json',
@@ -88,8 +87,9 @@ export const getProjectStats = async (params: GetStatsParams = {}): Promise<Proj
     return getMockProjectStats(params);
   }
 
-  const res = await fetchJson<{activeProjects: number; candidateReserve: number; weeklyInterviews: number}>(
-    `/functions/v1/embox-api/analytics/project-stats`,
+  const res = await efetch<{activeProjects: number; candidateReserve: number; weeklyInterviews: number}>(
+    '/analytics/project-stats',
+    'GET',
   );
   return {
     activeProjects: res.activeProjects ?? 0,

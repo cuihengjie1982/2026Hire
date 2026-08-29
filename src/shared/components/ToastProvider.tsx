@@ -168,8 +168,7 @@ const ToastItem = ({
           onClick={() => onDismiss(item.id)}
           className={`
             p-0.5 rounded-lg transition-colors
-            text-gray-400 hover:text-gray-600
-            dark:text-gray-500 dark:hover:text-gray-300
+            text-fg-faint hover:text-fg-secondary
           `}
           aria-label="关闭通知"
         >

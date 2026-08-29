@@ -8,7 +8,8 @@ import {useProject} from '../contexts/ProjectContext';
 import {NotificationBell} from '../../shared/components/NotificationProvider';
 import {Breadcrumbs} from '../../shared/components/Breadcrumbs';
 import {useSidebarCounts} from '../hooks/useSidebarCounts';
-import {getUserName, USE_MOCK_API, API_BASE_URL, getAuthToken} from '../../shared/lib/runtime';
+import {getUserName, USE_MOCK_API, getAuthToken} from '../../shared/lib/runtime';
+import {buildEdgeFunctionUrl} from '../../shared/lib/apiClient';
 import {getCurrentUser} from '../../modules/settings/api';
 
 // ---------------------------------------------------------------------------
@@ -37,7 +38,7 @@ async function searchBackend(q: string): Promise<SearchResult | null> {
     return {candidates: [], positions: [], projects: [], agents: []};
   }
   try {
-    const resp = await fetch(`${API_BASE_URL}/functions/v1/embox-api/stats/search?q=${encodeURIComponent(q)}`, {
+    const resp = await fetch(`${buildEdgeFunctionUrl('/stats/search')}?q=${encodeURIComponent(q)}`, {
       headers: {'Authorization': `Bearer ${getAuthToken() ?? ''}`},
     });
     if (resp.ok) return await resp.json() as SearchResult;
@@ -86,7 +87,7 @@ export const DashboardLayout = ({onLogout}: {onLogout: () => void}) => {
     () => visibleNavigationItems.find((item) => item.id === currentPageId) ?? visibleNavigationItems[0] ?? navigationItems[0],
     [currentPageId, visibleNavigationItems],
   );
-  const isPreviewPage = false;
+  const isPreviewPage = location.pathname === '/interviews/preview';
 
   useEffect(() => {
     if (isPublicVideoSharing) return;
@@ -109,7 +110,9 @@ export const DashboardLayout = ({onLogout}: {onLogout: () => void}) => {
   useEffect(() => {
     const handleNavigate = (event: Event) => {
       if (!isNavigationEvent(event)) return;
-      navigate(getRouteForPage(event.detail.page));
+      const route = getRouteForPage(event.detail.page);
+      const search = event.detail.search;
+      navigate(search ? `${route}?${search}` : route);
       setIsSidebarOpen(false);
     };
 
@@ -126,7 +129,7 @@ export const DashboardLayout = ({onLogout}: {onLogout: () => void}) => {
   }
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] dark:bg-[#0f172a] font-sans overflow-hidden flex">
+    <div className="min-h-screen bg-page font-sans overflow-hidden flex">
       {/* Skip-link for keyboard users */}
       <a
         href="#main-content"
@@ -318,15 +321,15 @@ export const DashboardLayout = ({onLogout}: {onLogout: () => void}) => {
         </motion.aside>
       )}
 
-      <main id="main-content" role="main" aria-label="主要内容" className={`flex-1 flex flex-col h-screen overflow-hidden text-[14px] ${isPreviewPage ? 'bg-[#0c2b7a]' : 'bg-white/50 dark:bg-gray-900/50 backdrop-blur-3xl'}`}>
+      <main id="main-content" role="main" aria-label="主要内容" className={`flex-1 flex flex-col h-screen overflow-hidden text-[14px] ${isPreviewPage ? 'bg-[#0c2b7a]' : 'bg-page/50 backdrop-blur-3xl'}`}>
         {!isPreviewPage && (
-          <header role="banner" aria-label="页面头部" className="md:hidden h-16 px-4 flex items-center justify-between bg-white/60 dark:bg-gray-800/60 backdrop-blur-md border-b border-[#e0f2fe] dark:border-gray-700 z-10 shadow-sm shadow-[#1a4bc4]/5">
-            <button aria-label="打开导航菜单" className="p-2 -ml-2 text-[#1a4bc4] dark:text-blue-300 hover:bg-[#e0f2fe] dark:hover:bg-gray-700 rounded-xl" onClick={() => setIsSidebarOpen(true)}>
+          <header role="banner" aria-label="页面头部" className="md:hidden h-16 px-4 flex items-center justify-between bg-surface/60 backdrop-blur-md border-b border-brand-soft z-10 shadow-sm shadow-[#1a4bc4]/5">
+            <button aria-label="打开导航菜单" className="p-2 -ml-2 text-brand hover:bg-brand-soft rounded-xl" onClick={() => setIsSidebarOpen(true)}>
               <Menu className="w-6 h-6" />
             </button>
-            <span className="font-semibold text-[#0f172a] dark:text-white">{currentPage.title}</span>
-            <div className="w-8 h-8 rounded-full bg-[#e0f2fe] dark:bg-gray-700 flex items-center justify-center cursor-pointer" role="button" aria-label="打开菜单" onClick={() => setIsSidebarOpen(true)}>
-              <User className="w-5 h-5 text-[#1a4bc4] dark:text-blue-300 mt-1" />
+            <span className="font-semibold text-fg">{currentPage.title}</span>
+            <div className="w-8 h-8 rounded-full bg-brand-soft flex items-center justify-center cursor-pointer" role="button" aria-label="打开菜单" onClick={() => setIsSidebarOpen(true)}>
+              <User className="w-5 h-5 text-brand mt-1" />
             </div>
           </header>
         )}

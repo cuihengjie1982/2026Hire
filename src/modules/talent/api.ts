@@ -1,8 +1,8 @@
+import {buildEdgeFunctionUrl} from '../../shared/lib/apiClient';
 import {USE_MOCK_API, API_BASE_URL, getAuthToken} from '../../shared/lib/runtime';
 
 const efetch = async <T>(path: string, method = 'GET', body?: unknown): Promise<T> => {
-  const base = USE_MOCK_API ? '' : API_BASE_URL;
-  const res = await fetch(`${base}/functions/v1/embox-api${path}`, {
+  const res = await fetch(buildEdgeFunctionUrl(path), {
     method,
     headers: {
       'Content-Type': 'application/json',
@@ -241,6 +241,21 @@ export const deleteCandidate = async (id: string): Promise<void> => {
   candidatesData = candidatesData.filter((c) => c.id !== id);
 };
 
+/** Replace candidate tags (persists to candidate_tags table in real API / localStorage in mock). */
+export const updateCandidateTags = async (id: string, tags: string[]): Promise<string[]> => {
+  const normalized = [...new Set(tags.map((t) => t.trim()).filter(Boolean))];
+  if (USE_MOCK_API) {
+    await new Promise((r) => setTimeout(r, 120));
+    const idx = candidatesData.findIndex((c) => c.id === id);
+    if (idx >= 0) {
+      candidatesData[idx] = {...candidatesData[idx], tags: normalized};
+      saveCandidatesToStorage(candidatesData);
+    }
+    return normalized;
+  }
+  return efetch<string[]>(`/candidate-ops/${id}/tags`, 'POST', {tags: normalized});
+};
+
 // Check if a candidate is a duplicate by matching name + phone or name + email
 const findDuplicateIndex = (name: string, email?: string, phone?: string): number => {
   return candidatesData.findIndex((existing) => {
@@ -267,12 +282,12 @@ const aiParseResume = async (resumeText: string, fallback: ParsedResumeInfo): Pr
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
 	      const token = getAuthToken() || '';
-	      // Dev: Vite proxy → Express. Prod: Edge Function → /ai-proxy
+	      // Local Express for /api/ai/parse-resume; otherwise embox-api /ai-proxy
 	      const base = USE_MOCK_API ? '' : API_BASE_URL;
 	      const isLocalDev = base.includes('localhost') || base.includes('127.0.0.1');
 	      const aiUrl = isLocalDev
 	        ? `${base}/api/ai/parse-resume`
-	        : `${base}/functions/v1/embox-api/ai-proxy`;
+	        : buildEdgeFunctionUrl('/ai-proxy');
       const resp = await fetch(aiUrl, {
         method: 'POST',
         headers: {

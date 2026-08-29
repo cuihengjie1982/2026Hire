@@ -1,9 +1,8 @@
-import {cached, invalidateCache} from '../../shared/lib/apiClient';
-import {USE_MOCK_API, API_BASE_URL, getAuthToken} from '../../shared/lib/runtime';
+import {buildEdgeFunctionUrl, cached, invalidateCache} from '../../shared/lib/apiClient';
+import {USE_MOCK_API, getAuthToken} from '../../shared/lib/runtime';
 
 const efetch = async <T>(path: string, method = 'GET', body?: Record<string, unknown>): Promise<T> => {
-  const base = USE_MOCK_API ? '' : API_BASE_URL;
-  const res = await fetch(`${base}/functions/v1/embox-api${path}`, {
+  const res = await fetch(buildEdgeFunctionUrl(path), {
     method,
     headers: {
       'Content-Type': 'application/json',

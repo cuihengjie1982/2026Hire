@@ -1,5 +1,5 @@
 import {motion} from 'motion/react';
-import {lazy, Suspense, useState} from 'react';
+import {lazy, Suspense, useEffect, useState} from 'react';
 import {useSearchParams} from 'react-router-dom';
 import {Loader2, Folder, FileText} from 'lucide-react';
 
@@ -19,7 +19,7 @@ const TABS: {id: TabId; label: string; icon: typeof Folder}[] = [
 
 const TabFallback = () => (
   <div className="flex items-center justify-center py-20">
-    <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+    <Loader2 className="w-6 h-6 animate-spin text-fg-faint" />
   </div>
 );
 
@@ -29,6 +29,12 @@ export const ProjectManagePage = () => {
   const [activeTab, setActiveTab] = useState<TabId>(
     TABS.some(t => t.id === tabFromUrl) ? tabFromUrl! : 'projects',
   );
+
+  useEffect(() => {
+    if (tabFromUrl && TABS.some(t => t.id === tabFromUrl) && tabFromUrl !== activeTab) {
+      setActiveTab(tabFromUrl);
+    }
+  }, [tabFromUrl, activeTab]);
 
   const handleTabChange = (tab: TabId) => {
     setActiveTab(tab);
@@ -42,15 +48,15 @@ export const ProjectManagePage = () => {
         animate={{opacity: 1, y: 0}}
         className="max-w-[1500px] mx-auto w-full px-6 pt-5 pb-2"
       >
-        <div className="flex items-center gap-1 p-1 bg-gray-100 rounded-xl w-fit">
+        <div className="flex items-center gap-1 p-1 bg-surface-muted rounded-xl w-fit">
           {TABS.map(tab => (
             <button
               key={tab.id}
               onClick={() => handleTabChange(tab.id)}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                 activeTab === tab.id
-                  ? 'bg-white text-gray-900 shadow-sm'
-                  : 'text-gray-500 hover:text-gray-700'
+                  ? 'bg-surface text-fg shadow-sm'
+                  : 'text-fg-muted hover:text-fg-secondary'
               }`}
             >
               <tab.icon className="w-4 h-4" />

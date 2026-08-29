@@ -4,8 +4,10 @@ import {Search, Plus, Box, X, Trash2, Edit2} from 'lucide-react';
 import {listPositions, createPosition, updatePosition, deletePosition, getPositionDetail, savePositionDetail} from './modules/positions/api';
 import {listProjects} from './modules/projects/api';
 import {type PositionSummary, type PositionCategory, type ProfileRule, type ScoringRule, type GradeRule, type BaseScoreConfig} from './modules/positions/types';
+import {createNextGradeRule, updateGradeRule} from './modules/positions/gradeRulesLink';
 import type {Project} from './modules/projects/types';
 import {ConfirmDialog} from './shared/components/ConfirmDialog';
+import {NumericScoreInput} from './shared/components/NumericScoreInput';
 
 const CATEGORY_OPTIONS = [
   {label: '全部', value: ''},
@@ -297,14 +299,11 @@ export const PositionConfigPage = () => {
 
   // Grade rule handlers
   const handleGradeChange = (index: number, field: keyof GradeRule, value: string | number) => {
-    setGradeRules(prev => prev.map((g, i) => {
-      if (i === index) return {...g, [field]: value};
-      return g;
-    }));
+    setGradeRules((prev) => updateGradeRule(prev, index, field, value));
   };
 
   const handleAddGrade = () => {
-    setGradeRules(prev => [...prev, {grade: '', minScore: 0, maxScore: 0, label: '', action: ''}]);
+    setGradeRules((prev) => [...prev, createNextGradeRule(prev)]);
   };
 
   const handleRemoveGrade = (index: number) => {
@@ -482,14 +481,14 @@ export const PositionConfigPage = () => {
   return (
     <div className="min-h-screen bg-[#EEF2F6] p-8 flex flex-col font-sans">
       <div className="text-center mb-8 pt-4">
-        <h1 className="text-4xl font-extrabold text-gray-900 dark:text-white tracking-tight mb-3">岗位筛选标准配置</h1>
-        <p className="text-xl text-gray-600 dark:text-gray-300">配置AI评分规则与岗位画像</p>
+        <h1 className="text-4xl font-extrabold text-fg tracking-tight mb-3">岗位筛选标准配置</h1>
+        <p className="text-xl text-fg-secondary">配置AI评分规则与岗位画像</p>
       </div>
 
-      <div className="max-w-[1400px] w-full mx-auto bg-white dark:bg-gray-800 rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100 dark:border-gray-700 flex flex-col flex-1 min-h-[850px] overflow-hidden">
+      <div className="max-w-[1400px] w-full mx-auto bg-surface rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-border-subtle flex flex-col flex-1 min-h-[850px] overflow-hidden">
         {/* Top Header */}
-        <div className="h-16 flex justify-between items-center px-6 border-b border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800">
-          <div className="flex items-center text-xl font-bold text-gray-900 dark:text-white">
+        <div className="h-16 flex justify-between items-center px-6 border-b border-border-subtle bg-surface">
+          <div className="flex items-center text-xl font-bold text-fg">
             <div className="w-8 h-8 bg-gradient-to-br from-[#1a4bc4] to-[#6366F1] rounded flex items-center justify-center mr-3">
               <Box className="w-5 h-5 text-white" />
             </div>
@@ -507,7 +506,7 @@ export const PositionConfigPage = () => {
                 </button>
                 <button
                   onClick={handleExportConfig}
-                  className="border border-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/30 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg text-sm font-medium flex items-center transition-colors"
+                  className="border border-border hover:bg-surface-muted text-fg-secondary px-4 py-2 rounded-lg text-sm font-medium flex items-center transition-colors"
                 >
                   📤 导出配置
                 </button>
@@ -522,25 +521,25 @@ export const PositionConfigPage = () => {
 
         <div className="flex flex-1 overflow-hidden">
           {/* Left Column - Directory */}
-          <div className="w-[280px] bg-white dark:bg-gray-800 border-r border-[#E2E8F0] flex flex-col">
+          <div className="w-[280px] bg-surface border-r border-[#E2E8F0] flex flex-col">
             <div className="p-4 border-b border-[#E2E8F0]">
-              <div className="font-bold text-gray-900 dark:text-white mb-3 text-[15px]">岗位选择</div>
+              <div className="font-bold text-fg mb-3 text-[15px]">岗位选择</div>
               <div className="relative mb-4">
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="搜索岗位..."
-                  className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg pl-3 pr-8 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#6366F1]/20 focus:border-[#6366F1] transition-all"
+                  className="w-full bg-surface-muted border border-border rounded-lg pl-3 pr-8 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#6366F1]/20 focus:border-[#6366F1] transition-all"
                 />
-                <Search className="w-4 h-4 text-gray-400 dark:text-gray-500 absolute right-3 top-2.5" />
+                <Search className="w-4 h-4 text-fg-faint absolute right-3 top-2.5" />
               </div>
               <div className="flex items-center space-x-1.5">
                 {CATEGORY_OPTIONS.map((tab) => (
                   <button
                     key={tab.value}
                     onClick={() => setActiveTab(tab.value)}
-                    className={`px-2.5 py-1 text-xs font-medium rounded transition-colors ${activeTab === tab.value ? 'bg-[#EEF2FF] text-[#4F46E5] border border-[#C7D2FE]' : 'text-gray-500 hover:bg-gray-50 border border-transparent'}`}
+                    className={`px-2.5 py-1 text-xs font-medium rounded transition-colors ${activeTab === tab.value ? 'bg-[#EEF2FF] text-[#4F46E5] border border-[#C7D2FE]' : 'text-fg-muted hover:bg-surface-muted border border-transparent'}`}
                   >
                     {tab.label}
                   </button>
@@ -550,9 +549,9 @@ export const PositionConfigPage = () => {
 
             <div className="flex-1 overflow-y-auto p-2 space-y-1">
               {loading ? (
-                <div className="text-center py-4 text-gray-500 dark:text-gray-400 text-sm">加载中...</div>
+                <div className="text-center py-4 text-fg-muted text-sm">加载中...</div>
               ) : filteredPositions.length === 0 ? (
-                <div className="text-center py-4 text-gray-500 dark:text-gray-400 text-sm">暂无岗位</div>
+                <div className="text-center py-4 text-fg-muted text-sm">暂无岗位</div>
               ) : (
                 filteredPositions.map((pos) => (
                   <div key={pos.id} className="group relative">
@@ -561,7 +560,7 @@ export const PositionConfigPage = () => {
                         setActivePositionId(pos.id);
                         setIsEditing(false);
                       }}
-                      className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-colors ${activePositionId === pos.id ? 'bg-[#EEF2FF] text-[#4F46E5]' : 'text-gray-700 hover:bg-gray-50'}`}
+                      className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-colors ${activePositionId === pos.id ? 'bg-[#EEF2FF] text-[#4F46E5]' : 'text-fg-secondary hover:bg-surface-muted'}`}
                     >
                       <div className="flex-1 text-left">
                         <div className="font-medium">{pos.name}</div>
@@ -569,8 +568,8 @@ export const PositionConfigPage = () => {
                       <div className={`w-2 h-2 rounded-full ${pos.status === 'active' ? 'bg-emerald-500' : 'bg-gray-300'}`} />
                     </button>
                     <div className="absolute right-2 top-1/2 -translate-y-1/2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button onClick={() => handleOpenEdit(pos)} className="p-1 hover:bg-gray-200 rounded">
-                        <Edit2 className="w-3 h-3 text-gray-500 dark:text-gray-400" />
+                      <button onClick={() => handleOpenEdit(pos)} className="p-1 hover:bg-surface-muted rounded">
+                        <Edit2 className="w-3 h-3 text-fg-muted" />
                       </button>
                       <button onClick={() => setDeleteConfirmId(pos.id)} className="p-1 hover:bg-red-100 rounded">
                         <Trash2 className="w-3 h-3 text-red-500" />
@@ -583,18 +582,18 @@ export const PositionConfigPage = () => {
           </div>
 
           {/* Middle Column - Main Content */}
-          <div className="flex-1 bg-white dark:bg-gray-800 overflow-y-auto custom-scrollbar relative">
+          <div className="flex-1 bg-surface overflow-y-auto custom-scrollbar relative">
             {activePosition ? (
               <>
                 <div className="p-8 pb-32">
                   <div className="flex items-center justify-between mb-6 pb-4 border-b border-[#E2E8F0]">
                     <div className="flex items-center gap-4">
-                      <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{activePosition.name}</h2>
-                      <span className={`px-2 py-0.5 rounded text-xs font-medium ${activePosition.status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>
+                      <h2 className="text-2xl font-bold text-fg">{activePosition.name}</h2>
+                      <span className={`px-2 py-0.5 rounded text-xs font-medium ${activePosition.status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-surface-muted text-fg-muted'}`}>
                         {activePosition.status === 'active' ? '启用' : '关闭'}
                       </span>
                     </div>
-                    <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                    <div className="flex items-center gap-2 text-sm text-fg-muted">
                       <span>创建人：{activePosition.createdBy || '未知'}</span>
                       <span>|</span>
                       <span>创建时间：{activePosition.createdAt ? new Date(activePosition.createdAt).toLocaleDateString() : '-'}</span>
@@ -609,23 +608,23 @@ export const PositionConfigPage = () => {
 
                     <div className="grid grid-cols-2 gap-x-8 gap-y-4 px-1">
                       <div className="flex items-center">
-                        <span className="w-24 text-gray-700 dark:text-gray-300 font-medium text-sm text-right mr-3">岗位名称:</span>
-                        <span className="border border-gray-200 dark:border-gray-700 rounded px-2.5 py-1.5 text-sm flex-1 bg-gray-50 dark:bg-gray-800">{activePosition.name}</span>
+                        <span className="w-24 text-fg-secondary font-medium text-sm text-right mr-3">岗位名称:</span>
+                        <span className="border border-border rounded px-2.5 py-1.5 text-sm flex-1 bg-surface-muted">{activePosition.name}</span>
                       </div>
                       <div className="flex items-center">
-                        <span className="w-24 text-gray-700 dark:text-gray-300 font-medium text-sm text-right mr-3">所属项目:</span>
-                        <span className="border border-gray-200 dark:border-gray-700 rounded px-2.5 py-1.5 text-sm flex-1 bg-gray-50 dark:bg-gray-800">{projects.find(p => p.id === activePosition.projectId)?.name || '-'}</span>
+                        <span className="w-24 text-fg-secondary font-medium text-sm text-right mr-3">所属项目:</span>
+                        <span className="border border-border rounded px-2.5 py-1.5 text-sm flex-1 bg-surface-muted">{projects.find(p => p.id === activePosition.projectId)?.name || '-'}</span>
                       </div>
                       <div className="flex items-center">
-                        <span className="w-24 text-gray-700 dark:text-gray-300 font-medium text-sm text-right mr-3">岗位状态:</span>
-                        <span className={`border border-gray-200 rounded px-2.5 py-1.5 text-sm flex-1 ${activePosition.status === 'active' ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-50 text-gray-500'}`}>
+                        <span className="w-24 text-fg-secondary font-medium text-sm text-right mr-3">岗位状态:</span>
+                        <span className={`border border-border rounded px-2.5 py-1.5 text-sm flex-1 ${activePosition.status === 'active' ? 'bg-emerald-50 text-emerald-700' : 'bg-surface-muted text-fg-muted'}`}>
                           {activePosition.status === 'active' ? '启用' : '关闭'}
                         </span>
                       </div>
                     </div>
                     <div className="flex items-center mt-4 px-1">
-                      <span className="w-24 text-gray-700 dark:text-gray-300 font-medium text-sm text-right mr-3">岗位描述:</span>
-                      <span className="border border-gray-200 dark:border-gray-700 rounded px-2.5 py-1.5 text-sm flex-1 bg-gray-50 dark:bg-gray-800 min-h-[40px]">{activePosition.description || '-'}</span>
+                      <span className="w-24 text-fg-secondary font-medium text-sm text-right mr-3">岗位描述:</span>
+                      <span className="border border-border rounded px-2.5 py-1.5 text-sm flex-1 bg-surface-muted min-h-[40px]">{activePosition.description || '-'}</span>
                     </div>
                   </div>
 
@@ -635,7 +634,7 @@ export const PositionConfigPage = () => {
                       <span>2. 画像配置</span>
                       {isEditing && (
                         <div className="ml-auto flex gap-2">
-                          <label className="px-3 py-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-xs text-[#6366F1] cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/30 font-normal">
+                          <label className="px-3 py-1 bg-surface border border-border rounded-lg text-xs text-[#6366F1] cursor-pointer hover:bg-surface-muted font-normal">
                             <input type="file" accept=".md,.txt" className="hidden" onChange={handleImportStructuredFile} />
                             导入MD文件
                           </label>
@@ -644,13 +643,13 @@ export const PositionConfigPage = () => {
                     </div>
 
                     <div className="space-y-4 px-1">
-                      <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
+                      <div className="bg-surface-muted rounded-lg p-4">
                         <div className="flex items-center justify-between mb-3">
-                          <h4 className="font-bold text-gray-900 dark:text-white text-sm">画像配置</h4>
+                          <h4 className="font-bold text-fg text-sm">画像配置</h4>
                           {isEditing && (
                             <button
                               onClick={handleAddProfileRule}
-                              className="px-3 py-1.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-[#6366F1] hover:bg-gray-50 dark:hover:bg-gray-700/30"
+                              className="px-3 py-1.5 bg-surface border border-border rounded-lg text-sm text-[#6366F1] hover:bg-surface-muted"
                             >
                               + 添加配置
                             </button>
@@ -658,17 +657,17 @@ export const PositionConfigPage = () => {
                         </div>
                         {/* Column Headers */}
                         <div className="grid grid-cols-12 gap-3 mb-2 px-1">
-                          <div className="col-span-4 text-xs font-medium text-gray-500 dark:text-gray-400">关键词</div>
-                          <div className="col-span-4 text-xs font-medium text-gray-500 dark:text-gray-400">同义词（逗号分隔）</div>
-                          <div className="col-span-3 text-xs font-medium text-gray-500 dark:text-gray-400">类别</div>
+                          <div className="col-span-4 text-xs font-medium text-fg-muted">关键词</div>
+                          <div className="col-span-4 text-xs font-medium text-fg-muted">同义词（逗号分隔）</div>
+                          <div className="col-span-3 text-xs font-medium text-fg-muted">类别</div>
                           <div className="col-span-1"></div>
                         </div>
                         {profileRules.length === 0 ? (
-                          <div className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">暂无画像配置</div>
+                          <div className="text-sm text-fg-muted text-center py-4">暂无画像配置</div>
                         ) : (
                           <div className="space-y-3">
                             {profileRules.map((rule, idx) => (
-                              <div key={idx} className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
+                              <div key={idx} className="bg-surface rounded-lg p-3 border border-border">
                                 <div className="grid grid-cols-12 gap-3">
                                   <div className="col-span-4">
                                     <input
@@ -676,7 +675,7 @@ export const PositionConfigPage = () => {
                                       value={rule.keyword}
                                       onChange={(e) => handleProfileRuleChange(idx, 'keyword', e.target.value)}
                                       disabled={!isEditing}
-                                      className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#6366F1] disabled:bg-gray-50"
+                                      className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#6366F1] disabled:bg-surface-muted"
                                       placeholder="关键词"
                                     />
                                   </div>
@@ -686,7 +685,7 @@ export const PositionConfigPage = () => {
                                       value={(rule.synonyms ?? []).join(', ')}
                                       onChange={(e) => handleProfileRuleChange(idx, 'synonyms', e.target.value)}
                                       disabled={!isEditing}
-                                      className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#6366F1] disabled:bg-gray-50"
+                                      className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#6366F1] disabled:bg-surface-muted"
                                       placeholder="同义词（逗号分隔）"
                                     />
                                   </div>
@@ -696,7 +695,7 @@ export const PositionConfigPage = () => {
                                       value={rule.category}
                                       onChange={(e) => handleProfileRuleChange(idx, 'category', e.target.value)}
                                       disabled={!isEditing}
-                                      className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#6366F1] disabled:bg-gray-50"
+                                      className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#6366F1] disabled:bg-surface-muted"
                                       placeholder="类别"
                                     />
                                   </div>
@@ -723,7 +722,7 @@ export const PositionConfigPage = () => {
                       <span>3. 评分标准配置（满分100分）</span>
                       {isEditing && (
                         <div className="ml-auto flex gap-2">
-                          <label className="px-3 py-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-xs text-[#6366F1] cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/30 font-normal">
+                          <label className="px-3 py-1 bg-surface border border-border rounded-lg text-xs text-[#6366F1] cursor-pointer hover:bg-surface-muted font-normal">
                             <input type="file" accept=".md,.txt" className="hidden" onChange={handleImportStructuredFile} />
                             导入MD文件
                           </label>
@@ -732,52 +731,51 @@ export const PositionConfigPage = () => {
                     </div>
                     <div className="space-y-6 px-1">
                       {/* 3.1 画像匹配权重 */}
-                      <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
+                      <div className="bg-surface-muted rounded-lg p-4">
                         <div className="flex items-center justify-between mb-3">
-                          <h4 className="font-bold text-gray-900 dark:text-white text-sm">3.1 画像匹配权重</h4>
+                          <h4 className="font-bold text-fg text-sm">3.1 画像匹配权重</h4>
                         </div>
                         <div className="flex items-center gap-4">
                           <div className="flex items-center gap-2">
-                            <label className="text-sm text-gray-700 dark:text-gray-300">画像匹配分值：</label>
-                            <input
-                              type="number"
+                            <label className="text-sm text-fg-secondary">画像匹配分值：</label>
+                            <NumericScoreInput
                               value={baseScoreConfig?.baseScore ?? 50}
-                              onChange={(e) => handleBaseScoreChange(parseInt(e.target.value) || 0)}
+                              onChange={handleBaseScoreChange}
                               disabled={!isEditing}
-                              className="w-20 px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#6366F1] disabled:bg-gray-50"
-                              min="0"
-                              max="100"
+                              className="w-20 px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#6366F1] disabled:bg-surface-muted"
+                              min={0}
+                              max={100}
                             />
-                            <span className="text-sm text-gray-500 dark:text-gray-400 ml-1">分</span>
+                            <span className="text-sm text-fg-muted ml-1">分</span>
                           </div>
-                          <div className="text-sm text-gray-600 dark:text-gray-300">
+                          <div className="text-sm text-fg-secondary">
                             技能与经验匹配 = <span className="font-bold text-[#4F46E5]">{100 - (baseScoreConfig?.baseScore ?? 50)}</span> 分
                           </div>
                         </div>
-                        <p className="text-xs text-gray-400 dark:text-gray-500 mt-2">
+                        <p className="text-xs text-fg-faint mt-2">
                           总分 = 画像匹配分 + 技能与经验匹配分 = 100分。画像匹配按上方配置的画像规则逐一匹配简历，匹配比例 × 此分值得出画像匹配分。剩余分数由技能与经验匹配的各维度按权重分配。
                         </p>
                       </div>
 
                       {/* 3.2 技能与经验匹配 */}
-                      <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
+                      <div className="bg-surface-muted rounded-lg p-4">
                         <div className="flex items-center justify-between mb-3">
-                          <h4 className="font-bold text-gray-900 dark:text-white text-sm">3.2 技能与经验匹配（满分 {100 - (baseScoreConfig?.baseScore ?? 50)} 分）</h4>
+                          <h4 className="font-bold text-fg text-sm">3.2 技能与经验匹配（满分 {100 - (baseScoreConfig?.baseScore ?? 50)} 分）</h4>
                           {isEditing && (
                             <button
                               onClick={handleAddScoringRule}
-                              className="px-3 py-1.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-[#6366F1] hover:bg-gray-50 dark:hover:bg-gray-700/30"
+                              className="px-3 py-1.5 bg-surface border border-border rounded-lg text-sm text-[#6366F1] hover:bg-surface-muted"
                             >
                               + 添加维度
                             </button>
                           )}
                         </div>
                         {scoringRules.length === 0 ? (
-                          <div className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">暂无评分维度</div>
+                          <div className="text-sm text-fg-muted text-center py-4">暂无评分维度</div>
                         ) : (
                           <div className="space-y-4">
                             {scoringRules.map((rule, idx) => (
-                              <div key={idx} className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                              <div key={idx} className="bg-surface rounded-lg p-4 border border-border">
                                 <div className="grid grid-cols-12 gap-3">
                                   <div className="col-span-4">
                                     <input
@@ -785,20 +783,19 @@ export const PositionConfigPage = () => {
                                       value={rule.dimension}
                                       onChange={(e) => handleScoringRuleChange(idx, 'dimension', e.target.value)}
                                       disabled={!isEditing}
-                                      className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#6366F1] disabled:bg-gray-50"
+                                      className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#6366F1] disabled:bg-surface-muted"
                                       placeholder="维度名称，如：专业技能"
                                     />
                                   </div>
                                   <div className="col-span-2">
-                                    <input
-                                      type="number"
+                                    <NumericScoreInput
                                       value={rule.weight}
-                                      onChange={(e) => handleScoringRuleChange(idx, 'weight', parseFloat(e.target.value) || 0)}
+                                      onChange={(n) => handleScoringRuleChange(idx, 'weight', n)}
                                       disabled={!isEditing}
-                                      className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#6366F1] disabled:bg-gray-50"
+                                      className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#6366F1] disabled:bg-surface-muted"
                                       placeholder="权重"
-                                      min="0"
-                                      max="100"
+                                      min={0}
+                                      max={100}
                                     />
                                   </div>
                                   <div className="col-span-4">
@@ -807,7 +804,7 @@ export const PositionConfigPage = () => {
                                       value={(rule.keywords ?? []).join(', ')}
                                       onChange={(e) => handleScoringRuleChange(idx, 'keywords', e.target.value)}
                                       disabled={!isEditing}
-                                      className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#6366F1] disabled:bg-gray-50"
+                                      className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#6366F1] disabled:bg-surface-muted"
                                       placeholder="关键字（逗号分隔）：舞蹈,表演"
                                     />
                                   </div>
@@ -816,7 +813,7 @@ export const PositionConfigPage = () => {
                                       value={rule.matchMode}
                                       onChange={(e) => handleScoringRuleChange(idx, 'matchMode', e.target.value)}
                                       disabled={!isEditing}
-                                      className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#6366F1] bg-white dark:bg-gray-800 disabled:bg-gray-50"
+                                      className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#6366F1] bg-surface disabled:bg-surface-muted"
                                     >
                                       <option value="any">匹配任意</option>
                                       <option value="all">匹配全部</option>
@@ -836,7 +833,7 @@ export const PositionConfigPage = () => {
                           </div>
                         )}
                         {scoringRules.length > 0 && (
-                          <div className="mt-3 text-sm text-gray-600 dark:text-gray-300">
+                          <div className="mt-3 text-sm text-fg-secondary">
                             权重总和：<span className={`font-bold ${scoringRules.reduce((sum, r) => sum + r.weight, 0) === (100 - (baseScoreConfig?.baseScore ?? 50)) ? 'text-emerald-600' : 'text-red-600'}`}>
                               {scoringRules.reduce((sum, r) => sum + r.weight, 0)}%
                             </span>
@@ -853,24 +850,27 @@ export const PositionConfigPage = () => {
                       4. Grade Rules 分数档位
                     </div>
 
-                    <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
+                    <div className="bg-surface-muted rounded-lg p-4">
                       <div className="flex items-center justify-between mb-3">
-                        <h4 className="font-bold text-gray-900 dark:text-white text-sm">Grade Rules</h4>
+                        <h4 className="font-bold text-fg text-sm">Grade Rules</h4>
                         {isEditing && (
                           <button
                             onClick={handleAddGrade}
-                            className="px-3 py-1.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-[#6366F1] hover:bg-gray-50 dark:hover:bg-gray-700/30"
+                            className="px-3 py-1.5 bg-surface border border-border rounded-lg text-sm text-[#6366F1] hover:bg-surface-muted"
                           >
                             + 添加档位
                           </button>
                         )}
                       </div>
+                      <p className="text-xs text-fg-faint mb-3">
+                        自上而下为高分档→低分档。每一级默认设置10分梯度，请不要让分数区间重叠。
+                      </p>
                       {gradeRules.length === 0 ? (
-                        <div className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">暂无档位配置</div>
+                        <div className="text-sm text-fg-muted text-center py-4">暂无档位配置</div>
                       ) : (
                         <div className="space-y-3">
                           {gradeRules.map((rule, idx) => (
-                            <div key={idx} className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
+                            <div key={idx} className="bg-surface rounded-lg p-3 border border-border">
                               <div className="grid grid-cols-12 gap-3">
                                 <div className="col-span-2">
                                   <input
@@ -878,28 +878,30 @@ export const PositionConfigPage = () => {
                                     value={rule.grade}
                                     onChange={(e) => handleGradeChange(idx, 'grade', e.target.value)}
                                     disabled={!isEditing}
-                                    className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#6366F1] disabled:bg-gray-50"
+                                    className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#6366F1] disabled:bg-surface-muted"
                                     placeholder="A级"
                                   />
                                 </div>
                                 <div className="col-span-2">
-                                  <input
-                                    type="number"
+                                  <NumericScoreInput
                                     value={rule.minScore}
-                                    onChange={(e) => handleGradeChange(idx, 'minScore', parseInt(e.target.value) || 0)}
+                                    onChange={(n) => handleGradeChange(idx, 'minScore', n)}
                                     disabled={!isEditing}
-                                    className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#6366F1] disabled:bg-gray-50"
+                                    className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#6366F1] disabled:bg-surface-muted"
                                     placeholder="最低分"
+                                    min={0}
+                                    max={100}
                                   />
                                 </div>
                                 <div className="col-span-2">
-                                  <input
-                                    type="number"
+                                  <NumericScoreInput
                                     value={rule.maxScore}
-                                    onChange={(e) => handleGradeChange(idx, 'maxScore', parseInt(e.target.value) || 0)}
+                                    onChange={(n) => handleGradeChange(idx, 'maxScore', n)}
                                     disabled={!isEditing}
-                                    className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#6366F1] disabled:bg-gray-50"
+                                    className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#6366F1] disabled:bg-surface-muted"
                                     placeholder="最高分"
+                                    min={0}
+                                    max={100}
                                   />
                                 </div>
                                 <div className="col-span-5">
@@ -908,7 +910,7 @@ export const PositionConfigPage = () => {
                                     value={rule.action}
                                     onChange={(e) => handleGradeChange(idx, 'action', e.target.value)}
                                     disabled={!isEditing}
-                                    className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#6366F1] disabled:bg-gray-50"
+                                    className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#6366F1] disabled:bg-surface-muted"
                                     placeholder="操作建议：如 优先录用"
                                   />
                                 </div>
@@ -929,15 +931,15 @@ export const PositionConfigPage = () => {
                   </div>
 
                   {/* Section 5 - AI 智能筛选提示词 */}
-                  <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
+                  <div className="bg-surface rounded-lg border border-border p-6">
                     <div className="flex items-center space-x-3 mb-4">
                       <div className="w-7 h-7 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center text-xs font-bold border border-purple-200">
                         6
                       </div>
-                      <h4 className="font-bold text-[16px] text-gray-900 dark:text-white">AI 智能筛选提示词</h4>
+                      <h4 className="font-bold text-[16px] text-fg">AI 智能筛选提示词</h4>
                       <span className="text-[11px] text-purple-600 bg-purple-50 border border-purple-100 px-2 py-0.5 rounded-full font-medium">AI</span>
                     </div>
-                    <p className="text-[13px] text-gray-500 dark:text-gray-400 mb-3">
+                    <p className="text-[13px] text-fg-muted mb-3">
                       在此输入给 AI 大模型的系统提示词，描述你期望的候选人画像、筛选标准和评估维度。启用 AI 搜索时将使用此提示词。
                     </p>
                     <textarea
@@ -955,9 +957,9 @@ export const PositionConfigPage = () => {
 2. 参考各维度权重给出合理评分（0-100）
 3. 说明录用建议和理由`}
                       rows={6}
-                      className="w-full px-3 py-2.5 border border-gray-200 dark:border-gray-700 rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#6366F1] disabled:bg-gray-50 resize-y font-mono"
+                      className="w-full px-3 py-2.5 border border-border rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#6366F1] disabled:bg-surface-muted resize-y font-mono"
                     />
-                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                    <p className="text-xs text-fg-faint mt-1">
                       该提示词将作为 AI 模型的 System Prompt 发送。请确保已在「AI 代理 → 模型配置」中配置可用的 AI 大模型。
                     </p>
                   </div>
@@ -965,12 +967,12 @@ export const PositionConfigPage = () => {
                 </div>
 
                 {/* Bottom Actions Fixed */}
-                <div className="absolute bottom-0 left-0 w-full bg-white dark:bg-gray-800 border-t border-gray-100 dark:border-gray-700 p-4 px-8 flex items-center space-x-4 shadow-[0_-4px_10px_rgb(0,0,0,0.02)]">
+                <div className="absolute bottom-0 left-0 w-full bg-surface border-t border-border-subtle p-4 px-8 flex items-center space-x-4 shadow-[0_-4px_10px_rgb(0,0,0,0.02)]">
                   {isEditing ? (
                     <>
                       <button
                         onClick={() => {
-                          alert('保存按钮被点击了！');
+                          // alert('保存按钮被点击了！');
                           console.log('[DEBUG] Save button clicked, savingConfig:', savingConfig);
                           handleSaveConfig();
                         }}
@@ -985,7 +987,7 @@ export const PositionConfigPage = () => {
                           setSaveMessage(null);
                           if (activePositionId) loadPositionDetail(activePositionId);
                         }}
-                        className="border border-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/30 text-gray-700 dark:text-gray-300 px-6 py-2 rounded-lg font-bold text-sm transition-colors"
+                        className="border border-border hover:bg-surface-muted text-fg-secondary px-6 py-2 rounded-lg font-bold text-sm transition-colors"
                       >
                         取消
                       </button>
@@ -1007,7 +1009,7 @@ export const PositionConfigPage = () => {
                             `=== 画像规则 ===\n${profileRules.map(r => `${r.keyword}${(r.synonyms ?? []).length ? ` (同义词: ${r.synonyms.join(', ')})` : ''}`).join('\n') || '暂无'}`
                           );
                         }}
-                        className="border border-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/30 text-gray-700 dark:text-gray-300 px-6 py-2 rounded-lg font-bold text-sm transition-colors"
+                        className="border border-border hover:bg-surface-muted text-fg-secondary px-6 py-2 rounded-lg font-bold text-sm transition-colors"
                       >
                         预览评分效果
                       </button>
@@ -1016,7 +1018,7 @@ export const PositionConfigPage = () => {
                 </div>
               </>
             ) : (
-              <div className="flex items-center justify-center h-full text-gray-500 dark:text-gray-400">
+              <div className="flex items-center justify-center h-full text-fg-muted">
                 请选择一个岗位查看配置
               </div>
             )}
@@ -1030,31 +1032,31 @@ export const PositionConfigPage = () => {
           <motion.div
             initial={{opacity: 0, scale: 0.95}}
             animate={{opacity: 1, scale: 1}}
-            className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-lg p-6"
+            className="bg-surface rounded-xl shadow-xl w-full max-w-lg p-6"
           >
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white">{editingPosition ? '编辑岗位' : '新建岗位'}</h3>
-              <button onClick={() => setShowDialog(false)} className="text-gray-400 dark:text-gray-500 hover:text-gray-600">
+              <h3 className="text-lg font-bold text-fg">{editingPosition ? '编辑岗位' : '新建岗位'}</h3>
+              <button onClick={() => setShowDialog(false)} className="text-fg-faint hover:text-fg-secondary">
                 <X className="w-5 h-5" />
               </button>
             </div>
             <div className="space-y-4">
               <div>
-                <label className="block text-[13px] font-medium text-gray-700 dark:text-gray-300 mb-1">岗位名称 *</label>
+                <label className="block text-[13px] font-medium text-fg-secondary mb-1">岗位名称 *</label>
                 <input
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData({...formData, name: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#6366F1]"
+                  className="w-full px-3 py-2 border border-border rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#6366F1]"
                   placeholder="如：MWV-全身动捕演员"
                 />
               </div>
               <div>
-                <label className="block text-[13px] font-medium text-gray-700 dark:text-gray-300 mb-1">岗位类别</label>
+                <label className="block text-[13px] font-medium text-fg-secondary mb-1">岗位类别</label>
                 <select
                   value={formData.category}
                   onChange={(e) => setFormData({...formData, category: e.target.value as PositionCategory})}
-                  className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#6366F1] bg-white dark:bg-gray-800"
+                  className="w-full px-3 py-2 border border-border rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#6366F1] bg-surface"
                 >
                   {CATEGORY_SELECT_OPTIONS.map((cat) => (
                     <option key={cat} value={cat}>{cat}</option>
@@ -1062,11 +1064,11 @@ export const PositionConfigPage = () => {
                 </select>
               </div>
               <div>
-                <label className="block text-[13px] font-medium text-gray-700 dark:text-gray-300 mb-1">所属项目</label>
+                <label className="block text-[13px] font-medium text-fg-secondary mb-1">所属项目</label>
                 <select
                   value={formData.projectId}
                   onChange={(e) => setFormData({...formData, projectId: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#6366F1] bg-white dark:bg-gray-800"
+                  className="w-full px-3 py-2 border border-border rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#6366F1] bg-surface"
                 >
                   <option value="">未关联</option>
                   {projects.map((p) => (
@@ -1075,44 +1077,44 @@ export const PositionConfigPage = () => {
                 </select>
               </div>
               <div>
-                <label className="block text-[13px] font-medium text-gray-700 dark:text-gray-300 mb-1">岗位状态</label>
+                <label className="block text-[13px] font-medium text-fg-secondary mb-1">岗位状态</label>
                 <select
                   value={formData.status}
                   onChange={(e) => setFormData({...formData, status: e.target.value as 'active' | 'inactive'})}
-                  className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#6366F1]"
+                  className="w-full px-3 py-2 border border-border rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#6366F1]"
                 >
                   <option value="active">启用</option>
                   <option value="inactive">关闭</option>
                 </select>
               </div>
               <div>
-                <label className="block text-[13px] font-medium text-gray-700 dark:text-gray-300 mb-1">需求人数</label>
-                <input
-                  type="number"
-                  value={formData.requiredCount}
-                  onChange={(e) => setFormData({...formData, requiredCount: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#6366F1]"
+                <label className="block text-[13px] font-medium text-fg-secondary mb-1">需求人数</label>
+                <NumericScoreInput
+                  value={formData.requiredCount === '' ? 0 : Number(formData.requiredCount) || 0}
+                  onChange={(n) => setFormData({...formData, requiredCount: n > 0 ? String(n) : ''})}
+                  className="w-full px-3 py-2 border border-border rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#6366F1]"
                   placeholder="如：5"
-                  min="0"
+                  min={0}
+                  max={9999}
                 />
               </div>
               <div>
-                <label className="block text-[13px] font-medium text-gray-700 dark:text-gray-300 mb-1">交付周期（天）</label>
-                <input
-                  type="number"
-                  value={formData.deliveryDays}
-                  onChange={(e) => setFormData({...formData, deliveryDays: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#6366F1]"
+                <label className="block text-[13px] font-medium text-fg-secondary mb-1">交付周期（天）</label>
+                <NumericScoreInput
+                  value={formData.deliveryDays === '' ? 0 : Number(formData.deliveryDays) || 0}
+                  onChange={(n) => setFormData({...formData, deliveryDays: n > 0 ? String(n) : ''})}
+                  className="w-full px-3 py-2 border border-border rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#6366F1]"
                   placeholder="如：30"
-                  min="0"
+                  min={0}
+                  max={9999}
                 />
               </div>
               <div>
-                <label className="block text-[13px] font-medium text-gray-700 dark:text-gray-300 mb-1">岗位描述</label>
+                <label className="block text-[13px] font-medium text-fg-secondary mb-1">岗位描述</label>
                 <textarea
                   value={formData.description}
                   onChange={(e) => setFormData({...formData, description: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#6366F1] min-h-[80px]"
+                  className="w-full px-3 py-2 border border-border rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#6366F1] min-h-[80px]"
                   placeholder="请输入岗位描述..."
                 />
               </div>
@@ -1120,7 +1122,7 @@ export const PositionConfigPage = () => {
             <div className="flex gap-3 mt-6">
               <button
                 onClick={() => setShowDialog(false)}
-                className="flex-1 px-4 py-2 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-[13px] font-medium hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors"
+                className="flex-1 px-4 py-2 border border-border text-fg-secondary rounded-lg text-[13px] font-medium hover:bg-surface-muted transition-colors"
               >
                 取消
               </button>

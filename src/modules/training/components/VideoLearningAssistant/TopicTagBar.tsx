@@ -32,11 +32,11 @@ export const TopicTagBar: React.FC<TopicTagBarProps> = ({topics, currentVideoTim
   };
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-3">
+    <div className="bg-surface rounded-xl border border-border p-3">
       <div className="flex items-center gap-2 mb-2">
         <Tag className="w-4 h-4 text-indigo-500 shrink-0" />
-        <span className="text-xs font-medium text-gray-600">AI 主题标签</span>
-        {loading && <Loader2 className="w-3 h-3 animate-spin text-gray-400" />}
+        <span className="text-xs font-medium text-fg-secondary">AI 主题标签</span>
+        {loading && <Loader2 className="w-3 h-3 animate-spin text-fg-faint" />}
       </div>
 
       <div className="flex flex-wrap items-center gap-1.5">
@@ -69,20 +69,20 @@ export const TopicTagBar: React.FC<TopicTagBarProps> = ({topics, currentVideoTim
               onChange={e => setSearchInput(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleSearch()}
               placeholder="输入感兴趣的主题..."
-              className="px-2 py-1 border border-gray-300 rounded-full text-xs w-32 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              className="px-2 py-1 border border-border rounded-full text-xs w-32 focus:outline-none focus:ring-1 focus:ring-indigo-500"
               autoFocus
             />
             <button onClick={handleSearch} className="p-1 text-indigo-500 hover:bg-indigo-50 rounded-full">
               <Search className="w-3 h-3" />
             </button>
-            <button onClick={() => {setShowInput(false); setSearchInput('');}} className="p-1 text-gray-400 hover:bg-gray-100 rounded-full">
+            <button onClick={() => {setShowInput(false); setSearchInput('');}} className="p-1 text-fg-faint hover:bg-surface-muted rounded-full">
               <X className="w-3 h-3" />
             </button>
           </div>
         ) : (
           <button
             onClick={() => setShowInput(true)}
-            className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs text-gray-500 border border-dashed border-gray-300 hover:border-indigo-400 hover:text-indigo-500 transition-colors"
+            className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs text-fg-muted border border-dashed border-border hover:border-indigo-400 hover:text-indigo-500 transition-colors"
           >
             <Search className="w-3 h-3" />
             搜索主题

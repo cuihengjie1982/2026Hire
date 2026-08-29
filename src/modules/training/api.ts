@@ -1,5 +1,5 @@
-import {getItemsFromPayload} from '../../shared/lib/apiClient';
-import {USE_MOCK_API, API_BASE_URL, getAuthToken} from '../../shared/lib/runtime';
+import {buildApiUrl, buildEdgeFunctionUrl, getItemsFromPayload} from '../../shared/lib/apiClient';
+import {USE_MOCK_API, API_BASE_URL, SUPABASE_URL, getAuthToken} from '../../shared/lib/runtime';
 import {courseFixtures, enrollmentFixtures} from './fixtures';
 import {
   type TrainingCourse,
@@ -18,7 +18,17 @@ import {
   type TrainingActionCaptionFrame,
   type TrainingActionCaptionJob,
   type TrainingActionCaptionResult,
+  type VideoPolarity,
+  type VideoReviewStatus,
+  type VideoSeverity,
+  type VideoTaxonomy,
+  type VideoTaxonomyOption,
 } from './types';
+import {groupVideoTaxonomyOptions, resolveVideoPolarity} from './videoTaxonomy';
+import {
+  TRAINING_MATERIALS_MAX_FILE_BYTES,
+  TRAINING_MATERIALS_MAX_FILE_LABEL,
+} from './uploadLimits';
 
 // Re-export types for consumers
 export type {
@@ -36,6 +46,11 @@ export type {
   TrainingActionCaptionFrame,
   TrainingActionCaptionJob,
   TrainingActionCaptionResult,
+  VideoPolarity,
+  VideoReviewStatus,
+  VideoSeverity,
+  VideoTaxonomy,
+  VideoTaxonomyOption,
 };
 
 const MATERIAL_UPLOAD_TIMEOUT_MS = 15 * 60 * 1000;
@@ -157,7 +172,10 @@ type SignedMaterialUploadInfo = {
 };
 
 const createSignedMaterialUploadInfo = async (file: File, token: string | null): Promise<SignedMaterialUploadInfo> => {
-  const prepareRes = await fetch(`${API_BASE_URL}/functions/v1/embox-api/training/materials/signed-upload`, {
+  if (file.size > TRAINING_MATERIALS_MAX_FILE_BYTES) {
+    throw new Error(`文件过大，单个文件不能超过${TRAINING_MATERIALS_MAX_FILE_LABEL}`);
+  }
+  const prepareRes = await fetch(buildEdgeFunctionUrl('/training/materials/signed-upload'), {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -275,11 +293,15 @@ const uploadMaterialViaApi = async (
   });
 };
 
-// Helper to call embox-api Edge Function (production) or fall through to fetchJson (dev)
-const trainingEndpoint = (path: string) => {
-  const base = USE_MOCK_API ? '' : API_BASE_URL;
-  const isLocalExpress = base.includes('localhost') || base.includes('127.0.0.1');
-  return isLocalExpress ? `${base}/api${path}` : `${base}/functions/v1/embox-api${path}`;
+// Helper to call embox-api Edge Function (production) or Express /api (local-only dev)
+const trainingEndpoint = (path: string) => buildApiUrl(`/api${path}`);
+
+/** Public training catalog — separate Edge Function, no auth required */
+const publicTrainingEndpoint = (path: string) => {
+  if (!USE_MOCK_API && SUPABASE_URL) {
+    return `${SUPABASE_URL}/functions/v1/training-public${path}`;
+  }
+  return `/training-public-api${path}`;
 };
 
 const efetch = async <T>(path: string, method = 'GET', body?: Record<string, unknown>): Promise<T> => {
@@ -374,15 +396,55 @@ const mapPublicCourseMediaUrls = (course: TrainingCourse): TrainingCourse => ({
   })),
 });
 
+const mapVideoTaxonomyOption = (raw: unknown): VideoTaxonomyOption | undefined => {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
+  const row = raw as Record<string, unknown>;
+  const kind = String(row.kind ?? '') as VideoTaxonomyOption['kind'];
+  if (kind !== 'task' && kind !== 'scene' && kind !== 'quality') return undefined;
+  const rawPolarity = row.polarity;
+  const polarity = rawPolarity === 'positive' || rawPolarity === 'negative' ? rawPolarity : undefined;
+  return {
+    id: String(row.id ?? ''),
+    kind,
+    name: String(row.name ?? ''),
+    ...(polarity ? {polarity} : {}),
+    sortOrder: Number(row.sort_order ?? row.sortOrder ?? 0),
+    isActive: Boolean(row.is_active ?? row.isActive ?? true),
+    createdAt: row.created_at || row.createdAt ? String(row.created_at ?? row.createdAt) : undefined,
+    updatedAt: row.updated_at || row.updatedAt ? String(row.updated_at ?? row.updatedAt) : undefined,
+  };
+};
+
 const mapCourse = (raw: Record<string, unknown>): TrainingCourse => {
   const materials = (raw.materials ?? []) as CourseMaterial[];
   const content = normalizeCourseVideoContent((raw.content ?? []) as CourseSection[], materials);
+  const category = String(raw.category ?? '综合');
+  const explicitPolarity = raw.video_polarity ?? raw.videoPolarity;
+  const videoPolarity = resolveVideoPolarity({videoPolarity: explicitPolarity, category});
+  const taskCategory = mapVideoTaxonomyOption(raw.task_category ?? raw.taskCategory);
+  const scene = mapVideoTaxonomyOption(raw.video_scene ?? raw.scene);
+  const rawQualityTags = raw.quality_tags ?? raw.qualityTags;
+  const qualityTags = (Array.isArray(rawQualityTags) ? rawQualityTags : [])
+    .map(mapVideoTaxonomyOption)
+    .filter((option): option is VideoTaxonomyOption => Boolean(option));
+  const rawQualityTagIds = raw.quality_tag_ids ?? raw.qualityTagIds;
+  const qualityTagIds = Array.isArray(rawQualityTagIds)
+    ? rawQualityTagIds.map(value => String(value))
+    : qualityTags.map(option => option.id);
+  const rawSeverity = raw.video_severity ?? raw.videoSeverity;
+  const videoSeverity = ['minor', 'moderate', 'severe'].includes(String(rawSeverity ?? ''))
+    ? String(rawSeverity) as VideoSeverity
+    : undefined;
+  const rawReviewStatus = raw.video_review_status ?? raw.videoReviewStatus;
+  const videoReviewStatus = ['pending_review', 'approved', 'internal', 'published'].includes(String(rawReviewStatus ?? ''))
+    ? String(rawReviewStatus) as VideoReviewStatus
+    : undefined;
 
   return {
     id: String(raw.id ?? ''),
     title: String(raw.title ?? ''),
     description: String(raw.description ?? ''),
-    category: String(raw.category ?? '综合'),
+    category,
     difficulty: String(raw.difficulty ?? '初级') as TrainingCourse['difficulty'],
     durationMinutes: Number(raw.duration_minutes ?? raw.durationMinutes ?? 30),
     content,
@@ -393,6 +455,22 @@ const mapCourse = (raw: Record<string, unknown>): TrainingCourse => {
       ? String((raw.positions as Record<string, unknown>).name)
       : raw.position_name ? String(raw.position_name) : undefined,
     competencyDimension: raw.competency_dimension ? String(raw.competency_dimension) : undefined,
+    videoPolarity,
+    taskCategoryId: raw.video_task_category_id || raw.taskCategoryId
+      ? String(raw.video_task_category_id ?? raw.taskCategoryId)
+      : taskCategory?.id,
+    taskCategory,
+    videoSceneId: raw.video_scene_id || raw.videoSceneId
+      ? String(raw.video_scene_id ?? raw.videoSceneId)
+      : scene?.id,
+    scene,
+    qualityTagIds,
+    qualityTags,
+    videoSeverity,
+    videoReviewNote: raw.video_review_note || raw.videoReviewNote
+      ? String(raw.video_review_note ?? raw.videoReviewNote)
+      : undefined,
+    videoReviewStatus,
     isActive: Boolean(raw.is_active ?? raw.isActive ?? true),
     createdAt: String(raw.created_at ?? ''),
     updatedAt: String(raw.updated_at ?? ''),
@@ -473,18 +551,116 @@ const mapAssessment = (raw: Record<string, unknown>): TrainingAssessment => ({
 let courses = [...courseFixtures];
 let enrollments = [...enrollmentFixtures];
 let assessments: TrainingAssessment[] = [];
+let mockVideoTaxonomyOptions: VideoTaxonomyOption[] = [
+  {id: 'task-cleaning', kind: 'task', name: '清洁', sortOrder: 10, isActive: true},
+  {id: 'task-organizing', kind: 'task', name: '收纳', sortOrder: 20, isActive: true},
+  {id: 'task-cooking', kind: 'task', name: '烹饪', sortOrder: 30, isActive: true},
+  {id: 'scene-kitchen', kind: 'scene', name: '厨房', sortOrder: 10, isActive: true},
+  {id: 'scene-living-room', kind: 'scene', name: '客厅', sortOrder: 20, isActive: true},
+  {id: 'scene-bedroom', kind: 'scene', name: '卧室', sortOrder: 30, isActive: true},
+  {id: 'positive-natural', kind: 'quality', polarity: 'positive', name: '动作自然', sortOrder: 10, isActive: true},
+  {id: 'positive-complete', kind: 'quality', polarity: 'positive', name: '流程完整', sortOrder: 20, isActive: true},
+  {id: 'negative-staged', kind: 'quality', polarity: 'negative', name: '摆拍严重', sortOrder: 10, isActive: true},
+  {id: 'negative-slow', kind: 'quality', polarity: 'negative', name: '动作太慢', sortOrder: 20, isActive: true},
+  {id: 'negative-unnatural', kind: 'quality', polarity: 'negative', name: '家务不自然', sortOrder: 30, isActive: true},
+];
 
 const mockDelay = () => new Promise<void>(r => setTimeout(r, 150 + Math.random() * 200));
 
+export interface CreateVideoTaxonomyOptionInput {
+  kind: VideoTaxonomyOption['kind'];
+  name: string;
+  polarity?: VideoPolarity;
+  sortOrder?: number;
+}
+
+export interface UpdateVideoTaxonomyOptionInput {
+  name?: string;
+  sortOrder?: number;
+  isActive?: boolean;
+}
+
+export const listVideoTaxonomy = async (includeInactive = false): Promise<VideoTaxonomy> => {
+  if (USE_MOCK_API) {
+    await mockDelay();
+    return groupVideoTaxonomyOptions(mockVideoTaxonomyOptions, includeInactive);
+  }
+  const payload = await efetch<{items?: Record<string, unknown>[]}>(
+    `/training/video-taxonomy${includeInactive ? '?includeInactive=true' : ''}`,
+  );
+  const options = (payload.items ?? [])
+    .map(mapVideoTaxonomyOption)
+    .filter((option): option is VideoTaxonomyOption => Boolean(option));
+  return groupVideoTaxonomyOptions(options, includeInactive);
+};
+
+export const createVideoTaxonomyOption = async (
+  input: CreateVideoTaxonomyOptionInput,
+): Promise<VideoTaxonomyOption> => {
+  if (USE_MOCK_API) {
+    await mockDelay();
+    const option: VideoTaxonomyOption = {
+      id: `taxonomy-${Date.now()}`,
+      kind: input.kind,
+      name: input.name.trim(),
+      ...(input.polarity ? {polarity: input.polarity} : {}),
+      sortOrder: input.sortOrder ?? mockVideoTaxonomyOptions.length * 10 + 10,
+      isActive: true,
+    };
+    mockVideoTaxonomyOptions = [...mockVideoTaxonomyOptions, option];
+    return option;
+  }
+  const raw = await efetch<Record<string, unknown>>(
+    '/training/video-taxonomy',
+    'POST',
+    input as unknown as Record<string, unknown>,
+  );
+  const option = mapVideoTaxonomyOption(raw);
+  if (!option) throw new Error('分类保存成功但返回数据格式异常');
+  return option;
+};
+
+export const updateVideoTaxonomyOption = async (
+  id: string,
+  updates: UpdateVideoTaxonomyOptionInput,
+): Promise<VideoTaxonomyOption> => {
+  if (USE_MOCK_API) {
+    await mockDelay();
+    const index = mockVideoTaxonomyOptions.findIndex(option => option.id === id);
+    if (index === -1) throw new Error('分类不存在');
+    mockVideoTaxonomyOptions[index] = {...mockVideoTaxonomyOptions[index], ...updates};
+    return mockVideoTaxonomyOptions[index];
+  }
+  const raw = await efetch<Record<string, unknown>>(
+    `/training/video-taxonomy/${encodeURIComponent(id)}`,
+    'PATCH',
+    updates as unknown as Record<string, unknown>,
+  );
+  const option = mapVideoTaxonomyOption(raw);
+  if (!option) throw new Error('分类保存成功但返回数据格式异常');
+  return option;
+};
+
+export const deleteVideoTaxonomyOption = async (id: string): Promise<void> => {
+  if (USE_MOCK_API) {
+    await mockDelay();
+    mockVideoTaxonomyOptions = mockVideoTaxonomyOptions.filter(option => option.id !== id);
+    return;
+  }
+  await efetch(`/training/video-taxonomy/${encodeURIComponent(id)}`, 'DELETE');
+};
+
 // ─── Courses ────────────────────────────────────────────────────────────
 
-export const listCourses = async (filters?: {
+type CourseListFilters = {
   category?: string;
   positionId?: string;
   difficulty?: string;
   page?: number;
   pageSize?: number;
-}): Promise<{items: TrainingCourse[]; total: number; page: number; pageSize: number}> => {
+};
+
+export const listCourses = async (filters?: CourseListFilters): Promise<{items: TrainingCourse[]; total: number; page: number; pageSize: number}> => {
   if (USE_MOCK_API) {
     await mockDelay();
     let filtered = courses.filter(c => c.isActive);
@@ -512,8 +688,29 @@ export const listCourses = async (filters?: {
   };
 };
 
+export const listAllCourses = async (
+  filters?: Omit<CourseListFilters, 'page' | 'pageSize'>,
+): Promise<{items: TrainingCourse[]; total: number; page: number; pageSize: number}> => {
+  const pageSize = 200;
+  const coursesById = new Map<string, TrainingCourse>();
+  let page = 1;
+  let total = 0;
+
+  do {
+    const result = await listCourses({...filters, page, pageSize});
+    total = result.total;
+    const previousCount = coursesById.size;
+    result.items.forEach(course => coursesById.set(course.id, course));
+    if (result.items.length === 0 || coursesById.size === previousCount) break;
+    page += 1;
+  } while (coursesById.size < total);
+
+  const items = Array.from(coursesById.values());
+  return {items, total, page: 1, pageSize: items.length};
+};
+
 export const listPublicVideoShareCourses = async (): Promise<{items: TrainingCourse[]; total: number; page: number; pageSize: number}> => {
-  const res = await fetch('/training-public-api/courses', {cache: 'no-store'});
+  const res = await fetch(publicTrainingEndpoint('/courses'), {cache: 'no-store'});
   const data = await res.json();
   if (!res.ok) throw new Error(data?.error?.message || `API error ${res.status}`);
   const rawItems = getItemsFromPayload<Record<string, unknown>>(data);
@@ -551,6 +748,22 @@ export const createCourse = async (input: Partial<TrainingCourse> & {title: stri
       assessmentConfig: input.assessmentConfig ?? {type: 'quiz', passingScore: 60},
       positionId: input.positionId,
       competencyDimension: input.competencyDimension,
+      videoPolarity: input.videoPolarity,
+      taskCategoryId: input.taskCategoryId,
+      taskCategory: input.taskCategoryId
+        ? mockVideoTaxonomyOptions.find(option => option.id === input.taskCategoryId)
+        : undefined,
+      qualityTagIds: input.qualityTagIds ?? [],
+      qualityTags: (input.qualityTagIds ?? [])
+        .map(id => mockVideoTaxonomyOptions.find(option => option.id === id))
+        .filter((option): option is VideoTaxonomyOption => Boolean(option)),
+      videoSceneId: input.videoSceneId,
+      scene: input.videoSceneId
+        ? mockVideoTaxonomyOptions.find(option => option.id === input.videoSceneId)
+        : undefined,
+      videoSeverity: input.videoSeverity,
+      videoReviewNote: input.videoReviewNote,
+      videoReviewStatus: input.videoReviewStatus,
       isActive: true,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -568,12 +781,53 @@ export const updateCourse = async (id: string, updates: Partial<TrainingCourse>)
     await mockDelay();
     const idx = courses.findIndex(c => c.id === id);
     if (idx === -1) throw new Error('Course not found');
-    courses[idx] = {...courses[idx], ...updates, updatedAt: new Date().toISOString()};
+    const next = {...courses[idx], ...updates, updatedAt: new Date().toISOString()};
+    if (Object.prototype.hasOwnProperty.call(updates, 'taskCategoryId')) {
+      next.taskCategory = updates.taskCategoryId
+        ? mockVideoTaxonomyOptions.find(option => option.id === updates.taskCategoryId)
+        : undefined;
+    }
+    if (Object.prototype.hasOwnProperty.call(updates, 'videoSceneId')) {
+      next.scene = updates.videoSceneId
+        ? mockVideoTaxonomyOptions.find(option => option.id === updates.videoSceneId)
+        : undefined;
+    }
+    if (updates.qualityTagIds) {
+      next.qualityTags = updates.qualityTagIds
+        .map(tagId => mockVideoTaxonomyOptions.find(option => option.id === tagId))
+        .filter((option): option is VideoTaxonomyOption => Boolean(option));
+    }
+    courses[idx] = next;
     return courses[idx];
   }
 
   const raw = await efetch<Record<string, unknown>>(`/training/courses/${id}`, 'PATCH', updates as unknown as Record<string, unknown>);
   return mapCourse(raw);
+};
+
+export const batchUpdateCourseReviewStatus = async (
+  courseIds: string[],
+  videoReviewStatus: VideoReviewStatus,
+): Promise<{updated: number}> => {
+  const ids = Array.from(new Set(courseIds.map(id => String(id)).filter(Boolean))).slice(0, 200);
+  if (!ids.length) throw new Error('至少选择一条视频');
+
+  if (USE_MOCK_API) {
+    await mockDelay();
+    let updated = 0;
+    courses = courses.map(course => {
+      if (!ids.includes(course.id)) return course;
+      updated += 1;
+      return {...course, videoReviewStatus, updatedAt: new Date().toISOString()};
+    });
+    return {updated};
+  }
+
+  const payload = await efetch<{updated?: number}>('/training/courses/review-batch', 'PATCH', {
+    courseIds: ids,
+    videoReviewStatus,
+  });
+  return {updated: Number(payload.updated ?? 0)};
 };
 
 export const deleteCourse = async (id: string): Promise<void> => {
@@ -603,15 +857,12 @@ export const getPublicTrainingCourse = async (courseId: string, token: string): 
   }
 
   const params = new URLSearchParams({token});
-  const isLocalExpress = API_BASE_URL.includes('localhost') || API_BASE_URL.includes('127.0.0.1');
-  const url = isLocalExpress
-    ? trainingEndpoint(`/training/public/course/${encodeURIComponent(courseId)}?${params.toString()}`)
-    : `/training-public-api/course/${encodeURIComponent(courseId)}?${params.toString()}`;
+  const url = publicTrainingEndpoint(`/course/${encodeURIComponent(courseId)}?${params.toString()}`);
   const res = await fetch(url);
   const data = await res.json();
   if (!res.ok) throw new Error(data?.error?.message || `API error ${res.status}`);
   const course = mapCourse((data.course ?? data) as Record<string, unknown>);
-  return isLocalExpress ? course : mapPublicCourseMediaUrls(course);
+  return mapPublicCourseMediaUrls(course);
 };
 
 const findCourseVideoUrl = (course: TrainingCourse, targetUrl?: string): string => {
@@ -1039,8 +1290,7 @@ export const exportEnrollmentsCSV = async (filters?: {status?: string; courseId?
   const qs = params.toString();
 
   const token = getAuthToken() ?? '';
-  const base = USE_MOCK_API ? '' : API_BASE_URL;
-  const url = `${base}/functions/v1/embox-api/training/export/enrollments${qs ? `?${qs}` : ''}`;
+  const url = `${buildEdgeFunctionUrl('/training/export/enrollments')}${qs ? `?${qs}` : ''}`;
 
   const resp = await fetch(url, {
     headers: {Authorization: `Bearer ${token}`},

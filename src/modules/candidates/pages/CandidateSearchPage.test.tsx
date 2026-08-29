@@ -56,6 +56,7 @@ vi.mock('../../positions/api', () => ({
 
 vi.mock('../../shortlist/api', () => ({
   addToShortlist: vi.fn(),
+  listShortlistByPosition: vi.fn(async () => []),
 }));
 
 vi.mock('../../../navigation', () => ({

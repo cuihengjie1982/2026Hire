@@ -37,6 +37,7 @@
         font-size: 15px;
       }
       .filters { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; }
+      .category-filters { display: flex; gap: 8px; padding-bottom: 2px; }
       .filter {
         border: 1px solid #dbe3ef;
         border-radius: 999px;
@@ -48,6 +49,43 @@
         white-space: nowrap;
       }
       .filter.active { background: #111827; border-color: #111827; color: #fff; }
+      .category-filter {
+        display: flex;
+        flex: 1 1 0;
+        align-items: center;
+        justify-content: center;
+        min-width: 0;
+        height: 44px;
+        min-height: 44px;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        background: #fff;
+        color: #334155;
+        padding: 8px 12px;
+        font-size: 13px;
+        font-weight: 700;
+        white-space: nowrap;
+      }
+      .category-filter[data-category="positive"].active { background: #047857; border-color: #047857; color: #fff; }
+      .category-filter[data-category="negative"].active { background: #be123c; border-color: #be123c; color: #fff; }
+      .category-filter[data-category="other"].active { background: #334155; border-color: #334155; color: #fff; }
+      .taxonomy-filters { display: grid; gap: 10px; }
+      .taxonomy-group { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 8px; align-items: start; }
+      .taxonomy-label { padding-top: 7px; color: #64748b; font-size: 12px; font-weight: 700; }
+      .taxonomy-options { display: flex; gap: 7px; overflow-x: auto; padding-bottom: 2px; }
+      .taxonomy-option {
+        flex: 0 0 auto;
+        min-height: 34px;
+        border: 1px solid #dbe3ef;
+        border-radius: 7px;
+        background: #fff;
+        color: #475569;
+        padding: 7px 10px;
+        font-size: 12px;
+        font-weight: 700;
+        white-space: nowrap;
+      }
+      .taxonomy-option.active { background: #111827; border-color: #111827; color: #fff; }
       .message {
         margin: 12px 0;
         padding: 14px;
@@ -97,16 +135,27 @@
       .title { margin: 0; font-size: 16px; line-height: 1.45; font-weight: 800; word-break: break-word; }
       .meta { margin: 5px 0 0; color: #94a3b8; font-size: 12px; line-height: 1.5; }
       .course { margin: 7px 0 0; color: #475569; font-size: 13px; line-height: 1.5; }
+      .details { margin-top: 9px; color: #475569; font-size: 12px; line-height: 1.6; }
+      .review-note { margin-top: 10px; border: 1px solid #dbeafe; border-radius: 9px; background: #eff6ff; padding: 9px 10px; color: #1e3a8a; font-size: 13px; line-height: 1.65; white-space: pre-wrap; }
+      .review-note.negative { border-color: #ffe4e6; background: #fff1f2; color: #9f1239; }
       .tag {
         display: inline-block;
         margin-top: 9px;
         border-radius: 6px;
-        background: #eff6ff;
-        color: #1d4ed8;
+        border: 1px solid transparent;
         padding: 3px 8px;
         font-size: 12px;
         font-weight: 700;
       }
+      .tag-positive { background: #ecfdf5; border-color: #a7f3d0; color: #047857; }
+      .tag-negative { background: #fff1f2; border-color: #fecdd3; color: #be123c; }
+      .tag-other { background: #f1f5f9; border-color: #cbd5e1; color: #475569; }
+      .tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px; }
+      .tags .tag { margin-top: 0; }
+      .tag-task { background: #eff6ff; border-color: #bfdbfe; color: #1d4ed8; }
+      .tag-scene { background: #ecfdf5; border-color: #a7f3d0; color: #047857; }
+      .tag-quality { background: #f8fafc; border-color: #cbd5e1; color: #475569; }
+      .tag-severity { background: #fff7ed; border-color: #fed7aa; color: #c2410c; }
       .actions {
         display: grid;
         grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -137,6 +186,7 @@
       .empty { text-align: center; color: #64748b; padding: 40px 12px; }
       @media (min-width: 720px) {
         .toolbar { grid-template-columns: 1fr auto; align-items: center; }
+        .category-filters { grid-column: 1 / -1; }
         .list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       }
     </style>
@@ -157,6 +207,21 @@
       </section>
 
       <section class="toolbar">
+        <div id="category-filters" class="category-filters" role="tablist" aria-label="视频分类"></div>
+        <div id="taxonomy-filters" class="taxonomy-filters" hidden>
+          <div id="task-group" class="taxonomy-group" hidden>
+            <span class="taxonomy-label">任务分类</span>
+            <div id="task-filters" class="taxonomy-options" role="tablist" aria-label="任务分类"></div>
+          </div>
+          <div id="scene-group" class="taxonomy-group" hidden>
+            <span class="taxonomy-label">场景</span>
+            <div id="scene-filters" class="taxonomy-options" role="tablist" aria-label="场景"></div>
+          </div>
+          <div id="quality-group" class="taxonomy-group" hidden>
+            <span class="taxonomy-label">质量标签</span>
+            <div id="quality-filters" class="taxonomy-options" role="tablist" aria-label="质量标签"></div>
+          </div>
+        </div>
         <input id="search" class="search" type="search" placeholder="搜索标题、课程、分类" />
         <div class="filters" role="tablist">
           <button class="filter active" type="button" data-filter="all">全部</button>
@@ -176,7 +241,19 @@
         var listEl = document.getElementById('list');
         var messageEl = document.getElementById('message');
         var searchEl = document.getElementById('search');
+        var categoryFiltersEl = document.getElementById('category-filters');
+        var taxonomyFiltersEl = document.getElementById('taxonomy-filters');
+        var taskGroupEl = document.getElementById('task-group');
+        var sceneGroupEl = document.getElementById('scene-group');
+        var qualityGroupEl = document.getElementById('quality-group');
+        var taskFiltersEl = document.getElementById('task-filters');
+        var sceneFiltersEl = document.getElementById('scene-filters');
+        var qualityFiltersEl = document.getElementById('quality-filters');
         var activeFilter = 'all';
+        var activeCategory = 'positive';
+        var activeTask = 'all';
+        var activeScene = 'all';
+        var activeQuality = 'all';
         var assets = [];
 
         function getStoredToken() {
@@ -232,12 +309,56 @@
           return buildSharePath(asset.courseId, asset.token);
         }
 
-        function copyText(text) {
+        function copyText(text, done) {
           if (navigator.clipboard && navigator.clipboard.writeText) {
-            return navigator.clipboard.writeText(text);
+            navigator.clipboard.writeText(text).then(function () {
+              done();
+            }).catch(function () {
+              window.prompt('复制下面的培训链接', text);
+              done();
+            });
+            return;
           }
           window.prompt('复制下面的培训链接', text);
-          return Promise.resolve();
+          done();
+        }
+
+        function requestJson(url, onSuccess, onError) {
+          if (window.fetch) {
+            fetch(url, { cache: 'no-store' })
+              .then(function (response) {
+                return response.json().then(function (data) {
+                  if (!response.ok) throw new Error((data.error && data.error.message) || '培训资料加载失败');
+                  return data;
+                });
+              })
+              .then(onSuccess)
+              .catch(onError);
+            return;
+          }
+
+          var xhr = new XMLHttpRequest();
+          xhr.open('GET', url, true);
+          xhr.setRequestHeader('Accept', 'application/json');
+          xhr.onreadystatechange = function () {
+            if (xhr.readyState !== 4) return;
+            var data = null;
+            try {
+              data = JSON.parse(xhr.responseText || '{}');
+            } catch (e) {
+              onError(new Error('培训资料加载失败'));
+              return;
+            }
+            if (xhr.status < 200 || xhr.status >= 300) {
+              onError(new Error((data.error && data.error.message) || '培训资料加载失败'));
+              return;
+            }
+            onSuccess(data);
+          };
+          xhr.onerror = function () {
+            onError(new Error('网络出错，请稍后重试。'));
+          };
+          xhr.send();
         }
 
         function getCourseItems(course) {
@@ -271,6 +392,20 @@
             var course = courses[i];
             var token = course.share_token || course.shareToken || '';
             if (!token) continue;
+            var explicitPolarity = course.video_polarity || course.videoPolarity || '';
+            var taskCategory = course.task_category || course.taskCategory || null;
+            var scene = course.video_scene || course.scene || null;
+            var rawQualityTags = course.quality_tags || course.qualityTags || [];
+            var qualityTags = [];
+            if (Array.isArray(rawQualityTags)) {
+              for (var tagIndex = 0; tagIndex < rawQualityTags.length; tagIndex += 1) {
+                if (!rawQualityTags[tagIndex] || !rawQualityTags[tagIndex].id) continue;
+                qualityTags.push({
+                  id: String(rawQualityTags[tagIndex].id),
+                  name: String(rawQualityTags[tagIndex].name || '')
+                });
+              }
+            }
             var items = getCourseItems(course);
             for (var j = 0; j < items.length; j += 1) {
               var ext = getExtension(items[j].url);
@@ -282,14 +417,30 @@
                 token: token,
                 courseTitle: course.title || '培训资料',
                 courseDescription: course.description || '',
+                difficulty: course.difficulty || '',
+                durationMinutes: Number(course.duration_minutes || course.durationMinutes || 0),
                 category: course.category || '综合',
+                polarity: explicitPolarity,
+                taskCategory: taskCategory && taskCategory.id ? {
+                  id: String(taskCategory.id), name: String(taskCategory.name || '')
+                } : null,
+                scene: scene && scene.id ? {
+                  id: String(scene.id), name: String(scene.name || '')
+                } : null,
+                qualityTags: qualityTags,
+                severity: course.video_severity || course.videoSeverity || '',
+                reviewNote: course.video_review_note || course.videoReviewNote || '',
                 title: items[j].title,
                 url: items[j].url,
                 sourceLabel: items[j].sourceLabel,
                 kind: isVideo ? 'video' : 'document',
                 kindLabel: kindLabel,
                 extension: ext,
-                searchText: [course.title, course.description, course.category, items[j].title, kindLabel, ext].join(' ').toLowerCase()
+                searchText: [
+                  course.title, course.description, course.category, items[j].title, kindLabel, ext,
+                  taskCategory && taskCategory.name, scene && scene.name, qualityTags.map(function (tag) { return tag.name; }).join(' '),
+                  course.video_review_note || course.videoReviewNote
+                ].join(' ').toLowerCase()
               });
             }
           }
@@ -302,15 +453,155 @@
           document.getElementById('stat-doc').textContent = String(assets.filter(function (a) { return a.kind === 'document'; }).length);
         }
 
+        function categoryGroup(asset) {
+          if (asset.kind !== 'video') return 'other';
+          if (asset.polarity === 'positive') return 'positive';
+          if (asset.polarity === 'negative') return 'negative';
+          if (asset.category === '正向视频') return 'positive';
+          if (asset.category === '负向视频' || asset.category === '负面视频') return 'negative';
+          return 'other';
+        }
+
+        function renderCategoryFilters() {
+          var categories = [
+            {id: 'positive', label: '正向视频'},
+            {id: 'negative', label: '负向视频'}
+          ];
+          var otherCount = assets.filter(function (asset) { return categoryGroup(asset) === 'other'; }).length;
+          if (otherCount) categories.push({id: 'other', label: '其他资料'});
+          if (!categories.some(function (category) { return category.id === activeCategory; })) activeCategory = 'positive';
+          categoryFiltersEl.innerHTML = '';
+          for (var i = 0; i < categories.length; i += 1) {
+            var category = categories[i];
+            var count = assets.filter(function (asset) { return categoryGroup(asset) === category.id; }).length;
+            var button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'category-filter' + (activeCategory === category.id ? ' active' : '');
+            button.setAttribute('data-category', category.id);
+            button.setAttribute('aria-pressed', activeCategory === category.id ? 'true' : 'false');
+            button.textContent = category.label + ' ' + count;
+            button.addEventListener('click', function () {
+              activeCategory = this.getAttribute('data-category') || 'positive';
+              activeTask = 'all';
+              activeScene = 'all';
+              activeQuality = 'all';
+              renderCategoryFilters();
+              renderTaxonomyFilters();
+              render();
+            });
+            categoryFiltersEl.appendChild(button);
+          }
+        }
+
+        function uniqueOptions(items, selector) {
+          var seen = {};
+          var result = [];
+          for (var i = 0; i < items.length; i += 1) {
+            var values = selector(items[i]) || [];
+            for (var j = 0; j < values.length; j += 1) {
+              var value = values[j];
+              if (!value || !value.id || seen[value.id]) continue;
+              seen[value.id] = true;
+              result.push(value);
+            }
+          }
+          return result.sort(function (a, b) { return a.name.localeCompare(b.name, 'zh-CN'); });
+        }
+
+        function renderTaxonomyOption(container, id, label, count, attribute, isActive, onClick) {
+          var button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'taxonomy-option' + (isActive ? ' active' : '');
+          button.setAttribute(attribute, id);
+          button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+          button.textContent = label + ' ' + count;
+          button.addEventListener('click', onClick);
+          container.appendChild(button);
+        }
+
+        function renderTaxonomyFilters() {
+          var scoped = assets.filter(function (asset) { return categoryGroup(asset) === activeCategory; });
+          var tasks = uniqueOptions(scoped, function (asset) { return asset.taskCategory ? [asset.taskCategory] : []; });
+          var scenes = uniqueOptions(scoped, function (asset) { return asset.scene ? [asset.scene] : []; });
+          var qualityTags = uniqueOptions(scoped, function (asset) { return asset.qualityTags; });
+          if (activeTask !== 'all' && !tasks.some(function (task) { return task.id === activeTask; })) activeTask = 'all';
+          if (activeScene !== 'all' && !scenes.some(function (scene) { return scene.id === activeScene; })) activeScene = 'all';
+          if (activeQuality !== 'all' && !qualityTags.some(function (tag) { return tag.id === activeQuality; })) activeQuality = 'all';
+
+          taskFiltersEl.innerHTML = '';
+          sceneFiltersEl.innerHTML = '';
+          qualityFiltersEl.innerHTML = '';
+          taskGroupEl.hidden = tasks.length === 0;
+          sceneGroupEl.hidden = scenes.length === 0;
+          qualityGroupEl.hidden = qualityTags.length === 0;
+          taxonomyFiltersEl.hidden = tasks.length === 0 && scenes.length === 0 && qualityTags.length === 0;
+
+          if (tasks.length) {
+            renderTaxonomyOption(taskFiltersEl, 'all', '全部任务', scoped.length, 'data-task', activeTask === 'all', function () {
+              activeTask = 'all'; renderTaxonomyFilters(); render();
+            });
+            for (var i = 0; i < tasks.length; i += 1) {
+              (function (task) {
+                var count = scoped.filter(function (asset) { return asset.taskCategory && asset.taskCategory.id === task.id; }).length;
+                renderTaxonomyOption(taskFiltersEl, task.id, task.name, count, 'data-task', activeTask === task.id, function () {
+                  activeTask = task.id; renderTaxonomyFilters(); render();
+                });
+              })(tasks[i]);
+            }
+          }
+
+          if (scenes.length) {
+            renderTaxonomyOption(sceneFiltersEl, 'all', '全部场景', scoped.length, 'data-scene', activeScene === 'all', function () {
+              activeScene = 'all'; renderTaxonomyFilters(); render();
+            });
+            for (var sceneIndex = 0; sceneIndex < scenes.length; sceneIndex += 1) {
+              (function (scene) {
+                var count = scoped.filter(function (asset) { return asset.scene && asset.scene.id === scene.id; }).length;
+                renderTaxonomyOption(sceneFiltersEl, scene.id, scene.name, count, 'data-scene', activeScene === scene.id, function () {
+                  activeScene = scene.id; renderTaxonomyFilters(); render();
+                });
+              })(scenes[sceneIndex]);
+            }
+          }
+
+          if (qualityTags.length) {
+            renderTaxonomyOption(qualityFiltersEl, 'all', '全部标签', scoped.length, 'data-quality', activeQuality === 'all', function () {
+              activeQuality = 'all'; renderTaxonomyFilters(); render();
+            });
+            for (var j = 0; j < qualityTags.length; j += 1) {
+              (function (qualityTag) {
+                var count = scoped.filter(function (asset) {
+                  return asset.qualityTags.some(function (tag) { return tag.id === qualityTag.id; });
+                }).length;
+                renderTaxonomyOption(qualityFiltersEl, qualityTag.id, qualityTag.name, count, 'data-quality', activeQuality === qualityTag.id, function () {
+                  activeQuality = qualityTag.id; renderTaxonomyFilters(); render();
+                });
+              })(qualityTags[j]);
+            }
+          }
+        }
+
+        function severityLabel(value) {
+          if (value === 'minor') return '轻微';
+          if (value === 'moderate') return '明显';
+          if (value === 'severe') return '严重';
+          return '';
+        }
+
         function render() {
           var query = (searchEl.value || '').trim().toLowerCase();
           var filtered = assets.filter(function (asset) {
+            var inCategory = categoryGroup(asset) === activeCategory;
+            var taskMatched = activeTask === 'all' || (asset.taskCategory && asset.taskCategory.id === activeTask);
+            var sceneMatched = activeScene === 'all' || (asset.scene && asset.scene.id === activeScene);
+            var qualityMatched = activeQuality === 'all'
+              || asset.qualityTags.some(function (tag) { return tag.id === activeQuality; });
             var kindMatched = activeFilter === 'all'
               || asset.kind === activeFilter
               || (activeFilter === 'pdf' && asset.extension === 'pdf')
               || (activeFilter === 'word' && (asset.extension === 'doc' || asset.extension === 'docx'));
             var queryMatched = !query || asset.searchText.indexOf(query) !== -1;
-            return kindMatched && queryMatched;
+            return inCategory && taskMatched && sceneMatched && qualityMatched && kindMatched && queryMatched;
           });
           listEl.innerHTML = '';
           if (!filtered.length) {
@@ -330,7 +621,7 @@
               + '<p class="title"></p>'
               + '<p class="meta"></p>'
               + '<p class="course"></p>'
-              + '<span class="tag"></span>'
+              + '<div class="tags"></div>'
               + '</div></div>'
               + '<div class="actions">'
               + '<a class="button primary" target="_blank" rel="noreferrer">打开</a>'
@@ -340,13 +631,58 @@
             card.querySelector('.title').textContent = asset.title;
             card.querySelector('.meta').textContent = asset.kindLabel + ' · ' + (asset.extension || 'file') + ' · ' + asset.sourceLabel;
             card.querySelector('.course').textContent = asset.courseTitle;
-            card.querySelector('.tag').textContent = asset.category;
+            var tags = card.querySelector('.tags');
+            var polarityTag = document.createElement('span');
+            polarityTag.className = 'tag tag-' + categoryGroup(asset);
+            polarityTag.textContent = categoryGroup(asset) === 'positive' ? '正向视频'
+              : categoryGroup(asset) === 'negative' ? '负向视频' : asset.category;
+            tags.appendChild(polarityTag);
+            if (asset.taskCategory) {
+              var taskTag = document.createElement('span');
+              taskTag.className = 'tag tag-task';
+              taskTag.textContent = asset.taskCategory.name;
+              tags.appendChild(taskTag);
+            }
+            if (asset.scene) {
+              var sceneTag = document.createElement('span');
+              sceneTag.className = 'tag tag-scene';
+              sceneTag.textContent = asset.scene.name;
+              tags.appendChild(sceneTag);
+            }
+            for (var tagIndex = 0; tagIndex < asset.qualityTags.length; tagIndex += 1) {
+              var qualityTag = document.createElement('span');
+              qualityTag.className = 'tag tag-quality';
+              qualityTag.textContent = asset.qualityTags[tagIndex].name;
+              tags.appendChild(qualityTag);
+            }
+            var details = [];
+            if (asset.difficulty) details.push('难度：' + asset.difficulty);
+            if (asset.durationMinutes > 0) details.push('时长：' + asset.durationMinutes + ' 分钟');
+            if (details.length) {
+              var detailEl = document.createElement('div');
+              detailEl.className = 'details';
+              detailEl.textContent = details.join(' · ');
+              card.querySelector('.main').appendChild(detailEl);
+            }
+            if (asset.reviewNote) {
+              var reviewEl = document.createElement('div');
+              reviewEl.className = 'review-note' + (categoryGroup(asset) === 'negative' ? ' negative' : '');
+              reviewEl.textContent = (categoryGroup(asset) === 'negative' ? '质量说明：' : '拍摄要点：') + asset.reviewNote;
+              card.querySelector('.main').appendChild(reviewEl);
+            }
+            var severity = severityLabel(asset.severity);
+            if (severity) {
+              var severityTag = document.createElement('span');
+              severityTag.className = 'tag tag-severity';
+              severityTag.textContent = severity;
+              tags.appendChild(severityTag);
+            }
             var links = card.querySelectorAll('a.button');
             links[0].href = openUrl;
             links[1].href = courseUrl;
             (function (button, url) {
               button.addEventListener('click', function () {
-                copyText(window.location.origin + url).then(function () {
+                copyText(window.location.origin + url, function () {
                   button.textContent = '已复制';
                   window.setTimeout(function () { button.textContent = '复制'; }, 1500);
                 });
@@ -368,20 +704,16 @@
         searchEl.addEventListener('input', render);
         showAdminLinkIfLoggedIn();
 
-        fetch('/training-public-api/courses', { cache: 'no-store' })
-          .then(function (response) {
-            return response.json().then(function (data) {
-              if (!response.ok) throw new Error((data.error && data.error.message) || '培训资料加载失败');
-              return data;
-            });
-          })
-          .then(function (data) {
+        requestJson('/training-public-api/courses',
+          function (data) {
             assets = normalizeCourses(data);
             updateStats();
+            renderCategoryFilters();
+            renderTaxonomyFilters();
             messageEl.textContent = assets.length ? '请选择需要学习的资料。' : '暂无可打开的培训资料。';
             render();
-          })
-          .catch(function (error) {
+          },
+          function (error) {
             messageEl.textContent = error && error.message ? error.message : '网络出错，请稍后重试。';
           });
       })();

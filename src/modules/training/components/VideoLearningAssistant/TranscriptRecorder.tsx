@@ -181,29 +181,29 @@ export const TranscriptRecorder: React.FC<TranscriptRecorderProps> = ({videoRef,
 
   if (!isSupported) {
     return (
-      <div className="bg-white rounded-xl border border-gray-200 p-4">
+      <div className="bg-surface rounded-xl border border-border p-4">
         <div className="text-center space-y-2">
           <p className="text-sm text-red-500">您的浏览器不支持语音识别</p>
-          <p className="text-xs text-gray-400">请使用 Chrome 或 Edge 浏览器</p>
-          <button onClick={onClose} className="text-xs text-gray-500 hover:text-gray-700">关闭</button>
+          <p className="text-xs text-fg-faint">请使用 Chrome 或 Edge 浏览器</p>
+          <button onClick={onClose} className="text-xs text-fg-muted hover:text-fg-secondary">关闭</button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+    <div className="bg-surface rounded-xl border border-border overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-100 bg-gray-50">
+      <div className="flex items-center justify-between px-4 py-2.5 border-b border-border-subtle bg-surface-muted">
         <div className="flex items-center gap-2">
           {recording ? (
             <>
               <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
               <span className="text-xs font-medium text-red-600">正在录制...</span>
-              <span className="text-xs text-gray-400">{entries.length} 段</span>
+              <span className="text-xs text-fg-faint">{entries.length} 段</span>
             </>
           ) : (
-            <span className="text-xs font-medium text-gray-700">文字稿录制</span>
+            <span className="text-xs font-medium text-fg-secondary">文字稿录制</span>
           )}
         </div>
         <div className="flex items-center gap-1.5">
@@ -224,7 +224,7 @@ export const TranscriptRecorder: React.FC<TranscriptRecorderProps> = ({videoRef,
                 {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
                 保存到课程
               </button>
-              <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg">
+              <button onClick={onClose} className="p-1.5 text-fg-faint hover:text-fg-secondary hover:bg-surface-muted rounded-lg">
                 <X className="w-4 h-4" />
               </button>
             </>
@@ -241,32 +241,32 @@ export const TranscriptRecorder: React.FC<TranscriptRecorderProps> = ({videoRef,
       <div className="max-h-[240px] overflow-y-auto">
         {entries.length === 0 && !recording && (
           <div className="px-4 py-6 text-center">
-            <p className="text-xs text-gray-400">点击「开始录制」，然后播放视频</p>
-            <p className="text-xs text-gray-400 mt-1">语音识别会自动记录带时间戳的文字稿</p>
+            <p className="text-xs text-fg-faint">点击「开始录制」，然后播放视频</p>
+            <p className="text-xs text-fg-faint mt-1">语音识别会自动记录带时间戳的文字稿</p>
           </div>
         )}
 
         {entries.map((entry) => (
-          <div key={entry.id} className="flex items-start gap-2 px-4 py-1.5 hover:bg-gray-50 group border-b border-gray-50 last:border-0">
+          <div key={entry.id} className="flex items-start gap-2 px-4 py-1.5 hover:bg-surface-muted group border-b border-gray-50 last:border-0">
             <span className="text-xs font-mono text-indigo-500 shrink-0 pt-0.5">{formatTimestamp(entry.timestamp)}</span>
-            <span className="text-xs text-gray-400 shrink-0">-</span>
+            <span className="text-xs text-fg-faint shrink-0">-</span>
             {editingId === entry.id ? (
               <div className="flex-1 flex items-center gap-1">
                 <input
                   value={editText}
                   onChange={e => setEditText(e.target.value)}
-                  className="flex-1 text-xs px-1 py-0.5 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  className="flex-1 text-xs px-1 py-0.5 border border-border rounded focus:outline-none focus:ring-1 focus:ring-indigo-500"
                   autoFocus
                 />
                 <button onClick={() => handleSaveEdit(entry.id)} className="p-0.5 text-green-500 hover:bg-green-50 rounded"><Check className="w-3 h-3" /></button>
-                <button onClick={() => setEditingId(null)} className="p-0.5 text-gray-400 hover:bg-gray-100 rounded"><X className="w-3 h-3" /></button>
+                <button onClick={() => setEditingId(null)} className="p-0.5 text-fg-faint hover:bg-surface-muted rounded"><X className="w-3 h-3" /></button>
               </div>
             ) : (
               <>
-                <span className="text-xs text-gray-700 flex-1">{entry.text}</span>
+                <span className="text-xs text-fg-secondary flex-1">{entry.text}</span>
                 <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                  <button onClick={() => handleStartEdit(entry)} className="p-0.5 text-gray-400 hover:text-indigo-500 rounded"><Edit3 className="w-3 h-3" /></button>
-                  <button onClick={() => handleDeleteEntry(entry.id)} className="p-0.5 text-gray-400 hover:text-red-500 rounded"><Trash2 className="w-3 h-3" /></button>
+                  <button onClick={() => handleStartEdit(entry)} className="p-0.5 text-fg-faint hover:text-indigo-500 rounded"><Edit3 className="w-3 h-3" /></button>
+                  <button onClick={() => handleDeleteEntry(entry.id)} className="p-0.5 text-fg-faint hover:text-red-500 rounded"><Trash2 className="w-3 h-3" /></button>
                 </div>
               </>
             )}
@@ -277,7 +277,7 @@ export const TranscriptRecorder: React.FC<TranscriptRecorderProps> = ({videoRef,
         {interimText && recording && (
           <div className="flex items-start gap-2 px-4 py-1.5 bg-indigo-50">
             <span className="text-xs font-mono text-indigo-400">...</span>
-            <span className="text-xs text-gray-300">-</span>
+            <span className="text-xs text-fg-faint">-</span>
             <span className="text-xs text-indigo-400 italic">{interimText}</span>
           </div>
         )}

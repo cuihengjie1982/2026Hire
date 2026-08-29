@@ -55,13 +55,13 @@ export default function CustomFieldValues({employeeId}: CustomFieldValuesProps) 
     }
   };
 
-  if (loading) return <div className="text-xs text-gray-400 py-2">加载自定义字段...</div>;
+  if (loading) return <div className="text-xs text-fg-faint py-2">加载自定义字段...</div>;
   if (fields.length === 0) return null;
 
   return (
-    <div className="mt-3 border-t border-gray-200 pt-3">
+    <div className="mt-3 border-t border-border pt-3">
       <div className="flex items-center justify-between mb-2">
-        <h4 className="text-sm font-semibold text-gray-700">自定义字段</h4>
+        <h4 className="text-sm font-semibold text-fg-secondary">自定义字段</h4>
         <button
           onClick={handleSave}
           disabled={saving}
@@ -74,12 +74,12 @@ export default function CustomFieldValues({employeeId}: CustomFieldValuesProps) 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {fields.map(field => (
           <div key={field.id}>
-            <label className="block text-[12px] text-gray-500 mb-1">{field.fieldLabel}</label>
+            <label className="block text-[12px] text-fg-muted mb-1">{field.fieldLabel}</label>
             {field.fieldType === 'select' ? (
               <select
                 value={String(values[field.id] ?? '')}
                 onChange={e => setValues({...values, [field.id]: e.target.value})}
-                className="w-full px-2 py-1.5 border border-gray-200 rounded text-sm focus:outline-none focus:ring-1 focus:ring-[#1a4bc4]"
+                className="w-full px-2 py-1.5 border border-border rounded text-sm focus:outline-none focus:ring-1 focus:ring-[#1a4bc4]"
               >
                 <option value="">-</option>
                 {field.options?.map(opt => (
@@ -92,9 +92,9 @@ export default function CustomFieldValues({employeeId}: CustomFieldValuesProps) 
                   type="checkbox"
                   checked={!!values[field.id]}
                   onChange={e => setValues({...values, [field.id]: e.target.checked})}
-                  className="rounded border-gray-300 text-[#1a4bc4] focus:ring-[#1a4bc4]"
+                  className="rounded border-border text-[#1a4bc4] focus:ring-[#1a4bc4]"
                 />
-                <span className="text-sm text-gray-600">{values[field.id] ? '是' : '否'}</span>
+                <span className="text-sm text-fg-secondary">{values[field.id] ? '是' : '否'}</span>
               </label>
             ) : (
               <input
@@ -102,7 +102,7 @@ export default function CustomFieldValues({employeeId}: CustomFieldValuesProps) 
                 value={String(values[field.id] ?? '')}
                 onChange={e => setValues({...values, [field.id]: field.fieldType === 'number' ? Number(e.target.value) : e.target.value})}
                 placeholder={field.fieldLabel}
-                className="w-full px-2 py-1.5 border border-gray-200 rounded text-sm focus:outline-none focus:ring-1 focus:ring-[#1a4bc4]"
+                className="w-full px-2 py-1.5 border border-border rounded text-sm focus:outline-none focus:ring-1 focus:ring-[#1a4bc4]"
               />
             )}
           </div>

@@ -96,8 +96,8 @@ export default function CustomFieldManager() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-semibold text-gray-800">字段管理</h3>
-          <p className="text-sm text-gray-500 mt-0.5">自定义员工档案字段，支持多种类型</p>
+          <h3 className="text-lg font-semibold text-fg">字段管理</h3>
+          <p className="text-sm text-fg-muted mt-0.5">自定义员工档案字段，支持多种类型</p>
         </div>
         {!showForm && (
           <button
@@ -111,33 +111,33 @@ export default function CustomFieldManager() {
 
       {/* Add/Edit Form */}
       {showForm && (
-        <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+        <div className="bg-surface border border-border rounded-xl p-4 shadow-sm">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
             <div>
-              <label className="block text-xs text-gray-500 mb-1">字段标识 *</label>
+              <label className="block text-xs text-fg-muted mb-1">字段标识 *</label>
               <input
                 value={form.fieldKey}
                 onChange={e => setForm({...form, fieldKey: e.target.value})}
                 disabled={!!editingId}
                 placeholder="如 blood_type"
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4] disabled:bg-gray-50"
+                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4] disabled:bg-surface-muted"
               />
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">字段名称 *</label>
+              <label className="block text-xs text-fg-muted mb-1">字段名称 *</label>
               <input
                 value={form.fieldLabel}
                 onChange={e => setForm({...form, fieldLabel: e.target.value})}
                 placeholder="如 血型"
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
+                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
               />
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">字段类型</label>
+              <label className="block text-xs text-fg-muted mb-1">字段类型</label>
               <select
                 value={form.fieldType}
                 onChange={e => setForm({...form, fieldType: e.target.value as CustomFieldDef['fieldType']})}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
+                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
               >
                 {FIELD_TYPES.map(t => (
                   <option key={t.value} value={t.value}>{t.label}</option>
@@ -146,12 +146,12 @@ export default function CustomFieldManager() {
             </div>
             {(form.fieldType === 'select' || form.fieldType === 'multiselect') && (
               <div>
-                <label className="block text-xs text-gray-500 mb-1">选项（逗号分隔）</label>
+                <label className="block text-xs text-fg-muted mb-1">选项（逗号分隔）</label>
                 <input
                   value={form.options}
                   onChange={e => setForm({...form, options: e.target.value})}
                   placeholder="选项1, 选项2, 选项3"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
+                  className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
                 />
               </div>
             )}
@@ -165,7 +165,7 @@ export default function CustomFieldManager() {
             </button>
             <button
               onClick={resetForm}
-              className="flex items-center gap-1 px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50"
+              className="flex items-center gap-1 px-3 py-2 border border-border rounded-lg text-sm text-fg-secondary hover:bg-surface-muted"
             >
               <X className="w-3.5 h-3.5" /> 取消
             </button>
@@ -175,18 +175,18 @@ export default function CustomFieldManager() {
 
       {/* Field List */}
       {loading ? (
-        <div className="text-center py-8 text-sm text-gray-400">加载中...</div>
+        <div className="text-center py-8 text-sm text-fg-faint">加载中...</div>
       ) : fields.length === 0 ? (
-        <div className="text-center py-12 bg-gray-50 rounded-xl">
-          <Tag className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-          <p className="text-sm text-gray-400">暂无自定义字段</p>
-          <p className="text-xs text-gray-300 mt-1">点击「新增字段」或导入 Excel 自动生成</p>
+        <div className="text-center py-12 bg-surface-muted rounded-xl">
+          <Tag className="w-8 h-8 text-fg-faint mx-auto mb-2" />
+          <p className="text-sm text-fg-faint">暂无自定义字段</p>
+          <p className="text-xs text-fg-faint mt-1">点击「新增字段」或导入 Excel 自动生成</p>
         </div>
       ) : (
-        <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
+        <div className="bg-surface border border-border-subtle rounded-xl overflow-hidden">
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-left text-xs text-gray-400 border-b border-gray-100 bg-gray-50/50">
+              <tr className="text-left text-xs text-fg-faint border-b border-border-subtle bg-surface-muted/50">
                 <th className="px-4 py-3 font-medium w-8"></th>
                 <th className="px-4 py-3 font-medium">字段标识</th>
                 <th className="px-4 py-3 font-medium">字段名称</th>
@@ -201,31 +201,31 @@ export default function CustomFieldManager() {
                 const typeInfo = FIELD_TYPES.find(t => t.value === field.fieldType);
                 const TypeIcon = typeInfo?.icon ?? Type;
                 return (
-                  <tr key={field.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
-                    <td className="px-4 py-3 text-gray-300">
+                  <tr key={field.id} className="border-b border-gray-50 hover:bg-surface-muted/50 transition-colors">
+                    <td className="px-4 py-3 text-fg-faint">
                       <GripVertical className="w-4 h-4" />
                     </td>
-                    <td className="px-4 py-3 font-mono text-xs text-gray-500">{field.fieldKey}</td>
-                    <td className="px-4 py-3 font-medium text-gray-700">{field.fieldLabel}</td>
+                    <td className="px-4 py-3 font-mono text-xs text-fg-muted">{field.fieldKey}</td>
+                    <td className="px-4 py-3 font-medium text-fg-secondary">{field.fieldLabel}</td>
                     <td className="px-4 py-3">
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-600 rounded text-xs">
                         <TypeIcon className="w-3 h-3" /> {typeInfo?.label}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-gray-500 text-xs">
+                    <td className="px-4 py-3 text-fg-muted text-xs">
                       {field.options?.length ? field.options.map(o => o.label).join(', ') : '-'}
                     </td>
                     <td className="px-4 py-3">
-                      <span className={`text-xs px-1.5 py-0.5 rounded ${field.source === 'excel_import' ? 'bg-green-50 text-green-600' : 'bg-gray-100 text-gray-500'}`}>
+                      <span className={`text-xs px-1.5 py-0.5 rounded ${field.source === 'excel_import' ? 'bg-green-50 text-green-600' : 'bg-surface-muted text-fg-muted'}`}>
                         {field.source === 'excel_import' ? 'Excel导入' : '手动创建'}
                       </span>
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1">
-                        <button onClick={() => handleEdit(field)} className="p-1 text-gray-400 hover:text-blue-500">
+                        <button onClick={() => handleEdit(field)} className="p-1 text-fg-faint hover:text-blue-500">
                           <Edit3 className="w-3.5 h-3.5" />
                         </button>
-                        <button onClick={() => handleDelete(field.id)} className="p-1 text-gray-400 hover:text-red-500">
+                        <button onClick={() => handleDelete(field.id)} className="p-1 text-fg-faint hover:text-red-500">
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </div>

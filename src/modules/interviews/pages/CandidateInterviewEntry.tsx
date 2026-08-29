@@ -56,7 +56,7 @@ const CandidateInterviewEntry = () => {
       <div className="min-h-dvh w-full flex items-center justify-center bg-gradient-to-br from-[#F5F3FF] to-[#EBE0FF] px-4">
         <div className="text-center space-y-4">
           <Loader2 className="w-10 h-10 text-[#1a4bc4] animate-spin mx-auto" />
-          <p className="text-sm text-gray-500">正在验证面试链接...</p>
+          <p className="text-sm text-fg-muted">正在验证面试链接...</p>
         </div>
       </div>
     );
@@ -77,10 +77,10 @@ const CandidateInterviewEntry = () => {
             </div>
           </div>
           <div>
-            <h1 className="text-xl font-bold text-gray-900">链接无效</h1>
-            <p className="text-sm text-gray-500 mt-2">{error}</p>
+            <h1 className="text-xl font-bold text-fg">链接无效</h1>
+            <p className="text-sm text-fg-muted mt-2">{error}</p>
           </div>
-          <p className="text-xs text-gray-400">
+          <p className="text-xs text-fg-faint">
             请联系招聘方获取有效的面试链接
           </p>
         </motion.div>
@@ -104,35 +104,35 @@ const CandidateInterviewEntry = () => {
               <Bot className="w-8 h-8 text-white" />
             </div>
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">
+          <h1 className="text-2xl font-bold text-fg">
             {interviewInfo?.template.name || 'AI 面试'}
           </h1>
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-fg-muted">
             你好，{interviewInfo?.candidate.name || '候选人'}
           </p>
         </div>
 
         {/* Info card */}
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-4">
+        <div className="bg-surface rounded-2xl border border-border shadow-sm p-6 space-y-4">
           <div className="flex items-center gap-3 text-sm">
             <MessageCircle className="w-5 h-5 text-[#1a4bc4]" />
             <div>
-              <span className="text-gray-500">面试形式：</span>
-              <span className="font-medium text-gray-900">AI 对话式面试</span>
+              <span className="text-fg-muted">面试形式：</span>
+              <span className="font-medium text-fg">AI 对话式面试</span>
             </div>
           </div>
           <div className="flex items-center gap-3 text-sm">
             <Clock className="w-5 h-5 text-[#1a4bc4]" />
             <div>
-              <span className="text-gray-500">预计时长：</span>
-              <span className="font-medium text-gray-900">
+              <span className="text-fg-muted">预计时长：</span>
+              <span className="font-medium text-fg">
                 {interviewInfo?.config.maxDurationMinutes || 30} 分钟
               </span>
             </div>
           </div>
-          <div className="bg-gray-50 rounded-xl p-4 text-sm text-gray-600 leading-relaxed">
+          <div className="bg-surface-muted rounded-xl p-4 text-sm text-fg-secondary leading-relaxed">
             <p>本面试由 AI 面试官主持，将通过文字对话的方式与你交流。</p>
-            <ul className="mt-2 space-y-1 text-xs text-gray-500">
+            <ul className="mt-2 space-y-1 text-xs text-fg-muted">
               <li>· 请确保网络畅通，环境安静</li>
               <li>· 如实回答，展示真实的自己</li>
               <li>· 面试结束后将自动生成评估报告</li>
@@ -149,7 +149,7 @@ const CandidateInterviewEntry = () => {
           <ArrowRight className="w-5 h-5" />
         </button>
 
-        <p className="text-center text-xs text-gray-400">
+        <p className="text-center text-xs text-fg-faint">
           点击进入即表示你同意本次面试的录音和文字记录将被保存用于评估
         </p>
       </motion.div>

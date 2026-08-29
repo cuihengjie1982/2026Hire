@@ -286,23 +286,23 @@ export const AgentsPage = () => {
       initial={{opacity: 0, y: 10}}
       animate={{opacity: 1, y: 0}}
       exit={{opacity: 0, y: -10}}
-      className="max-w-[1500px] mx-auto flex flex-col h-full bg-slate-50 dark:bg-gray-900 relative w-full"
+      className="max-w-[1500px] mx-auto flex flex-col h-full bg-page relative w-full"
     >
-      <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 sticky top-0 z-10">
+      <div className="flex items-center justify-between px-6 py-5 border-b border-border-subtle bg-surface sticky top-0 z-10">
         <div className="flex items-center gap-6">
           <div>
-            <h1 className="text-[26px] font-bold text-gray-900 dark:text-white mb-1">
+            <h1 className="text-[26px] font-bold text-fg mb-1">
               {viewMode === 'agents' ? 'AI 招募代理' : 'AI 模型配置'}
             </h1>
-            <p className="text-[13px] text-gray-500 dark:text-gray-400">
+            <p className="text-[13px] text-fg-muted">
               {viewMode === 'agents' ? '管理你的 24/7 自动寻源代理' : '管理 AI 大模型的连接配置'}
             </p>
           </div>
-          <div className="flex bg-gray-100 dark:bg-gray-800 rounded-lg p-0.5">
+          <div className="flex bg-surface-muted rounded-lg p-0.5">
             <button
               onClick={() => setViewMode('agents')}
               className={`px-3 py-1.5 rounded-md text-[12px] font-medium transition-colors ${
-                viewMode === 'agents' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                viewMode === 'agents' ? 'bg-surface text-fg shadow-sm' : 'text-fg-muted hover:text-fg-secondary'
               }`}
             >
               <Bot className="w-3.5 h-3.5 inline mr-1" />
@@ -311,7 +311,7 @@ export const AgentsPage = () => {
             <button
               onClick={() => setViewMode('ai-config')}
               className={`px-3 py-1.5 rounded-md text-[12px] font-medium transition-colors ${
-                viewMode === 'ai-config' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                viewMode === 'ai-config' ? 'bg-surface text-fg shadow-sm' : 'text-fg-muted hover:text-fg-secondary'
               }`}
             >
               <Cpu className="w-3.5 h-3.5 inline mr-1" />
@@ -329,7 +329,7 @@ export const AgentsPage = () => {
             </span>
           )}
           {!activeModelName && (
-            <span className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-50 dark:bg-gray-800 text-gray-400 dark:text-gray-500 rounded-lg text-[11px] font-medium border border-gray-200 dark:border-gray-700">
+            <span className="flex items-center gap-1.5 px-2.5 py-1.5 bg-surface-muted text-fg-faint rounded-lg text-[11px] font-medium border border-border">
               <WifiOff className="w-3 h-3" />
               未选择模型
             </span>
@@ -341,19 +341,19 @@ export const AgentsPage = () => {
             </button>
           )}
           <div ref={notifRef} className="relative">
-            <button onClick={() => setShowNotifications(!showNotifications)} className="relative p-2 text-gray-400 dark:text-gray-500 hover:text-gray-600 transition-colors">
+            <button onClick={() => setShowNotifications(!showNotifications)} className="relative p-2 text-fg-faint hover:text-fg-secondary transition-colors">
               <Bell className="w-5 h-5" />
               <span className="absolute top-1.5 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
             </button>
             {showNotifications && (
-              <div className="absolute right-0 top-full mt-2 w-[320px] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg py-2 z-30">
-                <div className="px-4 py-2 border-b border-gray-100 dark:border-gray-700">
-                  <span className="text-[13px] font-bold text-gray-900 dark:text-white">通知</span>
+              <div className="absolute right-0 top-full mt-2 w-[320px] bg-surface border border-border rounded-xl shadow-lg py-2 z-30">
+                <div className="px-4 py-2 border-b border-border-subtle">
+                  <span className="text-[13px] font-bold text-fg">通知</span>
                 </div>
                 {mockNotifications.map(n => (
-                  <div key={n.id} className="px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors cursor-pointer">
-                    <div className="text-[13px] text-gray-700 dark:text-gray-300 leading-snug">{n.message}</div>
-                    <div className="text-[11px] text-gray-400 dark:text-gray-500 mt-1">{n.time}</div>
+                  <div key={n.id} className="px-4 py-3 hover:bg-surface-muted transition-colors cursor-pointer">
+                    <div className="text-[13px] text-fg-secondary leading-snug">{n.message}</div>
+                    <div className="text-[11px] text-fg-faint mt-1">{n.time}</div>
                   </div>
                 ))}
               </div>
@@ -362,48 +362,48 @@ export const AgentsPage = () => {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-6 space-y-5 bg-slate-50 dark:bg-gray-900">
+      <div className="flex-1 overflow-y-auto p-6 space-y-5 bg-page">
         {viewMode === 'agents' ? (
           <>
             <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
           {loading ? (
             <>
               {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm animate-pulse">
-                  <div className="h-4 w-24 bg-gray-100 dark:bg-gray-800 rounded mb-2"></div>
-                  <div className="h-8 w-12 bg-gray-100 dark:bg-gray-800 rounded"></div>
+                <div key={i} className="bg-surface p-4 rounded-xl border border-border shadow-sm animate-pulse">
+                  <div className="h-4 w-24 bg-surface-muted rounded mb-2"></div>
+                  <div className="h-8 w-12 bg-surface-muted rounded"></div>
                 </div>
               ))}
             </>
           ) : (
             <>
-              <div className="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
-                <div className="text-[12px] text-gray-500 dark:text-gray-400 mb-2">运行中代理</div>
+              <div className="bg-surface p-4 rounded-xl border border-border shadow-sm">
+                <div className="text-[12px] text-fg-muted mb-2">运行中代理</div>
                 <div className="text-[28px] leading-none font-bold text-emerald-600">{stats?.runningAgents ?? 0}</div>
               </div>
-              <div className="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
-                <div className="text-[12px] text-gray-500 dark:text-gray-400 mb-2">今日推送候选人</div>
-                <div className="text-[28px] leading-none font-bold text-gray-900 dark:text-white">{stats?.pushedToday ?? 0}</div>
+              <div className="bg-surface p-4 rounded-xl border border-border shadow-sm">
+                <div className="text-[12px] text-fg-muted mb-2">今日推送候选人</div>
+                <div className="text-[28px] leading-none font-bold text-fg">{stats?.pushedToday ?? 0}</div>
               </div>
-              <div className="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
-                <div className="text-[12px] text-gray-500 dark:text-gray-400 mb-2">本周采纳率</div>
-                <div className="text-[28px] leading-none font-bold text-gray-900 dark:text-white">{stats?.weeklyAdoptionRate ?? 0}%</div>
+              <div className="bg-surface p-4 rounded-xl border border-border shadow-sm">
+                <div className="text-[12px] text-fg-muted mb-2">本周采纳率</div>
+                <div className="text-[28px] leading-none font-bold text-fg">{stats?.weeklyAdoptionRate ?? 0}%</div>
               </div>
-              <div className="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
-                <div className="text-[12px] text-gray-500 dark:text-gray-400 mb-2">本月触发外联</div>
-                <div className="text-[28px] leading-none font-bold text-gray-900 dark:text-white">{stats?.monthlyOutreach ?? 0}</div>
+              <div className="bg-surface p-4 rounded-xl border border-border shadow-sm">
+                <div className="text-[12px] text-fg-muted mb-2">本月触发外联</div>
+                <div className="text-[28px] leading-none font-bold text-fg">{stats?.monthlyOutreach ?? 0}</div>
               </div>
             </>
           )}
         </div>
 
-        <div className="flex items-center space-x-6 border-b border-gray-200 dark:border-gray-700 text-[13px]">
+        <div className="flex items-center space-x-6 border-b border-border text-[13px]">
           {tabs.map((tab, index) => (
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
               className={`pb-3 font-medium transition-colors relative ${
-                activeTab === tab.key ? 'text-gray-900' : 'text-gray-500 hover:text-gray-700'
+                activeTab === tab.key ? 'text-fg' : 'text-fg-muted hover:text-fg-secondary'
               }`}
             >
               {tab.label}
@@ -417,7 +417,7 @@ export const AgentsPage = () => {
             <Loader2 className="w-6 h-6 animate-spin text-[#1a4bc4]" />
           </div>
         ) : filteredAgents.length === 0 ? (
-          <div className="text-center py-20 text-gray-500 dark:text-gray-400">暂无代理数据</div>
+          <div className="text-center py-20 text-fg-muted">暂无代理数据</div>
         ) : (
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
             {filteredAgents.map((card) => {
@@ -426,24 +426,24 @@ export const AgentsPage = () => {
                   ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
                   : card.status === 'pending'
                     ? 'bg-orange-100 text-orange-700 border-orange-200'
-                    : 'bg-gray-100 text-gray-600 border-gray-200';
+                    : 'bg-surface-muted text-fg-secondary border-border';
 
               const agentConfig = (card.config ?? {}) as AgentConfig;
 
               return (
                 <div
                   key={card.id}
-                  className={`bg-white rounded-2xl border shadow-sm p-5 flex flex-col justify-between ${
+                  className={`bg-surface rounded-2xl border shadow-sm p-5 flex flex-col justify-between ${
                     card.status === 'running'
                       ? 'border-emerald-500/20'
                       : card.status === 'pending'
                         ? 'border-orange-300/30'
-                        : 'border-gray-200'
+                        : 'border-border'
                   }`}
                 >
                   <div>
                     <div className="flex justify-between items-start mb-3">
-                      <h3 className="text-[18px] font-bold text-gray-900 dark:text-white">{card.name}</h3>
+                      <h3 className="text-[18px] font-bold text-fg">{card.name}</h3>
                       <span className={`flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium border ${statusPill}`}>
                         <span>
                           {card.status === 'running'
@@ -461,7 +461,7 @@ export const AgentsPage = () => {
                         {agentTypeLabels[card.type || 'screener'] || card.roleType}
                       </span>
                       {agentConfig.positionName && (
-                        <span className="flex items-center gap-1 text-[11px] text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded">
+                        <span className="flex items-center gap-1 text-[11px] text-fg-secondary bg-surface-muted px-2 py-0.5 rounded">
                           <Tag className="w-3 h-3" />
                           {agentConfig.positionName}
                         </span>
@@ -469,16 +469,16 @@ export const AgentsPage = () => {
                     </div>
 
                     {agentConfig.lastRunSummary && (
-                      <div className="text-[12px] text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 px-3 py-1.5 rounded-lg mb-3">
+                      <div className="text-[12px] text-fg-muted bg-surface-muted px-3 py-1.5 rounded-lg mb-3">
                         {agentConfig.lastRunSummary}
                       </div>
                     )}
 
                     {(card.approved > 0 || card.rejected > 0 || card.pending > 0) && (
-                      <div className="text-[12px] text-gray-500 dark:text-gray-400 mb-3 flex flex-wrap gap-x-4 gap-y-1">
+                      <div className="text-[12px] text-fg-muted mb-3 flex flex-wrap gap-x-4 gap-y-1">
                         <span>已推荐 <span className="text-emerald-600 font-medium">{card.approved}</span></span>
                         <span>不推荐 <span className="text-red-500 font-medium">{card.rejected}</span></span>
-                        <span>待定 <span className="text-gray-900 dark:text-white font-medium">{card.pending}</span></span>
+                        <span>待定 <span className="text-fg font-medium">{card.pending}</span></span>
                         {card.adoptionRate > 0 && (
                           <span>采纳率 <span className="font-medium">{card.adoptionRate}%</span></span>
                         )}
@@ -498,7 +498,7 @@ export const AgentsPage = () => {
                       <button
                         onClick={() => handlePause(card.id)}
                         disabled={actionLoading === card.id}
-                        className="px-4 py-2 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/30 rounded-lg text-[13px] font-medium text-gray-700 dark:text-gray-300 transition-colors disabled:opacity-50"
+                        className="px-4 py-2 border border-border hover:bg-surface-muted rounded-lg text-[13px] font-medium text-fg-secondary transition-colors disabled:opacity-50"
                       >
                         {actionLoading === card.id ? <Loader2 className="w-4 h-4 animate-spin" /> : '暂停'}
                       </button>
@@ -507,23 +507,23 @@ export const AgentsPage = () => {
                       <button
                         onClick={() => handleResume(card.id)}
                         disabled={actionLoading === card.id}
-                        className="px-4 py-2 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/30 rounded-lg text-[13px] font-medium text-gray-700 dark:text-gray-300 transition-colors disabled:opacity-50"
+                        className="px-4 py-2 border border-border hover:bg-surface-muted rounded-lg text-[13px] font-medium text-fg-secondary transition-colors disabled:opacity-50"
                       >
                         {actionLoading === card.id ? <Loader2 className="w-4 h-4 animate-spin" /> : '恢复'}
                       </button>
                     )}
                     <button
                       onClick={() => setMoreMenuOpenId(moreMenuOpenId === card.id ? null : card.id)}
-                      className="relative px-3 py-2 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/30 rounded-lg text-gray-700 dark:text-gray-300 transition-colors"
+                      className="relative px-3 py-2 border border-border hover:bg-surface-muted rounded-lg text-fg-secondary transition-colors"
                     >
                       <MoreHorizontal className="w-4 h-4" />
                       {moreMenuOpenId === card.id && (
-                        <div className="absolute right-0 bottom-full mb-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg py-1 min-w-[140px] z-20">
-                          <button onClick={(e) => { e.stopPropagation(); openEditDialog(card); }} className="w-full text-left px-3 py-1.5 text-[13px] text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/30 flex items-center gap-2"><Pencil className="w-3.5 h-3.5" />编辑</button>
-                          <button onClick={(e) => { e.stopPropagation(); setExpandedAgentId(expandedAgentId === card.id ? null : card.id); setMoreMenuOpenId(null); }} className="w-full text-left px-3 py-1.5 text-[13px] text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/30 flex items-center gap-2"><Eye className="w-3.5 h-3.5" />查看详情</button>
-                          <button onClick={(e) => { e.stopPropagation(); handleExportData(card); setMoreMenuOpenId(null); }} className="w-full text-left px-3 py-1.5 text-[13px] text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/30 flex items-center gap-2"><Download className="w-3.5 h-3.5" />导出数据</button>
-                          <button onClick={(e) => { e.stopPropagation(); handleCopyAgent(card); setMoreMenuOpenId(null); }} className="w-full text-left px-3 py-1.5 text-[13px] text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/30 flex items-center gap-2"><Copy className="w-3.5 h-3.5" />复制代理</button>
-                          <div className="border-t border-gray-100 dark:border-gray-700 my-1"></div>
+                        <div className="absolute right-0 bottom-full mb-1 bg-surface border border-border rounded-lg shadow-lg py-1 min-w-[140px] z-20">
+                          <button onClick={(e) => { e.stopPropagation(); openEditDialog(card); }} className="w-full text-left px-3 py-1.5 text-[13px] text-fg-secondary hover:bg-surface-muted flex items-center gap-2"><Pencil className="w-3.5 h-3.5" />编辑</button>
+                          <button onClick={(e) => { e.stopPropagation(); setExpandedAgentId(expandedAgentId === card.id ? null : card.id); setMoreMenuOpenId(null); }} className="w-full text-left px-3 py-1.5 text-[13px] text-fg-secondary hover:bg-surface-muted flex items-center gap-2"><Eye className="w-3.5 h-3.5" />查看详情</button>
+                          <button onClick={(e) => { e.stopPropagation(); handleExportData(card); setMoreMenuOpenId(null); }} className="w-full text-left px-3 py-1.5 text-[13px] text-fg-secondary hover:bg-surface-muted flex items-center gap-2"><Download className="w-3.5 h-3.5" />导出数据</button>
+                          <button onClick={(e) => { e.stopPropagation(); handleCopyAgent(card); setMoreMenuOpenId(null); }} className="w-full text-left px-3 py-1.5 text-[13px] text-fg-secondary hover:bg-surface-muted flex items-center gap-2"><Copy className="w-3.5 h-3.5" />复制代理</button>
+                          <div className="border-t border-border-subtle my-1"></div>
                           <button onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(card.id); setMoreMenuOpenId(null); }} className="w-full text-left px-3 py-1.5 text-[13px] text-red-600 hover:bg-red-50 flex items-center gap-2"><Trash2 className="w-3.5 h-3.5" />删除</button>
                         </div>
                       )}
@@ -531,20 +531,20 @@ export const AgentsPage = () => {
                   </div>
 
                   {expandedAgentId === card.id && (
-                    <div className="mt-4 bg-gray-50 dark:bg-gray-800 rounded-xl p-4 space-y-3">
-                      <div className="text-[13px] font-bold text-gray-900 dark:text-white">代理详情</div>
+                    <div className="mt-4 bg-surface-muted rounded-xl p-4 space-y-3">
+                      <div className="text-[13px] font-bold text-fg">代理详情</div>
                       <div className="grid grid-cols-2 gap-3 text-[12px]">
-                        <div><span className="text-gray-500 dark:text-gray-400">类型：</span><span className="text-gray-900 dark:text-white">{agentTypeLabels[card.type || 'screener']}</span></div>
-                        <div><span className="text-gray-500 dark:text-gray-400">状态：</span><span className="text-gray-900 dark:text-white">{card.status === 'running' ? '运行中' : card.status === 'pending' ? '待审批' : '已暂停'}</span></div>
-                        {agentConfig.positionName && <div><span className="text-gray-500 dark:text-gray-400">绑定岗位：</span><span className="text-gray-900 dark:text-white">{agentConfig.positionName}</span></div>}
-                        {agentConfig.aiModelConfigId && <div><span className="text-gray-500 dark:text-gray-400">AI模型：</span><span className="text-gray-900 dark:text-white font-mono text-[11px]">{agentConfig.aiModelConfigId.slice(0, 8)}...</span></div>}
-                        <div><span className="text-gray-500 dark:text-gray-400">今日推送：</span><span className="text-gray-900 dark:text-white">{card.pushedToday}</span></div>
-                        <div><span className="text-gray-500 dark:text-gray-400">已推荐：</span><span className="text-emerald-600 font-medium">{card.approved}</span></div>
-                        <div><span className="text-gray-500 dark:text-gray-400">不推荐：</span><span className="text-red-500 font-medium">{card.rejected}</span></div>
-                        <div><span className="text-gray-500 dark:text-gray-400">采纳率：</span><span className="text-gray-900 dark:text-white">{card.adoptionRate}%</span></div>
-                        {agentConfig.processedCount != null && <div><span className="text-gray-500 dark:text-gray-400">累计处理：</span><span className="text-gray-900 dark:text-white">{agentConfig.processedCount} 人</span></div>}
-                        {agentConfig.lastRunAt && <div className="col-span-2"><span className="text-gray-500 dark:text-gray-400">上次运行：</span><span className="text-gray-900 dark:text-white">{new Date(agentConfig.lastRunAt).toLocaleString('zh-CN')}</span></div>}
-                        {agentConfig.lastRunSummary && <div className="col-span-2 bg-white dark:bg-gray-800 rounded-lg p-2 border border-gray-100 dark:border-gray-700"><span className="text-gray-500 dark:text-gray-400">摘要：</span><span className="text-gray-700 dark:text-gray-300">{agentConfig.lastRunSummary}</span></div>}
+                        <div><span className="text-fg-muted">类型：</span><span className="text-fg">{agentTypeLabels[card.type || 'screener']}</span></div>
+                        <div><span className="text-fg-muted">状态：</span><span className="text-fg">{card.status === 'running' ? '运行中' : card.status === 'pending' ? '待审批' : '已暂停'}</span></div>
+                        {agentConfig.positionName && <div><span className="text-fg-muted">绑定岗位：</span><span className="text-fg">{agentConfig.positionName}</span></div>}
+                        {agentConfig.aiModelConfigId && <div><span className="text-fg-muted">AI模型：</span><span className="text-fg font-mono text-[11px]">{agentConfig.aiModelConfigId.slice(0, 8)}...</span></div>}
+                        <div><span className="text-fg-muted">今日推送：</span><span className="text-fg">{card.pushedToday}</span></div>
+                        <div><span className="text-fg-muted">已推荐：</span><span className="text-emerald-600 font-medium">{card.approved}</span></div>
+                        <div><span className="text-fg-muted">不推荐：</span><span className="text-red-500 font-medium">{card.rejected}</span></div>
+                        <div><span className="text-fg-muted">采纳率：</span><span className="text-fg">{card.adoptionRate}%</span></div>
+                        {agentConfig.processedCount != null && <div><span className="text-fg-muted">累计处理：</span><span className="text-fg">{agentConfig.processedCount} 人</span></div>}
+                        {agentConfig.lastRunAt && <div className="col-span-2"><span className="text-fg-muted">上次运行：</span><span className="text-fg">{new Date(agentConfig.lastRunAt).toLocaleString('zh-CN')}</span></div>}
+                        {agentConfig.lastRunSummary && <div className="col-span-2 bg-surface rounded-lg p-2 border border-border-subtle"><span className="text-fg-muted">摘要：</span><span className="text-fg-secondary">{agentConfig.lastRunSummary}</span></div>}
                       </div>
                     </div>
                   )}
@@ -562,29 +562,29 @@ export const AgentsPage = () => {
       {/* Create Agent Dialog */}
       {viewMode === 'agents' && showCreateDialog && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md p-6">
+          <div className="bg-surface rounded-xl shadow-xl w-full max-w-md p-6">
             <div className="flex items-center justify-between mb-5">
-              <h3 className="text-[18px] font-bold text-gray-900 dark:text-white">新建代理</h3>
-              <button onClick={() => setShowCreateDialog(false)} className="text-gray-400 dark:text-gray-500 hover:text-gray-600 transition-colors">
+              <h3 className="text-[18px] font-bold text-fg">新建代理</h3>
+              <button onClick={() => setShowCreateDialog(false)} className="text-fg-faint hover:text-fg-secondary transition-colors">
                 <X className="w-5 h-5" />
               </button>
             </div>
             <div className="space-y-4">
               <div>
-                <label className="block text-[13px] font-medium text-gray-700 dark:text-gray-300 mb-1.5">代理名称</label>
+                <label className="block text-[13px] font-medium text-fg-secondary mb-1.5">代理名称</label>
                 <input
                   value={newAgent.name}
                   onChange={(e) => setNewAgent(prev => ({ ...prev, name: e.target.value }))}
                   placeholder="例如：数据标注员简历筛选"
-                  className="w-full px-3 py-2.5 border border-gray-200 dark:border-gray-700 rounded-lg text-[14px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4] focus:border-[#1a4bc4] placeholder:text-gray-400"
+                  className="w-full px-3 py-2.5 border border-border rounded-lg text-[14px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4] focus:border-[#1a4bc4] placeholder:text-fg-faint bg-surface text-fg"
                 />
               </div>
               <div>
-                <label className="block text-[13px] font-medium text-gray-700 dark:text-gray-300 mb-1.5">代理类型</label>
+                <label className="block text-[13px] font-medium text-fg-secondary mb-1.5">代理类型</label>
                 <select
                   value={newAgent.type}
                   onChange={(e) => setNewAgent(prev => ({ ...prev, type: e.target.value as AgentType }))}
-                  className="w-full px-3 py-2.5 border border-gray-200 dark:border-gray-700 rounded-lg text-[14px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4] focus:border-[#1a4bc4] bg-white dark:bg-gray-800"
+                  className="w-full px-3 py-2.5 border border-border rounded-lg text-[14px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4] focus:border-[#1a4bc4] bg-surface text-fg"
                 >
                   <option value="parser">简历解析 — 解析简历为结构化数据</option>
                   <option value="screener">简历筛选 — 按岗位标准评分评级</option>
@@ -593,11 +593,11 @@ export const AgentsPage = () => {
               </div>
               {(newAgent.type === 'screener' || newAgent.type === 'matcher') && (
                 <div>
-                  <label className="block text-[13px] font-medium text-gray-700 dark:text-gray-300 mb-1.5">关联岗位 <span className="text-red-500">*</span></label>
+                  <label className="block text-[13px] font-medium text-fg-secondary mb-1.5">关联岗位 <span className="text-red-500">*</span></label>
                   <select
                     value={newAgent.positionId}
                     onChange={(e) => setNewAgent(prev => ({ ...prev, positionId: e.target.value }))}
-                    className="w-full px-3 py-2.5 border border-gray-200 dark:border-gray-700 rounded-lg text-[14px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4] focus:border-[#1a4bc4] bg-white dark:bg-gray-800"
+                    className="w-full px-3 py-2.5 border border-border rounded-lg text-[14px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4] focus:border-[#1a4bc4] bg-surface text-fg"
                   >
                     <option value="">请选择岗位</option>
                     {positions.map(p => (
@@ -607,11 +607,11 @@ export const AgentsPage = () => {
                 </div>
               )}
               <div>
-                <label className="block text-[13px] font-medium text-gray-700 dark:text-gray-300 mb-1.5">AI 模型配置</label>
+                <label className="block text-[13px] font-medium text-fg-secondary mb-1.5">AI 模型配置</label>
                 <select
                   value={newAgent.aiModelConfigId}
                   onChange={(e) => setNewAgent(prev => ({ ...prev, aiModelConfigId: e.target.value }))}
-                  className="w-full px-3 py-2.5 border border-gray-200 dark:border-gray-700 rounded-lg text-[14px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4] focus:border-[#1a4bc4] bg-white dark:bg-gray-800"
+                  className="w-full px-3 py-2.5 border border-border rounded-lg text-[14px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4] focus:border-[#1a4bc4] bg-surface text-fg"
                 >
                   <option value="">使用默认模型</option>
                   {aiConfigs.map(c => (
@@ -625,16 +625,16 @@ export const AgentsPage = () => {
                     type="checkbox"
                     checked={newAgent.autoRun}
                     onChange={(e) => setNewAgent(prev => ({ ...prev, autoRun: e.target.checked }))}
-                    className="w-4 h-4 rounded border-gray-300 text-[#1a4bc4] focus:ring-[#1a4bc4]"
+                    className="w-4 h-4 rounded border-border text-[#1a4bc4] focus:ring-[#1a4bc4]"
                   />
-                  <span className="text-[13px] text-gray-700 dark:text-gray-300">自动运行 — 候选人导入后立即触发</span>
+                  <span className="text-[13px] text-fg-secondary">自动运行 — 候选人导入后立即触发</span>
                 </label>
               )}
             </div>
             <div className="flex gap-3 mt-6">
               <button
                 onClick={() => { setShowCreateDialog(false); setNewAgent({ name: '', type: 'screener', positionId: '', aiModelConfigId: '', autoRun: false }); }}
-                className="flex-1 px-4 py-2.5 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/30 rounded-lg text-[13px] font-medium text-gray-700 dark:text-gray-300 transition-colors"
+                className="flex-1 px-4 py-2.5 border border-border hover:bg-surface-muted rounded-lg text-[13px] font-medium text-fg-secondary transition-colors"
               >
                 取消
               </button>
@@ -671,37 +671,37 @@ export const AgentsPage = () => {
       {/* Edit Agent Dialog */}
       {editingAgent && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md p-6">
+          <div className="bg-surface rounded-xl shadow-xl w-full max-w-md p-6">
             <div className="flex items-center justify-between mb-5">
-              <h3 className="text-[18px] font-bold text-gray-900 dark:text-white">编辑代理</h3>
-              <button onClick={() => setEditingAgent(null)} className="text-gray-400 dark:text-gray-500 hover:text-gray-600 transition-colors">
+              <h3 className="text-[18px] font-bold text-fg">编辑代理</h3>
+              <button onClick={() => setEditingAgent(null)} className="text-fg-faint hover:text-fg-secondary transition-colors">
                 <X className="w-5 h-5" />
               </button>
             </div>
             <div className="space-y-4">
               <div>
-                <label className="block text-[13px] font-medium text-gray-700 dark:text-gray-300 mb-1.5">代理名称</label>
+                <label className="block text-[13px] font-medium text-fg-secondary mb-1.5">代理名称</label>
                 <input
                   value={editForm.name}
                   onChange={(e) => setEditForm(prev => ({ ...prev, name: e.target.value }))}
-                  className="w-full px-3 py-2.5 border border-gray-200 dark:border-gray-700 rounded-lg text-[14px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4] focus:border-[#1a4bc4]"
+                  className="w-full px-3 py-2.5 border border-border rounded-lg text-[14px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4] focus:border-[#1a4bc4] bg-surface text-fg"
                 />
               </div>
               <div>
-                <label className="block text-[13px] font-medium text-gray-700 dark:text-gray-300 mb-1.5">描述</label>
+                <label className="block text-[13px] font-medium text-fg-secondary mb-1.5">描述</label>
                 <input
                   value={editForm.description}
                   onChange={(e) => setEditForm(prev => ({ ...prev, description: e.target.value }))}
                   placeholder="可选"
-                  className="w-full px-3 py-2.5 border border-gray-200 dark:border-gray-700 rounded-lg text-[14px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4] focus:border-[#1a4bc4] placeholder:text-gray-400"
+                  className="w-full px-3 py-2.5 border border-border rounded-lg text-[14px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4] focus:border-[#1a4bc4] placeholder:text-fg-faint bg-surface text-fg"
                 />
               </div>
               <div>
-                <label className="block text-[13px] font-medium text-gray-700 dark:text-gray-300 mb-1.5">代理类型</label>
+                <label className="block text-[13px] font-medium text-fg-secondary mb-1.5">代理类型</label>
                 <select
                   value={editForm.type}
                   onChange={(e) => setEditForm(prev => ({ ...prev, type: e.target.value as AgentType }))}
-                  className="w-full px-3 py-2.5 border border-gray-200 dark:border-gray-700 rounded-lg text-[14px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4] focus:border-[#1a4bc4] bg-white dark:bg-gray-800"
+                  className="w-full px-3 py-2.5 border border-border rounded-lg text-[14px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4] focus:border-[#1a4bc4] bg-surface text-fg"
                 >
                   <option value="parser">简历解析</option>
                   <option value="screener">简历筛选</option>
@@ -710,11 +710,11 @@ export const AgentsPage = () => {
               </div>
               {(editForm.type === 'screener' || editForm.type === 'matcher') && (
                 <div>
-                  <label className="block text-[13px] font-medium text-gray-700 dark:text-gray-300 mb-1.5">关联岗位</label>
+                  <label className="block text-[13px] font-medium text-fg-secondary mb-1.5">关联岗位</label>
                   <select
                     value={editForm.positionId}
                     onChange={(e) => setEditForm(prev => ({ ...prev, positionId: e.target.value }))}
-                    className="w-full px-3 py-2.5 border border-gray-200 dark:border-gray-700 rounded-lg text-[14px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4] focus:border-[#1a4bc4] bg-white dark:bg-gray-800"
+                    className="w-full px-3 py-2.5 border border-border rounded-lg text-[14px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4] focus:border-[#1a4bc4] bg-surface text-fg"
                   >
                     <option value="">请选择岗位</option>
                     {positions.map(p => (
@@ -724,11 +724,11 @@ export const AgentsPage = () => {
                 </div>
               )}
               <div>
-                <label className="block text-[13px] font-medium text-gray-700 dark:text-gray-300 mb-1.5">AI 模型配置</label>
+                <label className="block text-[13px] font-medium text-fg-secondary mb-1.5">AI 模型配置</label>
                 <select
                   value={editForm.aiModelConfigId}
                   onChange={(e) => setEditForm(prev => ({ ...prev, aiModelConfigId: e.target.value }))}
-                  className="w-full px-3 py-2.5 border border-gray-200 dark:border-gray-700 rounded-lg text-[14px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4] focus:border-[#1a4bc4] bg-white dark:bg-gray-800"
+                  className="w-full px-3 py-2.5 border border-border rounded-lg text-[14px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4] focus:border-[#1a4bc4] bg-surface text-fg"
                 >
                   <option value="">使用默认模型</option>
                   {aiConfigs.map(c => (
@@ -742,16 +742,16 @@ export const AgentsPage = () => {
                     type="checkbox"
                     checked={editForm.autoRun}
                     onChange={(e) => setEditForm(prev => ({ ...prev, autoRun: e.target.checked }))}
-                    className="w-4 h-4 rounded border-gray-300 text-[#1a4bc4] focus:ring-[#1a4bc4]"
+                    className="w-4 h-4 rounded border-border text-[#1a4bc4] focus:ring-[#1a4bc4]"
                   />
-                  <span className="text-[13px] text-gray-700 dark:text-gray-300">自动运行 — 候选人导入后立即触发</span>
+                  <span className="text-[13px] text-fg-secondary">自动运行 — 候选人导入后立即触发</span>
                 </label>
               )}
             </div>
             <div className="flex gap-3 mt-6">
               <button
                 onClick={() => setEditingAgent(null)}
-                className="flex-1 px-4 py-2.5 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/30 rounded-lg text-[13px] font-medium text-gray-700 dark:text-gray-300 transition-colors"
+                className="flex-1 px-4 py-2.5 border border-border hover:bg-surface-muted rounded-lg text-[13px] font-medium text-fg-secondary transition-colors"
               >
                 取消
               </button>

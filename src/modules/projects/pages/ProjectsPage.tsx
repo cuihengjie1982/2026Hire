@@ -22,12 +22,21 @@ const TIME_RANGES: {label: string; value: TimeRange | 'custom'}[] = [
   {label: '自定义', value: 'custom'},
 ];
 
+const formatDateISO = (d: Date): string => {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+};
+
+const todayISO = () => formatDateISO(new Date());
+
 export const ProjectsPage = () => {
   const navigate = useNavigate();
   const [projects, setProjects] = useState<Project[]>([]);
-  const [timeRange, setTimeRange] = useState<TimeRange | 'custom'>('week');
-  const [customStartDate, setCustomStartDate] = useState('');
-  const [customEndDate, setCustomEndDate] = useState('');
+  const [timeRange, setTimeRange] = useState<TimeRange | 'custom'>('today');
+  const [customStartDate, setCustomStartDate] = useState(todayISO);
+  const [customEndDate, setCustomEndDate] = useState(todayISO);
   const [stats, setStats] = useState({activeProjects: 0, candidateReserve: 0, weeklyInterviews: 0});
   const [loading, setLoading] = useState(true);
   const [showProjectDialog, setShowProjectDialog] = useState(false);
@@ -72,9 +81,10 @@ export const ProjectsPage = () => {
 
   const handleTimeRangeChange = (value: TimeRange | 'custom') => {
     setTimeRange(value);
-    if (value !== 'custom') {
-      setCustomStartDate('');
-      setCustomEndDate('');
+    if (value === 'custom') {
+      const today = todayISO();
+      setCustomStartDate(today);
+      setCustomEndDate(today);
     }
   };
 
@@ -188,7 +198,7 @@ export const ProjectsPage = () => {
     const styles = {
       进行中: 'bg-emerald-100 text-emerald-700',
       筹备中: 'bg-amber-100 text-amber-700',
-      已关闭: 'bg-gray-100 text-gray-500',
+      已关闭: 'bg-surface-muted text-fg-muted',
     };
     return (
       <span className={`px-3 py-1 rounded-full text-[11px] font-medium ${styles[status]}`}>
@@ -207,13 +217,13 @@ export const ProjectsPage = () => {
       {/* Header */}
       <div className="flex items-end justify-between">
         <div>
-          <h1 className="text-[26px] font-bold text-gray-900 dark:text-white mb-1">项目管理</h1>
-          <p className="text-[13px] text-gray-500 dark:text-gray-400">集中查看项目进度、候选人储备和面试推进状态。</p>
+          <h1 className="text-[26px] font-bold text-fg mb-1">项目管理</h1>
+          <p className="text-[13px] text-fg-muted">集中查看项目进度、候选人储备和面试推进状态。</p>
         </div>
         <div className="flex gap-3">
           <button
             onClick={() => setShowPositionDialog(true)}
-            className="bg-white dark:bg-gray-800 border border-[#1a4bc4] text-[#1a4bc4] hover:bg-blue-50 px-4 py-2 rounded-lg text-[13px] font-medium transition-colors flex items-center gap-2"
+            className="bg-surface border border-[#1a4bc4] text-[#1a4bc4] hover:bg-blue-50 px-4 py-2 rounded-lg text-[13px] font-medium transition-colors flex items-center gap-2"
           >
             <Briefcase className="w-4 h-4" />
             新建岗位
@@ -238,7 +248,7 @@ export const ProjectsPage = () => {
               className={`px-4 py-2 rounded-lg text-[13px] font-medium transition-colors ${
                 timeRange === range.value
                   ? 'bg-[#1a4bc4] text-white'
-                  : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
+                  : 'bg-surface text-fg-secondary border border-border hover:bg-surface-muted'
               }`}
             >
               {range.label}
@@ -251,14 +261,14 @@ export const ProjectsPage = () => {
               type="date"
               value={customStartDate}
               onChange={(e) => setCustomStartDate(e.target.value)}
-              className="px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
+              className="px-3 py-2 border border-border rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
             />
-            <span className="text-gray-500 dark:text-gray-400">至</span>
+            <span className="text-fg-muted">至</span>
             <input
               type="date"
               value={customEndDate}
               onChange={(e) => setCustomEndDate(e.target.value)}
-              className="px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
+              className="px-3 py-2 border border-border rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
             />
           </div>
         )}
@@ -273,12 +283,12 @@ export const ProjectsPage = () => {
         ].map((item) => {
           const Icon = item.icon;
           return (
-            <div key={item.label} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-4">
+            <div key={item.label} className="bg-surface rounded-xl border border-border shadow-sm p-4">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-[12px] text-gray-500 dark:text-gray-400">{item.label}</span>
+                <span className="text-[12px] text-fg-muted">{item.label}</span>
                 <Icon className="w-4 h-4 text-[#1a4bc4]" />
               </div>
-              <div className="text-[28px] leading-none font-bold text-gray-900 dark:text-white">
+              <div className="text-[28px] leading-none font-bold text-fg">
                 {loading ? '-' : item.value}
               </div>
             </div>
@@ -287,124 +297,124 @@ export const ProjectsPage = () => {
       </div>
 
       {/* Project List */}
-      <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
-          <h2 className="text-[16px] font-bold text-gray-900 dark:text-white">项目列表</h2>
-          <div className="text-[12px] text-gray-500 dark:text-gray-400">按最近活跃度排序</div>
+      <div className="bg-surface rounded-2xl border border-border shadow-sm overflow-hidden">
+        <div className="px-6 py-4 border-b border-border-subtle flex items-center justify-between">
+          <h2 className="text-[16px] font-bold text-fg">项目列表</h2>
+          <div className="text-[12px] text-fg-muted">按最近活跃度排序</div>
         </div>
-        <div className="divide-y divide-gray-100">
+        <div className="divide-y divide-border-subtle">
           {projects.map((project) => (
             <div key={project.id}>
-              <div className="px-6 py-5 grid grid-cols-1 xl:grid-cols-[1.4fr_0.8fr_0.8fr_0.8fr_0.9fr_0.6fr] gap-4 items-center">
+              <div className="px-6 py-5 grid grid-cols-1 xl:grid-cols-[minmax(0,1.4fr)_minmax(100px,0.6fr)_auto_minmax(300px,1.4fr)] gap-4 items-center">
                 <div>
-                  <div className="font-bold text-gray-900 dark:text-white mb-1">{project.name}</div>
-                  <div className="text-[12px] text-gray-500 dark:text-gray-400">{project.city}</div>
-                  {project.manager && <div className="text-[12px] text-gray-400 dark:text-gray-500">负责人：{project.manager}</div>}
-                  {project.startDate && <div className="text-[12px] text-gray-400 dark:text-gray-500">项目时间：{new Date(project.startDate).toLocaleDateString()} - {project.endDate ? new Date(project.endDate).toLocaleDateString() : '未设置'}</div>}
-                  {project.description && <div className="text-[12px] text-gray-400 dark:text-gray-500 truncate max-w-[200px]">描述：{project.description}</div>}
+                  <div className="font-bold text-fg mb-1">{project.name}</div>
+                  <div className="text-[12px] text-fg-muted">{project.city}</div>
+                  {project.manager && <div className="text-[12px] text-fg-faint">负责人：{project.manager}</div>}
+                  {project.startDate && <div className="text-[12px] text-fg-faint">项目时间：{new Date(project.startDate).toLocaleDateString()} - {project.endDate ? new Date(project.endDate).toLocaleDateString() : '未设置'}</div>}
+                  {project.description && <div className="text-[12px] text-fg-faint truncate max-w-[200px]">描述：{project.description}</div>}
                 </div>
                 <div>
-                  <div className="text-[12px] text-gray-500 dark:text-gray-400 mb-2">进度 {project.progress}%</div>
-                  <div className="w-full bg-gray-100 dark:bg-gray-800 rounded-full h-2">
+                  <div className="text-[12px] text-fg-muted mb-2">进度 {project.progress}%</div>
+                  <div className="w-full bg-surface-muted rounded-full h-2">
                     <div className="bg-[#1a4bc4] h-2 rounded-full" style={{width: `${project.progress}%`}}></div>
                   </div>
                 </div>
                 <div className="flex justify-start xl:justify-end">{renderStatusBadge(project.status)}</div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2 justify-start xl:justify-end">
                   <button
                     onClick={() => handleViewPositions(project.id)}
-                    className="px-3 py-1.5 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-[12px] font-medium hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors flex items-center gap-1"
+                    className="px-3.5 py-1.5 border border-border text-fg-secondary rounded-lg text-[12px] font-medium hover:bg-surface-muted transition-colors inline-flex items-center gap-1 whitespace-nowrap shrink-0"
                   >
-                    <Briefcase className="w-3 h-3" />
+                    <Briefcase className="w-3 h-3 shrink-0" />
                     {expandedProjectId === project.id ? '收起' : '岗位'}
-                    <ChevronRight className={`w-3 h-3 transition-transform ${expandedProjectId === project.id ? 'rotate-90' : ''}`} />
+                    <ChevronRight className={`w-3 h-3 shrink-0 transition-transform ${expandedProjectId === project.id ? 'rotate-90' : ''}`} />
                   </button>
                   <button
                     onClick={() => handleEditProject(project)}
-                    className="px-3 py-1.5 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-[12px] font-medium hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors flex items-center gap-1"
+                    className="px-3.5 py-1.5 border border-border text-fg-secondary rounded-lg text-[12px] font-medium hover:bg-surface-muted transition-colors inline-flex items-center gap-1 whitespace-nowrap shrink-0"
                   >
-                    <Pencil className="w-3 h-3" />
+                    <Pencil className="w-3 h-3 shrink-0" />
                     编辑
                   </button>
                   <button
                     onClick={() => setDeletingProjectId(project.id)}
-                    className="px-3 py-1.5 border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 rounded-lg text-[12px] font-medium hover:bg-red-50 hover:text-red-500 hover:border-red-300 transition-colors flex items-center gap-1"
+                    className="px-3.5 py-1.5 border border-border text-fg-muted rounded-lg text-[12px] font-medium hover:bg-red-50 hover:text-red-500 hover:border-red-300 transition-colors inline-flex items-center gap-1 whitespace-nowrap shrink-0"
                   >
-                    <Trash2 className="w-3 h-3" />
+                    <Trash2 className="w-3 h-3 shrink-0" />
                     删除
                   </button>
                   {project.status === '已关闭' ? (
                     <button
                       onClick={() => handleStatusChange(project.id, '进行中')}
-                      className="px-3 py-1.5 border border-emerald-500 text-emerald-600 rounded-lg text-[12px] font-medium hover:bg-emerald-50 transition-colors flex items-center gap-1"
+                      className="px-3.5 py-1.5 border border-emerald-500 text-emerald-600 rounded-lg text-[12px] font-medium hover:bg-emerald-50 transition-colors inline-flex items-center gap-1 whitespace-nowrap shrink-0"
                     >
-                      <Play className="w-3 h-3" />
+                      <Play className="w-3 h-3 shrink-0" />
                       启动
                     </button>
                   ) : (
                     <button
                       onClick={() => handleStatusChange(project.id, '已关闭')}
-                      className="px-3 py-1.5 border border-red-400 text-red-500 rounded-lg text-[12px] font-medium hover:bg-red-50 transition-colors flex items-center gap-1"
+                      className="px-3.5 py-1.5 border border-red-400 text-red-500 rounded-lg text-[12px] font-medium hover:bg-red-50 transition-colors inline-flex items-center gap-1 whitespace-nowrap shrink-0"
                     >
-                      <X className="w-3 h-3" />
+                      <X className="w-3 h-3 shrink-0" />
                       关闭
                     </button>
                   )}
                 </div>
               </div>
               {expandedProjectId === project.id && (
-                <div className="px-6 pb-5 bg-gray-50 dark:bg-gray-800">
+                <div className="px-6 pb-5 bg-surface-muted">
                   <div className="flex items-center justify-between mb-3">
-                    <h4 className="text-[14px] font-medium text-gray-900 dark:text-white">岗位列表 ({projectPositions[project.id]?.length || 0})</h4>
+                    <h4 className="text-[14px] font-medium text-fg">岗位列表 ({projectPositions[project.id]?.length || 0})</h4>
                     <button
                       onClick={() => handleOpenPositionDialog(project.id)}
-                      className="px-3 py-1.5 bg-[#1a4bc4] text-white rounded-lg text-[12px] font-medium hover:bg-[#0c2b7a] transition-colors flex items-center gap-1"
+                      className="px-3.5 py-1.5 bg-[#1a4bc4] text-white rounded-lg text-[12px] font-medium hover:bg-[#0c2b7a] transition-colors inline-flex items-center gap-1 whitespace-nowrap shrink-0"
                     >
                       <Plus className="w-3 h-3" />
                       新建岗位
                     </button>
                   </div>
                   {projectPositions[project.id]?.length > 0 ? (
-                    <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+                    <div className="bg-surface rounded-lg border border-border overflow-hidden">
                       <table className="w-full">
-                        <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-                          <tr className="text-left text-[11px] text-gray-500 dark:text-gray-400 font-medium">
+                        <thead className="bg-surface-muted border-b border-border">
+                          <tr className="text-left text-[11px] text-fg-muted font-medium">
                             <th className="px-4 py-2">岗位名称</th>
                             <th className="px-4 py-2">类型</th>
                             <th className="px-4 py-2">状态</th>
                             <th className="px-4 py-2">创建时间</th>
-                            <th className="px-4 py-2">操作</th>
+                            <th className="px-4 py-2 min-w-[130px]">操作</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-100">
+                        <tbody className="divide-y divide-border-subtle">
                           {projectPositions[project.id].map((position) => (
-                            <tr key={position.id} className="text-[12px] text-gray-700 dark:text-gray-300">
-                              <td className="px-4 py-2 font-medium text-gray-900 dark:text-white">{position.name}</td>
+                            <tr key={position.id} className="text-[12px] text-fg-secondary">
+                              <td className="px-4 py-2 font-medium text-fg">{position.name}</td>
                               <td className="px-4 py-2">{position.category}</td>
                               <td className="px-4 py-2">
                                 <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${
                                   position.status === 'active' ? 'bg-emerald-100 text-emerald-700' :
                                   position.status === 'draft' ? 'bg-amber-100 text-amber-700' :
-                                  'bg-gray-100 text-gray-500'
+                                  'bg-surface-muted text-fg-muted'
                                 }`}>
                                   {position.status === 'active' ? '已发布' : position.status === 'draft' ? '草稿' : '已归档'}
                                 </span>
                               </td>
                               <td className="px-4 py-2">{position.createdAt ? new Date(position.createdAt).toLocaleDateString() : '-'}</td>
-                              <td className="px-4 py-2">
-                                <div className="flex gap-1">
+                              <td className="px-4 py-2 min-w-[130px]">
+                                <div className="flex flex-wrap gap-1.5">
                                   <button
                                     onClick={() => handleEditPosition(position.id)}
-                                    className="px-2 py-1 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 rounded text-[10px] font-medium hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors flex items-center gap-1"
+                                    className="px-2.5 py-1 border border-border text-fg-secondary rounded text-[11px] font-medium hover:bg-surface-muted transition-colors inline-flex items-center gap-1 whitespace-nowrap shrink-0"
                                   >
-                                    <Edit2 className="w-3 h-3" />
+                                    <Edit2 className="w-3 h-3 shrink-0" />
                                     编辑
                                   </button>
                                   <button
                                     onClick={() => setDeletingPositionId(position.id)}
-                                    className="px-2 py-1 border border-gray-200 dark:border-gray-700 text-red-500 rounded text-[10px] font-medium hover:bg-red-50 transition-colors flex items-center gap-1"
+                                    className="px-2.5 py-1 border border-border text-red-500 rounded text-[11px] font-medium hover:bg-red-50 transition-colors inline-flex items-center gap-1 whitespace-nowrap shrink-0"
                                   >
-                                    <Trash2 className="w-3 h-3" />
+                                    <Trash2 className="w-3 h-3 shrink-0" />
                                     删除
                                   </button>
                                 </div>
@@ -415,7 +425,7 @@ export const ProjectsPage = () => {
                       </table>
                     </div>
                   ) : (
-                    <div className="text-center py-6 text-[13px] text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                    <div className="text-center py-6 text-[13px] text-fg-muted bg-surface rounded-lg border border-border">
                       暂无岗位，请点击"新建岗位"创建
                     </div>
                   )}
@@ -432,78 +442,78 @@ export const ProjectsPage = () => {
           <motion.div
             initial={{opacity: 0, scale: 0.95}}
             animate={{opacity: 1, scale: 1}}
-            className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md p-6"
+            className="bg-surface rounded-xl shadow-xl w-full max-w-md p-6"
           >
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white">新建项目</h3>
-              <button onClick={() => setShowProjectDialog(false)} className="text-gray-400 dark:text-gray-500 hover:text-gray-600">
+              <h3 className="text-lg font-bold text-fg">新建项目</h3>
+              <button onClick={() => setShowProjectDialog(false)} className="text-fg-faint hover:text-fg-secondary">
                 <X className="w-5 h-5" />
               </button>
             </div>
             <div className="space-y-4">
               <div>
-                <label className="block text-[13px] font-medium text-gray-700 dark:text-gray-300 mb-1">项目名称 *</label>
+                <label className="block text-[13px] font-medium text-fg-secondary mb-1">项目名称 *</label>
                 <input
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData({...formData, name: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
+                  className="w-full px-3 py-2 border border-border rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
                   placeholder="请输入项目名称"
                 />
               </div>
               <div>
-                <label className="block text-[13px] font-medium text-gray-700 dark:text-gray-300 mb-1">城市</label>
+                <label className="block text-[13px] font-medium text-fg-secondary mb-1">城市</label>
                 <input
                   type="text"
                   value={formData.city}
                   onChange={(e) => setFormData({...formData, city: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
+                  className="w-full px-3 py-2 border border-border rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
                   placeholder="如：上海 / 北京"
                 />
               </div>
               <div>
-                <label className="block text-[13px] font-medium text-gray-700 dark:text-gray-300 mb-1">负责人</label>
+                <label className="block text-[13px] font-medium text-fg-secondary mb-1">负责人</label>
                 <input
                   type="text"
                   value={formData.manager}
                   onChange={(e) => setFormData({...formData, manager: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
+                  className="w-full px-3 py-2 border border-border rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
                   placeholder="请输入负责人姓名"
                 />
               </div>
               <div>
-                <label className="block text-[13px] font-medium text-gray-700 dark:text-gray-300 mb-1">项目时间</label>
+                <label className="block text-[13px] font-medium text-fg-secondary mb-1">项目时间</label>
                 <div className="grid grid-cols-2 gap-2">
                   <input
                     type="date"
                     value={formData.startDate || ''}
                     onChange={(e) => setFormData({...formData, startDate: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
+                    className="w-full px-3 py-2 border border-border rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
                   />
                   <input
                     type="date"
                     value={formData.endDate || ''}
                     onChange={(e) => setFormData({...formData, endDate: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
+                    className="w-full px-3 py-2 border border-border rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
                   />
                 </div>
               </div>
               <div>
-                <label className="block text-[13px] font-medium text-gray-700 dark:text-gray-300 mb-1">项目描述</label>
+                <label className="block text-[13px] font-medium text-fg-secondary mb-1">项目描述</label>
                 <textarea
                   value={formData.description || ''}
                   onChange={(e) => setFormData({...formData, description: e.target.value})}
                   rows={4}
-                  className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4] resize-none"
+                  className="w-full px-3 py-2 border border-border rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4] resize-none"
                   placeholder="请输入项目描述，可粘贴TXT文件内容"
                 />
               </div>
               <div>
-                <label className="block text-[13px] font-medium text-gray-700 dark:text-gray-300 mb-1">初始状态</label>
+                <label className="block text-[13px] font-medium text-fg-secondary mb-1">初始状态</label>
                 <select
                   value={formData.status}
                   onChange={(e) => setFormData({...formData, status: e.target.value as ProjectStatus})}
-                  className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
+                  className="w-full px-3 py-2 border border-border rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
                 >
                   {STATUS_OPTIONS.map((opt) => (
                     <option key={opt.value} value={opt.value}>
@@ -516,7 +526,7 @@ export const ProjectsPage = () => {
             <div className="flex gap-3 mt-6">
               <button
                 onClick={() => setShowProjectDialog(false)}
-                className="flex-1 px-4 py-2 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-[13px] font-medium hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors"
+                className="flex-1 px-4 py-2 border border-border text-fg-secondary rounded-lg text-[13px] font-medium hover:bg-surface-muted transition-colors"
               >
                 取消
               </button>
@@ -546,66 +556,66 @@ export const ProjectsPage = () => {
           <motion.div
             initial={{opacity: 0, scale: 0.95}}
             animate={{opacity: 1, scale: 1}}
-            className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md p-6"
+            className="bg-surface rounded-xl shadow-xl w-full max-w-md p-6"
           >
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white">编辑项目</h3>
-              <button onClick={() => setEditingProject(null)} className="text-gray-400 dark:text-gray-500 hover:text-gray-600">
+              <h3 className="text-lg font-bold text-fg">编辑项目</h3>
+              <button onClick={() => setEditingProject(null)} className="text-fg-faint hover:text-fg-secondary">
                 <X className="w-5 h-5" />
               </button>
             </div>
             <div className="space-y-4">
               <div>
-                <label className="block text-[13px] font-medium text-gray-700 dark:text-gray-300 mb-1">项目名称 *</label>
+                <label className="block text-[13px] font-medium text-fg-secondary mb-1">项目名称 *</label>
                 <input
                   type="text"
                   value={editingProject.name}
                   onChange={(e) => setEditingProject({...editingProject, name: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
+                  className="w-full px-3 py-2 border border-border rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
                 />
               </div>
               <div>
-                <label className="block text-[13px] font-medium text-gray-700 dark:text-gray-300 mb-1">城市</label>
+                <label className="block text-[13px] font-medium text-fg-secondary mb-1">城市</label>
                 <input
                   type="text"
                   value={editingProject.city}
                   onChange={(e) => setEditingProject({...editingProject, city: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
+                  className="w-full px-3 py-2 border border-border rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
                 />
               </div>
               <div>
-                <label className="block text-[13px] font-medium text-gray-700 dark:text-gray-300 mb-1">负责人</label>
+                <label className="block text-[13px] font-medium text-fg-secondary mb-1">负责人</label>
                 <input
                   type="text"
                   value={editingProject.manager || ''}
                   onChange={(e) => setEditingProject({...editingProject, manager: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
+                  className="w-full px-3 py-2 border border-border rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
                 />
               </div>
               <div>
-                <label className="block text-[13px] font-medium text-gray-700 dark:text-gray-300 mb-1">项目时间</label>
+                <label className="block text-[13px] font-medium text-fg-secondary mb-1">项目时间</label>
                 <div className="grid grid-cols-2 gap-2">
                   <input
                     type="date"
                     value={editingProject.startDate || ''}
                     onChange={(e) => setEditingProject({...editingProject, startDate: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
+                    className="w-full px-3 py-2 border border-border rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
                   />
                   <input
                     type="date"
                     value={editingProject.endDate || ''}
                     onChange={(e) => setEditingProject({...editingProject, endDate: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
+                    className="w-full px-3 py-2 border border-border rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
                   />
                 </div>
               </div>
               <div>
-                <label className="block text-[13px] font-medium text-gray-700 dark:text-gray-300 mb-1">项目描述</label>
+                <label className="block text-[13px] font-medium text-fg-secondary mb-1">项目描述</label>
                 <textarea
                   value={editingProject.description || ''}
                   onChange={(e) => setEditingProject({...editingProject, description: e.target.value})}
                   rows={4}
-                  className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4] resize-none"
+                  className="w-full px-3 py-2 border border-border rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4] resize-none"
                   placeholder="请输入项目描述，可粘贴TXT文件内容"
                 />
               </div>
@@ -613,7 +623,7 @@ export const ProjectsPage = () => {
             <div className="flex gap-3 mt-6">
               <button
                 onClick={() => setEditingProject(null)}
-                className="flex-1 px-4 py-2 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-[13px] font-medium hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors"
+                className="flex-1 px-4 py-2 border border-border text-fg-secondary rounded-lg text-[13px] font-medium hover:bg-surface-muted transition-colors"
               >
                 取消
               </button>
@@ -635,14 +645,14 @@ export const ProjectsPage = () => {
           <motion.div
             initial={{opacity: 0, scale: 0.95}}
             animate={{opacity: 1, scale: 1}}
-            className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-sm p-6"
+            className="bg-surface rounded-xl shadow-xl w-full max-w-sm p-6"
           >
-            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">确认删除</h3>
-            <p className="text-[13px] text-gray-600 dark:text-gray-300 mb-6">确定要删除该项目吗？此操作不可恢复，关联的岗位和数据可能受到影响。</p>
+            <h3 className="text-lg font-bold text-fg mb-2">确认删除</h3>
+            <p className="text-[13px] text-fg-secondary mb-6">确定要删除该项目吗？此操作不可恢复，关联的岗位和数据可能受到影响。</p>
             <div className="flex gap-3">
               <button
                 onClick={() => setDeletingProjectId(null)}
-                className="flex-1 px-4 py-2 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-[13px] font-medium hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors"
+                className="flex-1 px-4 py-2 border border-border text-fg-secondary rounded-lg text-[13px] font-medium hover:bg-surface-muted transition-colors"
               >
                 取消
               </button>
@@ -663,14 +673,14 @@ export const ProjectsPage = () => {
           <motion.div
             initial={{opacity: 0, scale: 0.95}}
             animate={{opacity: 1, scale: 1}}
-            className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-sm p-6"
+            className="bg-surface rounded-xl shadow-xl w-full max-w-sm p-6"
           >
-            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">确认删除岗位</h3>
-            <p className="text-[13px] text-gray-600 dark:text-gray-300 mb-6">确定要删除该岗位吗？此操作不可恢复。</p>
+            <h3 className="text-lg font-bold text-fg mb-2">确认删除岗位</h3>
+            <p className="text-[13px] text-fg-secondary mb-6">确定要删除该岗位吗？此操作不可恢复。</p>
             <div className="flex gap-3">
               <button
                 onClick={() => setDeletingPositionId(null)}
-                className="flex-1 px-4 py-2 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-[13px] font-medium hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors"
+                className="flex-1 px-4 py-2 border border-border text-fg-secondary rounded-lg text-[13px] font-medium hover:bg-surface-muted transition-colors"
               >
                 取消
               </button>

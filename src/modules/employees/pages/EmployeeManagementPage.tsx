@@ -17,6 +17,7 @@ import {
   type CustomFieldDef,
 } from '../api';
 import VersionTimeline from '../components/VersionTimeline';
+import {NumericScoreInput} from '../../../shared/components/NumericScoreInput';
 import CustomFieldManager from '../components/CustomFieldManager';
 import CustomFieldValues from '../components/CustomFieldValues';
 import ExcelImportDialog from '../components/ExcelImportDialog';
@@ -55,7 +56,7 @@ const STATUS_COLORS: Record<string, string> = {
   onboarding: 'bg-blue-100 text-blue-700',
   probation: 'bg-amber-100 text-amber-700',
   terminated: 'bg-red-100 text-red-700',
-  resigned: 'bg-gray-100 text-gray-500',
+  resigned: 'bg-surface-muted text-fg-muted',
 };
 
 // ─── StatsCard ─────────────────────────────────────────────────────────────
@@ -72,12 +73,12 @@ const StatsCard = ({icon: Icon, label, value, color}: {
     purple: 'text-purple-500', orange: 'text-orange-500',
   };
   return (
-    <div className={`bg-gradient-to-br ${bgMap[color] ?? bgMap.blue} rounded-xl p-4 border border-gray-100`}>
+    <div className={`bg-gradient-to-br ${bgMap[color] ?? bgMap.blue} rounded-xl p-4 border border-border-subtle`}>
       <div className="flex items-center gap-3">
         <Icon className={`w-5 h-5 ${iconMap[color] ?? iconMap.blue}`} />
-        <span className="text-sm text-gray-500">{label}</span>
+        <span className="text-sm text-fg-muted">{label}</span>
       </div>
-      <div className="mt-2 text-2xl font-bold text-gray-900">{value}</div>
+      <div className="mt-2 text-2xl font-bold text-fg">{value}</div>
     </div>
   );
 };
@@ -332,10 +333,10 @@ export const EmployeeManagementPage = () => {
   if (loading) {
     return (
       <div className="max-w-[1500px] mx-auto w-full p-6">
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-4">
-          <div className="h-7 w-44 rounded-lg bg-gray-100 animate-pulse" />
+        <div className="bg-surface rounded-2xl border border-border shadow-sm p-6 space-y-4">
+          <div className="h-7 w-44 rounded-lg bg-surface-muted animate-pulse" />
           <div className="grid grid-cols-4 gap-4">
-            {[1, 2, 3, 4].map(i => <div key={i} className="h-28 rounded-xl bg-gray-100 animate-pulse" />)}
+            {[1, 2, 3, 4].map(i => <div key={i} className="h-28 rounded-xl bg-surface-muted animate-pulse" />)}
           </div>
         </div>
       </div>
@@ -349,19 +350,19 @@ export const EmployeeManagementPage = () => {
       {/* ── Header ── */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">员工档案</h1>
-          <p className="text-[13px] text-gray-500 mt-0.5">管理在职员工信息、绩效记录和胜任力模型</p>
+          <h1 className="text-xl font-bold text-fg">员工档案</h1>
+          <p className="text-[13px] text-fg-muted mt-0.5">管理在职员工信息、绩效记录和胜任力模型</p>
         </div>
       </div>
 
       {/* ── Tab Bar ── */}
-      <div className="flex gap-1 bg-gray-100 rounded-xl p-1">
+      <div className="flex gap-1 bg-surface-muted rounded-xl p-1">
         {TABS.map(tab => {
           const Icon = tab.icon;
           return (
             <button key={tab.id} onClick={() => setActiveTab(tab.id)}
               className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all flex-1 justify-center ${
-                activeTab === tab.id ? 'bg-white text-[#1a4bc4] shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                activeTab === tab.id ? 'bg-surface text-[#1a4bc4] shadow-sm' : 'text-fg-muted hover:text-fg-secondary'
               }`}>
               <Icon className="w-4 h-4" /> {tab.label}
             </button>
@@ -391,47 +392,47 @@ export const EmployeeManagementPage = () => {
                 {STATUS_OPTIONS.map(opt => (
                   <button key={opt.value} onClick={() => setStatusFilter(opt.value)}
                     className={`px-3 py-1.5 rounded-lg text-[12px] font-medium transition-colors ${
-                      statusFilter === opt.value ? 'bg-[#1a4bc4] text-white' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+                      statusFilter === opt.value ? 'bg-[#1a4bc4] text-white' : 'bg-surface text-fg-secondary border border-border hover:bg-surface-muted'
                     }`}>
                     {opt.label}
                   </button>
                 ))}
               </div>
               <div className="relative flex-1 max-w-xs ml-auto">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-fg-faint" />
                 <input type="text" placeholder="搜索姓名、邮箱、部门..."
                   value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400" />
+                  className="w-full pl-9 pr-3 py-2 bg-surface border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400" />
               </div>
               <button onClick={openCreate}
                 className="flex items-center gap-1.5 px-4 py-2 bg-[#1a4bc4] text-white rounded-lg text-[13px] font-medium hover:bg-[#0c2b7a] transition-colors">
                 <Plus className="w-4 h-4" /> 添加员工
               </button>
               <button onClick={() => setShowExcelImport(true)}
-                className="flex items-center gap-1.5 px-3 py-2 border border-gray-200 bg-white text-gray-600 rounded-lg text-[13px] font-medium hover:bg-gray-50 transition-colors">
+                className="flex items-center gap-1.5 px-3 py-2 border border-border bg-surface text-fg-secondary rounded-lg text-[13px] font-medium hover:bg-surface-muted transition-colors">
                 <Upload className="w-4 h-4" /> 导入
               </button>
               <a href="/api/employees/export/excel" download
-                className="flex items-center gap-1.5 px-3 py-2 border border-gray-200 bg-white text-gray-600 rounded-lg text-[13px] font-medium hover:bg-gray-50 transition-colors">
+                className="flex items-center gap-1.5 px-3 py-2 border border-border bg-surface text-fg-secondary rounded-lg text-[13px] font-medium hover:bg-surface-muted transition-colors">
                 <Download className="w-4 h-4" /> 导出
               </a>
             </div>
 
             {/* Table */}
             {filteredEmployees.length === 0 ? (
-              <div className="text-center py-16 text-gray-400 bg-white rounded-xl border border-gray-200">
+              <div className="text-center py-16 text-fg-faint bg-surface rounded-xl border border-border">
                 <UserCheck className="w-12 h-12 mx-auto mb-4 opacity-40" />
                 <p className="text-sm font-medium mb-1">暂无员工记录</p>
-                <p className="text-xs text-gray-400 mb-4">通过审批录用或手动添加来创建员工档案</p>
+                <p className="text-xs text-fg-faint mb-4">通过审批录用或手动添加来创建员工档案</p>
                 <button onClick={openCreate} className="px-4 py-2 bg-[#1a4bc4] text-white rounded-lg text-sm hover:bg-[#153da0]">
                   添加第一位员工
                 </button>
               </div>
             ) : (
-              <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+              <div className="bg-surface rounded-2xl border border-border shadow-sm overflow-hidden">
                 <table className="w-full">
-                  <thead className="bg-gray-50 border-b border-gray-200">
-                    <tr className="text-left text-[12px] text-gray-500 font-medium">
+                  <thead className="bg-surface-muted border-b border-border">
+                    <tr className="text-left text-[12px] text-fg-muted font-medium">
                       <th className="px-4 py-3 w-8"></th>
                       <th className="px-4 py-3">姓名</th>
                       <th className="px-4 py-3">邮箱</th>
@@ -443,23 +444,23 @@ export const EmployeeManagementPage = () => {
                       <th className="px-4 py-3 w-24">操作</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100">
+                  <tbody className="divide-y divide-border-subtle">
                     {filteredEmployees.map(emp => (
                       <React.Fragment key={emp.id}>
-                        <tr className="hover:bg-gray-50 transition-colors">
+                        <tr className="hover:bg-surface-muted transition-colors">
                           <td className="px-4 py-3">
                             <button onClick={() => toggleExpand(emp.id)}
-                              className="p-1 hover:bg-gray-200 rounded transition-colors">
-                              <ChevronRight className={`w-4 h-4 text-gray-400 transition-transform ${expandedId === emp.id ? 'rotate-90' : ''}`} />
+                              className="p-1 hover:bg-surface-muted rounded transition-colors">
+                              <ChevronRight className={`w-4 h-4 text-fg-faint transition-transform ${expandedId === emp.id ? 'rotate-90' : ''}`} />
                             </button>
                           </td>
                           <td className="px-4 py-3">
-                            <span className="text-sm font-medium text-gray-900">{emp.name}</span>
+                            <span className="text-sm font-medium text-fg">{emp.name}</span>
                           </td>
-                          <td className="px-4 py-3 text-sm text-gray-500">{emp.email || '-'}</td>
-                          <td className="px-4 py-3 text-sm text-gray-500">{emp.department || '-'}</td>
+                          <td className="px-4 py-3 text-sm text-fg-muted">{emp.email || '-'}</td>
+                          <td className="px-4 py-3 text-sm text-fg-muted">{emp.department || '-'}</td>
                           <td className="px-4 py-3">
-                            <span className={`px-2 py-0.5 rounded text-xs font-medium ${STATUS_COLORS[emp.status] ?? 'bg-gray-100 text-gray-600'}`}>
+                            <span className={`px-2 py-0.5 rounded text-xs font-medium ${STATUS_COLORS[emp.status] ?? 'bg-surface-muted text-fg-secondary'}`}>
                               {STATUS_LABELS[emp.status] ?? emp.status}
                             </span>
                           </td>
@@ -477,13 +478,13 @@ export const EmployeeManagementPage = () => {
                               </span>
                             ) : '-'}
                           </td>
-                          <td className="px-4 py-3 text-sm text-gray-500">{emp.retentionDays ?? '-'}</td>
+                          <td className="px-4 py-3 text-sm text-fg-muted">{emp.retentionDays ?? '-'}</td>
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-1">
-                              <button onClick={() => openEdit(emp)} className="p-1.5 text-gray-400 hover:text-[#1a4bc4] hover:bg-blue-50 rounded transition-colors">
+                              <button onClick={() => openEdit(emp)} className="p-1.5 text-fg-faint hover:text-[#1a4bc4] hover:bg-blue-50 rounded transition-colors">
                                 <Edit3 className="w-3.5 h-3.5" />
                               </button>
-                              <button onClick={() => setDeletingId(emp.id)} className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors">
+                              <button onClick={() => setDeletingId(emp.id)} className="p-1.5 text-fg-faint hover:text-red-500 hover:bg-red-50 rounded transition-colors">
                                 <Trash2 className="w-3.5 h-3.5" />
                               </button>
                             </div>
@@ -493,7 +494,7 @@ export const EmployeeManagementPage = () => {
                         {/* Expanded Detail Row */}
                         {expandedId === emp.id && (
                           <tr>
-                            <td colSpan={9} className="px-6 pb-5 bg-gray-50">
+                            <td colSpan={9} className="px-6 pb-5 bg-surface-muted">
                               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 py-4">
                                 <DetailField icon={Phone} label="电话" value={emp.phone} />
                                 <DetailField icon={Building2} label="主管" value={emp.manager} />
@@ -536,9 +537,9 @@ export const EmployeeManagementPage = () => {
                               <CustomFieldValues employeeId={emp.id} />
 
                               {/* Performance Records */}
-                              <div className="mt-4 border-t border-gray-200 pt-4">
+                              <div className="mt-4 border-t border-border pt-4">
                                 <div className="flex items-center justify-between mb-3">
-                                  <h4 className="text-sm font-semibold text-gray-700">绩效记录</h4>
+                                  <h4 className="text-sm font-semibold text-fg-secondary">绩效记录</h4>
                                   <button onClick={() => setShowAddPerf(!showAddPerf)}
                                     className="flex items-center gap-1 text-xs text-[#1a4bc4] hover:underline">
                                     <Plus className="w-3 h-3" /> 添加绩效
@@ -546,21 +547,26 @@ export const EmployeeManagementPage = () => {
                                 </div>
 
                                 {showAddPerf && (
-                                  <div className="bg-white border border-gray-200 rounded-lg p-4 mb-3 grid grid-cols-2 md:grid-cols-4 gap-3">
+                                  <div className="bg-surface border border-border rounded-lg p-4 mb-3 grid grid-cols-2 md:grid-cols-4 gap-3">
                                     <div>
-                                      <label className="block text-[12px] text-gray-500 mb-1">考核周期 *</label>
+                                      <label className="block text-[12px] text-fg-muted mb-1">考核周期 *</label>
                                       <input value={perfForm.period} onChange={e => setPerfForm({...perfForm, period: e.target.value})}
-                                        placeholder="2026-Q1" className="w-full px-3 py-1.5 border border-gray-200 rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]" />
+                                        placeholder="2026-Q1" className="w-full px-3 py-1.5 border border-border rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]" />
                                     </div>
                                     <div>
-                                      <label className="block text-[12px] text-gray-500 mb-1">分数 (0-100) *</label>
-                                      <input type="number" value={perfForm.score} onChange={e => setPerfForm({...perfForm, score: e.target.value})}
-                                        min={0} max={100} className="w-full px-3 py-1.5 border border-gray-200 rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]" />
+                                      <label className="block text-[12px] text-fg-muted mb-1">分数 (0-100) *</label>
+                                      <NumericScoreInput
+                                        value={perfForm.score === '' ? 0 : Number(perfForm.score) || 0}
+                                        onChange={(n) => setPerfForm({...perfForm, score: String(n)})}
+                                        className="w-full px-3 py-1.5 border border-border rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
+                                        min={0}
+                                        max={100}
+                                      />
                                     </div>
                                     <div>
-                                      <label className="block text-[12px] text-gray-500 mb-1">评级</label>
+                                      <label className="block text-[12px] text-fg-muted mb-1">评级</label>
                                       <select value={perfForm.rating} onChange={e => setPerfForm({...perfForm, rating: e.target.value})}
-                                        className="w-full px-3 py-1.5 border border-gray-200 rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]">
+                                        className="w-full px-3 py-1.5 border border-border rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]">
                                         <option value="">-</option>
                                         {['S','A','B','C','D'].map(g => <option key={g} value={g}>{g}</option>)}
                                       </select>
@@ -571,7 +577,7 @@ export const EmployeeManagementPage = () => {
                                         保存
                                       </button>
                                       <button onClick={() => setShowAddPerf(false)}
-                                        className="px-3 py-1.5 border border-gray-200 rounded text-sm text-gray-600 hover:bg-gray-50">
+                                        className="px-3 py-1.5 border border-border rounded text-sm text-fg-secondary hover:bg-surface-muted">
                                         取消
                                       </button>
                                     </div>
@@ -579,13 +585,13 @@ export const EmployeeManagementPage = () => {
                                 )}
 
                                 {perfLoading ? (
-                                  <div className="text-center py-4 text-sm text-gray-400">加载中...</div>
+                                  <div className="text-center py-4 text-sm text-fg-faint">加载中...</div>
                                 ) : performanceRecords.length === 0 ? (
-                                  <div className="text-center py-4 text-sm text-gray-400">暂无绩效记录</div>
+                                  <div className="text-center py-4 text-sm text-fg-faint">暂无绩效记录</div>
                                 ) : (
                                   <table className="w-full text-sm">
                                     <thead>
-                                      <tr className="text-left text-[12px] text-gray-400 border-b border-gray-100">
+                                      <tr className="text-left text-[12px] text-fg-faint border-b border-border-subtle">
                                         <th className="pb-2 font-medium">考核周期</th>
                                         <th className="pb-2 font-medium">分数</th>
                                         <th className="pb-2 font-medium">评级</th>
@@ -595,14 +601,14 @@ export const EmployeeManagementPage = () => {
                                     <tbody>
                                       {performanceRecords.map(rec => (
                                         <tr key={rec.id} className="border-b border-gray-50">
-                                          <td className="py-2 text-gray-700">{rec.period}</td>
+                                          <td className="py-2 text-fg-secondary">{rec.period}</td>
                                           <td className="py-2">
                                             <span className={`font-medium ${rec.score >= 80 ? 'text-emerald-600' : rec.score >= 60 ? 'text-amber-600' : 'text-red-500'}`}>
                                               {rec.score}
                                             </span>
                                           </td>
-                                          <td className="py-2 text-gray-600">{rec.rating || '-'}</td>
-                                          <td className="py-2 text-gray-500 text-xs">{rec.notes || '-'}</td>
+                                          <td className="py-2 text-fg-secondary">{rec.rating || '-'}</td>
+                                          <td className="py-2 text-fg-muted text-xs">{rec.notes || '-'}</td>
                                         </tr>
                                       ))}
                                     </tbody>
@@ -611,8 +617,8 @@ export const EmployeeManagementPage = () => {
                               </div>
 
                               {/* Version History */}
-                              <div className="mt-4 border-t border-gray-200 pt-4">
-                                <h4 className="text-sm font-semibold text-gray-700 mb-3">变更记录</h4>
+                              <div className="mt-4 border-t border-border pt-4">
+                                <h4 className="text-sm font-semibold text-fg-secondary mb-3">变更记录</h4>
                                 <VersionTimeline employeeId={emp.id} />
                               </div>
                             </td>
@@ -637,9 +643,9 @@ export const EmployeeManagementPage = () => {
           <div className="space-y-5">
             <div className="flex items-center gap-3 flex-wrap">
               <div className="flex items-center gap-2">
-                <Filter className="w-4 h-4 text-gray-400" />
+                <Filter className="w-4 h-4 text-fg-faint" />
                 <select value={positionFilter} onChange={e => setPositionFilter(e.target.value)}
-                  className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]">
+                  className="px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]">
                   <option value="">全部岗位</option>
                   {positions.map(p => (
                     <option key={p.id} value={p.id}>{p.name}</option>
@@ -660,10 +666,10 @@ export const EmployeeManagementPage = () => {
             </div>
 
             {filteredModels.length === 0 ? (
-              <div className="text-center py-16 text-gray-400 bg-white rounded-xl border border-gray-200">
+              <div className="text-center py-16 text-fg-faint bg-surface rounded-xl border border-border">
                 <Brain className="w-12 h-12 mx-auto mb-4 opacity-40" />
                 <p className="text-sm font-medium mb-1">暂无胜任力模型</p>
-                <p className="text-xs text-gray-400 mb-4">创建或通过 AI 从优秀员工推导岗位胜任力模型</p>
+                <p className="text-xs text-fg-faint mb-4">创建或通过 AI 从优秀员工推导岗位胜任力模型</p>
                 <button onClick={openModelCreate} className="px-4 py-2 bg-[#1a4bc4] text-white rounded-lg text-sm hover:bg-[#153da0]">
                   创建第一个模型
                 </button>
@@ -673,11 +679,11 @@ export const EmployeeManagementPage = () => {
                 {filteredModels.map(model => {
                   const posName = positions.find(p => p.id === model.positionId)?.name ?? model.positionName ?? model.positionId;
                   return (
-                    <div key={model.id} className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 hover:shadow-md transition-shadow">
+                    <div key={model.id} className="bg-surface rounded-xl border border-border shadow-sm p-5 hover:shadow-md transition-shadow">
                       <div className="flex items-start justify-between mb-3">
                         <div>
-                          <h4 className="text-sm font-semibold text-gray-900">{model.name}</h4>
-                          <p className="text-[12px] text-gray-500 mt-0.5">{posName}</p>
+                          <h4 className="text-sm font-semibold text-fg">{model.name}</h4>
+                          <p className="text-[12px] text-fg-muted mt-0.5">{posName}</p>
                         </div>
                         <div className="flex items-center gap-1">
                           <span className={`px-2 py-0.5 rounded text-[11px] font-medium ${
@@ -685,7 +691,7 @@ export const EmployeeManagementPage = () => {
                           }`}>
                             {model.sourceType === 'ai_derived' ? 'AI推导' : '手动'}
                           </span>
-                          <span className="text-[11px] text-gray-400 ml-1">v{model.version}</span>
+                          <span className="text-[11px] text-fg-faint ml-1">v{model.version}</span>
                         </div>
                       </div>
 
@@ -693,12 +699,12 @@ export const EmployeeManagementPage = () => {
                       <div className="space-y-1.5 mb-4">
                         {model.dimensions.map((dim, i) => (
                           <div key={i} className="flex items-center justify-between text-[12px]">
-                            <span className="text-gray-600">{dim.name}</span>
+                            <span className="text-fg-secondary">{dim.name}</span>
                             <div className="flex items-center gap-2">
-                              <div className="w-20 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                              <div className="w-20 h-1.5 bg-surface-muted rounded-full overflow-hidden">
                                 <div className="h-full bg-[#1a4bc4] rounded-full" style={{width: `${dim.weight}%`}} />
                               </div>
-                              <span className="text-gray-400 w-8 text-right">{dim.weight}%</span>
+                              <span className="text-fg-faint w-8 text-right">{dim.weight}%</span>
                             </div>
                           </div>
                         ))}
@@ -706,7 +712,7 @@ export const EmployeeManagementPage = () => {
 
                       {/* Derived metadata */}
                       {model.derivedFrom && model.derivedFrom.sample_size != null && model.derivedFrom.sample_size > 0 && (
-                        <div className="text-[11px] text-gray-400 mb-3">
+                        <div className="text-[11px] text-fg-faint mb-3">
                           基于 {model.derivedFrom.sample_size} 名优秀员工推导
                           {model.derivedFrom.common_weaknesses?.length ? (
                             <span> · 共性弱项: {model.derivedFrom.common_weaknesses.slice(0, 3).map(w => w.name).join(', ')}</span>
@@ -714,18 +720,18 @@ export const EmployeeManagementPage = () => {
                         </div>
                       )}
 
-                      <div className="flex items-center gap-2 pt-3 border-t border-gray-100">
+                      <div className="flex items-center gap-2 pt-3 border-t border-border-subtle">
                         <button onClick={() => openModelEdit(model)}
-                          className="flex items-center gap-1 px-3 py-1.5 text-xs text-gray-600 hover:text-[#1a4bc4] hover:bg-blue-50 rounded transition-colors">
+                          className="flex items-center gap-1 px-3 py-1.5 text-xs text-fg-secondary hover:text-[#1a4bc4] hover:bg-blue-50 rounded transition-colors">
                           <Edit3 className="w-3 h-3" /> 编辑
                         </button>
                         <button onClick={() => setDeletingModelId(model.id)}
-                          className="flex items-center gap-1 px-3 py-1.5 text-xs text-gray-600 hover:text-red-500 hover:bg-red-50 rounded transition-colors">
+                          className="flex items-center gap-1 px-3 py-1.5 text-xs text-fg-secondary hover:text-red-500 hover:bg-red-50 rounded transition-colors">
                           <Trash2 className="w-3 h-3" /> 删除
                         </button>
-                        <label className="flex items-center gap-1.5 ml-auto text-xs text-gray-500 cursor-pointer">
+                        <label className="flex items-center gap-1.5 ml-auto text-xs text-fg-muted cursor-pointer">
                           <input type="checkbox" checked={model.isActive} onChange={() => updateCompetencyModel(model.id, {isActive: !model.isActive}).then(loadCompetencyData)}
-                            className="rounded border-gray-300 text-[#1a4bc4] focus:ring-[#1a4bc4]" />
+                            className="rounded border-border text-[#1a4bc4] focus:ring-[#1a4bc4]" />
                           启用
                         </label>
                       </div>
@@ -747,21 +753,21 @@ export const EmployeeManagementPage = () => {
             </div>
 
             {/* Status Breakdown */}
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-              <h3 className="text-sm font-semibold text-gray-700 mb-4">状态分布</h3>
+            <div className="bg-surface rounded-xl border border-border shadow-sm p-6">
+              <h3 className="text-sm font-semibold text-fg-secondary mb-4">状态分布</h3>
               <div className="space-y-3">
                 {Object.entries(stats.statusBreakdown).map(([status, count]) => {
                   const total = Object.values(stats.statusBreakdown).reduce((a, b) => (a as number) + (b as number), 0) as number;
                   const pct = total > 0 ? Math.round((count as number / total) * 100) : 0;
                   return (
                     <div key={status} className="flex items-center gap-3">
-                      <span className={`px-2 py-0.5 rounded text-xs font-medium w-16 text-center ${STATUS_COLORS[status] ?? 'bg-gray-100 text-gray-600'}`}>
+                      <span className={`px-2 py-0.5 rounded text-xs font-medium w-16 text-center ${STATUS_COLORS[status] ?? 'bg-surface-muted text-fg-secondary'}`}>
                         {STATUS_LABELS[status] ?? status}
                       </span>
-                      <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                      <div className="flex-1 h-2 bg-surface-muted rounded-full overflow-hidden">
                         <div className="h-full bg-[#1a4bc4] rounded-full transition-all" style={{width: `${pct}%`}} />
                       </div>
-                      <span className="text-sm text-gray-500 w-12 text-right">{String(count)}</span>
+                      <span className="text-sm text-fg-muted w-12 text-right">{String(count)}</span>
                     </div>
                   );
                 })}
@@ -770,19 +776,19 @@ export const EmployeeManagementPage = () => {
 
             {/* Grade Distribution */}
             {Object.keys(stats.gradeDistribution).length > 0 && (
-              <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-                <h3 className="text-sm font-semibold text-gray-700 mb-4">面试等级分布</h3>
+              <div className="bg-surface rounded-xl border border-border shadow-sm p-6">
+                <h3 className="text-sm font-semibold text-fg-secondary mb-4">面试等级分布</h3>
                 <div className="space-y-3">
                   {Object.entries(stats.gradeDistribution).map(([grade, count]) => {
                     const allCounts = Object.values(stats.gradeDistribution).reduce((a, b) => (a as number) + (b as number), 0) as number;
                     const pct = allCounts > 0 ? Math.round((count as number / allCounts) * 100) : 0;
                     return (
                       <div key={grade} className="flex items-center gap-3">
-                        <span className="text-sm font-medium text-gray-700 w-20">{grade}</span>
-                        <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                        <span className="text-sm font-medium text-fg-secondary w-20">{grade}</span>
+                        <div className="flex-1 h-2 bg-surface-muted rounded-full overflow-hidden">
                           <div className="h-full bg-emerald-500 rounded-full" style={{width: `${pct}%`}} />
                         </div>
-                        <span className="text-sm text-gray-500 w-12 text-right">{String(count)}</span>
+                        <span className="text-sm text-fg-muted w-12 text-right">{String(count)}</span>
                       </div>
                     );
                   })}
@@ -801,34 +807,34 @@ export const EmployeeManagementPage = () => {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowCreateModal(false)}>
           <motion.div initial={{opacity: 0, scale: 0.95}} animate={{opacity: 1, scale: 1}}
             onClick={e => e.stopPropagation()}
-            className="bg-white rounded-xl shadow-xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
+            className="bg-surface rounded-xl shadow-xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-bold text-gray-900">{editingEmployee ? '编辑员工' : '添加员工'}</h3>
-              <button onClick={() => setShowCreateModal(false)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+              <h3 className="text-lg font-bold text-fg">{editingEmployee ? '编辑员工' : '添加员工'}</h3>
+              <button onClick={() => setShowCreateModal(false)} className="text-fg-faint hover:text-fg-secondary"><X className="w-5 h-5" /></button>
             </div>
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-[13px] font-medium text-gray-700 mb-1">姓名 *</label>
+                  <label className="block text-[13px] font-medium text-fg-secondary mb-1">姓名 *</label>
                   <input value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]" placeholder="员工姓名" />
+                    className="w-full px-3 py-2 border border-border rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]" placeholder="员工姓名" />
                 </div>
                 <div>
-                  <label className="block text-[13px] font-medium text-gray-700 mb-1">邮箱</label>
+                  <label className="block text-[13px] font-medium text-fg-secondary mb-1">邮箱</label>
                   <input value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]" placeholder="email@example.com" />
+                    className="w-full px-3 py-2 border border-border rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]" placeholder="email@example.com" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-[13px] font-medium text-gray-700 mb-1">电话</label>
+                  <label className="block text-[13px] font-medium text-fg-secondary mb-1">电话</label>
                   <input value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]" placeholder="手机号" />
+                    className="w-full px-3 py-2 border border-border rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]" placeholder="手机号" />
                 </div>
                 <div>
-                  <label className="block text-[13px] font-medium text-gray-700 mb-1">状态</label>
+                  <label className="block text-[13px] font-medium text-fg-secondary mb-1">状态</label>
                   <select value={formData.status} onChange={e => setFormData({...formData, status: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]">
+                    className="w-full px-3 py-2 border border-border rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]">
                     {STATUS_OPTIONS.filter(o => o.value).map(o => (
                       <option key={o.value} value={o.value}>{o.label}</option>
                     ))}
@@ -837,49 +843,49 @@ export const EmployeeManagementPage = () => {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-[13px] font-medium text-gray-700 mb-1">部门</label>
+                  <label className="block text-[13px] font-medium text-fg-secondary mb-1">部门</label>
                   <input value={formData.department} onChange={e => setFormData({...formData, department: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]" placeholder="部门名称" />
+                    className="w-full px-3 py-2 border border-border rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]" placeholder="部门名称" />
                 </div>
                 <div>
-                  <label className="block text-[13px] font-medium text-gray-700 mb-1">主管</label>
+                  <label className="block text-[13px] font-medium text-fg-secondary mb-1">主管</label>
                   <input value={formData.manager} onChange={e => setFormData({...formData, manager: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]" placeholder="主管姓名" />
+                    className="w-full px-3 py-2 border border-border rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]" placeholder="主管姓名" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-[13px] font-medium text-gray-700 mb-1">学历</label>
+                  <label className="block text-[13px] font-medium text-fg-secondary mb-1">学历</label>
                   <input value={formData.education} onChange={e => setFormData({...formData, education: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]" placeholder="如：本科" />
+                    className="w-full px-3 py-2 border border-border rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]" placeholder="如：本科" />
                 </div>
                 <div>
-                  <label className="block text-[13px] font-medium text-gray-700 mb-1">专业</label>
+                  <label className="block text-[13px] font-medium text-fg-secondary mb-1">专业</label>
                   <input value={formData.major} onChange={e => setFormData({...formData, major: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]" placeholder="专业名称" />
+                    className="w-full px-3 py-2 border border-border rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]" placeholder="专业名称" />
                 </div>
               </div>
               <div>
-                <label className="block text-[13px] font-medium text-gray-700 mb-1">入职日期</label>
+                <label className="block text-[13px] font-medium text-fg-secondary mb-1">入职日期</label>
                 <input type="date" value={formData.hireDate} onChange={e => setFormData({...formData, hireDate: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]" />
+                  className="w-full px-3 py-2 border border-border rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]" />
               </div>
 
               {/* Dynamic custom fields */}
               {modalCustomFields.length > 0 && (
                 <>
-                  <div className="border-t border-gray-100 pt-3 mt-1">
-                    <h4 className="text-[13px] font-medium text-gray-500 mb-2">自定义字段</h4>
+                  <div className="border-t border-border-subtle pt-3 mt-1">
+                    <h4 className="text-[13px] font-medium text-fg-muted mb-2">自定义字段</h4>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     {modalCustomFields.map(field => (
                       <div key={field.id}>
-                        <label className="block text-[13px] font-medium text-gray-700 mb-1">{field.fieldLabel}</label>
+                        <label className="block text-[13px] font-medium text-fg-secondary mb-1">{field.fieldLabel}</label>
                         {field.fieldType === 'select' ? (
                           <select
                             value={String(modalCustomValues[field.id] ?? '')}
                             onChange={e => setModalCustomValues({...modalCustomValues, [field.id]: e.target.value})}
-                            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
+                            className="w-full px-3 py-2 border border-border rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
                           >
                             <option value="">请选择</option>
                             {field.options?.map(opt => (
@@ -892,9 +898,9 @@ export const EmployeeManagementPage = () => {
                               type="checkbox"
                               checked={!!modalCustomValues[field.id]}
                               onChange={e => setModalCustomValues({...modalCustomValues, [field.id]: e.target.checked})}
-                              className="rounded border-gray-300 text-[#1a4bc4] focus:ring-[#1a4bc4]"
+                              className="rounded border-border text-[#1a4bc4] focus:ring-[#1a4bc4]"
                             />
-                            <span className="text-[13px] text-gray-600">{modalCustomValues[field.id] ? '是' : '否'}</span>
+                            <span className="text-[13px] text-fg-secondary">{modalCustomValues[field.id] ? '是' : '否'}</span>
                           </label>
                         ) : (
                           <input
@@ -905,7 +911,7 @@ export const EmployeeManagementPage = () => {
                               [field.id]: field.fieldType === 'number' ? Number(e.target.value) : e.target.value,
                             })}
                             placeholder={field.fieldLabel}
-                            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
+                            className="w-full px-3 py-2 border border-border rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
                           />
                         )}
                       </div>
@@ -916,7 +922,7 @@ export const EmployeeManagementPage = () => {
             </div>
             <div className="flex gap-3 mt-6">
               <button onClick={() => setShowCreateModal(false)}
-                className="flex-1 px-4 py-2 border border-gray-200 text-gray-700 rounded-lg text-[13px] font-medium hover:bg-gray-50 transition-colors">
+                className="flex-1 px-4 py-2 border border-border text-fg-secondary rounded-lg text-[13px] font-medium hover:bg-surface-muted transition-colors">
                 取消
               </button>
               <button onClick={handleSave} disabled={submitting || !formData.name.trim()}
@@ -933,12 +939,12 @@ export const EmployeeManagementPage = () => {
       {deletingId && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <motion.div initial={{opacity: 0, scale: 0.95}} animate={{opacity: 1, scale: 1}}
-            className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6">
-            <h3 className="text-lg font-bold text-gray-900 mb-2">确认删除</h3>
-            <p className="text-[13px] text-gray-600 mb-6">确定要删除该员工档案吗？此操作不可恢复。</p>
+            className="bg-surface rounded-xl shadow-xl w-full max-w-sm p-6">
+            <h3 className="text-lg font-bold text-fg mb-2">确认删除</h3>
+            <p className="text-[13px] text-fg-secondary mb-6">确定要删除该员工档案吗？此操作不可恢复。</p>
             <div className="flex gap-3">
               <button onClick={() => setDeletingId(null)}
-                className="flex-1 px-4 py-2 border border-gray-200 text-gray-700 rounded-lg text-[13px] font-medium hover:bg-gray-50 transition-colors">
+                className="flex-1 px-4 py-2 border border-border text-fg-secondary rounded-lg text-[13px] font-medium hover:bg-surface-muted transition-colors">
                 取消
               </button>
               <button onClick={handleDelete}
@@ -955,22 +961,22 @@ export const EmployeeManagementPage = () => {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowModelModal(false)}>
           <motion.div initial={{opacity: 0, scale: 0.95}} animate={{opacity: 1, scale: 1}}
             onClick={e => e.stopPropagation()}
-            className="bg-white rounded-xl shadow-xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
+            className="bg-surface rounded-xl shadow-xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-bold text-gray-900">{editingModel ? '编辑模型' : '新建胜任力模型'}</h3>
-              <button onClick={() => setShowModelModal(false)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+              <h3 className="text-lg font-bold text-fg">{editingModel ? '编辑模型' : '新建胜任力模型'}</h3>
+              <button onClick={() => setShowModelModal(false)} className="text-fg-faint hover:text-fg-secondary"><X className="w-5 h-5" /></button>
             </div>
             <div className="space-y-4">
               <div>
-                <label className="block text-[13px] font-medium text-gray-700 mb-1">模型名称 *</label>
+                <label className="block text-[13px] font-medium text-fg-secondary mb-1">模型名称 *</label>
                 <input value={modelForm.name} onChange={e => setModelForm({...modelForm, name: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]" placeholder="如：高级前端开发胜任力模型" />
+                  className="w-full px-3 py-2 border border-border rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]" placeholder="如：高级前端开发胜任力模型" />
               </div>
               {!editingModel && (
                 <div>
-                  <label className="block text-[13px] font-medium text-gray-700 mb-1">关联岗位 *</label>
+                  <label className="block text-[13px] font-medium text-fg-secondary mb-1">关联岗位 *</label>
                   <select value={modelForm.positionId} onChange={e => setModelForm({...modelForm, positionId: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]">
+                    className="w-full px-3 py-2 border border-border rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]">
                     <option value="">选择岗位...</option>
                     {positions.map(p => (
                       <option key={p.id} value={p.id}>{p.name}</option>
@@ -981,7 +987,7 @@ export const EmployeeManagementPage = () => {
               {/* Dimensions */}
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <label className="text-[13px] font-medium text-gray-700">胜任力维度</label>
+                  <label className="text-[13px] font-medium text-fg-secondary">胜任力维度</label>
                   <button onClick={() => setModelForm({
                     ...modelForm,
                     dimensions: [...modelForm.dimensions, {name: '', weight: 0, description: ''}],
@@ -997,21 +1003,28 @@ export const EmployeeManagementPage = () => {
                         const next = [...modelForm.dimensions];
                         next[i] = {...next[i], name: e.target.value};
                         setModelForm({...modelForm, dimensions: next});
-                      }} placeholder="维度名" className="flex-1 px-3 py-1.5 border border-gray-200 rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]" />
-                      <input type="number" value={dim.weight || ''} onChange={e => {
-                        const next = [...modelForm.dimensions];
-                        next[i] = {...next[i], weight: Number(e.target.value)};
-                        setModelForm({...modelForm, dimensions: next});
-                      }} placeholder="权重%" className="w-16 px-3 py-1.5 border border-gray-200 rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]" />
+                      }} placeholder="维度名" className="flex-1 px-3 py-1.5 border border-border rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]" />
+                      <NumericScoreInput
+                        value={dim.weight || 0}
+                        onChange={(n) => {
+                          const next = [...modelForm.dimensions];
+                          next[i] = {...next[i], weight: n};
+                          setModelForm({...modelForm, dimensions: next});
+                        }}
+                        placeholder="权重%"
+                        className="w-16 px-3 py-1.5 border border-border rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
+                        min={0}
+                        max={100}
+                      />
                       <input value={dim.description} onChange={e => {
                         const next = [...modelForm.dimensions];
                         next[i] = {...next[i], description: e.target.value};
                         setModelForm({...modelForm, dimensions: next});
-                      }} placeholder="描述" className="flex-1 px-3 py-1.5 border border-gray-200 rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]" />
+                      }} placeholder="描述" className="flex-1 px-3 py-1.5 border border-border rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]" />
                       {modelForm.dimensions.length > 1 && (
                         <button onClick={() => {
                           setModelForm({...modelForm, dimensions: modelForm.dimensions.filter((_, idx) => idx !== i)});
-                        }} className="text-gray-400 hover:text-red-500"><X className="w-4 h-4" /></button>
+                        }} className="text-fg-faint hover:text-red-500"><X className="w-4 h-4" /></button>
                       )}
                     </div>
                   ))}
@@ -1020,7 +1033,7 @@ export const EmployeeManagementPage = () => {
             </div>
             <div className="flex gap-3 mt-6">
               <button onClick={() => setShowModelModal(false)}
-                className="flex-1 px-4 py-2 border border-gray-200 text-gray-700 rounded-lg text-[13px] font-medium hover:bg-gray-50">
+                className="flex-1 px-4 py-2 border border-border text-fg-secondary rounded-lg text-[13px] font-medium hover:bg-surface-muted">
                 取消
               </button>
               <button onClick={handleModelSave} disabled={submitting || !modelForm.name.trim() || !modelForm.positionId}
@@ -1037,12 +1050,12 @@ export const EmployeeManagementPage = () => {
       {deletingModelId && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <motion.div initial={{opacity: 0, scale: 0.95}} animate={{opacity: 1, scale: 1}}
-            className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6">
-            <h3 className="text-lg font-bold text-gray-900 mb-2">确认删除</h3>
-            <p className="text-[13px] text-gray-600 mb-6">确定要删除该胜任力模型吗？</p>
+            className="bg-surface rounded-xl shadow-xl w-full max-w-sm p-6">
+            <h3 className="text-lg font-bold text-fg mb-2">确认删除</h3>
+            <p className="text-[13px] text-fg-secondary mb-6">确定要删除该胜任力模型吗？</p>
             <div className="flex gap-3">
               <button onClick={() => setDeletingModelId(null)}
-                className="flex-1 px-4 py-2 border border-gray-200 text-gray-700 rounded-lg text-[13px] font-medium hover:bg-gray-50">
+                className="flex-1 px-4 py-2 border border-border text-fg-secondary rounded-lg text-[13px] font-medium hover:bg-surface-muted">
                 取消
               </button>
               <button onClick={handleModelDelete}
@@ -1077,8 +1090,8 @@ const DetailField = ({icon: Icon, label, value}: {
   icon: React.ElementType; label: string; value?: string | null;
 }) => (
   <div className="flex items-center gap-2 text-sm">
-    <Icon className="w-4 h-4 text-gray-400 flex-shrink-0" />
-    <span className="text-gray-400">{label}:</span>
-    <span className="text-gray-700 font-medium">{value || '-'}</span>
+    <Icon className="w-4 h-4 text-fg-faint flex-shrink-0" />
+    <span className="text-fg-faint">{label}:</span>
+    <span className="text-fg-secondary font-medium">{value || '-'}</span>
   </div>
 );

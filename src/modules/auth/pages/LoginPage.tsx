@@ -21,6 +21,7 @@ export const LoginPage = ({onLogin}: {onLogin: () => void}) => {
     // In mock mode, just log in directly
     if (USE_MOCK_API) {
       setUserName('Trai');
+      setAuthToken('mock-dev-token');
       localStorage.setItem(AUTH_SESSION_STORAGE_KEY, 'true');
       onLogin();
       return;
