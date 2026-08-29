@@ -73,12 +73,27 @@ const getActionCaptionsForTarget = (course: TrainingCourse, targetUrl?: string) 
   return course.assessmentConfig.actionCaptions ?? [];
 };
 
-const getCourseForTargetVideo = (course: TrainingCourse, targetUrl: string): TrainingCourse => {
+export const getCourseForTargetVideo = (course: TrainingCourse, targetUrl: string): TrainingCourse => {
   const sectionMatch = course.content.find(section => section.contentUrl && urlsMatch(section.contentUrl, targetUrl));
   const materialMatch = course.materials.find(material => material.url && urlsMatch(material.url, targetUrl));
-  const selectedUrl = sectionMatch?.contentUrl ?? materialMatch?.url ?? targetUrl;
-  const selectedTitle = sectionMatch?.sectionTitle ?? materialMatch?.title ?? course.title;
+  const canonicalVideoUrls = [
+    ...course.content
+      .filter(section => section.contentUrl && (section.contentType === 'video' || isVideoUrl(section.contentUrl)))
+      .map(section => section.contentUrl!),
+    ...course.materials
+      .filter(material => material.url && (material.type === 'video' || isVideoUrl(material.url)))
+      .map(material => material.url!),
+  ].filter((url, index, urls) => urls.findIndex(candidate => urlsMatch(candidate, url)) === index);
+  const canonicalFallback = canonicalVideoUrls.length === 1 ? canonicalVideoUrls[0] : undefined;
+  const selectedUrl = sectionMatch?.contentUrl ?? materialMatch?.url ?? canonicalFallback ?? targetUrl;
+  const selectedSection = sectionMatch
+    ?? course.content.find(section => section.contentUrl && urlsMatch(section.contentUrl, selectedUrl));
+  const selectedMaterial = materialMatch
+    ?? course.materials.find(material => material.url && urlsMatch(material.url, selectedUrl));
+  const selectedTitle = selectedSection?.sectionTitle ?? selectedMaterial?.title ?? course.title;
   const textSections = course.content.filter(section => section.contentType === 'text');
+  const selectedCaptions = getActionCaptionsForTarget(course, selectedUrl);
+  const legacyTargetCaptions = selectedUrl !== targetUrl ? getActionCaptionsForTarget(course, targetUrl) : [];
 
   return {
     ...course,
@@ -93,7 +108,7 @@ const getCourseForTargetVideo = (course: TrainingCourse, targetUrl: string): Tra
     materials: course.materials.filter(material => !material.url || !urlsMatch(material.url, selectedUrl)),
     assessmentConfig: {
       ...course.assessmentConfig,
-      actionCaptions: getActionCaptionsForTarget(course, selectedUrl),
+      actionCaptions: selectedCaptions.length ? selectedCaptions : legacyTargetCaptions,
     },
   };
 };
