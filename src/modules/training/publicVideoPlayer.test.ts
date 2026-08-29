@@ -13,9 +13,12 @@ const course = {
 };
 const windows: JSDOM[] = [];
 
-async function loadPlayer(play = vi.fn().mockResolvedValue(undefined)) {
+async function loadPlayer(
+  play = vi.fn().mockResolvedValue(undefined),
+  url = 'https://hire.cmbpo.com/tv/course/token',
+) {
   const dom = new JSDOM(readFileSync('public/training-video.html', 'utf8'), {
-    url: 'https://hire.cmbpo.com/tv/course/token', runScripts: 'outside-only',
+    url, runScripts: 'outside-only',
   });
   windows.push(dom);
   const { window } = dom;
@@ -65,6 +68,16 @@ describe('public player source transitions', () => {
     expect(video.src).toBe(variant);
     expect(window.location.pathname).toBe('/tv/course/token');
     expect(window.document.getElementById('transcript-content')!.textContent).toContain('Transcript');
+    expect(window.document.getElementById('actions-content')!.textContent).toContain('Original caption');
+  });
+  it('uses the current course video when an old share link contains a stale target', async () => {
+    const staleTarget = raw.replace('/materials/test.mp4', '/materials/old-test.mp4');
+    const { video, window } = await loadPlayer(
+      vi.fn().mockResolvedValue(undefined),
+      `https://hire.cmbpo.com/tv/course/token?target=${encodeURIComponent(staleTarget)}`,
+    );
+    expect(video.src).toBe(variant);
+    expect(window.document.getElementById('open-video')!.getAttribute('href')).toBe(raw);
     expect(window.document.getElementById('actions-content')!.textContent).toContain('Original caption');
   });
   it('tries each fallback once, leaves the original open link, and restarts on retry', async () => {
