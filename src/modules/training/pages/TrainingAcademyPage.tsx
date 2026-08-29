@@ -5,7 +5,7 @@ import {
   BookOpen, Users, TrendingUp, BarChart3, Plus, Clock, Star,
   CheckCircle, XCircle, PlayCircle, ChevronRight, AlertTriangle,
   Target, Award, ArrowUpRight, Download, Loader2, Layers, Edit3, Trash2, MapPin,
-  Upload, Search, X, Copy, Link2, ExternalLink, Sparkles, FileText,
+  Upload, Search, X, Copy, Link2, ExternalLink, Sparkles, FileText, Settings2,
 } from 'lucide-react';
 import {useToast} from '../../../shared/components/ToastProvider';
 import {NumericScoreInput} from '../../../shared/components/NumericScoreInput';
@@ -1539,7 +1539,7 @@ const EffectivenessTab = ({data}: {data: TrainingEffectiveness}) => {
   );
 };
 
-export const CreateCourseModal = ({initial, onClose, onSubmit, defaultContentType, videoSharingMode = false, videoTaxonomy}: {
+export const CreateCourseModal = ({initial, onClose, onSubmit, defaultContentType, videoSharingMode = false, videoTaxonomy, onManageTaxonomy}: {
   initial?: TrainingCourse;
   onClose: () => void;
   onSubmit: (input: {
@@ -1557,6 +1557,7 @@ export const CreateCourseModal = ({initial, onClose, onSubmit, defaultContentTyp
   defaultContentType?: 'text' | 'video' | 'link';
   videoSharingMode?: boolean;
   videoTaxonomy?: VideoTaxonomy;
+  onManageTaxonomy?: () => void;
 }) => {
   const isEdit = !!initial;
   const initialVideoPolarity = resolveVideoPolarity(initial ?? {}) ?? 'positive';
@@ -1795,7 +1796,20 @@ export const CreateCourseModal = ({initial, onClose, onSubmit, defaultContentTyp
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-fg-secondary mb-1">任务分类</label>
+                  <div className="mb-1 flex items-center justify-between gap-2">
+                    <label className="block text-sm font-medium text-fg-secondary">任务分类</label>
+                    {onManageTaxonomy && (
+                      <button
+                        type="button"
+                        onClick={onManageTaxonomy}
+                        title="管理任务分类"
+                        className="inline-flex items-center gap-1 text-xs font-medium text-[#1a4bc4] hover:text-[#153da0]"
+                      >
+                        <Settings2 className="h-3.5 w-3.5" />
+                        管理分类
+                      </button>
+                    )}
+                  </div>
                   <select
                     value={taskCategoryId}
                     onChange={event => setTaskCategoryId(event.target.value)}

@@ -256,6 +256,7 @@ export const TrainingVideoSharePage = () => {
           defaultContentType="video"
           videoSharingMode
           videoTaxonomy={taxonomy}
+          onManageTaxonomy={() => setShowTaxonomyManager(true)}
           onClose={() => setShowCreateCourse(false)}
           onSubmit={handleCreateCourse}
         />
@@ -265,6 +266,7 @@ export const TrainingVideoSharePage = () => {
           initial={editingCourse}
           videoSharingMode
           videoTaxonomy={taxonomy}
+          onManageTaxonomy={() => setShowTaxonomyManager(true)}
           onClose={() => setEditingCourse(null)}
           onSubmit={handleUpdateCourse}
         />
