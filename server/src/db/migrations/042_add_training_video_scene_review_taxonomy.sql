@@ -29,7 +29,9 @@ ALTER TABLE training_video_taxonomy_options
 
 ALTER TABLE training_courses
   ADD COLUMN IF NOT EXISTS video_scene_id UUID,
-  ADD COLUMN IF NOT EXISTS video_review_status VARCHAR(20);
+  ADD COLUMN IF NOT EXISTS video_review_status VARCHAR(20),
+  ADD COLUMN IF NOT EXISTS video_storage_bucket VARCHAR(100),
+  ADD COLUMN IF NOT EXISTS video_storage_path TEXT;
 
 DO $$
 BEGIN
@@ -47,6 +49,9 @@ CREATE INDEX IF NOT EXISTS training_courses_video_scene_idx
   ON training_courses (video_scene_id) WHERE video_scene_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS training_courses_video_review_status_idx
   ON training_courses (video_review_status) WHERE video_review_status IS NOT NULL;
+CREATE INDEX IF NOT EXISTS training_courses_video_storage_idx
+  ON training_courses (video_storage_bucket, video_storage_path)
+  WHERE video_storage_bucket IS NOT NULL AND video_storage_path IS NOT NULL;
 
 UPDATE training_video_taxonomy_options
 SET is_active = false, updated_at = now()
@@ -71,5 +76,7 @@ VALUES
   ('quality', 'negative', '手部出画', 30), ('quality', 'negative', '手部静止过久', 40),
   ('quality', 'negative', '手部动作不自然', 50), ('quality', 'negative', '动作过慢或时长过长', 60),
   ('quality', 'negative', '画面模糊或失焦', 70), ('quality', 'negative', '第三人肢体或隐私信息', 80),
-  ('quality', 'negative', '摆拍痕迹严重', 90), ('quality', 'negative', '场景错误', 100)
+  ('quality', 'negative', '摆拍痕迹严重', 90), ('quality', 'negative', '场景错误', 100),
+  ('task', NULL, '把玩与娱乐', 110), ('quality', 'negative', '时长不足', 110),
+  ('quality', 'negative', '第三人称视角', 120), ('quality', 'negative', '手部过曝', 130)
 ON CONFLICT DO NOTHING;

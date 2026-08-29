@@ -101,6 +101,9 @@ type VideoPolarity = 'positive' | 'negative';
 type VideoSeverity = 'minor' | 'moderate' | 'severe';
 type VideoReviewStatus = 'pending_review' | 'approved' | 'internal' | 'published';
 const VIDEO_REVIEW_STATUSES: VideoReviewStatus[] = ['pending_review', 'approved', 'internal', 'published'];
+const PRIVATE_TRAINING_REVIEW_BUCKET = 'training-review-materials';
+const PRIVATE_TRAINING_REVIEW_PREFIX = 'bulk/negative/';
+const PRIVATE_TRAINING_SIGNED_URL_TTL_SECONDS = 24 * 60 * 60;
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -171,6 +174,68 @@ async function enrichCoursesWithVideoTaxonomy(
   });
 }
 
+function isPrivateTrainingMedia(course: Record<string, unknown>): boolean {
+  return course.video_storage_bucket === PRIVATE_TRAINING_REVIEW_BUCKET
+    && typeof course.video_storage_path === 'string'
+    && course.video_storage_path.startsWith(PRIVATE_TRAINING_REVIEW_PREFIX);
+}
+
+function replaceCourseMediaUrl(course: Record<string, unknown>, signedUrl: string): Record<string, unknown> {
+  const content = Array.isArray(course.content)
+    ? course.content.map(section => (
+      section && typeof section === 'object' && !Array.isArray(section)
+        ? {...section as Record<string, unknown>, contentUrl: signedUrl}
+        : section
+    ))
+    : course.content;
+  const materials = Array.isArray(course.materials)
+    ? course.materials.map(material => (
+      material && typeof material === 'object' && !Array.isArray(material)
+        ? {...material as Record<string, unknown>, url: signedUrl}
+        : material
+    ))
+    : course.materials;
+  return {...course, content, materials};
+}
+
+async function enrichCoursesWithPrivateMedia(
+  supabase: TrainingDatabaseClient,
+  courses: Record<string, unknown>[],
+): Promise<Record<string, unknown>[]> {
+  const privateCourses = courses.filter(isPrivateTrainingMedia);
+  if (!privateCourses.length) return courses;
+
+  const signedEntries = await Promise.all(privateCourses.map(async course => {
+    const path = String(course.video_storage_path);
+    const {data, error} = await supabase.storage
+      .from(PRIVATE_TRAINING_REVIEW_BUCKET)
+      .createSignedUrl(path, PRIVATE_TRAINING_SIGNED_URL_TTL_SECONDS);
+    if (error || !data?.signedUrl) {
+      console.error('[training private media] signed URL failed', {courseId: course.id, path, error: error?.message});
+      return null;
+    }
+    return {courseId: String(course.id), signedUrl: data.signedUrl};
+  }));
+  const signedUrlByCourse = new Map(
+    signedEntries
+      .filter((entry): entry is {courseId: string; signedUrl: string} => Boolean(entry))
+      .map(entry => [entry.courseId, entry.signedUrl]),
+  );
+
+  return courses.map(course => {
+    const signedUrl = signedUrlByCourse.get(String(course.id));
+    return signedUrl ? replaceCourseMediaUrl(course, signedUrl) : course;
+  });
+}
+
+async function enrichAuthenticatedTrainingCourses(
+  supabase: TrainingDatabaseClient,
+  courses: Record<string, unknown>[],
+): Promise<Record<string, unknown>[]> {
+  const enriched = await enrichCoursesWithVideoTaxonomy(supabase, courses);
+  return enrichCoursesWithPrivateMedia(supabase, enriched);
+}
+
 async function validateVideoTaxonomySelection(
   supabase: TrainingDatabaseClient,
   polarity: VideoPolarity | undefined,
@@ -236,7 +301,7 @@ const listOrGetCourse = async (req: Request): Promise<Response> => {
       if (error || !data) {
         return jsonRes({ error: { code: 'NOT_FOUND', message: `Course (${id}) not found` } }, 404);
       }
-      const [enriched] = await enrichCoursesWithVideoTaxonomy(supabase, [data]);
+      const [enriched] = await enrichAuthenticatedTrainingCourses(supabase, [data]);
       return jsonRes(enriched);
     }
 
@@ -261,7 +326,7 @@ const listOrGetCourse = async (req: Request): Promise<Response> => {
 
     const { data, count, error } = await query;
     if (error) throw error;
-    const items = await enrichCoursesWithVideoTaxonomy(supabase, (data ?? []) as Record<string, unknown>[]);
+    const items = await enrichAuthenticatedTrainingCourses(supabase, (data ?? []) as Record<string, unknown>[]);
 
     return jsonRes({ items, total: count ?? 0, page, pageSize });
   } catch (e) {
@@ -346,7 +411,7 @@ const createCourse = async (req: Request): Promise<Response> => {
         throw tagError;
       }
     }
-    const [enriched] = await enrichCoursesWithVideoTaxonomy(supabase, [data]);
+    const [enriched] = await enrichAuthenticatedTrainingCourses(supabase, [data]);
     return jsonRes(enriched, 201);
   } catch (e) {
     console.error('[training courses create]', e);
@@ -489,11 +554,44 @@ const updateCourse = async (req: Request): Promise<Response> => {
       }
     }
 
-    const [enriched] = await enrichCoursesWithVideoTaxonomy(supabase, [data]);
+    const [enriched] = await enrichAuthenticatedTrainingCourses(supabase, [data]);
     return jsonRes(enriched);
   } catch (e) {
     console.error('[training courses update]', e);
     return jsonRes({ error: { code: 'INTERNAL_ERROR', message: 'Failed to update course' } }, 500);
+  }
+};
+
+const batchUpdateCourseReviewStatus = async (req: Request): Promise<Response> => {
+  try {
+    const supabase = createSupabaseAdmin(req);
+    const body = await req.json() as Record<string, unknown>;
+    const courseIds = Array.from(new Set(
+      (Array.isArray(body.courseIds) ? body.courseIds : [])
+        .map(id => String(id))
+        .filter(id => UUID_PATTERN.test(id)),
+    )).slice(0, 200);
+    const status = body.videoReviewStatus;
+
+    if (!courseIds.length) {
+      return jsonRes({error: {code: 'VALIDATION_ERROR', message: '至少选择一条视频'}}, 400);
+    }
+    if (!isVideoReviewStatus(status)) {
+      return jsonRes({error: {code: 'VALIDATION_ERROR', message: '审核状态无效'}}, 400);
+    }
+
+    const {data, error} = await supabase
+      .from('training_courses')
+      .update({video_review_status: status, updated_at: new Date().toISOString()})
+      .in('id', courseIds)
+      .eq('is_active', true)
+      .select('id, video_review_status');
+    if (error) throw error;
+
+    return jsonRes({updated: data?.length ?? 0, items: data ?? []});
+  } catch (e) {
+    console.error('[training courses batch review]', e);
+    return jsonRes({error: {code: 'INTERNAL_ERROR', message: '批量更新审核状态失败'}}, 500);
   }
 };
 
@@ -1224,7 +1322,10 @@ const publicVideoCourseHandler = async (req: Request): Promise<Response> => {
       return jsonRes({ error: { code: 'NOT_FOUND', message: 'Course not found' } }, 404);
     }
 
-    const [course] = await enrichCoursesWithVideoTaxonomy(supabase, [data]);
+    const [course] = await enrichCoursesWithPrivateMedia(
+      supabase,
+      await enrichCoursesWithVideoTaxonomy(supabase, [data]),
+    );
     return jsonRes({ course });
   } catch (e) {
     console.error('[training public video]', e);
@@ -1237,6 +1338,10 @@ const publicVideoCourseHandler = async (req: Request): Promise<Response> => {
 // =============================================================================
 
 export const handleCourses = async (req: Request): Promise<Response> => {
+  const segments = getPathSegments(req, '/training/courses');
+  if (segments[0] === 'review-batch' && req.method === 'PATCH') {
+    return batchUpdateCourseReviewStatus(req);
+  }
   const method = req.method;
   switch (method) {
     case 'GET': return listOrGetCourse(req);
@@ -1650,7 +1755,8 @@ export const handlePaths = async (req: Request): Promise<Response> => {
 // =============================================================================
 
 const TRAINING_MATERIALS_BUCKET = 'training-materials';
-const TRAINING_MATERIALS_MAX_FILE_BYTES = 500 * 1024 * 1024;
+const TRAINING_MATERIALS_MAX_FILE_BYTES = 1024 * 1024 * 1024;
+const TRAINING_MATERIALS_MAX_FILE_LABEL = '1GB';
 
 const inferTrainingMaterialContentType = (file: File): string => {
   if (file.type) return file.type;
@@ -1724,7 +1830,7 @@ const createSignedMaterialUpload = async (req: Request): Promise<Response> => {
     const fileSize = Number(body.size ?? 0);
 
     if (fileSize > TRAINING_MATERIALS_MAX_FILE_BYTES) {
-      return jsonRes({ error: { code: 'VALIDATION_ERROR', message: 'File too large (max 500MB)' } }, 400);
+      return jsonRes({ error: { code: 'VALIDATION_ERROR', message: `File too large (max ${TRAINING_MATERIALS_MAX_FILE_LABEL})` } }, 400);
     }
 
     await ensureTrainingMaterialsBucket(supabase);
@@ -1768,7 +1874,7 @@ const uploadMaterial = async (req: Request): Promise<Response> => {
     }
 
     if (file.size > TRAINING_MATERIALS_MAX_FILE_BYTES) {
-      return jsonRes({ error: { code: 'VALIDATION_ERROR', message: 'File too large (max 500MB)' } }, 400);
+      return jsonRes({ error: { code: 'VALIDATION_ERROR', message: `File too large (max ${TRAINING_MATERIALS_MAX_FILE_LABEL})` } }, 400);
     }
 
     const ext = file.name.split('.').pop()?.toLowerCase() || 'bin';
@@ -2491,6 +2597,7 @@ export {
   shareLinkHandler,
   publicVideoCourseHandler,
   createSignedMaterialUpload,
+  batchUpdateCourseReviewStatus,
   uploadMaterial,
   batchEnroll,
   handleNotes,

@@ -25,6 +25,10 @@ import {
   type VideoTaxonomyOption,
 } from './types';
 import {groupVideoTaxonomyOptions, resolveVideoPolarity} from './videoTaxonomy';
+import {
+  TRAINING_MATERIALS_MAX_FILE_BYTES,
+  TRAINING_MATERIALS_MAX_FILE_LABEL,
+} from './uploadLimits';
 
 // Re-export types for consumers
 export type {
@@ -168,6 +172,9 @@ type SignedMaterialUploadInfo = {
 };
 
 const createSignedMaterialUploadInfo = async (file: File, token: string | null): Promise<SignedMaterialUploadInfo> => {
+  if (file.size > TRAINING_MATERIALS_MAX_FILE_BYTES) {
+    throw new Error(`文件过大，单个文件不能超过${TRAINING_MATERIALS_MAX_FILE_LABEL}`);
+  }
   const prepareRes = await fetch(buildEdgeFunctionUrl('/training/materials/signed-upload'), {
     method: 'POST',
     headers: {
@@ -773,6 +780,31 @@ export const updateCourse = async (id: string, updates: Partial<TrainingCourse>)
 
   const raw = await efetch<Record<string, unknown>>(`/training/courses/${id}`, 'PATCH', updates as unknown as Record<string, unknown>);
   return mapCourse(raw);
+};
+
+export const batchUpdateCourseReviewStatus = async (
+  courseIds: string[],
+  videoReviewStatus: VideoReviewStatus,
+): Promise<{updated: number}> => {
+  const ids = Array.from(new Set(courseIds.map(id => String(id)).filter(Boolean))).slice(0, 200);
+  if (!ids.length) throw new Error('至少选择一条视频');
+
+  if (USE_MOCK_API) {
+    await mockDelay();
+    let updated = 0;
+    courses = courses.map(course => {
+      if (!ids.includes(course.id)) return course;
+      updated += 1;
+      return {...course, videoReviewStatus, updatedAt: new Date().toISOString()};
+    });
+    return {updated};
+  }
+
+  const payload = await efetch<{updated?: number}>('/training/courses/review-batch', 'PATCH', {
+    courseIds: ids,
+    videoReviewStatus,
+  });
+  return {updated: Number(payload.updated ?? 0)};
 };
 
 export const deleteCourse = async (id: string): Promise<void> => {

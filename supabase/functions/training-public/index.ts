@@ -57,6 +57,9 @@ async function verifyTrainingVideoToken(courseId: string, token: string | null):
 }
 
 type PublicTrainingClient = ReturnType<typeof createClient>;
+const PRIVATE_TRAINING_REVIEW_BUCKET = 'training-review-materials';
+const PRIVATE_TRAINING_REVIEW_PREFIX = 'bulk/negative/';
+const PRIVATE_TRAINING_SIGNED_URL_TTL_SECONDS = 24 * 60 * 60;
 
 function isPublicVideoReviewStatus(value: unknown): boolean {
   return value === null || value === undefined || value === '' || value === 'approved' || value === 'published';
@@ -96,6 +99,55 @@ async function enrichCoursesWithVideoTaxonomy(
       quality_tag_ids: qualityTagIds,
       quality_tags: qualityTagIds.map(id => optionById.get(id)).filter(Boolean),
     };
+  });
+}
+
+async function enrichCoursesWithPrivateMedia(
+  supabase: PublicTrainingClient,
+  courses: Record<string, unknown>[],
+): Promise<Record<string, unknown>[]> {
+  const privateCourses = courses.filter(course => (
+    course.video_storage_bucket === PRIVATE_TRAINING_REVIEW_BUCKET
+    && typeof course.video_storage_path === 'string'
+    && course.video_storage_path.startsWith(PRIVATE_TRAINING_REVIEW_PREFIX)
+  ));
+  if (!privateCourses.length) return courses;
+
+  const signedEntries = await Promise.all(privateCourses.map(async course => {
+    const path = String(course.video_storage_path);
+    const {data, error} = await supabase.storage
+      .from(PRIVATE_TRAINING_REVIEW_BUCKET)
+      .createSignedUrl(path, PRIVATE_TRAINING_SIGNED_URL_TTL_SECONDS);
+    if (error || !data?.signedUrl) {
+      console.error('[training-public private media] signed URL failed', {courseId: course.id, path, error: error?.message});
+      return null;
+    }
+    return {courseId: String(course.id), signedUrl: data.signedUrl};
+  }));
+  const signedUrlByCourse = new Map(
+    signedEntries
+      .filter((entry): entry is {courseId: string; signedUrl: string} => Boolean(entry))
+      .map(entry => [entry.courseId, entry.signedUrl]),
+  );
+
+  return courses.map(course => {
+    const signedUrl = signedUrlByCourse.get(String(course.id));
+    if (!signedUrl) return course;
+    const content = Array.isArray(course.content)
+      ? course.content.map(section => (
+        section && typeof section === 'object' && !Array.isArray(section)
+          ? {...section as Record<string, unknown>, contentUrl: signedUrl}
+          : section
+      ))
+      : course.content;
+    const materials = Array.isArray(course.materials)
+      ? course.materials.map(material => (
+        material && typeof material === 'object' && !Array.isArray(material)
+          ? {...material as Record<string, unknown>, url: signedUrl}
+          : material
+      ))
+      : course.materials;
+    return {...course, content, materials};
   });
 }
 
@@ -145,9 +197,12 @@ Deno.serve(async (req) => {
       if (error) throw error;
 
       const publicCourses = ((data ?? []) as Record<string, unknown>[]).filter(course => isPublicVideoReviewStatus(course.video_review_status));
-      const enrichedCourses = await enrichCoursesWithVideoTaxonomy(
+      const enrichedCourses = await enrichCoursesWithPrivateMedia(
         supabase,
-        publicCourses,
+        await enrichCoursesWithVideoTaxonomy(
+          supabase,
+          publicCourses,
+        ),
       );
       const items = await Promise.all(enrichedCourses.map(async (course) => {
         const token = await createTrainingVideoToken(String(course.id));
@@ -190,8 +245,11 @@ Deno.serve(async (req) => {
       return jsonRes({ error: { code: 'NOT_FOUND', message: 'Course not found' } }, 404);
     }
 
-    const [course] = await enrichCoursesWithVideoTaxonomy(supabase, [data]);
-    return jsonRes({ course });
+    const [course] = await enrichCoursesWithPrivateMedia(
+      supabase,
+      await enrichCoursesWithVideoTaxonomy(supabase, [data]),
+    );
+    return jsonRes({course});
   } catch (e) {
     console.error('[training-public]', e);
     return jsonRes({ error: { code: 'INTERNAL_ERROR', message: 'Failed to load course' } }, 500);

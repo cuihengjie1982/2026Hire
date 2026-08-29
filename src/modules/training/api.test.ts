@@ -1,7 +1,14 @@
 import {beforeEach, describe, expect, it, vi} from 'vitest';
+
+vi.mock('../../shared/lib/runtime', async () => ({
+  ...(await vi.importActual<typeof import('../../shared/lib/runtime')>('../../shared/lib/runtime')),
+  USE_MOCK_API: false,
+}));
+
 import {
   createTrainingShareLink,
   createVideoTaxonomyOption,
+  batchUpdateCourseReviewStatus,
   listPublicVideoShareCourses,
   listVideoTaxonomy,
 } from './api';
@@ -132,5 +139,28 @@ describe('video taxonomy API', () => {
     const option = await createVideoTaxonomyOption({kind: 'task', name: '办公操作'});
 
     expect(option).toMatchObject({kind: 'task', name: '办公操作', isActive: true});
+  });
+});
+
+describe('batch video review API', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('sends selected course IDs and the target review status', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => ({updated: 2, items: []}),
+    } as Response);
+
+    const result = await batchUpdateCourseReviewStatus(['course-1', 'course-2'], 'internal');
+
+    expect(result.updated).toBe(2);
+    const [, request] = fetchMock.mock.calls[0];
+    expect(request?.method).toBe('PATCH');
+    expect(JSON.parse(String(request?.body))).toEqual({
+      courseIds: ['course-1', 'course-2'],
+      videoReviewStatus: 'internal',
+    });
   });
 });

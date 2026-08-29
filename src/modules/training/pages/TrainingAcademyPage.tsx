@@ -476,7 +476,7 @@ const CoursesTab = ({courses, onAdd, onBatchEnroll, onEdit, onDelete}: {
   );
 };
 
-export const VideoShareTab = ({courses, readonly = false, publicAccess = false, onAddCourse, onPreview, onCaptionsGenerated, onEditCourse, onDeleteCourse}: {
+export const VideoShareTab = ({courses, readonly = false, publicAccess = false, onAddCourse, onPreview, onCaptionsGenerated, onEditCourse, onDeleteCourse, onBatchReview}: {
   courses: TrainingCourse[];
   readonly?: boolean;
   publicAccess?: boolean;
@@ -485,6 +485,7 @@ export const VideoShareTab = ({courses, readonly = false, publicAccess = false, 
   onCaptionsGenerated?: () => Promise<void>;
   onEditCourse?: (course: TrainingCourse) => void;
   onDeleteCourse?: (course: TrainingCourse) => void;
+  onBatchReview?: (courseIds: string[], status: VideoReviewStatus) => Promise<void>;
 }) => {
   type AssetKind = 'video' | 'document';
   type AssetFilter = 'all' | 'video' | 'document' | 'pdf' | 'word' | 'other';
@@ -651,6 +652,9 @@ export const VideoShareTab = ({courses, readonly = false, publicAccess = false, 
   const [sceneFilter, setSceneFilter] = useState('全部');
   const [qualityFilter, setQualityFilter] = useState('全部');
   const [reviewStatusFilter, setReviewStatusFilter] = useState<ReviewStatusFilter>('全部');
+  const [selectedReviewCourseIds, setSelectedReviewCourseIds] = useState<Set<string>>(new Set());
+  const [batchReviewStatus, setBatchReviewStatus] = useState<VideoReviewStatus>('internal');
+  const [batchReviewLoading, setBatchReviewLoading] = useState(false);
   const [page, setPage] = useState(1);
   const pageSize = 12;
   const canUsePublicLinks = publicAccess || !readonly;
@@ -695,6 +699,14 @@ export const VideoShareTab = ({courses, readonly = false, publicAccess = false, 
       || (kindFilter === 'other' && asset.kind === 'document' && !['pdf', 'doc', 'docx'].includes(asset.extension));
     return matchesSearch && matchesDirection && matchesCategory && matchesTask && matchesScene && matchesQuality && matchesReviewStatus && matchesKind;
   });
+  const reviewableNegativeCourseIds = Array.from(new Set(
+    filteredAssets
+      .filter(asset => asset.kind === 'video' && getDirection(asset) === 'negative')
+      .map(asset => asset.course.id),
+  ));
+  const selectedReviewIds = Array.from(selectedReviewCourseIds).filter(id => reviewableNegativeCourseIds.includes(id));
+  const allReviewableSelected = reviewableNegativeCourseIds.length > 0
+    && reviewableNegativeCourseIds.every(id => selectedReviewCourseIds.has(id));
   const totalPages = Math.max(1, Math.ceil(filteredAssets.length / pageSize));
   const safePage = Math.min(page, totalPages);
   const pageAssets = filteredAssets.slice((safePage - 1) * pageSize, safePage * pageSize);
@@ -708,6 +720,12 @@ export const VideoShareTab = ({courses, readonly = false, publicAccess = false, 
   useEffect(() => {
     setPage(1);
   }, [query, kindFilter, directionFilter, categoryFilter, taskFilter, sceneFilter, qualityFilter, reviewStatusFilter]);
+
+  useEffect(() => {
+    setSelectedReviewCourseIds(previous => new Set(
+      Array.from(previous).filter(id => reviewableNegativeCourseIds.includes(id)),
+    ));
+  }, [courses, query, kindFilter, directionFilter, categoryFilter, taskFilter, sceneFilter, qualityFilter, reviewStatusFilter]);
 
   useEffect(() => {
     setCategoryFilter('全部');
@@ -785,6 +803,33 @@ export const VideoShareTab = ({courses, readonly = false, publicAccess = false, 
     startActionCaptionJob(course, targetUrl);
   };
 
+  const toggleReviewSelection = (courseId: string) => {
+    setSelectedReviewCourseIds(previous => {
+      const next = new Set(previous);
+      if (next.has(courseId)) next.delete(courseId);
+      else next.add(courseId);
+      return next;
+    });
+  };
+
+  const toggleAllReviewSelection = () => {
+    setSelectedReviewCourseIds(allReviewableSelected ? new Set() : new Set(reviewableNegativeCourseIds));
+  };
+
+  const handleBatchReview = async () => {
+    if (!onBatchReview || selectedReviewIds.length === 0) return;
+    setBatchReviewLoading(true);
+    setError('');
+    try {
+      await onBatchReview(selectedReviewIds, batchReviewStatus);
+      setSelectedReviewCourseIds(new Set());
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '批量审核失败');
+    } finally {
+      setBatchReviewLoading(false);
+    }
+  };
+
   const filters: {id: AssetFilter; label: string; count: number}[] = [
     {id: 'all', label: '全部资料', count: assets.length},
     {id: 'video', label: '视频', count: assetCounts.video},
@@ -841,6 +886,54 @@ export const VideoShareTab = ({courses, readonly = false, publicAccess = false, 
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm">
           {error}
+        </div>
+      )}
+
+      {!readonly && onBatchReview && reviewableNegativeCourseIds.length > 0 && (
+        <div className="flex flex-col gap-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-w-0 items-center gap-3">
+            <input
+              type="checkbox"
+              aria-label="全选当前筛选结果中的负向视频"
+              checked={allReviewableSelected}
+              onChange={toggleAllReviewSelection}
+              className="h-4 w-4 shrink-0 accent-rose-600"
+            />
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-rose-900">批量审核负向视频</p>
+              <p className="truncate text-xs text-rose-700">
+                已选择 {selectedReviewIds.length} 条，共 {reviewableNegativeCourseIds.length} 条可审核
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={toggleAllReviewSelection}
+              className="shrink-0 text-xs font-medium text-rose-700 underline underline-offset-2"
+            >
+              {allReviewableSelected ? '取消全选' : '全选'}
+            </button>
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <select
+              aria-label="批量审核状态"
+              value={batchReviewStatus}
+              onChange={event => setBatchReviewStatus(event.target.value as VideoReviewStatus)}
+              className="rounded-lg border border-rose-200 bg-white px-3 py-2 text-sm text-fg-secondary"
+            >
+              {(Object.entries(VIDEO_REVIEW_STATUS_LABELS) as [VideoReviewStatus, string][]).map(([status, label]) => (
+                <option key={status} value={status}>{label}</option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={() => void handleBatchReview()}
+              disabled={selectedReviewIds.length === 0 || batchReviewLoading}
+              className="inline-flex items-center justify-center gap-2 rounded-lg bg-rose-700 px-3 py-2 text-sm font-medium text-white hover:bg-rose-800 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {batchReviewLoading && <Loader2 className="h-4 w-4 animate-spin" />}
+              批量保存审核状态
+            </button>
+          </div>
         </div>
       )}
 
@@ -1086,7 +1179,16 @@ export const VideoShareTab = ({courses, readonly = false, publicAccess = false, 
                   return (
                     <tr key={asset.id} className="border-b border-border-subtle hover:bg-surface-muted">
                       <td className="px-4 py-3">
-                        <div className="flex items-center gap-3 min-w-[260px]">
+                        <div className="flex min-w-[260px] items-center gap-3">
+                          {!readonly && onBatchReview && asset.kind === 'video' && getDirection(asset) === 'negative' && (
+                            <input
+                              type="checkbox"
+                              aria-label={`选择${asset.title}进行批量审核`}
+                              checked={selectedReviewCourseIds.has(asset.course.id)}
+                              onChange={() => toggleReviewSelection(asset.course.id)}
+                              className="h-4 w-4 shrink-0 accent-rose-600"
+                            />
+                          )}
                           <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${asset.kind === 'video' ? 'bg-indigo-50 text-indigo-600' : 'bg-emerald-50 text-emerald-600'}`}>
                             {asset.kind === 'video' ? <PlayCircle className="w-4 h-4" /> : <FileText className="w-4 h-4" />}
                           </div>
@@ -1228,6 +1330,15 @@ export const VideoShareTab = ({courses, readonly = false, publicAccess = false, 
               return (
                 <div key={asset.id} className="p-4 space-y-3">
                   <div className="flex items-start gap-3">
+                    {!readonly && onBatchReview && asset.kind === 'video' && getDirection(asset) === 'negative' && (
+                      <input
+                        type="checkbox"
+                        aria-label={`选择${asset.title}进行批量审核`}
+                        checked={selectedReviewCourseIds.has(asset.course.id)}
+                        onChange={() => toggleReviewSelection(asset.course.id)}
+                        className="mt-3 h-4 w-4 shrink-0 accent-rose-600"
+                      />
+                    )}
                     <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${asset.kind === 'video' ? 'bg-indigo-50 text-indigo-600' : 'bg-emerald-50 text-emerald-600'}`}>
                       {asset.kind === 'video' ? <PlayCircle className="w-5 h-5" /> : <FileText className="w-5 h-5" />}
                     </div>

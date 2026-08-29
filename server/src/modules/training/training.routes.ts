@@ -15,7 +15,7 @@ const uploadsDir = path.resolve('server/uploads/training-materials');
 fs.mkdirSync(uploadsDir, {recursive: true});
 const upload = multer({
   dest: uploadsDir,
-  limits: {fileSize: 500 * 1024 * 1024}, // 500MB
+  limits: {fileSize: 1024 * 1024 * 1024}, // 1GB
 });
 
 async function resolveTrainingLLMConfig() {
@@ -495,6 +495,33 @@ router.get('/courses', async (req, res, next) => {
 
     const items = await enrichCoursesWithVideoTaxonomy(rows);
     res.json({items, total: countResult?.total ?? 0, page: parseInt(page, 10), pageSize: limit});
+  } catch (e) { next(e); }
+});
+
+router.patch('/courses/review-batch', requireRole('admin', 'recruiter'), async (req, res, next) => {
+  try {
+    const courseIds = Array.from(new Set(
+      (Array.isArray(req.body.courseIds) ? req.body.courseIds : [])
+        .map((id: unknown) => String(id))
+        .filter((id: string) => taxonomyUuidPattern.test(id)),
+    )).slice(0, 200);
+    const status = req.body.videoReviewStatus;
+    if (!courseIds.length) {
+      res.status(400).json({error: {code: 'VALIDATION_ERROR', message: '至少选择一条视频'}});
+      return;
+    }
+    if (!isVideoReviewStatus(status)) {
+      res.status(400).json({error: {code: 'VALIDATION_ERROR', message: '审核状态无效'}});
+      return;
+    }
+    const rows = await query<Record<string, unknown>>(
+      `UPDATE training_courses
+       SET video_review_status = $1, updated_at = now()
+       WHERE id = ANY($2::uuid[]) AND is_active = true
+       RETURNING id, video_review_status`,
+      [status, courseIds],
+    );
+    res.json({updated: rows.length, items: rows});
   } catch (e) { next(e); }
 });
 

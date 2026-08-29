@@ -135,6 +135,9 @@
       .title { margin: 0; font-size: 16px; line-height: 1.45; font-weight: 800; word-break: break-word; }
       .meta { margin: 5px 0 0; color: #94a3b8; font-size: 12px; line-height: 1.5; }
       .course { margin: 7px 0 0; color: #475569; font-size: 13px; line-height: 1.5; }
+      .details { margin-top: 9px; color: #475569; font-size: 12px; line-height: 1.6; }
+      .review-note { margin-top: 10px; border: 1px solid #dbeafe; border-radius: 9px; background: #eff6ff; padding: 9px 10px; color: #1e3a8a; font-size: 13px; line-height: 1.65; white-space: pre-wrap; }
+      .review-note.negative { border-color: #ffe4e6; background: #fff1f2; color: #9f1239; }
       .tag {
         display: inline-block;
         margin-top: 9px;
@@ -414,6 +417,8 @@
                 token: token,
                 courseTitle: course.title || '培训资料',
                 courseDescription: course.description || '',
+                difficulty: course.difficulty || '',
+                durationMinutes: Number(course.duration_minutes || course.durationMinutes || 0),
                 category: course.category || '综合',
                 polarity: explicitPolarity,
                 taskCategory: taskCategory && taskCategory.id ? {
@@ -644,17 +649,26 @@
               sceneTag.textContent = asset.scene.name;
               tags.appendChild(sceneTag);
             }
-            for (var tagIndex = 0; tagIndex < Math.min(2, asset.qualityTags.length); tagIndex += 1) {
+            for (var tagIndex = 0; tagIndex < asset.qualityTags.length; tagIndex += 1) {
               var qualityTag = document.createElement('span');
               qualityTag.className = 'tag tag-quality';
               qualityTag.textContent = asset.qualityTags[tagIndex].name;
               tags.appendChild(qualityTag);
             }
-            if (asset.qualityTags.length > 2) {
-              var overflowTag = document.createElement('span');
-              overflowTag.className = 'tag tag-quality';
-              overflowTag.textContent = '+' + (asset.qualityTags.length - 2);
-              tags.appendChild(overflowTag);
+            var details = [];
+            if (asset.difficulty) details.push('难度：' + asset.difficulty);
+            if (asset.durationMinutes > 0) details.push('时长：' + asset.durationMinutes + ' 分钟');
+            if (details.length) {
+              var detailEl = document.createElement('div');
+              detailEl.className = 'details';
+              detailEl.textContent = details.join(' · ');
+              card.querySelector('.main').appendChild(detailEl);
+            }
+            if (asset.reviewNote) {
+              var reviewEl = document.createElement('div');
+              reviewEl.className = 'review-note' + (categoryGroup(asset) === 'negative' ? ' negative' : '');
+              reviewEl.textContent = (categoryGroup(asset) === 'negative' ? '质量说明：' : '拍摄要点：') + asset.reviewNote;
+              card.querySelector('.main').appendChild(reviewEl);
             }
             var severity = severityLabel(asset.severity);
             if (severity) {

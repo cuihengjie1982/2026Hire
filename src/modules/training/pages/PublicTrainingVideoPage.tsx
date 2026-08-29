@@ -4,6 +4,7 @@ import {AlertCircle, Download, ExternalLink, FileText, Loader2} from 'lucide-rea
 import {getPublicTrainingCourse} from '../api';
 import type {TrainingCourse} from '../types';
 import {VideoLearningAssistant} from '../components/VideoLearningAssistant/VideoLearningAssistant';
+import {getPublicTrainingMetadata} from '../publicTrainingMetadata';
 
 const VIDEO_EXTENSIONS = new Set(['mp4', 'm4v', 'mov', 'webm', 'avi', 'mkv']);
 const DOCUMENT_EXTENSIONS = new Set(['doc', 'docx', 'pdf', 'ppt', 'pptx', 'xls', 'xlsx', 'txt', 'md']);
@@ -135,6 +136,51 @@ const getDocumentPreviewPath = (document: {title: string; url: string; type: str
   return `/training/docs/pdf?${params.toString()}`;
 };
 
+const PublicTrainingMetadataPanel = ({course}: {course: TrainingCourse}) => {
+  const metadata = getPublicTrainingMetadata(course);
+  const isNegative = metadata.polarityLabel === '负向视频';
+
+  return (
+    <section className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm" aria-label="培训分类信息">
+      <div className="flex flex-wrap gap-2 text-xs font-medium">
+        <span className={`rounded-md px-2.5 py-1 ${isNegative ? 'bg-rose-50 text-rose-700' : 'bg-emerald-50 text-emerald-700'}`}>
+          {metadata.polarityLabel}
+        </span>
+        <span className="rounded-md bg-blue-50 px-2.5 py-1 text-blue-700">任务：{metadata.taskLabel}</span>
+        <span className="rounded-md bg-emerald-50 px-2.5 py-1 text-emerald-700">场景：{metadata.sceneLabel}</span>
+        <span className="rounded-md bg-violet-50 px-2.5 py-1 text-violet-700">难度：{metadata.difficultyLabel}</span>
+        {metadata.durationLabel && (
+          <span className="rounded-md bg-gray-100 px-2.5 py-1 text-gray-600">时长：{metadata.durationLabel}</span>
+        )}
+      </div>
+
+      {metadata.qualityLabels.length > 0 && (
+        <div className="mt-3">
+          <p className="text-xs font-semibold text-gray-500">质量标签</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {metadata.qualityLabels.map(label => (
+              <span key={label} className="rounded-md border border-gray-200 bg-gray-50 px-2.5 py-1 text-xs text-gray-700">
+                {label}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {metadata.reviewNote && (
+        <div className={`mt-3 rounded-lg border px-3 py-2.5 ${isNegative ? 'border-rose-100 bg-rose-50' : 'border-blue-100 bg-blue-50'}`}>
+          <p className={`text-xs font-semibold ${isNegative ? 'text-rose-700' : 'text-blue-700'}`}>
+            {isNegative ? '质量说明' : '拍摄要点'}
+          </p>
+          <p className={`mt-1 whitespace-pre-wrap text-sm leading-6 ${isNegative ? 'text-rose-800' : 'text-blue-800'}`}>
+            {metadata.reviewNote}
+          </p>
+        </div>
+      )}
+    </section>
+  );
+};
+
 const courseHasPlayableVideo = (course: TrainingCourse): boolean => (
   course.content.some(section => section.contentUrl && isVideoUrl(section.contentUrl))
   || course.materials.some(material => material.url && material.type === 'video' && isVideoUrl(material.url))
@@ -152,6 +198,8 @@ const PublicTrainingDocumentPage = ({course, targetUrl}: {course: TrainingCourse
           <h1 className="mt-2 text-2xl font-bold text-gray-950">{course.title}</h1>
           {course.description && <p className="mt-2 text-sm text-gray-500">{course.description}</p>}
         </div>
+
+        <PublicTrainingMetadataPanel course={course} />
 
         {documents.length > 0 ? (
           <div className="space-y-3">
@@ -267,14 +315,36 @@ export const PublicTrainingVideoPage = () => {
   }
 
   if (targetUrl && isVideoUrl(targetUrl)) {
-    return <VideoLearningAssistant course={getCourseForTargetVideo(course, targetUrl)} publicMode />;
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <main className="mx-auto max-w-5xl space-y-4 px-4 py-5 sm:px-6 sm:py-8">
+          <div>
+            <p className="text-sm font-semibold text-indigo-600">员工培训视频</p>
+            <h1 className="mt-1 text-xl font-bold text-gray-950">{course.title}</h1>
+          </div>
+          <PublicTrainingMetadataPanel course={course} />
+          <VideoLearningAssistant course={getCourseForTargetVideo(course, targetUrl)} publicMode />
+        </main>
+      </div>
+    );
   }
 
   if (!courseHasPlayableVideo(course)) {
     return <PublicTrainingDocumentPage course={course} />;
   }
 
-  return <VideoLearningAssistant course={course} publicMode />;
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <main className="mx-auto max-w-5xl space-y-4 px-4 py-5 sm:px-6 sm:py-8">
+        <div>
+          <p className="text-sm font-semibold text-indigo-600">员工培训视频</p>
+          <h1 className="mt-1 text-xl font-bold text-gray-950">{course.title}</h1>
+        </div>
+        <PublicTrainingMetadataPanel course={course} />
+        <VideoLearningAssistant course={course} publicMode />
+      </main>
+    </div>
+  );
 };
 
 export default PublicTrainingVideoPage;

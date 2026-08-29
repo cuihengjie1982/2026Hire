@@ -4,6 +4,7 @@ import {motion} from 'motion/react';
 import {Loader2, PlayCircle, Settings2, Share2, Upload} from 'lucide-react';
 import {
   createVideoTaxonomyOption,
+  batchUpdateCourseReviewStatus,
   createCourse,
   deleteVideoTaxonomyOption,
   deleteCourse,
@@ -148,6 +149,11 @@ export const TrainingVideoSharePage = () => {
     await loadData();
   };
 
+  const handleBatchReview = async (courseIds: string[], status: VideoReviewStatus) => {
+    await batchUpdateCourseReviewStatus(courseIds, status);
+    await loadData();
+  };
+
   const handleDeleteCourse = async (course: TrainingCourse) => {
     if (!confirm(`确定要删除视频「${course.title}」吗？删除后已复制出去的公开链接也将不可用。`)) return;
     setError('');
@@ -249,6 +255,7 @@ export const TrainingVideoSharePage = () => {
         onAddCourse={canManage ? () => setShowCreateCourse(true) : undefined}
         onEditCourse={canManage ? setEditingCourse : undefined}
         onDeleteCourse={canManage ? handleDeleteCourse : undefined}
+        onBatchReview={canManage ? handleBatchReview : undefined}
         onPreview={(courseId) => navigate(`/training/preview?courseId=${courseId}`)}
         onCaptionsGenerated={canManage ? loadData : undefined}
         publicAccess={isPublicAccess}
