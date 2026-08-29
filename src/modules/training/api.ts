@@ -699,10 +699,11 @@ export const listAllCourses = async (
   do {
     const result = await listCourses({...filters, page, pageSize});
     total = result.total;
+    const previousCount = coursesById.size;
     result.items.forEach(course => coursesById.set(course.id, course));
-    if (result.items.length === 0) break;
+    if (result.items.length === 0 || coursesById.size === previousCount) break;
     page += 1;
-  } while ((page - 1) * pageSize < total);
+  } while (coursesById.size < total);
 
   const items = Array.from(coursesById.values());
   return {items, total, page: 1, pageSize: items.length};

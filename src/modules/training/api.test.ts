@@ -50,6 +50,37 @@ describe('training course pagination', () => {
     expect(fetchMock.mock.calls.map(([input]) => new URL(String(input), 'https://hire.example.com').searchParams.get('page')))
       .toEqual(['1', '2', '3']);
   });
+
+  it('keeps loading when the server caps each page below the requested size', async () => {
+    const total = 97;
+    const serverPageSize = 50;
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async input => {
+      const url = new URL(String(input), 'https://hire.example.com');
+      const page = Number(url.searchParams.get('page') ?? 1);
+      const start = (page - 1) * serverPageSize;
+      const items = Array.from(
+        {length: Math.max(0, Math.min(serverPageSize, total - start))},
+        (_, index) => ({
+          id: `course-${start + index + 1}`,
+          title: `课程 ${start + index + 1}`,
+          content: [],
+          materials: [],
+          is_active: true,
+        }),
+      );
+      return {
+        ok: true,
+        json: async () => ({items, total, page, pageSize: serverPageSize}),
+      } as Response;
+    });
+
+    const result = await listAllCourses();
+
+    expect(result.items).toHaveLength(total);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock.mock.calls.map(([input]) => new URL(String(input), 'https://hire.example.com').searchParams.get('page')))
+      .toEqual(['1', '2']);
+  });
 });
 
 describe('training share links', () => {
