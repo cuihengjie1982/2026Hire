@@ -1,18 +1,40 @@
 import {useEffect, useState} from 'react';
 import {useNavigate} from 'react-router-dom';
 import {motion} from 'motion/react';
-import {Loader2, PlayCircle, Share2, Upload} from 'lucide-react';
+import {Loader2, PlayCircle, Settings2, Share2, Upload} from 'lucide-react';
 import {
+  createVideoTaxonomyOption,
   createCourse,
+  deleteVideoTaxonomyOption,
   deleteCourse,
   listPublicVideoShareCourses,
   listCourses,
+  listVideoTaxonomy,
   updateCourse,
+  updateVideoTaxonomyOption,
   type TrainingCourse,
+  type VideoPolarity,
+  type VideoSeverity,
+  type VideoTaxonomy,
 } from '../api';
 import {CreateCourseModal, VideoShareTab} from './TrainingAcademyPage';
 import {getCurrentUser} from '../../settings/api';
 import {getAuthToken} from '../../../shared/lib/runtime';
+import {EMPTY_VIDEO_TAXONOMY} from '../videoTaxonomy';
+import {VideoTaxonomyManager} from '../components/VideoTaxonomyManager';
+
+type VideoCourseInput = {
+  title: string; category: string; difficulty: string; description: string;
+  durationMinutes?: number; content?: {sectionTitle: string; contentType: string; text?: string; contentUrl?: string}[];
+  materials?: {title: string; type: string; url?: string}[];
+  assessmentConfig?: {type: string; passingScore: number};
+  competencyDimension?: string;
+  videoPolarity?: VideoPolarity;
+  taskCategoryId?: string | null;
+  qualityTagIds?: string[];
+  videoSeverity?: VideoSeverity | null;
+  videoReviewNote?: string | null;
+};
 
 export const TrainingVideoSharePage = () => {
   const [courses, setCourses] = useState<TrainingCourse[]>([]);
@@ -20,6 +42,8 @@ export const TrainingVideoSharePage = () => {
   const [error, setError] = useState('');
   const [showCreateCourse, setShowCreateCourse] = useState(false);
   const [editingCourse, setEditingCourse] = useState<TrainingCourse | null>(null);
+  const [taxonomy, setTaxonomy] = useState<VideoTaxonomy>(EMPTY_VIDEO_TAXONOMY);
+  const [showTaxonomyManager, setShowTaxonomyManager] = useState(false);
   const [currentRole, setCurrentRole] = useState<string | null>(null);
   const navigate = useNavigate();
   const hasAuthToken = Boolean(getAuthToken());
@@ -77,19 +101,26 @@ export const TrainingVideoSharePage = () => {
     return () => { mounted = false; };
   }, [hasAuthToken]);
 
+  const loadTaxonomy = async () => {
+    try {
+      setTaxonomy(await listVideoTaxonomy(true));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '加载视频分类失败');
+    }
+  };
+
+  useEffect(() => {
+    if (canManage) void loadTaxonomy();
+  }, [canManage]);
+
   useEffect(() => {
     if (canManage) return;
     setShowCreateCourse(false);
     setEditingCourse(null);
+    setShowTaxonomyManager(false);
   }, [canManage]);
 
-  const handleCreateCourse = async (input: {
-    title: string; category: string; difficulty: string; description: string;
-    durationMinutes?: number; content?: {sectionTitle: string; contentType: string; text?: string; contentUrl?: string}[];
-    materials?: {title: string; type: string; url?: string}[];
-    assessmentConfig?: {type: string; passingScore: number};
-    competencyDimension?: string;
-  }) => {
+  const handleCreateCourse = async (input: VideoCourseInput) => {
     await createCourse({
       ...input,
       category: input.category || '综合',
@@ -107,13 +138,7 @@ export const TrainingVideoSharePage = () => {
     await loadData();
   };
 
-  const handleUpdateCourse = async (input: {
-    title: string; category: string; difficulty: string; description: string;
-    durationMinutes?: number; content?: {sectionTitle: string; contentType: string; text?: string; contentUrl?: string}[];
-    materials?: {title: string; type: string; url?: string}[];
-    assessmentConfig?: {type: string; passingScore: number};
-    competencyDimension?: string;
-  }) => {
+  const handleUpdateCourse = async (input: VideoCourseInput) => {
     if (!editingCourse) return;
     await updateCourse(editingCourse.id, input as Parameters<typeof updateCourse>[1]);
     setEditingCourse(null);
@@ -161,12 +186,20 @@ export const TrainingVideoSharePage = () => {
           </div>
         </div>
         {canManage && (
-          <button
-            onClick={() => setShowCreateCourse(true)}
-            className="flex items-center justify-center gap-2 px-4 py-2 bg-[#1a4bc4] text-white rounded-lg text-sm hover:bg-[#153da0] transition-colors"
-          >
-            <Upload className="w-4 h-4" /> 新建视频
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowTaxonomyManager(true)}
+              className="flex items-center justify-center gap-2 px-4 py-2 border border-border bg-surface text-fg-secondary rounded-lg text-sm hover:bg-surface-muted transition-colors"
+            >
+              <Settings2 className="w-4 h-4" /> 分类管理
+            </button>
+            <button
+              onClick={() => setShowCreateCourse(true)}
+              className="flex items-center justify-center gap-2 px-4 py-2 bg-[#1a4bc4] text-white rounded-lg text-sm hover:bg-[#153da0] transition-colors"
+            >
+              <Upload className="w-4 h-4" /> 新建视频
+            </button>
+          </div>
         )}
       </div>
 
@@ -221,6 +254,8 @@ export const TrainingVideoSharePage = () => {
       {showCreateCourse && (
         <CreateCourseModal
           defaultContentType="video"
+          videoSharingMode
+          videoTaxonomy={taxonomy}
           onClose={() => setShowCreateCourse(false)}
           onSubmit={handleCreateCourse}
         />
@@ -228,8 +263,28 @@ export const TrainingVideoSharePage = () => {
       {editingCourse && (
         <CreateCourseModal
           initial={editingCourse}
+          videoSharingMode
+          videoTaxonomy={taxonomy}
           onClose={() => setEditingCourse(null)}
           onSubmit={handleUpdateCourse}
+        />
+      )}
+      {showTaxonomyManager && (
+        <VideoTaxonomyManager
+          taxonomy={taxonomy}
+          onClose={() => setShowTaxonomyManager(false)}
+          onCreate={async input => {
+            await createVideoTaxonomyOption(input);
+            await loadTaxonomy();
+          }}
+          onUpdate={async (id, updates) => {
+            await updateVideoTaxonomyOption(id, updates);
+            await loadTaxonomy();
+          }}
+          onDelete={async id => {
+            await deleteVideoTaxonomyOption(id);
+            await loadTaxonomy();
+          }}
         />
       )}
     </div>

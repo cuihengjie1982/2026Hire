@@ -1,5 +1,10 @@
 import {beforeEach, describe, expect, it, vi} from 'vitest';
-import {createTrainingShareLink} from './api';
+import {
+  createTrainingShareLink,
+  createVideoTaxonomyOption,
+  listPublicVideoShareCourses,
+  listVideoTaxonomy,
+} from './api';
 
 describe('training share links', () => {
   beforeEach(() => {
@@ -30,5 +35,95 @@ describe('training share links', () => {
     const result = await createTrainingShareLink('course-1', targetUrl);
 
     expect(result.path).toBe('/tv/course-1/mock-course-1');
+  });
+});
+
+describe('video taxonomy course mapping', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('maps explicit taxonomy fields returned by the public API', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        items: [{
+          id: 'course-1',
+          title: '擦桌子',
+          description: '',
+          category: '正向视频',
+          video_polarity: 'positive',
+          video_task_category_id: 'task-clean',
+          video_severity: null,
+          video_review_note: '动作连贯',
+          task_category: {id: 'task-clean', kind: 'task', name: '清洁', sort_order: 1, is_active: true},
+          quality_tags: [{id: 'tag-natural', kind: 'quality', polarity: 'positive', name: '动作自然', sort_order: 1, is_active: true}],
+          content: [],
+          materials: [],
+          assessment_config: {type: 'quiz', passingScore: 60},
+          is_active: true,
+          share_token: 'token',
+        }],
+      }),
+    } as Response);
+
+    const result = await listPublicVideoShareCourses();
+    const course = result.items[0];
+
+    expect(course.videoPolarity).toBe('positive');
+    expect(course.taskCategory?.name).toBe('清洁');
+    expect(course.qualityTags.map(tag => tag.name)).toEqual(['动作自然']);
+    expect(course.videoReviewNote).toBe('动作连贯');
+  });
+
+  it('derives polarity from the legacy category without changing the source record', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        items: [{
+          id: 'legacy-course', title: '旧视频', description: '', category: '负向视频',
+          content: [], materials: [], assessment_config: {}, is_active: true, share_token: 'token',
+        }],
+      }),
+    } as Response);
+
+    const result = await listPublicVideoShareCourses();
+
+    expect(result.items[0].videoPolarity).toBe('negative');
+    expect(result.items[0].category).toBe('负向视频');
+  });
+});
+
+describe('video taxonomy API', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('groups available taxonomy options for the editor', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => ({items: [
+        {id: 'task-clean', kind: 'task', name: '清洁', sort_order: 1, is_active: true},
+        {id: 'tag-natural', kind: 'quality', polarity: 'positive', name: '动作自然', sort_order: 1, is_active: true},
+        {id: 'tag-staged', kind: 'quality', polarity: 'negative', name: '摆拍严重', sort_order: 1, is_active: true},
+      ]}),
+    } as Response);
+
+    const taxonomy = await listVideoTaxonomy();
+
+    expect(taxonomy.taskCategories.map(option => option.name)).toEqual(expect.arrayContaining(['清洁']));
+    expect(taxonomy.positiveTags.map(option => option.name)).toEqual(expect.arrayContaining(['动作自然']));
+    expect(taxonomy.negativeTags.map(option => option.name)).toEqual(expect.arrayContaining(['摆拍严重']));
+  });
+
+  it('returns the normalized option created by an administrator', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => ({id: 'task-office', kind: 'task', name: '办公操作', sort_order: 8, is_active: true}),
+    } as Response);
+
+    const option = await createVideoTaxonomyOption({kind: 'task', name: '办公操作'});
+
+    expect(option).toMatchObject({kind: 'task', name: '办公操作', isActive: true});
   });
 });

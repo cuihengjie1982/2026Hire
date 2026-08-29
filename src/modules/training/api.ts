@@ -18,7 +18,12 @@ import {
   type TrainingActionCaptionFrame,
   type TrainingActionCaptionJob,
   type TrainingActionCaptionResult,
+  type VideoPolarity,
+  type VideoSeverity,
+  type VideoTaxonomy,
+  type VideoTaxonomyOption,
 } from './types';
+import {groupVideoTaxonomyOptions, resolveVideoPolarity} from './videoTaxonomy';
 
 // Re-export types for consumers
 export type {
@@ -36,6 +41,10 @@ export type {
   TrainingActionCaptionFrame,
   TrainingActionCaptionJob,
   TrainingActionCaptionResult,
+  VideoPolarity,
+  VideoSeverity,
+  VideoTaxonomy,
+  VideoTaxonomyOption,
 };
 
 const MATERIAL_UPLOAD_TIMEOUT_MS = 15 * 60 * 1000;
@@ -378,15 +387,50 @@ const mapPublicCourseMediaUrls = (course: TrainingCourse): TrainingCourse => ({
   })),
 });
 
+const mapVideoTaxonomyOption = (raw: unknown): VideoTaxonomyOption | undefined => {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
+  const row = raw as Record<string, unknown>;
+  const kind = String(row.kind ?? '') as VideoTaxonomyOption['kind'];
+  if (kind !== 'task' && kind !== 'quality') return undefined;
+  const rawPolarity = row.polarity;
+  const polarity = rawPolarity === 'positive' || rawPolarity === 'negative' ? rawPolarity : undefined;
+  return {
+    id: String(row.id ?? ''),
+    kind,
+    name: String(row.name ?? ''),
+    ...(polarity ? {polarity} : {}),
+    sortOrder: Number(row.sort_order ?? row.sortOrder ?? 0),
+    isActive: Boolean(row.is_active ?? row.isActive ?? true),
+    createdAt: row.created_at || row.createdAt ? String(row.created_at ?? row.createdAt) : undefined,
+    updatedAt: row.updated_at || row.updatedAt ? String(row.updated_at ?? row.updatedAt) : undefined,
+  };
+};
+
 const mapCourse = (raw: Record<string, unknown>): TrainingCourse => {
   const materials = (raw.materials ?? []) as CourseMaterial[];
   const content = normalizeCourseVideoContent((raw.content ?? []) as CourseSection[], materials);
+  const category = String(raw.category ?? '综合');
+  const explicitPolarity = raw.video_polarity ?? raw.videoPolarity;
+  const videoPolarity = resolveVideoPolarity({videoPolarity: explicitPolarity, category});
+  const taskCategory = mapVideoTaxonomyOption(raw.task_category ?? raw.taskCategory);
+  const rawQualityTags = raw.quality_tags ?? raw.qualityTags;
+  const qualityTags = (Array.isArray(rawQualityTags) ? rawQualityTags : [])
+    .map(mapVideoTaxonomyOption)
+    .filter((option): option is VideoTaxonomyOption => Boolean(option));
+  const rawQualityTagIds = raw.quality_tag_ids ?? raw.qualityTagIds;
+  const qualityTagIds = Array.isArray(rawQualityTagIds)
+    ? rawQualityTagIds.map(value => String(value))
+    : qualityTags.map(option => option.id);
+  const rawSeverity = raw.video_severity ?? raw.videoSeverity;
+  const videoSeverity = ['minor', 'moderate', 'severe'].includes(String(rawSeverity ?? ''))
+    ? String(rawSeverity) as VideoSeverity
+    : undefined;
 
   return {
     id: String(raw.id ?? ''),
     title: String(raw.title ?? ''),
     description: String(raw.description ?? ''),
-    category: String(raw.category ?? '综合'),
+    category,
     difficulty: String(raw.difficulty ?? '初级') as TrainingCourse['difficulty'],
     durationMinutes: Number(raw.duration_minutes ?? raw.durationMinutes ?? 30),
     content,
@@ -397,6 +441,17 @@ const mapCourse = (raw: Record<string, unknown>): TrainingCourse => {
       ? String((raw.positions as Record<string, unknown>).name)
       : raw.position_name ? String(raw.position_name) : undefined,
     competencyDimension: raw.competency_dimension ? String(raw.competency_dimension) : undefined,
+    videoPolarity,
+    taskCategoryId: raw.video_task_category_id || raw.taskCategoryId
+      ? String(raw.video_task_category_id ?? raw.taskCategoryId)
+      : taskCategory?.id,
+    taskCategory,
+    qualityTagIds,
+    qualityTags,
+    videoSeverity,
+    videoReviewNote: raw.video_review_note || raw.videoReviewNote
+      ? String(raw.video_review_note ?? raw.videoReviewNote)
+      : undefined,
     isActive: Boolean(raw.is_active ?? raw.isActive ?? true),
     createdAt: String(raw.created_at ?? ''),
     updatedAt: String(raw.updated_at ?? ''),
@@ -477,8 +532,101 @@ const mapAssessment = (raw: Record<string, unknown>): TrainingAssessment => ({
 let courses = [...courseFixtures];
 let enrollments = [...enrollmentFixtures];
 let assessments: TrainingAssessment[] = [];
+let mockVideoTaxonomyOptions: VideoTaxonomyOption[] = [
+  {id: 'task-cleaning', kind: 'task', name: '清洁', sortOrder: 10, isActive: true},
+  {id: 'task-organizing', kind: 'task', name: '收纳', sortOrder: 20, isActive: true},
+  {id: 'task-cooking', kind: 'task', name: '烹饪', sortOrder: 30, isActive: true},
+  {id: 'positive-natural', kind: 'quality', polarity: 'positive', name: '动作自然', sortOrder: 10, isActive: true},
+  {id: 'positive-complete', kind: 'quality', polarity: 'positive', name: '流程完整', sortOrder: 20, isActive: true},
+  {id: 'negative-staged', kind: 'quality', polarity: 'negative', name: '摆拍严重', sortOrder: 10, isActive: true},
+  {id: 'negative-slow', kind: 'quality', polarity: 'negative', name: '动作太慢', sortOrder: 20, isActive: true},
+  {id: 'negative-unnatural', kind: 'quality', polarity: 'negative', name: '家务不自然', sortOrder: 30, isActive: true},
+];
 
 const mockDelay = () => new Promise<void>(r => setTimeout(r, 150 + Math.random() * 200));
+
+export interface CreateVideoTaxonomyOptionInput {
+  kind: VideoTaxonomyOption['kind'];
+  name: string;
+  polarity?: VideoPolarity;
+  sortOrder?: number;
+}
+
+export interface UpdateVideoTaxonomyOptionInput {
+  name?: string;
+  sortOrder?: number;
+  isActive?: boolean;
+}
+
+export const listVideoTaxonomy = async (includeInactive = false): Promise<VideoTaxonomy> => {
+  if (USE_MOCK_API) {
+    await mockDelay();
+    return groupVideoTaxonomyOptions(mockVideoTaxonomyOptions, includeInactive);
+  }
+  const payload = await efetch<{items?: Record<string, unknown>[]}>(
+    `/training/video-taxonomy${includeInactive ? '?includeInactive=true' : ''}`,
+  );
+  const options = (payload.items ?? [])
+    .map(mapVideoTaxonomyOption)
+    .filter((option): option is VideoTaxonomyOption => Boolean(option));
+  return groupVideoTaxonomyOptions(options, includeInactive);
+};
+
+export const createVideoTaxonomyOption = async (
+  input: CreateVideoTaxonomyOptionInput,
+): Promise<VideoTaxonomyOption> => {
+  if (USE_MOCK_API) {
+    await mockDelay();
+    const option: VideoTaxonomyOption = {
+      id: `taxonomy-${Date.now()}`,
+      kind: input.kind,
+      name: input.name.trim(),
+      ...(input.polarity ? {polarity: input.polarity} : {}),
+      sortOrder: input.sortOrder ?? mockVideoTaxonomyOptions.length * 10 + 10,
+      isActive: true,
+    };
+    mockVideoTaxonomyOptions = [...mockVideoTaxonomyOptions, option];
+    return option;
+  }
+  const raw = await efetch<Record<string, unknown>>(
+    '/training/video-taxonomy',
+    'POST',
+    input as unknown as Record<string, unknown>,
+  );
+  const option = mapVideoTaxonomyOption(raw);
+  if (!option) throw new Error('分类保存成功但返回数据格式异常');
+  return option;
+};
+
+export const updateVideoTaxonomyOption = async (
+  id: string,
+  updates: UpdateVideoTaxonomyOptionInput,
+): Promise<VideoTaxonomyOption> => {
+  if (USE_MOCK_API) {
+    await mockDelay();
+    const index = mockVideoTaxonomyOptions.findIndex(option => option.id === id);
+    if (index === -1) throw new Error('分类不存在');
+    mockVideoTaxonomyOptions[index] = {...mockVideoTaxonomyOptions[index], ...updates};
+    return mockVideoTaxonomyOptions[index];
+  }
+  const raw = await efetch<Record<string, unknown>>(
+    `/training/video-taxonomy/${encodeURIComponent(id)}`,
+    'PATCH',
+    updates as unknown as Record<string, unknown>,
+  );
+  const option = mapVideoTaxonomyOption(raw);
+  if (!option) throw new Error('分类保存成功但返回数据格式异常');
+  return option;
+};
+
+export const deleteVideoTaxonomyOption = async (id: string): Promise<void> => {
+  if (USE_MOCK_API) {
+    await mockDelay();
+    mockVideoTaxonomyOptions = mockVideoTaxonomyOptions.filter(option => option.id !== id);
+    return;
+  }
+  await efetch(`/training/video-taxonomy/${encodeURIComponent(id)}`, 'DELETE');
+};
 
 // ─── Courses ────────────────────────────────────────────────────────────
 
@@ -555,6 +703,17 @@ export const createCourse = async (input: Partial<TrainingCourse> & {title: stri
       assessmentConfig: input.assessmentConfig ?? {type: 'quiz', passingScore: 60},
       positionId: input.positionId,
       competencyDimension: input.competencyDimension,
+      videoPolarity: input.videoPolarity,
+      taskCategoryId: input.taskCategoryId,
+      taskCategory: input.taskCategoryId
+        ? mockVideoTaxonomyOptions.find(option => option.id === input.taskCategoryId)
+        : undefined,
+      qualityTagIds: input.qualityTagIds ?? [],
+      qualityTags: (input.qualityTagIds ?? [])
+        .map(id => mockVideoTaxonomyOptions.find(option => option.id === id))
+        .filter((option): option is VideoTaxonomyOption => Boolean(option)),
+      videoSeverity: input.videoSeverity,
+      videoReviewNote: input.videoReviewNote,
       isActive: true,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -572,7 +731,18 @@ export const updateCourse = async (id: string, updates: Partial<TrainingCourse>)
     await mockDelay();
     const idx = courses.findIndex(c => c.id === id);
     if (idx === -1) throw new Error('Course not found');
-    courses[idx] = {...courses[idx], ...updates, updatedAt: new Date().toISOString()};
+    const next = {...courses[idx], ...updates, updatedAt: new Date().toISOString()};
+    if (Object.prototype.hasOwnProperty.call(updates, 'taskCategoryId')) {
+      next.taskCategory = updates.taskCategoryId
+        ? mockVideoTaxonomyOptions.find(option => option.id === updates.taskCategoryId)
+        : undefined;
+    }
+    if (updates.qualityTagIds) {
+      next.qualityTags = updates.qualityTagIds
+        .map(tagId => mockVideoTaxonomyOptions.find(option => option.id === tagId))
+        .filter((option): option is VideoTaxonomyOption => Boolean(option));
+    }
+    courses[idx] = next;
     return courses[idx];
   }
 

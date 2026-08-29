@@ -96,6 +96,105 @@ async function verifyTrainingVideoToken(courseId: string, token: string | null):
   return !!expected && timingSafeEqual(token, expected);
 }
 
+type TrainingDatabaseClient = ReturnType<typeof createSupabaseAdmin>;
+type VideoPolarity = 'positive' | 'negative';
+type VideoSeverity = 'minor' | 'moderate' | 'severe';
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function normalizeVideoPolarity(value: unknown, category?: unknown): VideoPolarity | undefined {
+  if (value === 'positive' || value === 'negative') return value;
+  if (category === '正向视频') return 'positive';
+  if (category === '负向视频' || category === '负面视频') return 'negative';
+  return undefined;
+}
+
+function normalizeVideoSeverity(value: unknown): VideoSeverity | null | undefined {
+  if (value === null || value === '') return null;
+  if (value === 'minor' || value === 'moderate' || value === 'severe') return value;
+  return value === undefined ? undefined : null;
+}
+
+function normalizeTaxonomyIds(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return Array.from(new Set(value.map(id => String(id)).filter(id => UUID_PATTERN.test(id))));
+}
+
+async function enrichCoursesWithVideoTaxonomy(
+  supabase: TrainingDatabaseClient,
+  courses: Record<string, unknown>[],
+): Promise<Record<string, unknown>[]> {
+  const courseIds = courses.map(course => String(course.id ?? '')).filter(Boolean);
+  if (!courseIds.length) return courses;
+
+  const [{data: options, error: optionsError}, {data: links, error: linksError}] = await Promise.all([
+    supabase.from('training_video_taxonomy_options').select('*'),
+    supabase.from('training_course_video_quality_tags').select('course_id, tag_id').in('course_id', courseIds),
+  ]);
+  if (optionsError) throw optionsError;
+  if (linksError) throw linksError;
+
+  const optionById = new Map((options ?? []).map(option => [String(option.id), option]));
+  const tagIdsByCourse = new Map<string, string[]>();
+  for (const link of links ?? []) {
+    const courseId = String(link.course_id);
+    const ids = tagIdsByCourse.get(courseId) ?? [];
+    ids.push(String(link.tag_id));
+    tagIdsByCourse.set(courseId, ids);
+  }
+
+  return courses.map(course => {
+    const courseId = String(course.id ?? '');
+    const taskCategoryId = course.video_task_category_id ? String(course.video_task_category_id) : '';
+    const qualityTagIds = tagIdsByCourse.get(courseId) ?? [];
+    const qualityTags = qualityTagIds
+      .map(id => optionById.get(id))
+      .filter((option): option is Record<string, unknown> => Boolean(option));
+    return {
+      ...course,
+      task_category: taskCategoryId ? optionById.get(taskCategoryId) ?? null : null,
+      quality_tag_ids: qualityTagIds,
+      quality_tags: qualityTags,
+    };
+  });
+}
+
+async function validateVideoTaxonomySelection(
+  supabase: TrainingDatabaseClient,
+  polarity: VideoPolarity | undefined,
+  taskCategoryId: string | null | undefined,
+  qualityTagIds: string[] | undefined,
+): Promise<string | null> {
+  if (taskCategoryId && !UUID_PATTERN.test(taskCategoryId)) return '任务分类格式无效';
+  const ids = Array.from(new Set([
+    ...(taskCategoryId ? [taskCategoryId] : []),
+    ...(qualityTagIds ?? []),
+  ]));
+  if (!ids.length) return null;
+
+  const {data, error} = await supabase
+    .from('training_video_taxonomy_options')
+    .select('id, kind, polarity, is_active')
+    .in('id', ids);
+  if (error) throw error;
+  const optionById = new Map((data ?? []).map(option => [String(option.id), option]));
+  if (ids.some(id => !optionById.has(id))) return '所选分类或标签不存在';
+
+  if (taskCategoryId) {
+    const task = optionById.get(taskCategoryId);
+    if (task?.kind !== 'task') return '所选任务分类无效';
+    if (!task.is_active) return '所选任务分类已停用';
+  }
+
+  for (const id of qualityTagIds ?? []) {
+    const tag = optionById.get(id);
+    if (tag?.kind !== 'quality') return '所选质量标签无效';
+    if (!tag.is_active) return '所选质量标签已停用';
+    if (polarity && tag.polarity !== polarity) return '质量标签与视频性质不匹配';
+  }
+  return null;
+}
+
 // =============================================================================
 // Courses
 // =============================================================================
@@ -116,7 +215,8 @@ const listOrGetCourse = async (req: Request): Promise<Response> => {
       if (error || !data) {
         return jsonRes({ error: { code: 'NOT_FOUND', message: `Course (${id}) not found` } }, 404);
       }
-      return jsonRes(data);
+      const [enriched] = await enrichCoursesWithVideoTaxonomy(supabase, [data]);
+      return jsonRes(enriched);
     }
 
     // GET /training/courses — list with filters
@@ -140,8 +240,9 @@ const listOrGetCourse = async (req: Request): Promise<Response> => {
 
     const { data, count, error } = await query;
     if (error) throw error;
+    const items = await enrichCoursesWithVideoTaxonomy(supabase, (data ?? []) as Record<string, unknown>[]);
 
-    return jsonRes({ items: data ?? [], total: count ?? 0, page, pageSize });
+    return jsonRes({ items, total: count ?? 0, page, pageSize });
   } catch (e) {
     console.error('[training courses]', e);
     return jsonRes({ error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch courses' } }, 500);
@@ -151,15 +252,42 @@ const listOrGetCourse = async (req: Request): Promise<Response> => {
 const createCourse = async (req: Request): Promise<Response> => {
   try {
     const supabase = createSupabaseAdmin(req);
-    const body = await req.json();
+    const body = await req.json() as Record<string, unknown>;
     if (!body.title) {
       return jsonRes({ error: { code: 'VALIDATION_ERROR', message: 'title is required' } }, 400);
+    }
+
+    const explicitPolarity = body.videoPolarity;
+    if (explicitPolarity !== undefined && explicitPolarity !== 'positive' && explicitPolarity !== 'negative') {
+      return jsonRes({ error: { code: 'VALIDATION_ERROR', message: '视频性质无效' } }, 400);
+    }
+    const videoPolarity = normalizeVideoPolarity(explicitPolarity, body.category);
+    const taskCategoryId = body.taskCategoryId === null || body.taskCategoryId === ''
+      ? null
+      : body.taskCategoryId === undefined ? undefined : String(body.taskCategoryId);
+    const qualityTagIds = normalizeTaxonomyIds(body.qualityTagIds);
+    if (Array.isArray(body.qualityTagIds) && qualityTagIds.length !== body.qualityTagIds.length) {
+      return jsonRes({ error: { code: 'VALIDATION_ERROR', message: '质量标签格式无效' } }, 400);
+    }
+    const taxonomyError = await validateVideoTaxonomySelection(
+      supabase,
+      videoPolarity,
+      taskCategoryId,
+      qualityTagIds,
+    );
+    if (taxonomyError) {
+      return jsonRes({ error: { code: 'VALIDATION_ERROR', message: taxonomyError } }, 400);
+    }
+
+    const videoSeverity = normalizeVideoSeverity(body.videoSeverity);
+    if (body.videoSeverity !== undefined && body.videoSeverity !== null && videoSeverity === null) {
+      return jsonRes({ error: { code: 'VALIDATION_ERROR', message: '严重程度无效' } }, 400);
     }
 
     const { data, error } = await supabase.from('training_courses').insert({
       title: body.title,
       description: body.description ?? null,
-      category: body.category ?? '综合',
+      category: body.category ?? (videoPolarity === 'positive' ? '正向视频' : videoPolarity === 'negative' ? '负向视频' : '综合'),
       difficulty: body.difficulty ?? '初级',
       duration_minutes: body.durationMinutes ?? 30,
       content: body.content ?? [],
@@ -167,10 +295,24 @@ const createCourse = async (req: Request): Promise<Response> => {
       assessment_config: body.assessmentConfig ?? {},
       position_id: body.positionId ?? null,
       competency_dimension: body.competencyDimension ?? null,
+      video_polarity: videoPolarity ?? null,
+      video_task_category_id: taskCategoryId ?? null,
+      video_severity: videoPolarity === 'negative' ? videoSeverity ?? null : null,
+      video_review_note: body.videoReviewNote ? String(body.videoReviewNote).trim().slice(0, 1000) : null,
     }).select().single();
 
     if (error) throw error;
-    return jsonRes(data, 201);
+    if (qualityTagIds.length) {
+      const {error: tagError} = await supabase.from('training_course_video_quality_tags').insert(
+        qualityTagIds.map(tagId => ({course_id: data.id, tag_id: tagId})),
+      );
+      if (tagError) {
+        await supabase.from('training_courses').delete().eq('id', data.id);
+        throw tagError;
+      }
+    }
+    const [enriched] = await enrichCoursesWithVideoTaxonomy(supabase, [data]);
+    return jsonRes(enriched, 201);
   } catch (e) {
     console.error('[training courses create]', e);
     return jsonRes({ error: { code: 'INTERNAL_ERROR', message: 'Failed to create course' } }, 500);
@@ -184,7 +326,49 @@ const updateCourse = async (req: Request): Promise<Response> => {
     const id = segments[0];
     if (!id) return jsonRes({ error: { code: 'VALIDATION_ERROR', message: 'Course ID required' } }, 400);
 
-    const body = await req.json();
+    const body = await req.json() as Record<string, unknown>;
+    const {data: current, error: currentError} = await supabase
+      .from('training_courses')
+      .select('*')
+      .eq('id', id)
+      .single();
+    if (currentError || !current) {
+      return jsonRes({ error: { code: 'NOT_FOUND', message: 'Course not found' } }, 404);
+    }
+
+    const polarityProvided = Object.prototype.hasOwnProperty.call(body, 'videoPolarity');
+    if (polarityProvided && body.videoPolarity !== null && body.videoPolarity !== 'positive' && body.videoPolarity !== 'negative') {
+      return jsonRes({ error: { code: 'VALIDATION_ERROR', message: '视频性质无效' } }, 400);
+    }
+    const currentPolarity = normalizeVideoPolarity(current.video_polarity, current.category);
+    const effectivePolarity = polarityProvided
+      ? normalizeVideoPolarity(body.videoPolarity, body.category)
+      : normalizeVideoPolarity(undefined, body.category) ?? currentPolarity;
+    const taskCategoryProvided = Object.prototype.hasOwnProperty.call(body, 'taskCategoryId');
+    const taskCategoryId = !taskCategoryProvided
+      ? undefined
+      : body.taskCategoryId === null || body.taskCategoryId === '' ? null : String(body.taskCategoryId);
+    const qualityTagsProvided = Object.prototype.hasOwnProperty.call(body, 'qualityTagIds')
+      || polarityProvided;
+    const qualityTagIds = qualityTagsProvided ? normalizeTaxonomyIds(body.qualityTagIds ?? []) : undefined;
+    if (Array.isArray(body.qualityTagIds) && qualityTagIds && qualityTagIds.length !== body.qualityTagIds.length) {
+      return jsonRes({ error: { code: 'VALIDATION_ERROR', message: '质量标签格式无效' } }, 400);
+    }
+    const taxonomyError = await validateVideoTaxonomySelection(
+      supabase,
+      effectivePolarity,
+      taskCategoryId,
+      qualityTagIds,
+    );
+    if (taxonomyError) {
+      return jsonRes({ error: { code: 'VALIDATION_ERROR', message: taxonomyError } }, 400);
+    }
+
+    const severityProvided = Object.prototype.hasOwnProperty.call(body, 'videoSeverity');
+    const videoSeverity = normalizeVideoSeverity(body.videoSeverity);
+    if (severityProvided && body.videoSeverity !== null && body.videoSeverity !== '' && videoSeverity === null) {
+      return jsonRes({ error: { code: 'VALIDATION_ERROR', message: '严重程度无效' } }, 400);
+    }
     const updates: Record<string, unknown> = {};
     const fieldMap: Record<string, string> = {
       title: 'title', description: 'description', category: 'category',
@@ -200,19 +384,63 @@ const updateCourse = async (req: Request): Promise<Response> => {
       }
     }
 
-    if (Object.keys(updates).length === 0) {
+    if (polarityProvided) {
+      updates.video_polarity = body.videoPolarity ?? null;
+      if (body.category === undefined && effectivePolarity) {
+        updates.category = effectivePolarity === 'positive' ? '正向视频' : '负向视频';
+      }
+      if (effectivePolarity !== 'negative') updates.video_severity = null;
+    }
+    if (taskCategoryProvided) updates.video_task_category_id = taskCategoryId;
+    if (severityProvided && effectivePolarity === 'negative') updates.video_severity = videoSeverity;
+    if (Object.prototype.hasOwnProperty.call(body, 'videoReviewNote')) {
+      updates.video_review_note = body.videoReviewNote
+        ? String(body.videoReviewNote).trim().slice(0, 1000)
+        : null;
+    }
+
+    if (Object.keys(updates).length === 0 && !qualityTagsProvided) {
       return jsonRes({ error: { code: 'VALIDATION_ERROR', message: 'No fields to update' } }, 400);
     }
 
-    updates['updated_at'] = new Date().toISOString();
-
-    const { data, error } = await supabase.from('training_courses')
-      .update(updates).eq('id', id).select().single();
-
-    if (error || !data) {
-      return jsonRes({ error: { code: 'NOT_FOUND', message: 'Course not found' } }, 404);
+    let data = current;
+    if (Object.keys(updates).length > 0) {
+      updates.updated_at = new Date().toISOString();
+      const result = await supabase.from('training_courses')
+        .update(updates).eq('id', id).select().single();
+      if (result.error || !result.data) throw result.error ?? new Error('Course update failed');
+      data = result.data;
     }
-    return jsonRes(data);
+
+    if (qualityTagsProvided && qualityTagIds) {
+      const {data: oldLinks, error: oldLinksError} = await supabase
+        .from('training_course_video_quality_tags')
+        .select('tag_id')
+        .eq('course_id', id);
+      if (oldLinksError) throw oldLinksError;
+      const {error: deleteError} = await supabase
+        .from('training_course_video_quality_tags')
+        .delete()
+        .eq('course_id', id);
+      if (deleteError) throw deleteError;
+      if (qualityTagIds.length) {
+        const {error: insertError} = await supabase.from('training_course_video_quality_tags').insert(
+          qualityTagIds.map(tagId => ({course_id: id, tag_id: tagId})),
+        );
+        if (insertError) {
+          const previousTagIds = (oldLinks ?? []).map(link => String(link.tag_id));
+          if (previousTagIds.length) {
+            await supabase.from('training_course_video_quality_tags').insert(
+              previousTagIds.map(tagId => ({course_id: id, tag_id: tagId})),
+            );
+          }
+          throw insertError;
+        }
+      }
+    }
+
+    const [enriched] = await enrichCoursesWithVideoTaxonomy(supabase, [data]);
+    return jsonRes(enriched);
   } catch (e) {
     console.error('[training courses update]', e);
     return jsonRes({ error: { code: 'INTERNAL_ERROR', message: 'Failed to update course' } }, 500);
@@ -234,6 +462,127 @@ const deleteCourse = async (req: Request): Promise<Response> => {
   } catch (e) {
     console.error('[training courses delete]', e);
     return jsonRes({ error: { code: 'INTERNAL_ERROR', message: 'Failed to delete course' } }, 500);
+  }
+};
+
+// =============================================================================
+// Video taxonomy options
+// =============================================================================
+
+export const handleVideoTaxonomy = async (req: Request): Promise<Response> => {
+  try {
+    const supabase = createSupabaseAdmin(req);
+    const segments = getPathSegments(req, '/training/video-taxonomy');
+    const optionId = segments[0];
+
+    if (req.method === 'GET') {
+      const includeInactive = getQuery(req, 'includeInactive') === 'true';
+      let query = supabase
+        .from('training_video_taxonomy_options')
+        .select('*')
+        .order('sort_order', {ascending: true})
+        .order('name', {ascending: true});
+      if (!includeInactive) query = query.eq('is_active', true);
+      const {data, error} = await query;
+      if (error) throw error;
+      return jsonRes({items: data ?? []});
+    }
+
+    if (req.method === 'POST') {
+      const body = await req.json() as Record<string, unknown>;
+      const kind = body.kind === 'task' || body.kind === 'quality' ? body.kind : '';
+      const polarity = body.polarity === 'positive' || body.polarity === 'negative' ? body.polarity : null;
+      const name = String(body.name ?? '').trim().slice(0, 100);
+      if (!kind || !name || (kind === 'quality' && !polarity)) {
+        return jsonRes({ error: { code: 'VALIDATION_ERROR', message: '分类名称、类型和方向不完整' } }, 400);
+      }
+      const {data: lastOption} = await supabase
+        .from('training_video_taxonomy_options')
+        .select('sort_order')
+        .eq('kind', kind)
+        .order('sort_order', {ascending: false})
+        .limit(1)
+        .maybeSingle();
+      const requestedSortOrder = Number(body.sortOrder);
+      const sortOrder = Number.isFinite(requestedSortOrder)
+        ? Math.trunc(requestedSortOrder)
+        : Number(lastOption?.sort_order ?? 0) + 10;
+      const {data, error} = await supabase
+        .from('training_video_taxonomy_options')
+        .insert({kind, polarity: kind === 'quality' ? polarity : null, name, sort_order: sortOrder})
+        .select()
+        .single();
+      if (error?.code === '23505') {
+        return jsonRes({ error: { code: 'DUPLICATE', message: '同名分类或标签已经存在' } }, 409);
+      }
+      if (error) throw error;
+      return jsonRes(data, 201);
+    }
+
+    if (!optionId || !UUID_PATTERN.test(optionId)) {
+      return jsonRes({ error: { code: 'VALIDATION_ERROR', message: '分类 ID 无效' } }, 400);
+    }
+
+    if (req.method === 'PATCH') {
+      const body = await req.json() as Record<string, unknown>;
+      const updates: Record<string, unknown> = {};
+      if (body.name !== undefined) {
+        const name = String(body.name).trim().slice(0, 100);
+        if (!name) return jsonRes({ error: { code: 'VALIDATION_ERROR', message: '分类名称不能为空' } }, 400);
+        updates.name = name;
+      }
+      if (body.sortOrder !== undefined) {
+        const sortOrder = Number(body.sortOrder);
+        if (!Number.isFinite(sortOrder)) {
+          return jsonRes({ error: { code: 'VALIDATION_ERROR', message: '排序值无效' } }, 400);
+        }
+        updates.sort_order = Math.trunc(sortOrder);
+      }
+      if (body.isActive !== undefined) updates.is_active = Boolean(body.isActive);
+      if (!Object.keys(updates).length) {
+        return jsonRes({ error: { code: 'VALIDATION_ERROR', message: '没有可保存的修改' } }, 400);
+      }
+      updates.updated_at = new Date().toISOString();
+      const {data, error} = await supabase
+        .from('training_video_taxonomy_options')
+        .update(updates)
+        .eq('id', optionId)
+        .select()
+        .single();
+      if (error?.code === '23505') {
+        return jsonRes({ error: { code: 'DUPLICATE', message: '同名分类或标签已经存在' } }, 409);
+      }
+      if (error || !data) {
+        return jsonRes({ error: { code: 'NOT_FOUND', message: '分类不存在' } }, 404);
+      }
+      return jsonRes(data);
+    }
+
+    if (req.method === 'DELETE') {
+      const {data: option, error: optionError} = await supabase
+        .from('training_video_taxonomy_options')
+        .select('id, kind')
+        .eq('id', optionId)
+        .single();
+      if (optionError || !option) {
+        return jsonRes({ error: { code: 'NOT_FOUND', message: '分类不存在' } }, 404);
+      }
+      const usageResult = option.kind === 'task'
+        ? await supabase.from('training_courses').select('id', {count: 'exact', head: true}).eq('video_task_category_id', optionId)
+        : await supabase.from('training_course_video_quality_tags').select('course_id', {count: 'exact', head: true}).eq('tag_id', optionId);
+      if (usageResult.error) throw usageResult.error;
+      if ((usageResult.count ?? 0) > 0) {
+        return jsonRes({ error: { code: 'IN_USE', message: '该分类已被视频使用，请改为停用' } }, 409);
+      }
+      const {error} = await supabase.from('training_video_taxonomy_options').delete().eq('id', optionId);
+      if (error) throw error;
+      return jsonRes({deleted: true, id: optionId});
+    }
+
+    return jsonRes({ error: { code: 'METHOD_NOT_ALLOWED', message: 'Method not allowed' } }, 405);
+  } catch (e) {
+    console.error('[training video taxonomy]', e);
+    return jsonRes({ error: { code: 'INTERNAL_ERROR', message: 'Failed to manage video taxonomy' } }, 500);
   }
 };
 
@@ -817,7 +1166,8 @@ const publicVideoCourseHandler = async (req: Request): Promise<Response> => {
       return jsonRes({ error: { code: 'NOT_FOUND', message: 'Course not found' } }, 404);
     }
 
-    return jsonRes({ course: data });
+    const [course] = await enrichCoursesWithVideoTaxonomy(supabase, [data]);
+    return jsonRes({ course });
   } catch (e) {
     console.error('[training public video]', e);
     return jsonRes({ error: { code: 'INTERNAL_ERROR', message: 'Failed to load course' } }, 500);

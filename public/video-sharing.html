@@ -69,6 +69,23 @@
       .category-filter[data-category="positive"].active { background: #047857; border-color: #047857; color: #fff; }
       .category-filter[data-category="negative"].active { background: #be123c; border-color: #be123c; color: #fff; }
       .category-filter[data-category="other"].active { background: #334155; border-color: #334155; color: #fff; }
+      .taxonomy-filters { display: grid; gap: 10px; }
+      .taxonomy-group { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 8px; align-items: start; }
+      .taxonomy-label { padding-top: 7px; color: #64748b; font-size: 12px; font-weight: 700; }
+      .taxonomy-options { display: flex; gap: 7px; overflow-x: auto; padding-bottom: 2px; }
+      .taxonomy-option {
+        flex: 0 0 auto;
+        min-height: 34px;
+        border: 1px solid #dbe3ef;
+        border-radius: 7px;
+        background: #fff;
+        color: #475569;
+        padding: 7px 10px;
+        font-size: 12px;
+        font-weight: 700;
+        white-space: nowrap;
+      }
+      .taxonomy-option.active { background: #111827; border-color: #111827; color: #fff; }
       .message {
         margin: 12px 0;
         padding: 14px;
@@ -130,6 +147,11 @@
       .tag-positive { background: #ecfdf5; border-color: #a7f3d0; color: #047857; }
       .tag-negative { background: #fff1f2; border-color: #fecdd3; color: #be123c; }
       .tag-other { background: #f1f5f9; border-color: #cbd5e1; color: #475569; }
+      .tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px; }
+      .tags .tag { margin-top: 0; }
+      .tag-task { background: #eff6ff; border-color: #bfdbfe; color: #1d4ed8; }
+      .tag-quality { background: #f8fafc; border-color: #cbd5e1; color: #475569; }
+      .tag-severity { background: #fff7ed; border-color: #fed7aa; color: #c2410c; }
       .actions {
         display: grid;
         grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -182,6 +204,16 @@
 
       <section class="toolbar">
         <div id="category-filters" class="category-filters" role="tablist" aria-label="视频分类"></div>
+        <div id="taxonomy-filters" class="taxonomy-filters" hidden>
+          <div id="task-group" class="taxonomy-group" hidden>
+            <span class="taxonomy-label">任务分类</span>
+            <div id="task-filters" class="taxonomy-options" role="tablist" aria-label="任务分类"></div>
+          </div>
+          <div id="quality-group" class="taxonomy-group" hidden>
+            <span class="taxonomy-label">质量标签</span>
+            <div id="quality-filters" class="taxonomy-options" role="tablist" aria-label="质量标签"></div>
+          </div>
+        </div>
         <input id="search" class="search" type="search" placeholder="搜索标题、课程、分类" />
         <div class="filters" role="tablist">
           <button class="filter active" type="button" data-filter="all">全部</button>
@@ -202,8 +234,15 @@
         var messageEl = document.getElementById('message');
         var searchEl = document.getElementById('search');
         var categoryFiltersEl = document.getElementById('category-filters');
+        var taxonomyFiltersEl = document.getElementById('taxonomy-filters');
+        var taskGroupEl = document.getElementById('task-group');
+        var qualityGroupEl = document.getElementById('quality-group');
+        var taskFiltersEl = document.getElementById('task-filters');
+        var qualityFiltersEl = document.getElementById('quality-filters');
         var activeFilter = 'all';
         var activeCategory = 'positive';
+        var activeTask = 'all';
+        var activeQuality = 'all';
         var assets = [];
 
         function getStoredToken() {
@@ -342,6 +381,19 @@
             var course = courses[i];
             var token = course.share_token || course.shareToken || '';
             if (!token) continue;
+            var explicitPolarity = course.video_polarity || course.videoPolarity || '';
+            var taskCategory = course.task_category || course.taskCategory || null;
+            var rawQualityTags = course.quality_tags || course.qualityTags || [];
+            var qualityTags = [];
+            if (Array.isArray(rawQualityTags)) {
+              for (var tagIndex = 0; tagIndex < rawQualityTags.length; tagIndex += 1) {
+                if (!rawQualityTags[tagIndex] || !rawQualityTags[tagIndex].id) continue;
+                qualityTags.push({
+                  id: String(rawQualityTags[tagIndex].id),
+                  name: String(rawQualityTags[tagIndex].name || '')
+                });
+              }
+            }
             var items = getCourseItems(course);
             for (var j = 0; j < items.length; j += 1) {
               var ext = getExtension(items[j].url);
@@ -354,13 +406,24 @@
                 courseTitle: course.title || '培训资料',
                 courseDescription: course.description || '',
                 category: course.category || '综合',
+                polarity: explicitPolarity,
+                taskCategory: taskCategory && taskCategory.id ? {
+                  id: String(taskCategory.id), name: String(taskCategory.name || '')
+                } : null,
+                qualityTags: qualityTags,
+                severity: course.video_severity || course.videoSeverity || '',
+                reviewNote: course.video_review_note || course.videoReviewNote || '',
                 title: items[j].title,
                 url: items[j].url,
                 sourceLabel: items[j].sourceLabel,
                 kind: isVideo ? 'video' : 'document',
                 kindLabel: kindLabel,
                 extension: ext,
-                searchText: [course.title, course.description, course.category, items[j].title, kindLabel, ext].join(' ').toLowerCase()
+                searchText: [
+                  course.title, course.description, course.category, items[j].title, kindLabel, ext,
+                  taskCategory && taskCategory.name, qualityTags.map(function (tag) { return tag.name; }).join(' '),
+                  course.video_review_note || course.videoReviewNote
+                ].join(' ').toLowerCase()
               });
             }
           }
@@ -375,6 +438,8 @@
 
         function categoryGroup(asset) {
           if (asset.kind !== 'video') return 'other';
+          if (asset.polarity === 'positive') return 'positive';
+          if (asset.polarity === 'negative') return 'negative';
           if (asset.category === '正向视频') return 'positive';
           if (asset.category === '负向视频' || asset.category === '负面视频') return 'negative';
           return 'other';
@@ -400,23 +465,106 @@
             button.textContent = category.label + ' ' + count;
             button.addEventListener('click', function () {
               activeCategory = this.getAttribute('data-category') || 'positive';
+              activeTask = 'all';
+              activeQuality = 'all';
               renderCategoryFilters();
+              renderTaxonomyFilters();
               render();
             });
             categoryFiltersEl.appendChild(button);
           }
         }
 
+        function uniqueOptions(items, selector) {
+          var seen = {};
+          var result = [];
+          for (var i = 0; i < items.length; i += 1) {
+            var values = selector(items[i]) || [];
+            for (var j = 0; j < values.length; j += 1) {
+              var value = values[j];
+              if (!value || !value.id || seen[value.id]) continue;
+              seen[value.id] = true;
+              result.push(value);
+            }
+          }
+          return result.sort(function (a, b) { return a.name.localeCompare(b.name, 'zh-CN'); });
+        }
+
+        function renderTaxonomyOption(container, id, label, count, attribute, isActive, onClick) {
+          var button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'taxonomy-option' + (isActive ? ' active' : '');
+          button.setAttribute(attribute, id);
+          button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+          button.textContent = label + ' ' + count;
+          button.addEventListener('click', onClick);
+          container.appendChild(button);
+        }
+
+        function renderTaxonomyFilters() {
+          var scoped = assets.filter(function (asset) { return categoryGroup(asset) === activeCategory; });
+          var tasks = uniqueOptions(scoped, function (asset) { return asset.taskCategory ? [asset.taskCategory] : []; });
+          var qualityTags = uniqueOptions(scoped, function (asset) { return asset.qualityTags; });
+          if (activeTask !== 'all' && !tasks.some(function (task) { return task.id === activeTask; })) activeTask = 'all';
+          if (activeQuality !== 'all' && !qualityTags.some(function (tag) { return tag.id === activeQuality; })) activeQuality = 'all';
+
+          taskFiltersEl.innerHTML = '';
+          qualityFiltersEl.innerHTML = '';
+          taskGroupEl.hidden = tasks.length === 0;
+          qualityGroupEl.hidden = qualityTags.length === 0;
+          taxonomyFiltersEl.hidden = tasks.length === 0 && qualityTags.length === 0;
+
+          if (tasks.length) {
+            renderTaxonomyOption(taskFiltersEl, 'all', '全部任务', scoped.length, 'data-task', activeTask === 'all', function () {
+              activeTask = 'all'; renderTaxonomyFilters(); render();
+            });
+            for (var i = 0; i < tasks.length; i += 1) {
+              (function (task) {
+                var count = scoped.filter(function (asset) { return asset.taskCategory && asset.taskCategory.id === task.id; }).length;
+                renderTaxonomyOption(taskFiltersEl, task.id, task.name, count, 'data-task', activeTask === task.id, function () {
+                  activeTask = task.id; renderTaxonomyFilters(); render();
+                });
+              })(tasks[i]);
+            }
+          }
+
+          if (qualityTags.length) {
+            renderTaxonomyOption(qualityFiltersEl, 'all', '全部标签', scoped.length, 'data-quality', activeQuality === 'all', function () {
+              activeQuality = 'all'; renderTaxonomyFilters(); render();
+            });
+            for (var j = 0; j < qualityTags.length; j += 1) {
+              (function (qualityTag) {
+                var count = scoped.filter(function (asset) {
+                  return asset.qualityTags.some(function (tag) { return tag.id === qualityTag.id; });
+                }).length;
+                renderTaxonomyOption(qualityFiltersEl, qualityTag.id, qualityTag.name, count, 'data-quality', activeQuality === qualityTag.id, function () {
+                  activeQuality = qualityTag.id; renderTaxonomyFilters(); render();
+                });
+              })(qualityTags[j]);
+            }
+          }
+        }
+
+        function severityLabel(value) {
+          if (value === 'minor') return '轻微';
+          if (value === 'moderate') return '明显';
+          if (value === 'severe') return '严重';
+          return '';
+        }
+
         function render() {
           var query = (searchEl.value || '').trim().toLowerCase();
           var filtered = assets.filter(function (asset) {
             var inCategory = categoryGroup(asset) === activeCategory;
+            var taskMatched = activeTask === 'all' || (asset.taskCategory && asset.taskCategory.id === activeTask);
+            var qualityMatched = activeQuality === 'all'
+              || asset.qualityTags.some(function (tag) { return tag.id === activeQuality; });
             var kindMatched = activeFilter === 'all'
               || asset.kind === activeFilter
               || (activeFilter === 'pdf' && asset.extension === 'pdf')
               || (activeFilter === 'word' && (asset.extension === 'doc' || asset.extension === 'docx'));
             var queryMatched = !query || asset.searchText.indexOf(query) !== -1;
-            return inCategory && kindMatched && queryMatched;
+            return inCategory && taskMatched && qualityMatched && kindMatched && queryMatched;
           });
           listEl.innerHTML = '';
           if (!filtered.length) {
@@ -436,7 +584,7 @@
               + '<p class="title"></p>'
               + '<p class="meta"></p>'
               + '<p class="course"></p>'
-              + '<span class="tag"></span>'
+              + '<div class="tags"></div>'
               + '</div></div>'
               + '<div class="actions">'
               + '<a class="button primary" target="_blank" rel="noreferrer">打开</a>'
@@ -446,9 +594,37 @@
             card.querySelector('.title').textContent = asset.title;
             card.querySelector('.meta').textContent = asset.kindLabel + ' · ' + (asset.extension || 'file') + ' · ' + asset.sourceLabel;
             card.querySelector('.course').textContent = asset.courseTitle;
-            var tag = card.querySelector('.tag');
-            tag.className = 'tag tag-' + categoryGroup(asset);
-            tag.textContent = asset.category;
+            var tags = card.querySelector('.tags');
+            var polarityTag = document.createElement('span');
+            polarityTag.className = 'tag tag-' + categoryGroup(asset);
+            polarityTag.textContent = categoryGroup(asset) === 'positive' ? '正向视频'
+              : categoryGroup(asset) === 'negative' ? '负向视频' : asset.category;
+            tags.appendChild(polarityTag);
+            if (asset.taskCategory) {
+              var taskTag = document.createElement('span');
+              taskTag.className = 'tag tag-task';
+              taskTag.textContent = asset.taskCategory.name;
+              tags.appendChild(taskTag);
+            }
+            for (var tagIndex = 0; tagIndex < Math.min(2, asset.qualityTags.length); tagIndex += 1) {
+              var qualityTag = document.createElement('span');
+              qualityTag.className = 'tag tag-quality';
+              qualityTag.textContent = asset.qualityTags[tagIndex].name;
+              tags.appendChild(qualityTag);
+            }
+            if (asset.qualityTags.length > 2) {
+              var overflowTag = document.createElement('span');
+              overflowTag.className = 'tag tag-quality';
+              overflowTag.textContent = '+' + (asset.qualityTags.length - 2);
+              tags.appendChild(overflowTag);
+            }
+            var severity = severityLabel(asset.severity);
+            if (severity) {
+              var severityTag = document.createElement('span');
+              severityTag.className = 'tag tag-severity';
+              severityTag.textContent = severity;
+              tags.appendChild(severityTag);
+            }
             var links = card.querySelectorAll('a.button');
             links[0].href = openUrl;
             links[1].href = courseUrl;
@@ -481,6 +657,7 @@
             assets = normalizeCourses(data);
             updateStats();
             renderCategoryFilters();
+            renderTaxonomyFilters();
             messageEl.textContent = assets.length ? '请选择需要学习的资料。' : '暂无可打开的培训资料。';
             render();
           },

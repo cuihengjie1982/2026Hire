@@ -32,7 +32,12 @@ import {
   type ActionCaptionJob,
 } from '../actionCaptionJobs';
 import {CATEGORY_COLORS, TRAINING_CATEGORIES} from '../courseCategories';
-import type {LearningPath} from '../types';
+import {
+  resolveVideoPolarity,
+  VIDEO_POLARITY_LABELS,
+  VIDEO_SEVERITY_LABELS,
+} from '../videoTaxonomy';
+import type {LearningPath, VideoPolarity, VideoSeverity, VideoTaxonomy} from '../types';
 
 type TabId = 'courses' | 'enrollments' | 'analysis' | 'effectiveness' | 'paths';
 
@@ -622,7 +627,7 @@ export const VideoShareTab = ({courses, readonly = false, publicAccess = false, 
       sourceLabel: item.sourceLabel,
       extension,
       captionsCount: item.kind === 'video' ? getActionCaptionsForUrl(course, item.url).length : 0,
-      searchText: `${course.title} ${course.description} ${course.category} ${item.title} ${kindLabel} ${extension}`.toLowerCase(),
+      searchText: `${course.title} ${course.description} ${course.category} ${course.taskCategory?.name ?? ''} ${(course.qualityTags ?? []).map(tag => tag.name).join(' ')} ${course.videoReviewNote ?? ''} ${item.title} ${kindLabel} ${extension}`.toLowerCase(),
     };
   }));
   const categories = Array.from(new Set(assets.map(asset => asset.course.category || '综合'))).sort((a, b) => a.localeCompare(b, 'zh-Hans-CN'));
@@ -635,21 +640,35 @@ export const VideoShareTab = ({courses, readonly = false, publicAccess = false, 
   const [query, setQuery] = useState('');
   const [kindFilter, setKindFilter] = useState<AssetFilter>('all');
   const [categoryFilter, setCategoryFilter] = useState('全部');
+  const [taskFilter, setTaskFilter] = useState('全部');
+  const [qualityFilter, setQualityFilter] = useState('全部');
   const [page, setPage] = useState(1);
   const pageSize = 12;
   const canUsePublicLinks = publicAccess || !readonly;
+  const taxonomyScope = assets.filter(asset => categoryFilter === '全部' || asset.course.category === categoryFilter);
+  const taskOptions = Array.from(new Map(
+    taxonomyScope
+      .filter(asset => asset.course.taskCategory)
+      .map(asset => [asset.course.taskCategory!.id, asset.course.taskCategory!]),
+  ).values()).sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name, 'zh-Hans-CN'));
+  const qualityOptions = Array.from(new Map(
+    taxonomyScope.flatMap(asset => (asset.course.qualityTags ?? []).map(tag => [tag.id, tag] as const)),
+  ).values()).sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name, 'zh-Hans-CN'));
 
   const filteredAssets = assets.filter(asset => {
     const normalizedQuery = query.trim().toLowerCase();
     const matchesSearch = !normalizedQuery || asset.searchText.includes(normalizedQuery);
     const matchesCategory = categoryFilter === '全部' || asset.course.category === categoryFilter;
+    const matchesTask = taskFilter === '全部' || asset.course.taskCategory?.id === taskFilter;
+    const matchesQuality = qualityFilter === '全部'
+      || (asset.course.qualityTags ?? []).some(tag => tag.id === qualityFilter);
     const matchesKind = kindFilter === 'all'
       || (kindFilter === 'video' && asset.kind === 'video')
       || (kindFilter === 'document' && asset.kind === 'document')
       || (kindFilter === 'pdf' && asset.extension === 'pdf')
       || (kindFilter === 'word' && ['doc', 'docx'].includes(asset.extension))
       || (kindFilter === 'other' && asset.kind === 'document' && !['pdf', 'doc', 'docx'].includes(asset.extension));
-    return matchesSearch && matchesCategory && matchesKind;
+    return matchesSearch && matchesCategory && matchesTask && matchesQuality && matchesKind;
   });
   const totalPages = Math.max(1, Math.ceil(filteredAssets.length / pageSize));
   const safePage = Math.min(page, totalPages);
@@ -663,7 +682,12 @@ export const VideoShareTab = ({courses, readonly = false, publicAccess = false, 
 
   useEffect(() => {
     setPage(1);
-  }, [query, kindFilter, categoryFilter]);
+  }, [query, kindFilter, categoryFilter, taskFilter, qualityFilter]);
+
+  useEffect(() => {
+    setTaskFilter('全部');
+    setQualityFilter('全部');
+  }, [categoryFilter]);
 
   useEffect(() => subscribeActionCaptionJobs(setCaptionJobs), []);
 
@@ -849,6 +873,63 @@ export const VideoShareTab = ({courses, readonly = false, publicAccess = false, 
                 );
               })}
             </div>
+
+            {(taskOptions.length > 0 || qualityOptions.length > 0) && (
+              <div className="space-y-2 border-t border-border-subtle pt-3">
+                {taskOptions.length > 0 && (
+                  <div className="flex items-start gap-3">
+                    <span className="w-16 shrink-0 pt-1.5 text-xs font-medium text-fg-muted">任务分类</span>
+                    <div className="flex min-w-0 gap-2 overflow-x-auto pb-1">
+                      {[{id: '全部', name: '全部任务'}, ...taskOptions].map(option => {
+                        const count = option.id === '全部'
+                          ? taxonomyScope.length
+                          : taxonomyScope.filter(asset => asset.course.taskCategory?.id === option.id).length;
+                        return (
+                          <button
+                            key={option.id}
+                            type="button"
+                            onClick={() => setTaskFilter(option.id)}
+                            className={`shrink-0 rounded-md border px-2.5 py-1.5 text-xs transition-colors ${
+                              taskFilter === option.id
+                                ? 'border-gray-900 bg-gray-900 text-white'
+                                : 'border-border bg-surface text-fg-secondary hover:bg-surface-muted'
+                            }`}
+                          >
+                            {option.name} <span className={taskFilter === option.id ? 'text-gray-300' : 'text-fg-faint'}>{count}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+                {qualityOptions.length > 0 && (
+                  <div className="flex items-start gap-3">
+                    <span className="w-16 shrink-0 pt-1.5 text-xs font-medium text-fg-muted">质量标签</span>
+                    <div className="flex min-w-0 gap-2 overflow-x-auto pb-1">
+                      {[{id: '全部', name: '全部标签'}, ...qualityOptions].map(option => {
+                        const count = option.id === '全部'
+                          ? taxonomyScope.length
+                          : taxonomyScope.filter(asset => (asset.course.qualityTags ?? []).some(tag => tag.id === option.id)).length;
+                        return (
+                          <button
+                            key={option.id}
+                            type="button"
+                            onClick={() => setQualityFilter(option.id)}
+                            className={`shrink-0 rounded-md border px-2.5 py-1.5 text-xs transition-colors ${
+                              qualityFilter === option.id
+                                ? 'border-[#1a4bc4] bg-[#1a4bc4] text-white'
+                                : 'border-border bg-surface text-fg-secondary hover:bg-surface-muted'
+                            }`}
+                          >
+                            {option.name} <span className={qualityFilter === option.id ? 'text-blue-100' : 'text-fg-faint'}>{count}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="hidden lg:block overflow-x-auto">
@@ -892,9 +973,25 @@ export const VideoShareTab = ({courses, readonly = false, publicAccess = false, 
                         <p className="text-xs text-fg-faint truncate max-w-[220px]">{asset.course.description || '暂无描述'}</p>
                       </td>
                       <td className="px-4 py-3">
-                        <span className={`px-2 py-0.5 rounded text-xs font-medium ${CATEGORY_COLORS[asset.course.category] ?? 'bg-surface-muted text-fg-secondary'}`}>
-                          {asset.course.category}
-                        </span>
+                        <div className="flex max-w-[220px] flex-wrap gap-1.5">
+                          <span className={`px-2 py-0.5 rounded text-xs font-medium ${CATEGORY_COLORS[asset.course.category] ?? 'bg-surface-muted text-fg-secondary'}`}>
+                            {asset.course.category}
+                          </span>
+                          {asset.course.taskCategory && (
+                            <span className="rounded bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">{asset.course.taskCategory.name}</span>
+                          )}
+                          {(asset.course.qualityTags ?? []).slice(0, 2).map(tag => (
+                            <span key={tag.id} className="rounded bg-surface-muted px-2 py-0.5 text-xs text-fg-secondary">{tag.name}</span>
+                          ))}
+                          {(asset.course.qualityTags?.length ?? 0) > 2 && (
+                            <span className="rounded bg-surface-muted px-2 py-0.5 text-xs text-fg-faint">+{asset.course.qualityTags!.length - 2}</span>
+                          )}
+                          {asset.course.videoSeverity && (
+                            <span className="rounded bg-orange-50 px-2 py-0.5 text-xs font-medium text-orange-700">
+                              {VIDEO_SEVERITY_LABELS[asset.course.videoSeverity]}
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-4 py-3">
                         <div className="space-y-1 text-xs">
@@ -986,8 +1083,8 @@ export const VideoShareTab = ({courses, readonly = false, publicAccess = false, 
             {pageAssets.map(asset => {
               const itemKey = getLinkKey(asset.course.id, asset.url);
               const courseLinkKey = getLinkKey(asset.course.id);
-                  const captionJob = getCaptionJobForAsset(asset.course.id, asset.url);
-                  const captionStatus = getCaptionStatus(asset, captionJob);
+              const captionJob = getCaptionJobForAsset(asset.course.id, asset.url);
+              const captionStatus = getCaptionStatus(asset, captionJob);
               const itemLoading = loadingId === itemKey;
               const isCaptionLoading = captionJob?.status === 'running';
               const progress = captionJob?.progress ?? 0;
@@ -1001,10 +1098,32 @@ export const VideoShareTab = ({courses, readonly = false, publicAccess = false, 
                     <div className="min-w-0 flex-1">
                       <p className="font-semibold text-fg">{asset.title}</p>
                       <p className="text-xs text-fg-faint mt-1">{asset.kindLabel} · {asset.extension || 'file'} · {asset.course.title}</p>
-                      <div className="flex flex-wrap items-center gap-2 mt-2">
+                      <div className="mt-2 flex flex-wrap items-center gap-1.5">
                         <span className={`px-2 py-0.5 rounded text-xs font-medium ${CATEGORY_COLORS[asset.course.category] ?? 'bg-surface-muted text-fg-secondary'}`}>
                           {asset.course.category}
                         </span>
+                        {asset.course.taskCategory && (
+                          <span className="rounded bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
+                            {asset.course.taskCategory.name}
+                          </span>
+                        )}
+                        {(asset.course.qualityTags ?? []).slice(0, 2).map(tag => (
+                          <span key={tag.id} className="rounded bg-surface-muted px-2 py-0.5 text-xs text-fg-secondary">
+                            {tag.name}
+                          </span>
+                        ))}
+                        {(asset.course.qualityTags?.length ?? 0) > 2 && (
+                          <span className="rounded bg-surface-muted px-2 py-0.5 text-xs text-fg-faint">
+                            +{asset.course.qualityTags!.length - 2}
+                          </span>
+                        )}
+                        {asset.course.videoSeverity && (
+                          <span className="rounded bg-orange-50 px-2 py-0.5 text-xs font-medium text-orange-700">
+                            {VIDEO_SEVERITY_LABELS[asset.course.videoSeverity]}
+                          </span>
+                        )}
+                      </div>
+                      <div className="mt-2 flex items-center">
                         <span className={`text-xs flex items-center gap-1 ${captionStatus.className}`} title={captionJob?.error}>
                           <Sparkles className="w-3 h-3" /> {captionStatus.text}
                         </span>
@@ -1420,7 +1539,7 @@ const EffectivenessTab = ({data}: {data: TrainingEffectiveness}) => {
   );
 };
 
-export const CreateCourseModal = ({initial, onClose, onSubmit, defaultContentType}: {
+export const CreateCourseModal = ({initial, onClose, onSubmit, defaultContentType, videoSharingMode = false, videoTaxonomy}: {
   initial?: TrainingCourse;
   onClose: () => void;
   onSubmit: (input: {
@@ -1429,12 +1548,22 @@ export const CreateCourseModal = ({initial, onClose, onSubmit, defaultContentTyp
     materials?: {title: string; type: string; url?: string}[];
     assessmentConfig?: {type: string; passingScore: number};
     competencyDimension?: string;
+    videoPolarity?: VideoPolarity;
+    taskCategoryId?: string | null;
+    qualityTagIds?: string[];
+    videoSeverity?: VideoSeverity | null;
+    videoReviewNote?: string | null;
   }) => Promise<void>;
   defaultContentType?: 'text' | 'video' | 'link';
+  videoSharingMode?: boolean;
+  videoTaxonomy?: VideoTaxonomy;
 }) => {
   const isEdit = !!initial;
+  const initialVideoPolarity = resolveVideoPolarity(initial ?? {}) ?? 'positive';
   const [title, setTitle] = useState(initial?.title ?? '');
-  const [category, setCategory] = useState(initial?.category ?? '沟通表达');
+  const [category, setCategory] = useState(
+    videoSharingMode ? VIDEO_POLARITY_LABELS[initialVideoPolarity] : initial?.category ?? '沟通表达',
+  );
   const [difficulty, setDifficulty] = useState(initial?.difficulty ?? '初级');
   const [desc, setDesc] = useState(initial?.description ?? '');
   const [duration, setDuration] = useState(initial?.durationMinutes ?? 30);
@@ -1448,6 +1577,13 @@ export const CreateCourseModal = ({initial, onClose, onSubmit, defaultContentTyp
   const [passingScore, setPassingScore] = useState(initial?.assessmentConfig?.passingScore ?? 60);
   const [assessType, setAssessType] = useState(initial?.assessmentConfig?.type ?? 'quiz');
   const [competencyDim, setCompetencyDim] = useState(initial?.competencyDimension ?? '');
+  const [videoPolarity, setVideoPolarity] = useState<VideoPolarity>(initialVideoPolarity);
+  const [taskCategoryId, setTaskCategoryId] = useState(initial?.taskCategoryId ?? '');
+  const [qualityTagIds, setQualityTagIds] = useState<string[]>(
+    initial?.qualityTagIds ?? initial?.qualityTags?.map(tag => tag.id) ?? [],
+  );
+  const [videoSeverity, setVideoSeverity] = useState<VideoSeverity | ''>(initial?.videoSeverity ?? '');
+  const [videoReviewNote, setVideoReviewNote] = useState(initial?.videoReviewNote ?? '');
   const [showContentEditor, setShowContentEditor] = useState(Boolean(defaultContentType));
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadingSectionIndex, setUploadingSectionIndex] = useState<number | null>(null);
@@ -1456,6 +1592,26 @@ export const CreateCourseModal = ({initial, onClose, onSubmit, defaultContentTyp
   const [materialUploadProgress, setMaterialUploadProgress] = useState(0);
   const [uploadError, setUploadError] = useState('');
   const toast = useToast();
+  const taskCategories = (videoTaxonomy?.taskCategories ?? [])
+    .filter(option => option.isActive || option.id === taskCategoryId);
+  const qualityTags = (videoPolarity === 'positive'
+    ? videoTaxonomy?.positiveTags ?? []
+    : videoTaxonomy?.negativeTags ?? [])
+    .filter(option => option.isActive || qualityTagIds.includes(option.id));
+
+  const selectVideoPolarity = (next: VideoPolarity) => {
+    if (next === videoPolarity) return;
+    setVideoPolarity(next);
+    setCategory(VIDEO_POLARITY_LABELS[next]);
+    setQualityTagIds([]);
+    if (next === 'positive') setVideoSeverity('');
+  };
+
+  const toggleQualityTag = (id: string) => {
+    setQualityTagIds(current => current.includes(id)
+      ? current.filter(item => item !== id)
+      : [...current, id]);
+  };
 
   const addSection = (contentType: 'text' | 'video' | 'link' = 'text') => setSections(s => [...s, {sectionTitle: '', contentType, text: '', contentUrl: ''}]);
   const updateSection = (i: number, field: string, val: string) => {
@@ -1553,7 +1709,10 @@ export const CreateCourseModal = ({initial, onClose, onSubmit, defaultContentTyp
     setIsSubmitting(true);
     try {
       await onSubmit({
-        title, category, difficulty, description: desc,
+        title,
+        category: videoSharingMode ? VIDEO_POLARITY_LABELS[videoPolarity] : category,
+        difficulty,
+        description: desc,
         durationMinutes: duration,
         content: normalizedSections.map(s => ({
           sectionTitle: s.sectionTitle,
@@ -1568,6 +1727,13 @@ export const CreateCourseModal = ({initial, onClose, onSubmit, defaultContentTyp
         })),
         assessmentConfig: {...initial?.assessmentConfig, type: assessType, passingScore},
         competencyDimension: competencyDim || undefined,
+        ...(videoSharingMode ? {
+          videoPolarity,
+          taskCategoryId: taskCategoryId || null,
+          qualityTagIds,
+          videoSeverity: videoPolarity === 'negative' ? videoSeverity || null : null,
+          videoReviewNote: videoReviewNote.trim() || null,
+        } : {}),
       });
     } finally {
       setIsSubmitting(false);
@@ -1581,7 +1747,7 @@ export const CreateCourseModal = ({initial, onClose, onSubmit, defaultContentTyp
         <h3 className="text-lg font-semibold text-fg mb-4">{isEdit ? '编辑培训课程' : '新建培训课程'}</h3>
         <div className="space-y-4">
           {/* Basic Info */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-fg-secondary mb-1">课程标题 *</label>
               <input value={title} onChange={e => setTitle(e.target.value)}
@@ -1598,29 +1764,148 @@ export const CreateCourseModal = ({initial, onClose, onSubmit, defaultContentTyp
               />
             </div>
           </div>
-          <div className="grid grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-fg-secondary mb-1">分类维度</label>
-              <select value={category} onChange={e => setCategory(e.target.value)}
-                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]">
-                {TRAINING_CATEGORIES.map(item => <option key={item} value={item}>{item}</option>)}
-              </select>
+          {videoSharingMode ? (
+            <section className="space-y-4 border-y border-border py-4">
+              <div>
+                <label className="block text-sm font-medium text-fg-secondary mb-2">视频性质 *</label>
+                <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="视频性质">
+                  {(['positive', 'negative'] as VideoPolarity[]).map(polarity => (
+                    <button
+                      key={polarity}
+                      type="button"
+                      role="radio"
+                      aria-checked={videoPolarity === polarity}
+                      onClick={() => selectVideoPolarity(polarity)}
+                      className={`flex min-h-11 items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+                        videoPolarity === polarity
+                          ? polarity === 'positive'
+                            ? 'border-emerald-600 bg-emerald-50 text-emerald-700'
+                            : 'border-rose-600 bg-rose-50 text-rose-700'
+                          : 'border-border bg-surface text-fg-secondary hover:bg-surface-muted'
+                      }`}
+                    >
+                      {polarity === 'positive'
+                        ? <CheckCircle className="h-4 w-4" />
+                        : <AlertTriangle className="h-4 w-4" />}
+                      {VIDEO_POLARITY_LABELS[polarity]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-fg-secondary mb-1">任务分类</label>
+                  <select
+                    value={taskCategoryId}
+                    onChange={event => setTaskCategoryId(event.target.value)}
+                    className="w-full rounded-lg border border-border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
+                  >
+                    <option value="">未分类</option>
+                    {taskCategories.map(option => (
+                      <option key={option.id} value={option.id}>{option.name}{option.isActive ? '' : '（已停用）'}</option>
+                    ))}
+                  </select>
+                </div>
+                {videoPolarity === 'negative' ? (
+                  <div>
+                    <label className="block text-sm font-medium text-fg-secondary mb-1">严重程度</label>
+                    <select
+                      value={videoSeverity}
+                      onChange={event => setVideoSeverity(event.target.value as VideoSeverity | '')}
+                      className="w-full rounded-lg border border-border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
+                    >
+                      <option value="">未设置</option>
+                      {(Object.entries(VIDEO_SEVERITY_LABELS) as [VideoSeverity, string][]).map(([value, label]) => (
+                        <option key={value} value={value}>{label}</option>
+                      ))}
+                    </select>
+                  </div>
+                ) : (
+                  <div>
+                    <label className="block text-sm font-medium text-fg-secondary mb-1">难度</label>
+                    <select value={difficulty} onChange={e => setDifficulty(e.target.value as TrainingCourse['difficulty'])}
+                      className="w-full rounded-lg border border-border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]">
+                      <option value="初级">初级</option>
+                      <option value="中级">中级</option>
+                      <option value="高级">高级</option>
+                    </select>
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-fg-secondary mb-2">
+                  {videoPolarity === 'positive' ? '优点标签' : '问题标签'}（可多选）
+                </label>
+                {qualityTags.length ? (
+                  <div className="flex flex-wrap gap-2">
+                    {qualityTags.map(option => {
+                      const selected = qualityTagIds.includes(option.id);
+                      return (
+                        <label
+                          key={option.id}
+                          className={`inline-flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm transition-colors ${
+                            selected
+                              ? videoPolarity === 'positive'
+                                ? 'border-emerald-300 bg-emerald-50 text-emerald-700'
+                                : 'border-rose-300 bg-rose-50 text-rose-700'
+                              : 'border-border bg-surface text-fg-secondary hover:bg-surface-muted'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selected}
+                            onChange={() => toggleQualityTag(option.id)}
+                            className="h-4 w-4 accent-[#1a4bc4]"
+                          />
+                          {option.name}{option.isActive ? '' : '（已停用）'}
+                        </label>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-xs text-fg-faint">当前还没有可选标签，可在“分类管理”中添加。</p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-fg-secondary mb-1">审核说明</label>
+                <textarea
+                  value={videoReviewNote}
+                  onChange={event => setVideoReviewNote(event.target.value)}
+                  rows={2}
+                  maxLength={1000}
+                  className="w-full rounded-lg border border-border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
+                  placeholder={videoPolarity === 'positive' ? '例如：动作连贯，流程完整' : '例如：为配合镜头多次停顿，摆拍痕迹明显'}
+                />
+              </div>
+            </section>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-fg-secondary mb-1">分类维度</label>
+                <select value={category} onChange={e => setCategory(e.target.value)}
+                  className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]">
+                  {TRAINING_CATEGORIES.map(item => <option key={item} value={item}>{item}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-fg-secondary mb-1">难度</label>
+                <select value={difficulty} onChange={e => setDifficulty(e.target.value as TrainingCourse['difficulty'])}
+                  className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]">
+                  <option value="初级">初级</option>
+                  <option value="中级">中级</option>
+                  <option value="高级">高级</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-fg-secondary mb-1">胜任力维度</label>
+                <input value={competencyDim} onChange={e => setCompetencyDim(e.target.value)}
+                  className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]" placeholder="可选" />
+              </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-fg-secondary mb-1">难度</label>
-              <select value={difficulty} onChange={e => setDifficulty(e.target.value)}
-                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]">
-                <option value="初级">初级</option>
-                <option value="中级">中级</option>
-                <option value="高级">高级</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-fg-secondary mb-1">胜任力维度</label>
-              <input value={competencyDim} onChange={e => setCompetencyDim(e.target.value)}
-                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]" placeholder="可选" />
-            </div>
-          </div>
+          )}
           <div>
             <label className="block text-sm font-medium text-fg-secondary mb-1">课程描述</label>
             <textarea value={desc} onChange={e => setDesc(e.target.value)} rows={2}

@@ -1,5 +1,5 @@
 import {Router} from 'express';
-import {query, queryOne} from '../../config/database.js';
+import {query, queryOne, transaction} from '../../config/database.js';
 import {requireRole} from '../../middleware/requireRole.js';
 import multer from 'multer';
 import path from 'path';
@@ -281,9 +281,167 @@ function verifyTrainingVideoToken(courseId: string, token: string | undefined): 
   return actualBuf.length === expectedBuf.length && crypto.timingSafeEqual(actualBuf, expectedBuf);
 }
 
+type VideoPolarity = 'positive' | 'negative';
+const taxonomyUuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function resolveVideoPolarity(value: unknown, category?: unknown): VideoPolarity | undefined {
+  if (value === 'positive' || value === 'negative') return value;
+  if (category === '正向视频') return 'positive';
+  if (category === '负向视频' || category === '负面视频') return 'negative';
+  return undefined;
+}
+
+function normalizeQualityTagIds(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return Array.from(new Set(value.map(id => String(id)).filter(id => taxonomyUuidPattern.test(id))));
+}
+
+async function enrichCoursesWithVideoTaxonomy(rows: Record<string, unknown>[]) {
+  if (!rows.length) return rows;
+  const courseIds = rows.map(row => String(row.id));
+  const [options, links] = await Promise.all([
+    query<Record<string, unknown>>('SELECT * FROM training_video_taxonomy_options'),
+    query<Record<string, unknown>>(
+      'SELECT course_id, tag_id FROM training_course_video_quality_tags WHERE course_id = ANY($1::uuid[])',
+      [courseIds],
+    ),
+  ]);
+  const optionById = new Map(options.map(option => [String(option.id), option]));
+  const tagIdsByCourse = new Map<string, string[]>();
+  for (const link of links) {
+    const courseId = String(link.course_id);
+    tagIdsByCourse.set(courseId, [...(tagIdsByCourse.get(courseId) ?? []), String(link.tag_id)]);
+  }
+  return rows.map(row => {
+    const courseId = String(row.id);
+    const taskCategoryId = row.video_task_category_id ? String(row.video_task_category_id) : '';
+    const qualityTagIds = tagIdsByCourse.get(courseId) ?? [];
+    return {
+      ...row,
+      task_category: taskCategoryId ? optionById.get(taskCategoryId) ?? null : null,
+      quality_tag_ids: qualityTagIds,
+      quality_tags: qualityTagIds.map(id => optionById.get(id)).filter(Boolean),
+    };
+  });
+}
+
+async function validateTaxonomySelection(
+  polarity: VideoPolarity | undefined,
+  taskCategoryId: string | null | undefined,
+  qualityTagIds: string[] | undefined,
+): Promise<string | null> {
+  if (taskCategoryId && !taxonomyUuidPattern.test(taskCategoryId)) return '任务分类格式无效';
+  const ids = Array.from(new Set([...(taskCategoryId ? [taskCategoryId] : []), ...(qualityTagIds ?? [])]));
+  if (!ids.length) return null;
+  const options = await query<Record<string, unknown>>(
+    'SELECT id, kind, polarity, is_active FROM training_video_taxonomy_options WHERE id = ANY($1::uuid[])',
+    [ids],
+  );
+  const optionById = new Map(options.map(option => [String(option.id), option]));
+  if (ids.some(id => !optionById.has(id))) return '所选分类或标签不存在';
+  if (taskCategoryId) {
+    const task = optionById.get(taskCategoryId);
+    if (task?.kind !== 'task' || !task.is_active) return '所选任务分类无效或已停用';
+  }
+  for (const id of qualityTagIds ?? []) {
+    const tag = optionById.get(id);
+    if (tag?.kind !== 'quality' || !tag.is_active) return '所选质量标签无效或已停用';
+    if (polarity && tag.polarity !== polarity) return '质量标签与视频性质不匹配';
+  }
+  return null;
+}
+
 // ═══════════════════════════════════════════════════════════════════
 // Courses (admin + recruiter 可管理, viewer 只读)
 // ═══════════════════════════════════════════════════════════════════
+
+router.get('/video-taxonomy', requireRole('admin', 'recruiter'), async (req, res, next) => {
+  try {
+    const includeInactive = req.query.includeInactive === 'true';
+    const rows = await query(
+      `SELECT * FROM training_video_taxonomy_options
+       ${includeInactive ? '' : 'WHERE is_active = true'}
+       ORDER BY sort_order, name`,
+    );
+    res.json({items: rows});
+  } catch (e) { next(e); }
+});
+
+router.post('/video-taxonomy', requireRole('admin', 'recruiter'), async (req, res, next) => {
+  try {
+    const kind = req.body.kind === 'task' || req.body.kind === 'quality' ? req.body.kind : '';
+    const polarity = req.body.polarity === 'positive' || req.body.polarity === 'negative' ? req.body.polarity : null;
+    const name = String(req.body.name ?? '').trim().slice(0, 100);
+    if (!kind || !name || (kind === 'quality' && !polarity)) {
+      res.status(400).json({error: {code: 'VALIDATION_ERROR', message: '分类名称、类型和方向不完整'}});
+      return;
+    }
+    const last = await queryOne<{sort_order: number}>(
+      'SELECT sort_order FROM training_video_taxonomy_options WHERE kind = $1 ORDER BY sort_order DESC LIMIT 1',
+      [kind],
+    );
+    const requestedSort = Number(req.body.sortOrder);
+    const sortOrder = Number.isFinite(requestedSort) ? Math.trunc(requestedSort) : Number(last?.sort_order ?? 0) + 10;
+    const row = await queryOne(
+      `INSERT INTO training_video_taxonomy_options (kind, polarity, name, sort_order)
+       VALUES ($1, $2, $3, $4) RETURNING *`,
+      [kind, kind === 'quality' ? polarity : null, name, sortOrder],
+    );
+    res.status(201).json(row);
+  } catch (e) { next(e); }
+});
+
+router.patch('/video-taxonomy/:id', requireRole('admin', 'recruiter'), async (req, res, next) => {
+  try {
+    if (!taxonomyUuidPattern.test(req.params.id)) {
+      res.status(400).json({error: {code: 'VALIDATION_ERROR', message: '分类 ID 无效'}});
+      return;
+    }
+    const fields: string[] = [];
+    const values: unknown[] = [];
+    if (req.body.name !== undefined) {
+      const name = String(req.body.name).trim().slice(0, 100);
+      if (!name) { res.status(400).json({error: {code: 'VALIDATION_ERROR', message: '分类名称不能为空'}}); return; }
+      values.push(name); fields.push(`name = $${values.length}`);
+    }
+    if (req.body.sortOrder !== undefined) {
+      const sortOrder = Number(req.body.sortOrder);
+      if (!Number.isFinite(sortOrder)) { res.status(400).json({error: {code: 'VALIDATION_ERROR', message: '排序值无效'}}); return; }
+      values.push(Math.trunc(sortOrder)); fields.push(`sort_order = $${values.length}`);
+    }
+    if (req.body.isActive !== undefined) {
+      values.push(Boolean(req.body.isActive)); fields.push(`is_active = $${values.length}`);
+    }
+    if (!fields.length) { res.status(400).json({error: {code: 'VALIDATION_ERROR', message: '没有可保存的修改'}}); return; }
+    values.push(req.params.id);
+    const row = await queryOne(
+      `UPDATE training_video_taxonomy_options SET ${fields.join(', ')}, updated_at = now()
+       WHERE id = $${values.length} RETURNING *`,
+      values,
+    );
+    if (!row) { res.status(404).json({error: {code: 'NOT_FOUND', message: '分类不存在'}}); return; }
+    res.json(row);
+  } catch (e) { next(e); }
+});
+
+router.delete('/video-taxonomy/:id', requireRole('admin', 'recruiter'), async (req, res, next) => {
+  try {
+    const option = await queryOne<{id: string; kind: string}>(
+      'SELECT id, kind FROM training_video_taxonomy_options WHERE id = $1',
+      [req.params.id],
+    );
+    if (!option) { res.status(404).json({error: {code: 'NOT_FOUND', message: '分类不存在'}}); return; }
+    const usage = option.kind === 'task'
+      ? await queryOne<{count: number}>('SELECT COUNT(*)::int AS count FROM training_courses WHERE video_task_category_id = $1', [option.id])
+      : await queryOne<{count: number}>('SELECT COUNT(*)::int AS count FROM training_course_video_quality_tags WHERE tag_id = $1', [option.id]);
+    if ((usage?.count ?? 0) > 0) {
+      res.status(409).json({error: {code: 'IN_USE', message: '该分类已被视频使用，请改为停用'}});
+      return;
+    }
+    await query('DELETE FROM training_video_taxonomy_options WHERE id = $1', [option.id]);
+    res.json({deleted: true, id: option.id});
+  } catch (e) { next(e); }
+});
 
 // GET /courses — list courses with filters (all authenticated users)
 router.get('/courses', async (req, res, next) => {
@@ -311,7 +469,8 @@ router.get('/courses', async (req, res, next) => {
       queryOne(`SELECT COUNT(*)::int AS total FROM training_courses tc ${where}`, params),
     ]);
 
-    res.json({items: rows, total: countResult?.total ?? 0, page: parseInt(page, 10), pageSize: limit});
+    const items = await enrichCoursesWithVideoTaxonomy(rows);
+    res.json({items, total: countResult?.total ?? 0, page: parseInt(page, 10), pageSize: limit});
   } catch (e) { next(e); }
 });
 
@@ -325,7 +484,8 @@ router.get('/courses/:id', async (req, res, next) => {
       [req.params.id],
     );
     if (!row) { res.status(404).json({error: {code: 'NOT_FOUND', message: `Course (${req.params.id}) not found`}}); return; }
-    res.json(row);
+    const [course] = await enrichCoursesWithVideoTaxonomy([row]);
+    res.json(course);
   } catch (e) { next(e); }
 });
 
@@ -333,55 +493,141 @@ router.get('/courses/:id', async (req, res, next) => {
 router.post('/courses', requireRole('admin', 'recruiter'), async (req, res, next) => {
   try {
     const {title, description, category, difficulty, durationMinutes, content, materials,
-           assessmentConfig, positionId, competencyDimension} = req.body;
+           assessmentConfig, positionId, competencyDimension, videoPolarity, taskCategoryId,
+           qualityTagIds: rawQualityTagIds, videoSeverity, videoReviewNote} = req.body;
     if (!title) { res.status(400).json({error: {code: 'VALIDATION_ERROR', message: 'title is required'}}); return; }
+    if (videoPolarity !== undefined && videoPolarity !== 'positive' && videoPolarity !== 'negative') {
+      res.status(400).json({error: {code: 'VALIDATION_ERROR', message: '视频性质无效'}}); return;
+    }
+    const polarity = resolveVideoPolarity(videoPolarity, category);
+    const taskId = taskCategoryId ? String(taskCategoryId) : null;
+    const qualityTagIds = normalizeQualityTagIds(rawQualityTagIds);
+    if (Array.isArray(rawQualityTagIds) && qualityTagIds.length !== rawQualityTagIds.length) {
+      res.status(400).json({error: {code: 'VALIDATION_ERROR', message: '质量标签格式无效'}}); return;
+    }
+    const taxonomyError = await validateTaxonomySelection(polarity, taskId, qualityTagIds);
+    if (taxonomyError) { res.status(400).json({error: {code: 'VALIDATION_ERROR', message: taxonomyError}}); return; }
+    if (videoSeverity !== undefined && videoSeverity !== null && !['minor', 'moderate', 'severe'].includes(videoSeverity)) {
+      res.status(400).json({error: {code: 'VALIDATION_ERROR', message: '严重程度无效'}}); return;
+    }
 
-    const row = await queryOne(
-      `INSERT INTO training_courses
-        (title, description, category, difficulty, duration_minutes, content, materials,
-         assessment_config, position_id, competency_dimension)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
-      [
-        title, description ?? null, category ?? '综合', difficulty ?? '初级',
-        durationMinutes ?? 30,
-        content ? JSON.stringify(content) : '[]',
-        materials ? JSON.stringify(materials) : '[]',
-        assessmentConfig ? JSON.stringify(assessmentConfig) : '{}',
-        positionId ?? null, competencyDimension ?? null,
-      ],
-    );
-    res.status(201).json(row);
+    const row = await transaction(async client => {
+      const result = await client.query(
+        `INSERT INTO training_courses
+          (title, description, category, difficulty, duration_minutes, content, materials,
+           assessment_config, position_id, competency_dimension, video_polarity,
+           video_task_category_id, video_severity, video_review_note)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING *`,
+        [
+          title, description ?? null,
+          category ?? (polarity === 'positive' ? '正向视频' : polarity === 'negative' ? '负向视频' : '综合'),
+          difficulty ?? '初级', durationMinutes ?? 30,
+          content ? JSON.stringify(content) : '[]', materials ? JSON.stringify(materials) : '[]',
+          assessmentConfig ? JSON.stringify(assessmentConfig) : '{}', positionId ?? null,
+          competencyDimension ?? null, polarity ?? null, taskId,
+          polarity === 'negative' ? videoSeverity ?? null : null,
+          videoReviewNote ? String(videoReviewNote).trim().slice(0, 1000) : null,
+        ],
+      );
+      const course = result.rows[0] as Record<string, unknown>;
+      for (const tagId of qualityTagIds) {
+        await client.query(
+          'INSERT INTO training_course_video_quality_tags (course_id, tag_id) VALUES ($1, $2)',
+          [course.id, tagId],
+        );
+      }
+      return course;
+    });
+    const [course] = await enrichCoursesWithVideoTaxonomy([row]);
+    res.status(201).json(course);
   } catch (e) { next(e); }
 });
 
 // PATCH /courses/:id (admin, recruiter)
 router.patch('/courses/:id', requireRole('admin', 'recruiter'), async (req, res, next) => {
   try {
+    const current = await queryOne<Record<string, unknown>>('SELECT * FROM training_courses WHERE id = $1', [req.params.id]);
+    if (!current) { res.status(404).json({error: {code: 'NOT_FOUND', message: 'Course not found'}}); return; }
+    const normalizedBody = {...req.body};
+    const polarityProvided = Object.prototype.hasOwnProperty.call(normalizedBody, 'videoPolarity');
+    if (polarityProvided && normalizedBody.videoPolarity !== null && normalizedBody.videoPolarity !== 'positive' && normalizedBody.videoPolarity !== 'negative') {
+      res.status(400).json({error: {code: 'VALIDATION_ERROR', message: '视频性质无效'}}); return;
+    }
+    const polarity = polarityProvided
+      ? resolveVideoPolarity(normalizedBody.videoPolarity, normalizedBody.category)
+      : resolveVideoPolarity(undefined, normalizedBody.category) ?? resolveVideoPolarity(current.video_polarity, current.category);
+    const taskProvided = Object.prototype.hasOwnProperty.call(normalizedBody, 'taskCategoryId');
+    const taskCategoryId = taskProvided && normalizedBody.taskCategoryId
+      ? String(normalizedBody.taskCategoryId)
+      : taskProvided ? null : undefined;
+    if (taskProvided) normalizedBody.taskCategoryId = taskCategoryId;
+    const qualityTagsProvided = Object.prototype.hasOwnProperty.call(normalizedBody, 'qualityTagIds') || polarityProvided;
+    const qualityTagIds = qualityTagsProvided ? normalizeQualityTagIds(normalizedBody.qualityTagIds ?? []) : undefined;
+    if (Array.isArray(normalizedBody.qualityTagIds) && qualityTagIds && qualityTagIds.length !== normalizedBody.qualityTagIds.length) {
+      res.status(400).json({error: {code: 'VALIDATION_ERROR', message: '质量标签格式无效'}}); return;
+    }
+    const taxonomyError = await validateTaxonomySelection(polarity, taskCategoryId, qualityTagIds);
+    if (taxonomyError) { res.status(400).json({error: {code: 'VALIDATION_ERROR', message: taxonomyError}}); return; }
+    if (normalizedBody.videoSeverity !== undefined && normalizedBody.videoSeverity !== null
+      && !['minor', 'moderate', 'severe'].includes(normalizedBody.videoSeverity)) {
+      res.status(400).json({error: {code: 'VALIDATION_ERROR', message: '严重程度无效'}}); return;
+    }
+    if (polarityProvided && normalizedBody.category === undefined && polarity) {
+      normalizedBody.category = polarity === 'positive' ? '正向视频' : '负向视频';
+    }
+    if (polarityProvided && polarity !== 'negative') normalizedBody.videoSeverity = null;
+    if (normalizedBody.videoReviewNote !== undefined) {
+      normalizedBody.videoReviewNote = normalizedBody.videoReviewNote
+        ? String(normalizedBody.videoReviewNote).trim().slice(0, 1000)
+        : null;
+    }
+
     const allowed: Record<string, string> = {
       title: 'title', description: 'description', category: 'category',
       difficulty: 'difficulty', durationMinutes: 'duration_minutes',
       content: 'content', materials: 'materials', assessmentConfig: 'assessment_config',
       positionId: 'position_id', competencyDimension: 'competency_dimension',
+      videoPolarity: 'video_polarity', taskCategoryId: 'video_task_category_id',
+      videoSeverity: 'video_severity', videoReviewNote: 'video_review_note',
       isActive: 'is_active',
     };
     const fields: string[] = [];
     const values: unknown[] = [];
     let idx = 1;
     for (const [bodyKey, col] of Object.entries(allowed)) {
-      if (req.body[bodyKey] !== undefined) {
-        let val = req.body[bodyKey];
+      if (normalizedBody[bodyKey] !== undefined) {
+        let val = normalizedBody[bodyKey];
         if (['content', 'materials', 'assessmentConfig'].includes(bodyKey)) val = JSON.stringify(val);
         fields.push(`${col} = $${idx++}`);
         values.push(val);
       }
     }
-    if (fields.length === 0) { res.status(400).json({error: {code: 'VALIDATION_ERROR', message: 'No fields'}}); return; }
+    if (fields.length === 0 && !qualityTagsProvided) { res.status(400).json({error: {code: 'VALIDATION_ERROR', message: 'No fields'}}); return; }
     fields.push('updated_at = now()');
-    values.push(req.params.id);
 
-    const row = await queryOne(`UPDATE training_courses SET ${fields.join(', ')} WHERE id = $${idx} RETURNING *`, values);
-    if (!row) { res.status(404).json({error: {code: 'NOT_FOUND', message: 'Course not found'}}); return; }
-    res.json(row);
+    const row = await transaction(async client => {
+      let course = current;
+      if (fields.length > 1) {
+        values.push(req.params.id);
+        const result = await client.query(
+          `UPDATE training_courses SET ${fields.join(', ')} WHERE id = $${idx} RETURNING *`,
+          values,
+        );
+        course = result.rows[0] as Record<string, unknown>;
+      }
+      if (qualityTagsProvided && qualityTagIds) {
+        await client.query('DELETE FROM training_course_video_quality_tags WHERE course_id = $1', [req.params.id]);
+        for (const tagId of qualityTagIds) {
+          await client.query(
+            'INSERT INTO training_course_video_quality_tags (course_id, tag_id) VALUES ($1, $2)',
+            [req.params.id, tagId],
+          );
+        }
+      }
+      return course;
+    });
+    const [course] = await enrichCoursesWithVideoTaxonomy([row]);
+    res.json(course);
   } catch (e) { next(e); }
 });
 
@@ -442,7 +688,8 @@ router.get('/public/course/:courseId', async (req, res, next) => {
       return;
     }
 
-    res.json({course});
+    const [enrichedCourse] = await enrichCoursesWithVideoTaxonomy([course]);
+    res.json({course: enrichedCourse});
   } catch (e) { next(e); }
 });
 

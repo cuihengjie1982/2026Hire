@@ -7,10 +7,17 @@ type Course = Record<string, unknown>;
 const courses: Course[] = [
   {
     id: 'positive', title: '正向课程', category: '正向视频', share_token: 'positive-token',
+    video_polarity: 'positive',
+    task_category: {id: 'task-clean', name: '清洁'},
+    quality_tags: [{id: 'tag-natural', name: '动作自然'}],
     content: [{sectionTitle: '正向示范', contentUrl: 'https://files.example.com/positive.mp4'}], materials: [],
   },
   {
     id: 'negative', title: '负向课程', category: '负向视频', share_token: 'negative-token',
+    video_polarity: 'negative',
+    video_severity: 'severe',
+    task_category: {id: 'task-clean', name: '清洁'},
+    quality_tags: [{id: 'tag-staged', name: '摆拍严重'}],
     content: [{sectionTitle: '负向示范', contentUrl: 'https://files.example.com/negative.mp4'}], materials: [],
   },
   {
@@ -98,6 +105,47 @@ describe('public video sharing page', () => {
     });
 
     expect(dom.window.document.querySelector('[data-category="other"]')).toBeNull();
+  });
+
+  it('shows contextual task and quality filters for the selected direction', async () => {
+    const dom = await loadPage();
+    const document = dom.window.document;
+
+    expect(document.querySelector('#task-filters')!.textContent).toContain('清洁');
+    expect(document.querySelector('#quality-filters')!.textContent).toContain('动作自然');
+
+    (document.querySelector('[data-category="negative"]') as HTMLButtonElement).click();
+    expect(document.querySelector('#task-filters')!.textContent).toContain('清洁');
+    expect(document.querySelector('#quality-filters')!.textContent).toContain('摆拍严重');
+    expect(document.querySelector('#list')!.textContent).toContain('严重');
+  });
+
+  it('filters negative videos by a selected quality tag', async () => {
+    const secondNegative = {
+      id: 'negative-slow', title: '慢动作课程', category: '负向视频', share_token: 'slow-token',
+      video_polarity: 'negative',
+      task_category: {id: 'task-clean', name: '清洁'},
+      quality_tags: [{id: 'tag-slow', name: '动作太慢'}],
+      content: [{sectionTitle: '慢动作示范', contentUrl: 'https://files.example.com/slow.mp4'}], materials: [],
+    };
+    const dom = await loadPage({ok: true, json: async () => ({items: [...courses, secondNegative]})});
+    const document = dom.window.document;
+
+    (document.querySelector('[data-category="negative"]') as HTMLButtonElement).click();
+    (document.querySelector('[data-quality="tag-staged"]') as HTMLButtonElement).click();
+
+    expect(document.querySelector('#list')!.textContent).toContain('负向示范');
+    expect(document.querySelector('#list')!.textContent).not.toContain('慢动作示范');
+  });
+
+  it('uses explicit polarity before the legacy category', async () => {
+    const explicit = {
+      id: 'explicit', title: '显式正向', category: '沟通表达', video_polarity: 'positive', share_token: 'explicit-token',
+      content: [{sectionTitle: '显式正向示范', contentUrl: 'https://files.example.com/explicit.mp4'}], materials: [],
+    };
+    const dom = await loadPage({ok: true, json: async () => ({items: [explicit]})});
+
+    expect(dom.window.document.querySelector('#list')!.textContent).toContain('显式正向示范');
   });
 
   it('retains loading and error states', async () => {

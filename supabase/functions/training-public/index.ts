@@ -56,6 +56,43 @@ async function verifyTrainingVideoToken(courseId: string, token: string | null):
   return !!expected && timingSafeEqual(token, expected);
 }
 
+type PublicTrainingClient = ReturnType<typeof createClient>;
+
+async function enrichCoursesWithVideoTaxonomy(
+  supabase: PublicTrainingClient,
+  courses: Record<string, unknown>[],
+): Promise<Record<string, unknown>[]> {
+  const courseIds = courses.map(course => String(course.id ?? '')).filter(Boolean);
+  if (!courseIds.length) return courses;
+  const [{data: options, error: optionsError}, {data: links, error: linksError}] = await Promise.all([
+    supabase.from('training_video_taxonomy_options').select('*'),
+    supabase.from('training_course_video_quality_tags').select('course_id, tag_id').in('course_id', courseIds),
+  ]);
+  if (optionsError) throw optionsError;
+  if (linksError) throw linksError;
+
+  const optionById = new Map((options ?? []).map(option => [String(option.id), option]));
+  const tagIdsByCourse = new Map<string, string[]>();
+  for (const link of links ?? []) {
+    const courseId = String(link.course_id);
+    const ids = tagIdsByCourse.get(courseId) ?? [];
+    ids.push(String(link.tag_id));
+    tagIdsByCourse.set(courseId, ids);
+  }
+
+  return courses.map(course => {
+    const courseId = String(course.id ?? '');
+    const taskCategoryId = course.video_task_category_id ? String(course.video_task_category_id) : '';
+    const qualityTagIds = tagIdsByCourse.get(courseId) ?? [];
+    return {
+      ...course,
+      task_category: taskCategoryId ? optionById.get(taskCategoryId) ?? null : null,
+      quality_tag_ids: qualityTagIds,
+      quality_tags: qualityTagIds.map(id => optionById.get(id)).filter(Boolean),
+    };
+  });
+}
+
 function getCourseId(req: Request): string {
   const url = new URL(req.url);
   const path = url.pathname.replace(/^\/training-public/, '') || '/';
@@ -101,7 +138,11 @@ Deno.serve(async (req) => {
 
       if (error) throw error;
 
-      const items = await Promise.all((data ?? []).map(async (course) => {
+      const enrichedCourses = await enrichCoursesWithVideoTaxonomy(
+        supabase,
+        (data ?? []) as Record<string, unknown>[],
+      );
+      const items = await Promise.all(enrichedCourses.map(async (course) => {
         const token = await createTrainingVideoToken(String(course.id));
         return {
           ...course,
@@ -139,7 +180,8 @@ Deno.serve(async (req) => {
       return jsonRes({ error: { code: 'NOT_FOUND', message: 'Course not found' } }, 404);
     }
 
-    return jsonRes({ course: data });
+    const [course] = await enrichCoursesWithVideoTaxonomy(supabase, [data]);
+    return jsonRes({ course });
   } catch (e) {
     console.error('[training-public]', e);
     return jsonRes({ error: { code: 'INTERNAL_ERROR', message: 'Failed to load course' } }, 500);
