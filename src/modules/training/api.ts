@@ -652,13 +652,15 @@ export const deleteVideoTaxonomyOption = async (id: string): Promise<void> => {
 
 // ─── Courses ────────────────────────────────────────────────────────────
 
-export const listCourses = async (filters?: {
+type CourseListFilters = {
   category?: string;
   positionId?: string;
   difficulty?: string;
   page?: number;
   pageSize?: number;
-}): Promise<{items: TrainingCourse[]; total: number; page: number; pageSize: number}> => {
+};
+
+export const listCourses = async (filters?: CourseListFilters): Promise<{items: TrainingCourse[]; total: number; page: number; pageSize: number}> => {
   if (USE_MOCK_API) {
     await mockDelay();
     let filtered = courses.filter(c => c.isActive);
@@ -684,6 +686,26 @@ export const listCourses = async (filters?: {
     page: (payload.page as number) ?? 1,
     pageSize: (payload.pageSize as number) ?? 50,
   };
+};
+
+export const listAllCourses = async (
+  filters?: Omit<CourseListFilters, 'page' | 'pageSize'>,
+): Promise<{items: TrainingCourse[]; total: number; page: number; pageSize: number}> => {
+  const pageSize = 200;
+  const coursesById = new Map<string, TrainingCourse>();
+  let page = 1;
+  let total = 0;
+
+  do {
+    const result = await listCourses({...filters, page, pageSize});
+    total = result.total;
+    result.items.forEach(course => coursesById.set(course.id, course));
+    if (result.items.length === 0) break;
+    page += 1;
+  } while ((page - 1) * pageSize < total);
+
+  const items = Array.from(coursesById.values());
+  return {items, total, page: 1, pageSize: items.length};
 };
 
 export const listPublicVideoShareCourses = async (): Promise<{items: TrainingCourse[]; total: number; page: number; pageSize: number}> => {

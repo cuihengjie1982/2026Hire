@@ -8,8 +8,8 @@ import {
   createCourse,
   deleteVideoTaxonomyOption,
   deleteCourse,
+  listAllCourses,
   listPublicVideoShareCourses,
-  listCourses,
   listVideoTaxonomy,
   updateCourse,
   updateVideoTaxonomyOption,
@@ -69,7 +69,7 @@ export const TrainingVideoSharePage = () => {
         return;
       }
       try {
-        const result = await listCourses();
+        const result = await listAllCourses();
         setCourses(result.items);
       } catch (e) {
         const message = e instanceof Error ? e.message : '';

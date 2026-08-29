@@ -9,9 +9,48 @@ import {
   createTrainingShareLink,
   createVideoTaxonomyOption,
   batchUpdateCourseReviewStatus,
+  listAllCourses,
   listPublicVideoShareCourses,
   listVideoTaxonomy,
 } from './api';
+
+describe('training course pagination', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('loads every page for course management instead of stopping at the first page', async () => {
+    const total = 450;
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async input => {
+      const url = new URL(String(input), 'https://hire.example.com');
+      const page = Number(url.searchParams.get('page') ?? 1);
+      const pageSize = Number(url.searchParams.get('pageSize') ?? 50);
+      const start = (page - 1) * pageSize;
+      const items = Array.from(
+        {length: Math.max(0, Math.min(pageSize, total - start))},
+        (_, index) => ({
+          id: `course-${start + index + 1}`,
+          title: `课程 ${start + index + 1}`,
+          content: [],
+          materials: [],
+          is_active: true,
+        }),
+      );
+      return {
+        ok: true,
+        json: async () => ({items, total, page, pageSize}),
+      } as Response;
+    });
+
+    const result = await listAllCourses();
+
+    expect(result.items).toHaveLength(total);
+    expect(new Set(result.items.map(course => course.id))).toHaveProperty('size', total);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(fetchMock.mock.calls.map(([input]) => new URL(String(input), 'https://hire.example.com').searchParams.get('page')))
+      .toEqual(['1', '2', '3']);
+  });
+});
 
 describe('training share links', () => {
   beforeEach(() => {
