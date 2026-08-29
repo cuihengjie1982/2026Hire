@@ -54,9 +54,12 @@ describe('video taxonomy course mapping', () => {
           category: '正向视频',
           video_polarity: 'positive',
           video_task_category_id: 'task-clean',
+          video_scene_id: 'scene-kitchen',
+          video_review_status: 'pending_review',
           video_severity: null,
           video_review_note: '动作连贯',
           task_category: {id: 'task-clean', kind: 'task', name: '清洁', sort_order: 1, is_active: true},
+          scene: {id: 'scene-kitchen', kind: 'scene', name: '厨房', sort_order: 1, is_active: true},
           quality_tags: [{id: 'tag-natural', kind: 'quality', polarity: 'positive', name: '动作自然', sort_order: 1, is_active: true}],
           content: [],
           materials: [],
@@ -72,6 +75,8 @@ describe('video taxonomy course mapping', () => {
 
     expect(course.videoPolarity).toBe('positive');
     expect(course.taskCategory?.name).toBe('清洁');
+    expect(course.scene?.name).toBe('厨房');
+    expect(course.videoReviewStatus).toBe('pending_review');
     expect(course.qualityTags.map(tag => tag.name)).toEqual(['动作自然']);
     expect(course.videoReviewNote).toBe('动作连贯');
   });
@@ -104,6 +109,7 @@ describe('video taxonomy API', () => {
       ok: true,
       json: async () => ({items: [
         {id: 'task-clean', kind: 'task', name: '清洁', sort_order: 1, is_active: true},
+        {id: 'scene-kitchen', kind: 'scene', name: '厨房', sort_order: 2, is_active: true},
         {id: 'tag-natural', kind: 'quality', polarity: 'positive', name: '动作自然', sort_order: 1, is_active: true},
         {id: 'tag-staged', kind: 'quality', polarity: 'negative', name: '摆拍严重', sort_order: 1, is_active: true},
       ]}),
@@ -112,6 +118,7 @@ describe('video taxonomy API', () => {
     const taxonomy = await listVideoTaxonomy();
 
     expect(taxonomy.taskCategories.map(option => option.name)).toEqual(expect.arrayContaining(['清洁']));
+    expect(taxonomy.scenes.map(option => option.name)).toEqual(expect.arrayContaining(['厨房']));
     expect(taxonomy.positiveTags.map(option => option.name)).toEqual(expect.arrayContaining(['动作自然']));
     expect(taxonomy.negativeTags.map(option => option.name)).toEqual(expect.arrayContaining(['摆拍严重']));
   });

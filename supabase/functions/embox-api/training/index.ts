@@ -99,6 +99,8 @@ async function verifyTrainingVideoToken(courseId: string, token: string | null):
 type TrainingDatabaseClient = ReturnType<typeof createSupabaseAdmin>;
 type VideoPolarity = 'positive' | 'negative';
 type VideoSeverity = 'minor' | 'moderate' | 'severe';
+type VideoReviewStatus = 'pending_review' | 'approved' | 'internal' | 'published';
+const VIDEO_REVIEW_STATUSES: VideoReviewStatus[] = ['pending_review', 'approved', 'internal', 'published'];
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -113,6 +115,14 @@ function normalizeVideoSeverity(value: unknown): VideoSeverity | null | undefine
   if (value === null || value === '') return null;
   if (value === 'minor' || value === 'moderate' || value === 'severe') return value;
   return value === undefined ? undefined : null;
+}
+
+function isVideoReviewStatus(value: unknown): value is VideoReviewStatus {
+  return typeof value === 'string' && VIDEO_REVIEW_STATUSES.includes(value as VideoReviewStatus);
+}
+
+function isPublicVideoReviewStatus(value: unknown): boolean {
+  return value === null || value === undefined || value === '' || value === 'approved' || value === 'published';
 }
 
 function normalizeTaxonomyIds(value: unknown): string[] {
@@ -146,6 +156,7 @@ async function enrichCoursesWithVideoTaxonomy(
   return courses.map(course => {
     const courseId = String(course.id ?? '');
     const taskCategoryId = course.video_task_category_id ? String(course.video_task_category_id) : '';
+    const sceneId = course.video_scene_id ? String(course.video_scene_id) : '';
     const qualityTagIds = tagIdsByCourse.get(courseId) ?? [];
     const qualityTags = qualityTagIds
       .map(id => optionById.get(id))
@@ -153,6 +164,7 @@ async function enrichCoursesWithVideoTaxonomy(
     return {
       ...course,
       task_category: taskCategoryId ? optionById.get(taskCategoryId) ?? null : null,
+      video_scene: sceneId ? optionById.get(sceneId) ?? null : null,
       quality_tag_ids: qualityTagIds,
       quality_tags: qualityTags,
     };
@@ -163,11 +175,14 @@ async function validateVideoTaxonomySelection(
   supabase: TrainingDatabaseClient,
   polarity: VideoPolarity | undefined,
   taskCategoryId: string | null | undefined,
+  sceneId: string | null | undefined,
   qualityTagIds: string[] | undefined,
 ): Promise<string | null> {
   if (taskCategoryId && !UUID_PATTERN.test(taskCategoryId)) return '任务分类格式无效';
+  if (sceneId && !UUID_PATTERN.test(sceneId)) return '场景格式无效';
   const ids = Array.from(new Set([
     ...(taskCategoryId ? [taskCategoryId] : []),
+    ...(sceneId ? [sceneId] : []),
     ...(qualityTagIds ?? []),
   ]));
   if (!ids.length) return null;
@@ -184,6 +199,12 @@ async function validateVideoTaxonomySelection(
     const task = optionById.get(taskCategoryId);
     if (task?.kind !== 'task') return '所选任务分类无效';
     if (!task.is_active) return '所选任务分类已停用';
+  }
+
+  if (sceneId) {
+    const scene = optionById.get(sceneId);
+    if (scene?.kind !== 'scene') return '所选场景无效';
+    if (!scene.is_active) return '所选场景已停用';
   }
 
   for (const id of qualityTagIds ?? []) {
@@ -265,6 +286,9 @@ const createCourse = async (req: Request): Promise<Response> => {
     const taskCategoryId = body.taskCategoryId === null || body.taskCategoryId === ''
       ? null
       : body.taskCategoryId === undefined ? undefined : String(body.taskCategoryId);
+    const sceneId = body.videoSceneId === null || body.videoSceneId === ''
+      ? null
+      : body.videoSceneId === undefined ? undefined : String(body.videoSceneId);
     const qualityTagIds = normalizeTaxonomyIds(body.qualityTagIds);
     if (Array.isArray(body.qualityTagIds) && qualityTagIds.length !== body.qualityTagIds.length) {
       return jsonRes({ error: { code: 'VALIDATION_ERROR', message: '质量标签格式无效' } }, 400);
@@ -273,6 +297,7 @@ const createCourse = async (req: Request): Promise<Response> => {
       supabase,
       videoPolarity,
       taskCategoryId,
+      sceneId,
       qualityTagIds,
     );
     if (taxonomyError) {
@@ -283,6 +308,14 @@ const createCourse = async (req: Request): Promise<Response> => {
     if (body.videoSeverity !== undefined && body.videoSeverity !== null && videoSeverity === null) {
       return jsonRes({ error: { code: 'VALIDATION_ERROR', message: '严重程度无效' } }, 400);
     }
+
+    const reviewStatusProvided = Object.prototype.hasOwnProperty.call(body, 'videoReviewStatus');
+    if (reviewStatusProvided && body.videoReviewStatus !== null && body.videoReviewStatus !== '' && !isVideoReviewStatus(body.videoReviewStatus)) {
+      return jsonRes({ error: { code: 'VALIDATION_ERROR', message: '审核状态无效' } }, 400);
+    }
+    const videoReviewStatus = reviewStatusProvided
+      ? (body.videoReviewStatus === null || body.videoReviewStatus === '' ? null : body.videoReviewStatus as VideoReviewStatus)
+      : videoPolarity === 'negative' ? 'pending_review' : videoPolarity === 'positive' ? 'published' : null;
 
     const { data, error } = await supabase.from('training_courses').insert({
       title: body.title,
@@ -297,8 +330,10 @@ const createCourse = async (req: Request): Promise<Response> => {
       competency_dimension: body.competencyDimension ?? null,
       video_polarity: videoPolarity ?? null,
       video_task_category_id: taskCategoryId ?? null,
+      video_scene_id: sceneId ?? null,
       video_severity: videoPolarity === 'negative' ? videoSeverity ?? null : null,
       video_review_note: body.videoReviewNote ? String(body.videoReviewNote).trim().slice(0, 1000) : null,
+      video_review_status: videoReviewStatus,
     }).select().single();
 
     if (error) throw error;
@@ -348,6 +383,10 @@ const updateCourse = async (req: Request): Promise<Response> => {
     const taskCategoryId = !taskCategoryProvided
       ? undefined
       : body.taskCategoryId === null || body.taskCategoryId === '' ? null : String(body.taskCategoryId);
+    const sceneProvided = Object.prototype.hasOwnProperty.call(body, 'videoSceneId');
+    const sceneId = !sceneProvided
+      ? undefined
+      : body.videoSceneId === null || body.videoSceneId === '' ? null : String(body.videoSceneId);
     const qualityTagsProvided = Object.prototype.hasOwnProperty.call(body, 'qualityTagIds')
       || polarityProvided;
     const qualityTagIds = qualityTagsProvided ? normalizeTaxonomyIds(body.qualityTagIds ?? []) : undefined;
@@ -358,6 +397,7 @@ const updateCourse = async (req: Request): Promise<Response> => {
       supabase,
       effectivePolarity,
       taskCategoryId,
+      sceneId,
       qualityTagIds,
     );
     if (taxonomyError) {
@@ -368,6 +408,10 @@ const updateCourse = async (req: Request): Promise<Response> => {
     const videoSeverity = normalizeVideoSeverity(body.videoSeverity);
     if (severityProvided && body.videoSeverity !== null && body.videoSeverity !== '' && videoSeverity === null) {
       return jsonRes({ error: { code: 'VALIDATION_ERROR', message: '严重程度无效' } }, 400);
+    }
+    const reviewStatusProvided = Object.prototype.hasOwnProperty.call(body, 'videoReviewStatus');
+    if (reviewStatusProvided && body.videoReviewStatus !== null && body.videoReviewStatus !== '' && !isVideoReviewStatus(body.videoReviewStatus)) {
+      return jsonRes({ error: { code: 'VALIDATION_ERROR', message: '审核状态无效' } }, 400);
     }
     const updates: Record<string, unknown> = {};
     const fieldMap: Record<string, string> = {
@@ -392,11 +436,17 @@ const updateCourse = async (req: Request): Promise<Response> => {
       if (effectivePolarity !== 'negative') updates.video_severity = null;
     }
     if (taskCategoryProvided) updates.video_task_category_id = taskCategoryId;
+    if (sceneProvided) updates.video_scene_id = sceneId;
     if (severityProvided && effectivePolarity === 'negative') updates.video_severity = videoSeverity;
     if (Object.prototype.hasOwnProperty.call(body, 'videoReviewNote')) {
       updates.video_review_note = body.videoReviewNote
         ? String(body.videoReviewNote).trim().slice(0, 1000)
         : null;
+    }
+    if (reviewStatusProvided) {
+      updates.video_review_status = body.videoReviewStatus === null || body.videoReviewStatus === ''
+        ? null
+        : body.videoReviewStatus;
     }
 
     if (Object.keys(updates).length === 0 && !qualityTagsProvided) {
@@ -490,10 +540,10 @@ export const handleVideoTaxonomy = async (req: Request): Promise<Response> => {
 
     if (req.method === 'POST') {
       const body = await req.json() as Record<string, unknown>;
-      const kind = body.kind === 'task' || body.kind === 'quality' ? body.kind : '';
+      const kind = body.kind === 'task' || body.kind === 'scene' || body.kind === 'quality' ? body.kind : '';
       const polarity = body.polarity === 'positive' || body.polarity === 'negative' ? body.polarity : null;
       const name = String(body.name ?? '').trim().slice(0, 100);
-      if (!kind || !name || (kind === 'quality' && !polarity)) {
+      if (!kind || !name || (kind === 'quality' && !polarity) || (kind !== 'quality' && polarity)) {
         return jsonRes({ error: { code: 'VALIDATION_ERROR', message: '分类名称、类型和方向不完整' } }, 400);
       }
       const {data: lastOption} = await supabase
@@ -569,7 +619,9 @@ export const handleVideoTaxonomy = async (req: Request): Promise<Response> => {
       }
       const usageResult = option.kind === 'task'
         ? await supabase.from('training_courses').select('id', {count: 'exact', head: true}).eq('video_task_category_id', optionId)
-        : await supabase.from('training_course_video_quality_tags').select('course_id', {count: 'exact', head: true}).eq('tag_id', optionId);
+        : option.kind === 'scene'
+          ? await supabase.from('training_courses').select('id', {count: 'exact', head: true}).eq('video_scene_id', optionId)
+          : await supabase.from('training_course_video_quality_tags').select('course_id', {count: 'exact', head: true}).eq('tag_id', optionId);
       if (usageResult.error) throw usageResult.error;
       if ((usageResult.count ?? 0) > 0) {
         return jsonRes({ error: { code: 'IN_USE', message: '该分类已被视频使用，请改为停用' } }, 409);
@@ -1122,12 +1174,15 @@ const shareLinkHandler = async (req: Request): Promise<Response> => {
 
     const { data: course, error } = await supabase
       .from('training_courses')
-      .select('id, title')
+      .select('id, title, video_review_status')
       .eq('id', courseId)
       .eq('is_active', true)
       .single();
     if (error || !course) {
       return jsonRes({ error: { code: 'NOT_FOUND', message: 'Course not found' } }, 404);
+    }
+    if (!isPublicVideoReviewStatus(course.video_review_status)) {
+      return jsonRes({ error: { code: 'REVIEW_REQUIRED', message: '该视频尚未通过公开审核' } }, 409);
     }
 
     const token = await createTrainingVideoToken(courseId);
@@ -1163,6 +1218,9 @@ const publicVideoCourseHandler = async (req: Request): Promise<Response> => {
       .eq('is_active', true)
       .single();
     if (error || !data) {
+      return jsonRes({ error: { code: 'NOT_FOUND', message: 'Course not found' } }, 404);
+    }
+    if (!isPublicVideoReviewStatus(data.video_review_status)) {
       return jsonRes({ error: { code: 'NOT_FOUND', message: 'Course not found' } }, 404);
     }
 

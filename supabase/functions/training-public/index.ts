@@ -58,6 +58,10 @@ async function verifyTrainingVideoToken(courseId: string, token: string | null):
 
 type PublicTrainingClient = ReturnType<typeof createClient>;
 
+function isPublicVideoReviewStatus(value: unknown): boolean {
+  return value === null || value === undefined || value === '' || value === 'approved' || value === 'published';
+}
+
 async function enrichCoursesWithVideoTaxonomy(
   supabase: PublicTrainingClient,
   courses: Record<string, unknown>[],
@@ -83,10 +87,12 @@ async function enrichCoursesWithVideoTaxonomy(
   return courses.map(course => {
     const courseId = String(course.id ?? '');
     const taskCategoryId = course.video_task_category_id ? String(course.video_task_category_id) : '';
+    const sceneId = course.video_scene_id ? String(course.video_scene_id) : '';
     const qualityTagIds = tagIdsByCourse.get(courseId) ?? [];
     return {
       ...course,
       task_category: taskCategoryId ? optionById.get(taskCategoryId) ?? null : null,
+      video_scene: sceneId ? optionById.get(sceneId) ?? null : null,
       quality_tag_ids: qualityTagIds,
       quality_tags: qualityTagIds.map(id => optionById.get(id)).filter(Boolean),
     };
@@ -138,9 +144,10 @@ Deno.serve(async (req) => {
 
       if (error) throw error;
 
+      const publicCourses = ((data ?? []) as Record<string, unknown>[]).filter(course => isPublicVideoReviewStatus(course.video_review_status));
       const enrichedCourses = await enrichCoursesWithVideoTaxonomy(
         supabase,
-        (data ?? []) as Record<string, unknown>[],
+        publicCourses,
       );
       const items = await Promise.all(enrichedCourses.map(async (course) => {
         const token = await createTrainingVideoToken(String(course.id));
@@ -177,6 +184,9 @@ Deno.serve(async (req) => {
       .single();
 
     if (error || !data) {
+      return jsonRes({ error: { code: 'NOT_FOUND', message: 'Course not found' } }, 404);
+    }
+    if (!isPublicVideoReviewStatus(data.video_review_status)) {
       return jsonRes({ error: { code: 'NOT_FOUND', message: 'Course not found' } }, 404);
     }
 

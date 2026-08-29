@@ -2,18 +2,19 @@ import {useMemo, useState} from 'react';
 import {ArrowDown, ArrowUp, Check, Pencil, Plus, Trash2, X} from 'lucide-react';
 import type {VideoPolarity, VideoTaxonomy, VideoTaxonomyOption} from '../types';
 
-type TaxonomySection = 'task' | 'positive' | 'negative';
+type TaxonomySection = 'task' | 'scene' | 'positive' | 'negative';
 
 interface VideoTaxonomyManagerProps {
   taxonomy: VideoTaxonomy;
   onClose: () => void;
-  onCreate: (input: {kind: 'task' | 'quality'; name: string; polarity?: VideoPolarity}) => Promise<void>;
+  onCreate: (input: {kind: 'task' | 'scene' | 'quality'; name: string; polarity?: VideoPolarity}) => Promise<void>;
   onUpdate: (id: string, updates: {name?: string; sortOrder?: number; isActive?: boolean}) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
 }
 
 const sectionMeta: Record<TaxonomySection, {label: string; placeholder: string}> = {
   task: {label: '任务分类', placeholder: '新增任务分类'},
+  scene: {label: '场景', placeholder: '新增场景'},
   positive: {label: '正向标签', placeholder: '新增正向标签'},
   negative: {label: '负向标签', placeholder: '新增负向标签'},
 };
@@ -34,6 +35,7 @@ export const VideoTaxonomyManager = ({
 
   const options = useMemo(() => {
     if (activeSection === 'task') return taxonomy.taskCategories;
+    if (activeSection === 'scene') return taxonomy.scenes;
     return activeSection === 'positive' ? taxonomy.positiveTags : taxonomy.negativeTags;
   }, [activeSection, taxonomy]);
 
@@ -54,6 +56,8 @@ export const VideoTaxonomyManager = ({
     if (!name) return;
     const input = activeSection === 'task'
       ? {kind: 'task' as const, name}
+      : activeSection === 'scene'
+        ? {kind: 'scene' as const, name}
       : {kind: 'quality' as const, name, polarity: activeSection as VideoPolarity};
     await run('create', async () => {
       await onCreate(input);
@@ -110,7 +114,9 @@ export const VideoTaxonomyManager = ({
             {(Object.keys(sectionMeta) as TaxonomySection[]).map(section => {
               const count = section === 'task'
                 ? taxonomy.taskCategories.length
-                : section === 'positive' ? taxonomy.positiveTags.length : taxonomy.negativeTags.length;
+                : section === 'scene'
+                  ? taxonomy.scenes.length
+                  : section === 'positive' ? taxonomy.positiveTags.length : taxonomy.negativeTags.length;
               return (
                 <button
                   key={section}

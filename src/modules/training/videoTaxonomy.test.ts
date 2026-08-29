@@ -4,6 +4,7 @@ import {
   resolveVideoPolarity,
   VIDEO_POLARITY_LABELS,
   VIDEO_SEVERITY_LABELS,
+  isPublicVideoReviewStatus,
 } from './videoTaxonomy';
 
 describe('video taxonomy domain', () => {
@@ -18,11 +19,13 @@ describe('video taxonomy domain', () => {
     const result = groupVideoTaxonomyOptions([
       {id: 'task-clean', kind: 'task', name: '清洁', sortOrder: 2, isActive: true},
       {id: 'task-hidden', kind: 'task', name: '停用分类', sortOrder: 1, isActive: false},
+      {id: 'scene-kitchen', kind: 'scene', name: '厨房', sortOrder: 1, isActive: true},
       {id: 'positive-natural', kind: 'quality', polarity: 'positive', name: '动作自然', sortOrder: 2, isActive: true},
       {id: 'negative-staged', kind: 'quality', polarity: 'negative', name: '摆拍严重', sortOrder: 1, isActive: true},
     ]);
 
     expect(result.taskCategories.map(option => option.name)).toEqual(['清洁']);
+    expect(result.scenes.map(option => option.name)).toEqual(['厨房']);
     expect(result.positiveTags.map(option => option.name)).toEqual(['动作自然']);
     expect(result.negativeTags.map(option => option.name)).toEqual(['摆拍严重']);
   });
@@ -30,5 +33,13 @@ describe('video taxonomy domain', () => {
   it('provides stable Chinese labels for fixed dimensions', () => {
     expect(VIDEO_POLARITY_LABELS).toEqual({positive: '正向视频', negative: '负向视频'});
     expect(VIDEO_SEVERITY_LABELS.severe).toBe('严重');
+  });
+
+  it('keeps legacy records public while gating new review states', () => {
+    expect(isPublicVideoReviewStatus(null)).toBe(true);
+    expect(isPublicVideoReviewStatus('published')).toBe(true);
+    expect(isPublicVideoReviewStatus('approved')).toBe(true);
+    expect(isPublicVideoReviewStatus('pending_review')).toBe(false);
+    expect(isPublicVideoReviewStatus('internal')).toBe(false);
   });
 });

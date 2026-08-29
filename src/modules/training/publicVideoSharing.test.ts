@@ -9,6 +9,7 @@ const courses: Course[] = [
     id: 'positive', title: '正向课程', category: '正向视频', share_token: 'positive-token',
     video_polarity: 'positive',
     task_category: {id: 'task-clean', name: '清洁'},
+    scene: {id: 'scene-kitchen', name: '厨房'},
     quality_tags: [{id: 'tag-natural', name: '动作自然'}],
     content: [{sectionTitle: '正向示范', contentUrl: 'https://files.example.com/positive.mp4'}], materials: [],
   },
@@ -17,6 +18,7 @@ const courses: Course[] = [
     video_polarity: 'negative',
     video_severity: 'severe',
     task_category: {id: 'task-clean', name: '清洁'},
+    scene: {id: 'scene-kitchen', name: '厨房'},
     quality_tags: [{id: 'tag-staged', name: '摆拍严重'}],
     content: [{sectionTitle: '负向示范', contentUrl: 'https://files.example.com/negative.mp4'}], materials: [],
   },
@@ -117,7 +119,28 @@ describe('public video sharing page', () => {
     (document.querySelector('[data-category="negative"]') as HTMLButtonElement).click();
     expect(document.querySelector('#task-filters')!.textContent).toContain('清洁');
     expect(document.querySelector('#quality-filters')!.textContent).toContain('摆拍严重');
+    expect(document.querySelector('#scene-filters')!.textContent).toContain('厨房');
     expect(document.querySelector('#list')!.textContent).toContain('严重');
+  });
+
+  it('filters the selected direction by scene', async () => {
+    const secondPositive = {
+      id: 'positive-office', title: '办公示范', category: '正向视频', share_token: 'office-token',
+      video_polarity: 'positive',
+      task_category: {id: 'task-clean', name: '清洁'},
+      scene: {id: 'scene-office', name: '书桌/书房'},
+      quality_tags: [{id: 'tag-natural', name: '动作自然'}],
+      content: [{sectionTitle: '办公示范', contentUrl: 'https://files.example.com/office.mp4'}], materials: [],
+    };
+    const dom = await loadPage({ok: true, json: async () => ({items: [...courses, secondPositive]})});
+    const document = dom.window.document;
+
+    expect(document.querySelector('#scene-filters')!.textContent).toContain('厨房');
+    expect(document.querySelector('#scene-filters')!.textContent).toContain('书桌/书房');
+    (document.querySelector('[data-scene="scene-office"]') as HTMLButtonElement).click();
+
+    expect(document.querySelector('#list')!.textContent).toContain('办公示范');
+    expect(document.querySelector('#list')!.textContent).not.toContain('正向示范');
   });
 
   it('filters negative videos by a selected quality tag', async () => {

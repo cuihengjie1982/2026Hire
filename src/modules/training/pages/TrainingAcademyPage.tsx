@@ -35,9 +35,10 @@ import {CATEGORY_COLORS, TRAINING_CATEGORIES} from '../courseCategories';
 import {
   resolveVideoPolarity,
   VIDEO_POLARITY_LABELS,
+  VIDEO_REVIEW_STATUS_LABELS,
   VIDEO_SEVERITY_LABELS,
 } from '../videoTaxonomy';
-import type {LearningPath, VideoPolarity, VideoSeverity, VideoTaxonomy} from '../types';
+import type {LearningPath, VideoPolarity, VideoReviewStatus, VideoSeverity, VideoTaxonomy} from '../types';
 
 type TabId = 'courses' | 'enrollments' | 'analysis' | 'effectiveness' | 'paths';
 
@@ -487,6 +488,8 @@ export const VideoShareTab = ({courses, readonly = false, publicAccess = false, 
 }) => {
   type AssetKind = 'video' | 'document';
   type AssetFilter = 'all' | 'video' | 'document' | 'pdf' | 'word' | 'other';
+  type DirectionFilter = '全部' | 'positive' | 'negative' | 'other';
+  type ReviewStatusFilter = '全部' | 'legacy' | VideoReviewStatus;
   type ShareableAsset = {
     id: string;
     course: TrainingCourse;
@@ -627,10 +630,13 @@ export const VideoShareTab = ({courses, readonly = false, publicAccess = false, 
       sourceLabel: item.sourceLabel,
       extension,
       captionsCount: item.kind === 'video' ? getActionCaptionsForUrl(course, item.url).length : 0,
-      searchText: `${course.title} ${course.description} ${course.category} ${course.taskCategory?.name ?? ''} ${(course.qualityTags ?? []).map(tag => tag.name).join(' ')} ${course.videoReviewNote ?? ''} ${item.title} ${kindLabel} ${extension}`.toLowerCase(),
+      searchText: `${course.title} ${course.description} ${course.category} ${course.taskCategory?.name ?? ''} ${course.scene?.name ?? ''} ${(course.qualityTags ?? []).map(tag => tag.name).join(' ')} ${course.videoReviewNote ?? ''} ${course.videoReviewStatus ? VIDEO_REVIEW_STATUS_LABELS[course.videoReviewStatus] : '历史记录'} ${item.title} ${kindLabel} ${extension}`.toLowerCase(),
     };
   }));
-  const categories = Array.from(new Set(assets.map(asset => asset.course.category || '综合'))).sort((a, b) => a.localeCompare(b, 'zh-Hans-CN'));
+  const getDirection = (asset: ShareableAsset): Exclude<DirectionFilter, '全部'> => {
+    if (asset.kind !== 'video') return 'other';
+    return resolveVideoPolarity(asset.course) ?? 'other';
+  };
   const [links, setLinks] = useState<Record<string, string>>({});
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [captionJobs, setCaptionJobs] = useState<ActionCaptionJob[]>(() => listActionCaptionJobs());
@@ -639,36 +645,55 @@ export const VideoShareTab = ({courses, readonly = false, publicAccess = false, 
   const [error, setError] = useState('');
   const [query, setQuery] = useState('');
   const [kindFilter, setKindFilter] = useState<AssetFilter>('all');
+  const [directionFilter, setDirectionFilter] = useState<DirectionFilter>('全部');
   const [categoryFilter, setCategoryFilter] = useState('全部');
   const [taskFilter, setTaskFilter] = useState('全部');
+  const [sceneFilter, setSceneFilter] = useState('全部');
   const [qualityFilter, setQualityFilter] = useState('全部');
+  const [reviewStatusFilter, setReviewStatusFilter] = useState<ReviewStatusFilter>('全部');
   const [page, setPage] = useState(1);
   const pageSize = 12;
   const canUsePublicLinks = publicAccess || !readonly;
-  const taxonomyScope = assets.filter(asset => categoryFilter === '全部' || asset.course.category === categoryFilter);
+  const directionScope = assets.filter(asset => directionFilter === '全部' || getDirection(asset) === directionFilter);
+  const categories = Array.from(new Set(directionScope
+    .map(asset => asset.course.category || '综合')
+    .filter(category => category !== '正向视频' && category !== '负向视频' && category !== '负面视频')))
+    .sort((a, b) => a.localeCompare(b, 'zh-Hans-CN'));
+  const categoryOptions = ['全部', ...categories];
+  const taxonomyScope = directionScope.filter(asset => categoryFilter === '全部' || asset.course.category === categoryFilter);
   const taskOptions = Array.from(new Map(
     taxonomyScope
       .filter(asset => asset.course.taskCategory)
       .map(asset => [asset.course.taskCategory!.id, asset.course.taskCategory!]),
   ).values()).sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name, 'zh-Hans-CN'));
+  const sceneOptions = Array.from(new Map(
+    taxonomyScope
+      .filter(asset => asset.course.scene)
+      .map(asset => [asset.course.scene!.id, asset.course.scene!]),
+  ).values()).sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name, 'zh-Hans-CN'));
   const qualityOptions = Array.from(new Map(
     taxonomyScope.flatMap(asset => (asset.course.qualityTags ?? []).map(tag => [tag.id, tag] as const)),
   ).values()).sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name, 'zh-Hans-CN'));
+  const reviewStatusOptions = Array.from(new Set<ReviewStatusFilter>(taxonomyScope.map(asset => asset.course.videoReviewStatus ?? 'legacy')));
 
   const filteredAssets = assets.filter(asset => {
     const normalizedQuery = query.trim().toLowerCase();
     const matchesSearch = !normalizedQuery || asset.searchText.includes(normalizedQuery);
+    const matchesDirection = directionFilter === '全部' || getDirection(asset) === directionFilter;
     const matchesCategory = categoryFilter === '全部' || asset.course.category === categoryFilter;
     const matchesTask = taskFilter === '全部' || asset.course.taskCategory?.id === taskFilter;
+    const matchesScene = sceneFilter === '全部' || asset.course.scene?.id === sceneFilter;
     const matchesQuality = qualityFilter === '全部'
       || (asset.course.qualityTags ?? []).some(tag => tag.id === qualityFilter);
+    const matchesReviewStatus = reviewStatusFilter === '全部'
+      || (reviewStatusFilter === 'legacy' ? !asset.course.videoReviewStatus : asset.course.videoReviewStatus === reviewStatusFilter);
     const matchesKind = kindFilter === 'all'
       || (kindFilter === 'video' && asset.kind === 'video')
       || (kindFilter === 'document' && asset.kind === 'document')
       || (kindFilter === 'pdf' && asset.extension === 'pdf')
       || (kindFilter === 'word' && ['doc', 'docx'].includes(asset.extension))
       || (kindFilter === 'other' && asset.kind === 'document' && !['pdf', 'doc', 'docx'].includes(asset.extension));
-    return matchesSearch && matchesCategory && matchesTask && matchesQuality && matchesKind;
+    return matchesSearch && matchesDirection && matchesCategory && matchesTask && matchesScene && matchesQuality && matchesReviewStatus && matchesKind;
   });
   const totalPages = Math.max(1, Math.ceil(filteredAssets.length / pageSize));
   const safePage = Math.min(page, totalPages);
@@ -682,11 +707,21 @@ export const VideoShareTab = ({courses, readonly = false, publicAccess = false, 
 
   useEffect(() => {
     setPage(1);
-  }, [query, kindFilter, categoryFilter, taskFilter, qualityFilter]);
+  }, [query, kindFilter, directionFilter, categoryFilter, taskFilter, sceneFilter, qualityFilter, reviewStatusFilter]);
+
+  useEffect(() => {
+    setCategoryFilter('全部');
+    setTaskFilter('全部');
+    setSceneFilter('全部');
+    setQualityFilter('全部');
+    setReviewStatusFilter('全部');
+  }, [directionFilter]);
 
   useEffect(() => {
     setTaskFilter('全部');
+    setSceneFilter('全部');
     setQualityFilter('全部');
+    setReviewStatusFilter('全部');
   }, [categoryFilter]);
 
   useEffect(() => subscribeActionCaptionJobs(setCaptionJobs), []);
@@ -756,6 +791,25 @@ export const VideoShareTab = ({courses, readonly = false, publicAccess = false, 
     {id: 'document', label: '文档', count: assetCounts.document},
     {id: 'pdf', label: 'PDF', count: assetCounts.pdf},
     {id: 'word', label: 'Word', count: assetCounts.word},
+  ];
+  const directionOptions: {id: DirectionFilter; label: string; count: number}[] = [
+    {id: '全部', label: '全部方向', count: assets.length},
+    {id: 'positive', label: '正向视频', count: assets.filter(asset => getDirection(asset) === 'positive').length},
+    {id: 'negative', label: '负向视频', count: assets.filter(asset => getDirection(asset) === 'negative').length},
+    ...(() => {
+      const count = assets.filter(asset => getDirection(asset) === 'other').length;
+      return count ? [{id: 'other' as const, label: '其他资料', count}] : [];
+    })(),
+  ];
+  const reviewStatusFilterOptions: {id: ReviewStatusFilter; label: string; count: number}[] = [
+    {id: '全部', label: '全部状态', count: taxonomyScope.length},
+    ...reviewStatusOptions.map(status => ({
+      id: status,
+      label: status === 'legacy' ? '历史记录' : VIDEO_REVIEW_STATUS_LABELS[status],
+      count: taxonomyScope.filter(asset => status === 'legacy'
+        ? !asset.course.videoReviewStatus
+        : asset.course.videoReviewStatus === status).length,
+    })),
   ];
 
   return (
@@ -855,26 +909,53 @@ export const VideoShareTab = ({courses, readonly = false, publicAccess = false, 
               </div>
             </div>
 
-            <div className="flex items-center gap-2 overflow-x-auto pb-1">
-              {['全部', ...categories].map(category => {
-                const count = category === '全部' ? assets.length : assets.filter(asset => asset.course.category === category).length;
+            <div className="flex items-center gap-3 overflow-x-auto pb-1" role="tablist" aria-label="资料方向">
+              <span className="shrink-0 text-xs font-medium text-fg-muted">资料方向</span>
+              {directionOptions.map(option => {
                 return (
                   <button
-                    key={category}
-                    onClick={() => setCategoryFilter(category)}
+                    key={option.id}
+                    type="button"
+                    aria-pressed={directionFilter === option.id}
+                    onClick={() => setDirectionFilter(option.id)}
                     className={`shrink-0 px-3 py-1.5 rounded-full text-xs border transition-colors ${
-                      categoryFilter === category
+                      directionFilter === option.id
                         ? 'bg-[#1a4bc4] border-[#1a4bc4] text-white'
                         : 'bg-surface border-border text-fg-secondary hover:bg-surface-muted'
                     }`}
                   >
-                    {category} <span className={categoryFilter === category ? 'text-blue-100' : 'text-fg-faint'}>{count}</span>
+                    {option.label} <span className={directionFilter === option.id ? 'text-blue-100' : 'text-fg-faint'}>{option.count}</span>
                   </button>
                 );
               })}
             </div>
 
-            {(taskOptions.length > 0 || qualityOptions.length > 0) && (
+            {categoryOptions.length > 1 && (
+              <div className="flex items-center gap-3 overflow-x-auto pb-1">
+                <span className="shrink-0 text-xs font-medium text-fg-muted">课程分类</span>
+                {categoryOptions.map(category => {
+                  const count = category === '全部'
+                    ? directionScope.length
+                    : directionScope.filter(asset => asset.course.category === category).length;
+                  return (
+                    <button
+                      key={category}
+                      type="button"
+                      onClick={() => setCategoryFilter(category)}
+                      className={`shrink-0 rounded-md border px-2.5 py-1.5 text-xs transition-colors ${
+                        categoryFilter === category
+                          ? 'border-gray-900 bg-gray-900 text-white'
+                          : 'border-border bg-surface text-fg-secondary hover:bg-surface-muted'
+                      }`}
+                    >
+                      {category === '全部' ? '全部分类' : category} <span className={categoryFilter === category ? 'text-gray-300' : 'text-fg-faint'}>{count}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {(taskOptions.length > 0 || sceneOptions.length > 0 || qualityOptions.length > 0 || (!publicAccess && reviewStatusFilterOptions.length > 1)) && (
               <div className="space-y-2 border-t border-border-subtle pt-3">
                 {taskOptions.length > 0 && (
                   <div className="flex items-start gap-3">
@@ -896,6 +977,32 @@ export const VideoShareTab = ({courses, readonly = false, publicAccess = false, 
                             }`}
                           >
                             {option.name} <span className={taskFilter === option.id ? 'text-gray-300' : 'text-fg-faint'}>{count}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+                {sceneOptions.length > 0 && (
+                  <div className="flex items-start gap-3">
+                    <span className="w-16 shrink-0 pt-1.5 text-xs font-medium text-fg-muted">场景</span>
+                    <div className="flex min-w-0 gap-2 overflow-x-auto pb-1">
+                      {[{id: '全部', name: '全部场景'}, ...sceneOptions].map(option => {
+                        const count = option.id === '全部'
+                          ? taxonomyScope.length
+                          : taxonomyScope.filter(asset => asset.course.scene?.id === option.id).length;
+                        return (
+                          <button
+                            key={option.id}
+                            type="button"
+                            onClick={() => setSceneFilter(option.id)}
+                            className={`shrink-0 rounded-md border px-2.5 py-1.5 text-xs transition-colors ${
+                              sceneFilter === option.id
+                                ? 'border-emerald-700 bg-emerald-700 text-white'
+                                : 'border-border bg-surface text-fg-secondary hover:bg-surface-muted'
+                            }`}
+                          >
+                            {option.name} <span className={sceneFilter === option.id ? 'text-emerald-100' : 'text-fg-faint'}>{count}</span>
                           </button>
                         );
                       })}
@@ -925,6 +1032,27 @@ export const VideoShareTab = ({courses, readonly = false, publicAccess = false, 
                           </button>
                         );
                       })}
+                    </div>
+                  </div>
+                )}
+                {!publicAccess && reviewStatusFilterOptions.length > 1 && (
+                  <div className="flex items-start gap-3">
+                    <span className="w-16 shrink-0 pt-1.5 text-xs font-medium text-fg-muted">审核状态</span>
+                    <div className="flex min-w-0 gap-2 overflow-x-auto pb-1">
+                      {reviewStatusFilterOptions.map(option => (
+                        <button
+                          key={option.id}
+                          type="button"
+                          onClick={() => setReviewStatusFilter(option.id)}
+                          className={`shrink-0 rounded-md border px-2.5 py-1.5 text-xs transition-colors ${
+                            reviewStatusFilter === option.id
+                              ? 'border-indigo-700 bg-indigo-700 text-white'
+                              : 'border-border bg-surface text-fg-secondary hover:bg-surface-muted'
+                          }`}
+                        >
+                          {option.label} <span className={reviewStatusFilter === option.id ? 'text-indigo-100' : 'text-fg-faint'}>{option.count}</span>
+                        </button>
+                      ))}
                     </div>
                   </div>
                 )}
@@ -980,6 +1108,9 @@ export const VideoShareTab = ({courses, readonly = false, publicAccess = false, 
                           {asset.course.taskCategory && (
                             <span className="rounded bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">{asset.course.taskCategory.name}</span>
                           )}
+                          {asset.course.scene && (
+                            <span className="rounded bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">{asset.course.scene.name}</span>
+                          )}
                           {(asset.course.qualityTags ?? []).slice(0, 2).map(tag => (
                             <span key={tag.id} className="rounded bg-surface-muted px-2 py-0.5 text-xs text-fg-secondary">{tag.name}</span>
                           ))}
@@ -989,6 +1120,11 @@ export const VideoShareTab = ({courses, readonly = false, publicAccess = false, 
                           {asset.course.videoSeverity && (
                             <span className="rounded bg-orange-50 px-2 py-0.5 text-xs font-medium text-orange-700">
                               {VIDEO_SEVERITY_LABELS[asset.course.videoSeverity]}
+                            </span>
+                          )}
+                          {!publicAccess && (
+                            <span className={`rounded px-2 py-0.5 text-xs font-medium ${asset.course.videoReviewStatus === 'pending_review' ? 'bg-amber-50 text-amber-700' : asset.course.videoReviewStatus === 'internal' ? 'bg-slate-100 text-slate-600' : 'bg-indigo-50 text-indigo-700'}`}>
+                              {asset.course.videoReviewStatus ? VIDEO_REVIEW_STATUS_LABELS[asset.course.videoReviewStatus] : '历史记录'}
                             </span>
                           )}
                         </div>
@@ -1107,6 +1243,11 @@ export const VideoShareTab = ({courses, readonly = false, publicAccess = false, 
                             {asset.course.taskCategory.name}
                           </span>
                         )}
+                        {asset.course.scene && (
+                          <span className="rounded bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
+                            {asset.course.scene.name}
+                          </span>
+                        )}
                         {(asset.course.qualityTags ?? []).slice(0, 2).map(tag => (
                           <span key={tag.id} className="rounded bg-surface-muted px-2 py-0.5 text-xs text-fg-secondary">
                             {tag.name}
@@ -1120,6 +1261,11 @@ export const VideoShareTab = ({courses, readonly = false, publicAccess = false, 
                         {asset.course.videoSeverity && (
                           <span className="rounded bg-orange-50 px-2 py-0.5 text-xs font-medium text-orange-700">
                             {VIDEO_SEVERITY_LABELS[asset.course.videoSeverity]}
+                          </span>
+                        )}
+                        {!publicAccess && (
+                          <span className={`rounded px-2 py-0.5 text-xs font-medium ${asset.course.videoReviewStatus === 'pending_review' ? 'bg-amber-50 text-amber-700' : asset.course.videoReviewStatus === 'internal' ? 'bg-slate-100 text-slate-600' : 'bg-indigo-50 text-indigo-700'}`}>
+                            {asset.course.videoReviewStatus ? VIDEO_REVIEW_STATUS_LABELS[asset.course.videoReviewStatus] : '历史记录'}
                           </span>
                         )}
                       </div>
@@ -1550,9 +1696,11 @@ export const CreateCourseModal = ({initial, onClose, onSubmit, defaultContentTyp
     competencyDimension?: string;
     videoPolarity?: VideoPolarity;
     taskCategoryId?: string | null;
+    videoSceneId?: string | null;
     qualityTagIds?: string[];
     videoSeverity?: VideoSeverity | null;
     videoReviewNote?: string | null;
+    videoReviewStatus?: VideoReviewStatus | null;
   }) => Promise<void>;
   defaultContentType?: 'text' | 'video' | 'link';
   videoSharingMode?: boolean;
@@ -1575,16 +1723,25 @@ export const CreateCourseModal = ({initial, onClose, onSubmit, defaultContentTyp
   const [materials, setMaterials] = useState<{title: string; type: string; url: string}[]>(
     initial?.materials?.map(m => ({title: m.title, type: m.type, url: m.url ?? ''})) ?? []
   );
+  type AssessmentType = 'quiz' | 'ai_review' | 'manual';
   const [passingScore, setPassingScore] = useState(initial?.assessmentConfig?.passingScore ?? 60);
-  const [assessType, setAssessType] = useState(initial?.assessmentConfig?.type ?? 'quiz');
+  const [assessType, setAssessType] = useState<AssessmentType>(() => {
+    const value = initial?.assessmentConfig?.type;
+    return value === 'ai_review' || value === 'manual' ? value : 'quiz';
+  });
   const [competencyDim, setCompetencyDim] = useState(initial?.competencyDimension ?? '');
   const [videoPolarity, setVideoPolarity] = useState<VideoPolarity>(initialVideoPolarity);
   const [taskCategoryId, setTaskCategoryId] = useState(initial?.taskCategoryId ?? '');
+  const [videoSceneId, setVideoSceneId] = useState(initial?.videoSceneId ?? '');
   const [qualityTagIds, setQualityTagIds] = useState<string[]>(
     initial?.qualityTagIds ?? initial?.qualityTags?.map(tag => tag.id) ?? [],
   );
   const [videoSeverity, setVideoSeverity] = useState<VideoSeverity | ''>(initial?.videoSeverity ?? '');
   const [videoReviewNote, setVideoReviewNote] = useState(initial?.videoReviewNote ?? '');
+  const [videoReviewStatus, setVideoReviewStatus] = useState<VideoReviewStatus | ''>(
+    initial?.videoReviewStatus
+      ?? (isEdit ? '' : initialVideoPolarity === 'negative' ? 'pending_review' : 'published'),
+  );
   const [showContentEditor, setShowContentEditor] = useState(Boolean(defaultContentType));
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadingSectionIndex, setUploadingSectionIndex] = useState<number | null>(null);
@@ -1595,6 +1752,8 @@ export const CreateCourseModal = ({initial, onClose, onSubmit, defaultContentTyp
   const toast = useToast();
   const taskCategories = (videoTaxonomy?.taskCategories ?? [])
     .filter(option => option.isActive || option.id === taskCategoryId);
+  const scenes = (videoTaxonomy?.scenes ?? [])
+    .filter(option => option.isActive || option.id === videoSceneId);
   const qualityTags = (videoPolarity === 'positive'
     ? videoTaxonomy?.positiveTags ?? []
     : videoTaxonomy?.negativeTags ?? [])
@@ -1606,6 +1765,7 @@ export const CreateCourseModal = ({initial, onClose, onSubmit, defaultContentTyp
     setCategory(VIDEO_POLARITY_LABELS[next]);
     setQualityTagIds([]);
     if (next === 'positive') setVideoSeverity('');
+    if (!isEdit || !videoReviewStatus) setVideoReviewStatus(next === 'negative' ? 'pending_review' : 'published');
   };
 
   const toggleQualityTag = (id: string) => {
@@ -1731,9 +1891,11 @@ export const CreateCourseModal = ({initial, onClose, onSubmit, defaultContentTyp
         ...(videoSharingMode ? {
           videoPolarity,
           taskCategoryId: taskCategoryId || null,
+          videoSceneId: videoSceneId || null,
           qualityTagIds,
           videoSeverity: videoPolarity === 'negative' ? videoSeverity || null : null,
           videoReviewNote: videoReviewNote.trim() || null,
+          videoReviewStatus: videoReviewStatus || null,
         } : {}),
       });
     } finally {
@@ -1821,6 +1983,20 @@ export const CreateCourseModal = ({initial, onClose, onSubmit, defaultContentTyp
                     ))}
                   </select>
                 </div>
+                <div>
+                  <label htmlFor="video-scene" className="block text-sm font-medium text-fg-secondary mb-1">场景</label>
+                  <select
+                    id="video-scene"
+                    value={videoSceneId}
+                    onChange={event => setVideoSceneId(event.target.value)}
+                    className="w-full rounded-lg border border-border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
+                  >
+                    <option value="">待确认</option>
+                    {scenes.map(option => (
+                      <option key={option.id} value={option.id}>{option.name}{option.isActive ? '' : '（已停用）'}</option>
+                    ))}
+                  </select>
+                </div>
                 {videoPolarity === 'negative' ? (
                   <div>
                     <label className="block text-sm font-medium text-fg-secondary mb-1">严重程度</label>
@@ -1846,6 +2022,23 @@ export const CreateCourseModal = ({initial, onClose, onSubmit, defaultContentTyp
                     </select>
                   </div>
                 )}
+              </div>
+
+              <div>
+                <label htmlFor="video-review-status" className="block text-sm font-medium text-fg-secondary mb-1">审核状态</label>
+                <select
+                  id="video-review-status"
+                  aria-label="审核状态"
+                  value={videoReviewStatus}
+                  onChange={event => setVideoReviewStatus(event.target.value as VideoReviewStatus | '')}
+                  className="w-full rounded-lg border border-border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]"
+                >
+                  {isEdit && !videoReviewStatus && <option value="">历史记录（保持原状态）</option>}
+                  {(Object.entries(VIDEO_REVIEW_STATUS_LABELS) as [VideoReviewStatus, string][]).map(([value, label]) => (
+                    <option key={value} value={value}>{label}</option>
+                  ))}
+                </select>
+                <p className="mt-1 text-xs text-fg-faint">待审核、内部使用不会出现在公开链接中。</p>
               </div>
 
               <div>
@@ -2088,7 +2281,7 @@ export const CreateCourseModal = ({initial, onClose, onSubmit, defaultContentTyp
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-fg-secondary mb-1">考核方式</label>
-                <select value={assessType} onChange={e => setAssessType(e.target.value)}
+                <select value={assessType} onChange={e => setAssessType(e.target.value as AssessmentType)}
                   className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]">
                   <option value="quiz">测验</option>
                   <option value="ai_review">AI 评审</option>
@@ -2259,7 +2452,11 @@ const PathFormModal = ({courses, initial, onClose, onSubmit}: {
   const isEdit = !!initial;
   const [title, setTitle] = useState(initial?.title ?? '');
   const [category, setCategory] = useState(initial?.category ?? '综合');
-  const [level, setLevel] = useState(initial?.level ?? '初级');
+  type LearningPathLevel = '初级' | '中级' | '高级';
+  const [level, setLevel] = useState<LearningPathLevel>(() => {
+    const value = initial?.level;
+    return value === '中级' || value === '高级' ? value : '初级';
+  });
   const [desc, setDesc] = useState(initial?.description ?? '');
   const [isCertified, setIsCertified] = useState(initial?.isCertified ?? false);
   const [selectedCourseIds, setSelectedCourseIds] = useState<string[]>(
@@ -2335,7 +2532,7 @@ const PathFormModal = ({courses, initial, onClose, onSubmit}: {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-fg-secondary mb-1">难度等级</label>
-              <select value={level} onChange={e => setLevel(e.target.value)}
+              <select value={level} onChange={e => setLevel(e.target.value as LearningPathLevel)}
                 className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a4bc4]">
                 <option value="初级">初级</option>
                 <option value="中级">中级</option>

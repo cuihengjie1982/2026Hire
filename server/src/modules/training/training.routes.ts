@@ -282,13 +282,23 @@ function verifyTrainingVideoToken(courseId: string, token: string | undefined): 
 }
 
 type VideoPolarity = 'positive' | 'negative';
+type VideoReviewStatus = 'pending_review' | 'approved' | 'internal' | 'published';
 const taxonomyUuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const videoReviewStatuses: VideoReviewStatus[] = ['pending_review', 'approved', 'internal', 'published'];
 
 function resolveVideoPolarity(value: unknown, category?: unknown): VideoPolarity | undefined {
   if (value === 'positive' || value === 'negative') return value;
   if (category === '正向视频') return 'positive';
   if (category === '负向视频' || category === '负面视频') return 'negative';
   return undefined;
+}
+
+function isVideoReviewStatus(value: unknown): value is VideoReviewStatus {
+  return typeof value === 'string' && videoReviewStatuses.includes(value as VideoReviewStatus);
+}
+
+function isPublicVideoReviewStatus(value: unknown): boolean {
+  return value === null || value === undefined || value === '' || value === 'approved' || value === 'published';
 }
 
 function normalizeQualityTagIds(value: unknown): string[] {
@@ -315,10 +325,12 @@ async function enrichCoursesWithVideoTaxonomy(rows: Record<string, unknown>[]) {
   return rows.map(row => {
     const courseId = String(row.id);
     const taskCategoryId = row.video_task_category_id ? String(row.video_task_category_id) : '';
+    const sceneId = row.video_scene_id ? String(row.video_scene_id) : '';
     const qualityTagIds = tagIdsByCourse.get(courseId) ?? [];
     return {
       ...row,
       task_category: taskCategoryId ? optionById.get(taskCategoryId) ?? null : null,
+      video_scene: sceneId ? optionById.get(sceneId) ?? null : null,
       quality_tag_ids: qualityTagIds,
       quality_tags: qualityTagIds.map(id => optionById.get(id)).filter(Boolean),
     };
@@ -328,10 +340,16 @@ async function enrichCoursesWithVideoTaxonomy(rows: Record<string, unknown>[]) {
 async function validateTaxonomySelection(
   polarity: VideoPolarity | undefined,
   taskCategoryId: string | null | undefined,
+  sceneId: string | null | undefined,
   qualityTagIds: string[] | undefined,
 ): Promise<string | null> {
   if (taskCategoryId && !taxonomyUuidPattern.test(taskCategoryId)) return '任务分类格式无效';
-  const ids = Array.from(new Set([...(taskCategoryId ? [taskCategoryId] : []), ...(qualityTagIds ?? [])]));
+  if (sceneId && !taxonomyUuidPattern.test(sceneId)) return '场景格式无效';
+  const ids = Array.from(new Set([
+    ...(taskCategoryId ? [taskCategoryId] : []),
+    ...(sceneId ? [sceneId] : []),
+    ...(qualityTagIds ?? []),
+  ]));
   if (!ids.length) return null;
   const options = await query<Record<string, unknown>>(
     'SELECT id, kind, polarity, is_active FROM training_video_taxonomy_options WHERE id = ANY($1::uuid[])',
@@ -342,6 +360,10 @@ async function validateTaxonomySelection(
   if (taskCategoryId) {
     const task = optionById.get(taskCategoryId);
     if (task?.kind !== 'task' || !task.is_active) return '所选任务分类无效或已停用';
+  }
+  if (sceneId) {
+    const scene = optionById.get(sceneId);
+    if (scene?.kind !== 'scene' || !scene.is_active) return '所选场景无效或已停用';
   }
   for (const id of qualityTagIds ?? []) {
     const tag = optionById.get(id);
@@ -369,10 +391,10 @@ router.get('/video-taxonomy', requireRole('admin', 'recruiter'), async (req, res
 
 router.post('/video-taxonomy', requireRole('admin', 'recruiter'), async (req, res, next) => {
   try {
-    const kind = req.body.kind === 'task' || req.body.kind === 'quality' ? req.body.kind : '';
+    const kind = req.body.kind === 'task' || req.body.kind === 'scene' || req.body.kind === 'quality' ? req.body.kind : '';
     const polarity = req.body.polarity === 'positive' || req.body.polarity === 'negative' ? req.body.polarity : null;
     const name = String(req.body.name ?? '').trim().slice(0, 100);
-    if (!kind || !name || (kind === 'quality' && !polarity)) {
+    if (!kind || !name || (kind === 'quality' && !polarity) || (kind !== 'quality' && polarity)) {
       res.status(400).json({error: {code: 'VALIDATION_ERROR', message: '分类名称、类型和方向不完整'}});
       return;
     }
@@ -433,7 +455,9 @@ router.delete('/video-taxonomy/:id', requireRole('admin', 'recruiter'), async (r
     if (!option) { res.status(404).json({error: {code: 'NOT_FOUND', message: '分类不存在'}}); return; }
     const usage = option.kind === 'task'
       ? await queryOne<{count: number}>('SELECT COUNT(*)::int AS count FROM training_courses WHERE video_task_category_id = $1', [option.id])
-      : await queryOne<{count: number}>('SELECT COUNT(*)::int AS count FROM training_course_video_quality_tags WHERE tag_id = $1', [option.id]);
+      : option.kind === 'scene'
+        ? await queryOne<{count: number}>('SELECT COUNT(*)::int AS count FROM training_courses WHERE video_scene_id = $1', [option.id])
+        : await queryOne<{count: number}>('SELECT COUNT(*)::int AS count FROM training_course_video_quality_tags WHERE tag_id = $1', [option.id]);
     if ((usage?.count ?? 0) > 0) {
       res.status(409).json({error: {code: 'IN_USE', message: '该分类已被视频使用，请改为停用'}});
       return;
@@ -493,40 +517,48 @@ router.get('/courses/:id', async (req, res, next) => {
 router.post('/courses', requireRole('admin', 'recruiter'), async (req, res, next) => {
   try {
     const {title, description, category, difficulty, durationMinutes, content, materials,
-           assessmentConfig, positionId, competencyDimension, videoPolarity, taskCategoryId,
-           qualityTagIds: rawQualityTagIds, videoSeverity, videoReviewNote} = req.body;
+           assessmentConfig, positionId, competencyDimension, videoPolarity, taskCategoryId, videoSceneId,
+           qualityTagIds: rawQualityTagIds, videoSeverity, videoReviewNote, videoReviewStatus} = req.body;
     if (!title) { res.status(400).json({error: {code: 'VALIDATION_ERROR', message: 'title is required'}}); return; }
     if (videoPolarity !== undefined && videoPolarity !== 'positive' && videoPolarity !== 'negative') {
       res.status(400).json({error: {code: 'VALIDATION_ERROR', message: '视频性质无效'}}); return;
     }
     const polarity = resolveVideoPolarity(videoPolarity, category);
     const taskId = taskCategoryId ? String(taskCategoryId) : null;
+    const sceneId = videoSceneId ? String(videoSceneId) : null;
     const qualityTagIds = normalizeQualityTagIds(rawQualityTagIds);
     if (Array.isArray(rawQualityTagIds) && qualityTagIds.length !== rawQualityTagIds.length) {
       res.status(400).json({error: {code: 'VALIDATION_ERROR', message: '质量标签格式无效'}}); return;
     }
-    const taxonomyError = await validateTaxonomySelection(polarity, taskId, qualityTagIds);
+    const taxonomyError = await validateTaxonomySelection(polarity, taskId, sceneId, qualityTagIds);
     if (taxonomyError) { res.status(400).json({error: {code: 'VALIDATION_ERROR', message: taxonomyError}}); return; }
     if (videoSeverity !== undefined && videoSeverity !== null && !['minor', 'moderate', 'severe'].includes(videoSeverity)) {
       res.status(400).json({error: {code: 'VALIDATION_ERROR', message: '严重程度无效'}}); return;
     }
+    if (videoReviewStatus !== undefined && videoReviewStatus !== null && videoReviewStatus !== '' && !isVideoReviewStatus(videoReviewStatus)) {
+      res.status(400).json({error: {code: 'VALIDATION_ERROR', message: '审核状态无效'}}); return;
+    }
+    const reviewStatus: VideoReviewStatus | null = videoReviewStatus === null || videoReviewStatus === ''
+      ? null
+      : videoReviewStatus ?? (polarity === 'negative' ? 'pending_review' : polarity === 'positive' ? 'published' : null);
 
     const row = await transaction(async client => {
       const result = await client.query(
         `INSERT INTO training_courses
           (title, description, category, difficulty, duration_minutes, content, materials,
            assessment_config, position_id, competency_dimension, video_polarity,
-           video_task_category_id, video_severity, video_review_note)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING *`,
+           video_task_category_id, video_scene_id, video_severity, video_review_note, video_review_status)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING *`,
         [
           title, description ?? null,
           category ?? (polarity === 'positive' ? '正向视频' : polarity === 'negative' ? '负向视频' : '综合'),
           difficulty ?? '初级', durationMinutes ?? 30,
           content ? JSON.stringify(content) : '[]', materials ? JSON.stringify(materials) : '[]',
           assessmentConfig ? JSON.stringify(assessmentConfig) : '{}', positionId ?? null,
-          competencyDimension ?? null, polarity ?? null, taskId,
+          competencyDimension ?? null, polarity ?? null, taskId, sceneId,
           polarity === 'negative' ? videoSeverity ?? null : null,
           videoReviewNote ? String(videoReviewNote).trim().slice(0, 1000) : null,
+          reviewStatus,
         ],
       );
       const course = result.rows[0] as Record<string, unknown>;
@@ -561,16 +593,25 @@ router.patch('/courses/:id', requireRole('admin', 'recruiter'), async (req, res,
       ? String(normalizedBody.taskCategoryId)
       : taskProvided ? null : undefined;
     if (taskProvided) normalizedBody.taskCategoryId = taskCategoryId;
+    const sceneProvided = Object.prototype.hasOwnProperty.call(normalizedBody, 'videoSceneId');
+    const sceneId = sceneProvided && normalizedBody.videoSceneId
+      ? String(normalizedBody.videoSceneId)
+      : sceneProvided ? null : undefined;
+    if (sceneProvided) normalizedBody.videoSceneId = sceneId;
     const qualityTagsProvided = Object.prototype.hasOwnProperty.call(normalizedBody, 'qualityTagIds') || polarityProvided;
     const qualityTagIds = qualityTagsProvided ? normalizeQualityTagIds(normalizedBody.qualityTagIds ?? []) : undefined;
     if (Array.isArray(normalizedBody.qualityTagIds) && qualityTagIds && qualityTagIds.length !== normalizedBody.qualityTagIds.length) {
       res.status(400).json({error: {code: 'VALIDATION_ERROR', message: '质量标签格式无效'}}); return;
     }
-    const taxonomyError = await validateTaxonomySelection(polarity, taskCategoryId, qualityTagIds);
+    const taxonomyError = await validateTaxonomySelection(polarity, taskCategoryId, sceneId, qualityTagIds);
     if (taxonomyError) { res.status(400).json({error: {code: 'VALIDATION_ERROR', message: taxonomyError}}); return; }
     if (normalizedBody.videoSeverity !== undefined && normalizedBody.videoSeverity !== null
       && !['minor', 'moderate', 'severe'].includes(normalizedBody.videoSeverity)) {
       res.status(400).json({error: {code: 'VALIDATION_ERROR', message: '严重程度无效'}}); return;
+    }
+    const reviewStatusProvided = Object.prototype.hasOwnProperty.call(normalizedBody, 'videoReviewStatus');
+    if (reviewStatusProvided && normalizedBody.videoReviewStatus !== null && normalizedBody.videoReviewStatus !== '' && !isVideoReviewStatus(normalizedBody.videoReviewStatus)) {
+      res.status(400).json({error: {code: 'VALIDATION_ERROR', message: '审核状态无效'}}); return;
     }
     if (polarityProvided && normalizedBody.category === undefined && polarity) {
       normalizedBody.category = polarity === 'positive' ? '正向视频' : '负向视频';
@@ -588,7 +629,8 @@ router.patch('/courses/:id', requireRole('admin', 'recruiter'), async (req, res,
       content: 'content', materials: 'materials', assessmentConfig: 'assessment_config',
       positionId: 'position_id', competencyDimension: 'competency_dimension',
       videoPolarity: 'video_polarity', taskCategoryId: 'video_task_category_id',
-      videoSeverity: 'video_severity', videoReviewNote: 'video_review_note',
+      videoSceneId: 'video_scene_id', videoSeverity: 'video_severity', videoReviewNote: 'video_review_note',
+      videoReviewStatus: 'video_review_status',
       isActive: 'is_active',
     };
     const fields: string[] = [];
@@ -650,12 +692,15 @@ router.post('/share-links', requireRole('admin', 'recruiter'), async (req, res, 
     }
 
     const course = await queryOne<Record<string, unknown>>(
-      `SELECT id, title, content FROM training_courses WHERE id = $1 AND is_active = true`,
+      `SELECT id, title, content, video_review_status FROM training_courses WHERE id = $1 AND is_active = true`,
       [courseId],
     );
     if (!course) {
       res.status(404).json({error: {code: 'NOT_FOUND', message: 'Course not found'}});
       return;
+    }
+    if (!isPublicVideoReviewStatus(course.video_review_status)) {
+      res.status(409).json({error: {code: 'REVIEW_REQUIRED', message: '该视频尚未通过公开审核'}}); return;
     }
 
     const token = createTrainingVideoToken(courseId);
@@ -686,6 +731,9 @@ router.get('/public/course/:courseId', async (req, res, next) => {
     if (!course) {
       res.status(404).json({error: {code: 'NOT_FOUND', message: 'Course not found'}});
       return;
+    }
+    if (!isPublicVideoReviewStatus(course.video_review_status)) {
+      res.status(404).json({error: {code: 'NOT_FOUND', message: 'Course not found'}}); return;
     }
 
     const [enrichedCourse] = await enrichCoursesWithVideoTaxonomy([course]);

@@ -14,6 +14,7 @@ import {
   updateVideoTaxonomyOption,
   type TrainingCourse,
   type VideoPolarity,
+  type VideoReviewStatus,
   type VideoSeverity,
   type VideoTaxonomy,
 } from '../api';
@@ -31,9 +32,11 @@ type VideoCourseInput = {
   competencyDimension?: string;
   videoPolarity?: VideoPolarity;
   taskCategoryId?: string | null;
+  videoSceneId?: string | null;
   qualityTagIds?: string[];
   videoSeverity?: VideoSeverity | null;
   videoReviewNote?: string | null;
+  videoReviewStatus?: VideoReviewStatus | null;
 };
 
 export const TrainingVideoSharePage = () => {

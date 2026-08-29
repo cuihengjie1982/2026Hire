@@ -150,6 +150,7 @@
       .tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px; }
       .tags .tag { margin-top: 0; }
       .tag-task { background: #eff6ff; border-color: #bfdbfe; color: #1d4ed8; }
+      .tag-scene { background: #ecfdf5; border-color: #a7f3d0; color: #047857; }
       .tag-quality { background: #f8fafc; border-color: #cbd5e1; color: #475569; }
       .tag-severity { background: #fff7ed; border-color: #fed7aa; color: #c2410c; }
       .actions {
@@ -209,6 +210,10 @@
             <span class="taxonomy-label">任务分类</span>
             <div id="task-filters" class="taxonomy-options" role="tablist" aria-label="任务分类"></div>
           </div>
+          <div id="scene-group" class="taxonomy-group" hidden>
+            <span class="taxonomy-label">场景</span>
+            <div id="scene-filters" class="taxonomy-options" role="tablist" aria-label="场景"></div>
+          </div>
           <div id="quality-group" class="taxonomy-group" hidden>
             <span class="taxonomy-label">质量标签</span>
             <div id="quality-filters" class="taxonomy-options" role="tablist" aria-label="质量标签"></div>
@@ -236,12 +241,15 @@
         var categoryFiltersEl = document.getElementById('category-filters');
         var taxonomyFiltersEl = document.getElementById('taxonomy-filters');
         var taskGroupEl = document.getElementById('task-group');
+        var sceneGroupEl = document.getElementById('scene-group');
         var qualityGroupEl = document.getElementById('quality-group');
         var taskFiltersEl = document.getElementById('task-filters');
+        var sceneFiltersEl = document.getElementById('scene-filters');
         var qualityFiltersEl = document.getElementById('quality-filters');
         var activeFilter = 'all';
         var activeCategory = 'positive';
         var activeTask = 'all';
+        var activeScene = 'all';
         var activeQuality = 'all';
         var assets = [];
 
@@ -383,6 +391,7 @@
             if (!token) continue;
             var explicitPolarity = course.video_polarity || course.videoPolarity || '';
             var taskCategory = course.task_category || course.taskCategory || null;
+            var scene = course.video_scene || course.scene || null;
             var rawQualityTags = course.quality_tags || course.qualityTags || [];
             var qualityTags = [];
             if (Array.isArray(rawQualityTags)) {
@@ -410,6 +419,9 @@
                 taskCategory: taskCategory && taskCategory.id ? {
                   id: String(taskCategory.id), name: String(taskCategory.name || '')
                 } : null,
+                scene: scene && scene.id ? {
+                  id: String(scene.id), name: String(scene.name || '')
+                } : null,
                 qualityTags: qualityTags,
                 severity: course.video_severity || course.videoSeverity || '',
                 reviewNote: course.video_review_note || course.videoReviewNote || '',
@@ -421,7 +433,7 @@
                 extension: ext,
                 searchText: [
                   course.title, course.description, course.category, items[j].title, kindLabel, ext,
-                  taskCategory && taskCategory.name, qualityTags.map(function (tag) { return tag.name; }).join(' '),
+                  taskCategory && taskCategory.name, scene && scene.name, qualityTags.map(function (tag) { return tag.name; }).join(' '),
                   course.video_review_note || course.videoReviewNote
                 ].join(' ').toLowerCase()
               });
@@ -466,6 +478,7 @@
             button.addEventListener('click', function () {
               activeCategory = this.getAttribute('data-category') || 'positive';
               activeTask = 'all';
+              activeScene = 'all';
               activeQuality = 'all';
               renderCategoryFilters();
               renderTaxonomyFilters();
@@ -504,15 +517,19 @@
         function renderTaxonomyFilters() {
           var scoped = assets.filter(function (asset) { return categoryGroup(asset) === activeCategory; });
           var tasks = uniqueOptions(scoped, function (asset) { return asset.taskCategory ? [asset.taskCategory] : []; });
+          var scenes = uniqueOptions(scoped, function (asset) { return asset.scene ? [asset.scene] : []; });
           var qualityTags = uniqueOptions(scoped, function (asset) { return asset.qualityTags; });
           if (activeTask !== 'all' && !tasks.some(function (task) { return task.id === activeTask; })) activeTask = 'all';
+          if (activeScene !== 'all' && !scenes.some(function (scene) { return scene.id === activeScene; })) activeScene = 'all';
           if (activeQuality !== 'all' && !qualityTags.some(function (tag) { return tag.id === activeQuality; })) activeQuality = 'all';
 
           taskFiltersEl.innerHTML = '';
+          sceneFiltersEl.innerHTML = '';
           qualityFiltersEl.innerHTML = '';
           taskGroupEl.hidden = tasks.length === 0;
+          sceneGroupEl.hidden = scenes.length === 0;
           qualityGroupEl.hidden = qualityTags.length === 0;
-          taxonomyFiltersEl.hidden = tasks.length === 0 && qualityTags.length === 0;
+          taxonomyFiltersEl.hidden = tasks.length === 0 && scenes.length === 0 && qualityTags.length === 0;
 
           if (tasks.length) {
             renderTaxonomyOption(taskFiltersEl, 'all', '全部任务', scoped.length, 'data-task', activeTask === 'all', function () {
@@ -525,6 +542,20 @@
                   activeTask = task.id; renderTaxonomyFilters(); render();
                 });
               })(tasks[i]);
+            }
+          }
+
+          if (scenes.length) {
+            renderTaxonomyOption(sceneFiltersEl, 'all', '全部场景', scoped.length, 'data-scene', activeScene === 'all', function () {
+              activeScene = 'all'; renderTaxonomyFilters(); render();
+            });
+            for (var sceneIndex = 0; sceneIndex < scenes.length; sceneIndex += 1) {
+              (function (scene) {
+                var count = scoped.filter(function (asset) { return asset.scene && asset.scene.id === scene.id; }).length;
+                renderTaxonomyOption(sceneFiltersEl, scene.id, scene.name, count, 'data-scene', activeScene === scene.id, function () {
+                  activeScene = scene.id; renderTaxonomyFilters(); render();
+                });
+              })(scenes[sceneIndex]);
             }
           }
 
@@ -557,6 +588,7 @@
           var filtered = assets.filter(function (asset) {
             var inCategory = categoryGroup(asset) === activeCategory;
             var taskMatched = activeTask === 'all' || (asset.taskCategory && asset.taskCategory.id === activeTask);
+            var sceneMatched = activeScene === 'all' || (asset.scene && asset.scene.id === activeScene);
             var qualityMatched = activeQuality === 'all'
               || asset.qualityTags.some(function (tag) { return tag.id === activeQuality; });
             var kindMatched = activeFilter === 'all'
@@ -564,7 +596,7 @@
               || (activeFilter === 'pdf' && asset.extension === 'pdf')
               || (activeFilter === 'word' && (asset.extension === 'doc' || asset.extension === 'docx'));
             var queryMatched = !query || asset.searchText.indexOf(query) !== -1;
-            return inCategory && taskMatched && qualityMatched && kindMatched && queryMatched;
+            return inCategory && taskMatched && sceneMatched && qualityMatched && kindMatched && queryMatched;
           });
           listEl.innerHTML = '';
           if (!filtered.length) {
@@ -605,6 +637,12 @@
               taskTag.className = 'tag tag-task';
               taskTag.textContent = asset.taskCategory.name;
               tags.appendChild(taskTag);
+            }
+            if (asset.scene) {
+              var sceneTag = document.createElement('span');
+              sceneTag.className = 'tag tag-scene';
+              sceneTag.textContent = asset.scene.name;
+              tags.appendChild(sceneTag);
             }
             for (var tagIndex = 0; tagIndex < Math.min(2, asset.qualityTags.length); tagIndex += 1) {
               var qualityTag = document.createElement('span');

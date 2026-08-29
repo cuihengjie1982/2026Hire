@@ -19,6 +19,7 @@ import {
   type TrainingActionCaptionJob,
   type TrainingActionCaptionResult,
   type VideoPolarity,
+  type VideoReviewStatus,
   type VideoSeverity,
   type VideoTaxonomy,
   type VideoTaxonomyOption,
@@ -42,6 +43,7 @@ export type {
   TrainingActionCaptionJob,
   TrainingActionCaptionResult,
   VideoPolarity,
+  VideoReviewStatus,
   VideoSeverity,
   VideoTaxonomy,
   VideoTaxonomyOption,
@@ -391,7 +393,7 @@ const mapVideoTaxonomyOption = (raw: unknown): VideoTaxonomyOption | undefined =
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
   const row = raw as Record<string, unknown>;
   const kind = String(row.kind ?? '') as VideoTaxonomyOption['kind'];
-  if (kind !== 'task' && kind !== 'quality') return undefined;
+  if (kind !== 'task' && kind !== 'scene' && kind !== 'quality') return undefined;
   const rawPolarity = row.polarity;
   const polarity = rawPolarity === 'positive' || rawPolarity === 'negative' ? rawPolarity : undefined;
   return {
@@ -413,6 +415,7 @@ const mapCourse = (raw: Record<string, unknown>): TrainingCourse => {
   const explicitPolarity = raw.video_polarity ?? raw.videoPolarity;
   const videoPolarity = resolveVideoPolarity({videoPolarity: explicitPolarity, category});
   const taskCategory = mapVideoTaxonomyOption(raw.task_category ?? raw.taskCategory);
+  const scene = mapVideoTaxonomyOption(raw.video_scene ?? raw.scene);
   const rawQualityTags = raw.quality_tags ?? raw.qualityTags;
   const qualityTags = (Array.isArray(rawQualityTags) ? rawQualityTags : [])
     .map(mapVideoTaxonomyOption)
@@ -424,6 +427,10 @@ const mapCourse = (raw: Record<string, unknown>): TrainingCourse => {
   const rawSeverity = raw.video_severity ?? raw.videoSeverity;
   const videoSeverity = ['minor', 'moderate', 'severe'].includes(String(rawSeverity ?? ''))
     ? String(rawSeverity) as VideoSeverity
+    : undefined;
+  const rawReviewStatus = raw.video_review_status ?? raw.videoReviewStatus;
+  const videoReviewStatus = ['pending_review', 'approved', 'internal', 'published'].includes(String(rawReviewStatus ?? ''))
+    ? String(rawReviewStatus) as VideoReviewStatus
     : undefined;
 
   return {
@@ -446,12 +453,17 @@ const mapCourse = (raw: Record<string, unknown>): TrainingCourse => {
       ? String(raw.video_task_category_id ?? raw.taskCategoryId)
       : taskCategory?.id,
     taskCategory,
+    videoSceneId: raw.video_scene_id || raw.videoSceneId
+      ? String(raw.video_scene_id ?? raw.videoSceneId)
+      : scene?.id,
+    scene,
     qualityTagIds,
     qualityTags,
     videoSeverity,
     videoReviewNote: raw.video_review_note || raw.videoReviewNote
       ? String(raw.video_review_note ?? raw.videoReviewNote)
       : undefined,
+    videoReviewStatus,
     isActive: Boolean(raw.is_active ?? raw.isActive ?? true),
     createdAt: String(raw.created_at ?? ''),
     updatedAt: String(raw.updated_at ?? ''),
@@ -536,6 +548,9 @@ let mockVideoTaxonomyOptions: VideoTaxonomyOption[] = [
   {id: 'task-cleaning', kind: 'task', name: '清洁', sortOrder: 10, isActive: true},
   {id: 'task-organizing', kind: 'task', name: '收纳', sortOrder: 20, isActive: true},
   {id: 'task-cooking', kind: 'task', name: '烹饪', sortOrder: 30, isActive: true},
+  {id: 'scene-kitchen', kind: 'scene', name: '厨房', sortOrder: 10, isActive: true},
+  {id: 'scene-living-room', kind: 'scene', name: '客厅', sortOrder: 20, isActive: true},
+  {id: 'scene-bedroom', kind: 'scene', name: '卧室', sortOrder: 30, isActive: true},
   {id: 'positive-natural', kind: 'quality', polarity: 'positive', name: '动作自然', sortOrder: 10, isActive: true},
   {id: 'positive-complete', kind: 'quality', polarity: 'positive', name: '流程完整', sortOrder: 20, isActive: true},
   {id: 'negative-staged', kind: 'quality', polarity: 'negative', name: '摆拍严重', sortOrder: 10, isActive: true},
@@ -712,8 +727,13 @@ export const createCourse = async (input: Partial<TrainingCourse> & {title: stri
       qualityTags: (input.qualityTagIds ?? [])
         .map(id => mockVideoTaxonomyOptions.find(option => option.id === id))
         .filter((option): option is VideoTaxonomyOption => Boolean(option)),
+      videoSceneId: input.videoSceneId,
+      scene: input.videoSceneId
+        ? mockVideoTaxonomyOptions.find(option => option.id === input.videoSceneId)
+        : undefined,
       videoSeverity: input.videoSeverity,
       videoReviewNote: input.videoReviewNote,
+      videoReviewStatus: input.videoReviewStatus,
       isActive: true,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -735,6 +755,11 @@ export const updateCourse = async (id: string, updates: Partial<TrainingCourse>)
     if (Object.prototype.hasOwnProperty.call(updates, 'taskCategoryId')) {
       next.taskCategory = updates.taskCategoryId
         ? mockVideoTaxonomyOptions.find(option => option.id === updates.taskCategoryId)
+        : undefined;
+    }
+    if (Object.prototype.hasOwnProperty.call(updates, 'videoSceneId')) {
+      next.scene = updates.videoSceneId
+        ? mockVideoTaxonomyOptions.find(option => option.id === updates.videoSceneId)
         : undefined;
     }
     if (updates.qualityTagIds) {
